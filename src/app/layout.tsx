@@ -2,6 +2,8 @@ import type { Metadata } from 'next'; // Correct import for Metadata
 import { Poppins } from 'next/font/google';
 
 import './globals.css';
+import { CourseManagementProvider } from './contexts/CourseManagementContext';
+import Sidebar from './components/layout/Sidebar';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -25,7 +27,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={poppins.variable}>{children}</body>
+      <body className={`${poppins.variable} font-sans bg-gray-50`}>
+        <CourseManagementProvider>
+          <div className="flex min-h-screen">
+            <Sidebar />
+            <div className="flex-1">
+              {children}
+            </div>
+          </div>
+        </CourseManagementProvider>
+      </body>
     </html>
   );
 }
