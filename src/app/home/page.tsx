@@ -6,21 +6,32 @@ import { ExcelDownload } from '../components/excel/ExcelDownload';
 import { ExcelData, CourseData } from '../components/excel/ExcelUtils';
 import { generateSampleExcelFile } from '../components/excel/generateSampleExcel';
 import { saveAs } from 'file-saver';
+import { useCourseManagement } from '../contexts/CourseManagementContext';
 
 export default function HomePage() {
-  const [excelData, setExcelData] = useState<ExcelData | null>(null);
+  const {
+    excelData,
+    isSessionActive,
+    startNewSession,
+    updateSessionData,
+    endCurrentSession,
+    timeRemaining
+  } = useCourseManagement();
+
   const [error, setError] = useState<string>('');
   const [editingCell, setEditingCell] = useState<{ rowIndex: number; field: keyof CourseData } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
 
   const handleDataLoaded = (data: ExcelData) => {
-    setExcelData(data);
+    if (!isSessionActive) {
+      startNewSession();
+    }
+    updateSessionData(data);
     setError('');
   };
 
   const handleError = (errorMessage: string) => {
     setError(errorMessage);
-    setExcelData(null);
   };
 
   const handleGenerateSample = () => {
@@ -70,7 +81,7 @@ export default function HomePage() {
     }
 
     newCourses[editingCell.rowIndex] = course;
-    setExcelData({ ...excelData, courses: newCourses });
+    updateSessionData({ ...excelData, courses: newCourses });
     setEditingCell(null);
   };
 
@@ -149,16 +160,62 @@ export default function HomePage() {
     );
   };
 
+  const formatTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Academic Record Excel Handler</h1>
       
+      {/* Session Timer */}
+      {isSessionActive && (
+        <div className="mb-4">
+          <div className={`p-2 rounded ${
+            timeRemaining < 300 ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+          }`}>
+            Session Time Remaining: {formatTime(timeRemaining)}
+          </div>
+        </div>
+      )}
+
       {/* Error Display */}
       {error && (
         <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
           {error}
         </div>
       )}
+
+      {/* Session Controls */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4">Session Management</h2>
+        <div className="flex gap-4">
+          <button
+            onClick={startNewSession}
+            disabled={isSessionActive}
+            className={`px-4 py-2 rounded ${
+              isSessionActive
+                ? 'bg-gray-300 cursor-not-allowed'
+                : 'bg-green-500 text-white hover:bg-green-600'
+            }`}
+          >
+            Start New Session
+          </button>
+          <button
+            onClick={endCurrentSession}
+            disabled={!isSessionActive}
+            className={`px-4 py-2 rounded ${
+              !isSessionActive
+                ? 'bg-gray-300 cursor-not-allowed'
+                : 'bg-red-500 text-white hover:bg-red-600'
+            }`}
+          >
+            End Session
+          </button>
+        </div>
+      </div>
 
       {/* Sample File Generation */}
       <div className="mb-8">
@@ -174,11 +231,17 @@ export default function HomePage() {
       {/* Upload Section */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Upload Academic Record</h2>
-        <ExcelUpload onDataLoaded={handleDataLoaded} onError={handleError} />
+        {isSessionActive ? (
+          <ExcelUpload onDataLoaded={handleDataLoaded} onError={handleError} />
+        ) : (
+          <div className="p-4 bg-yellow-100 text-yellow-800 rounded">
+            Please start a new session to upload and manage course data.
+          </div>
+        )}
       </div>
 
       {/* Data Preview Section */}
-      {excelData && (
+      {isSessionActive && excelData && (
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-4">Data Preview</h2>
           

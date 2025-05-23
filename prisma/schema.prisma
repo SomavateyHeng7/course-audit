@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Faculty {
+  id          String        @id @default(cuid())
+  name        String
+  code        String        @unique
+  departments Department[]
+  students    Student[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Department {
+  id          String       @id @default(cuid())
+  name        String
+  code        String
+  facultyId   String
+  faculty     Faculty      @relation(fields: [facultyId], references: [id])
+  curricula   Curriculum[]
+  students    Student[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([code, facultyId])
+}
+
+model Curriculum {
+  id           String     @id @default(cuid())
+  year         String
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  courses      Course[]
+  students     Student[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([year, departmentId])
+}
+
+model Course {
+  id            String          @id @default(cuid())
+  code          String
+  name          String
+  credits       Int
+  curriculumId  String
+  curriculum    Curriculum      @relation(fields: [curriculumId], references: [id])
+  prerequisites CourseLink[]    @relation("prerequisite")
+  postrequisites CourseLink[]   @relation("postrequisite")
+  studentCourses StudentCourse[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([code, curriculumId])
+}
+
+model CourseLink {
+  id              String   @id @default(cuid())
+  prerequisiteId  String
+  postrequisiteId String
+  prerequisite    Course   @relation("prerequisite", fields: [prerequisiteId], references: [id])
+  postrequisite   Course   @relation("postrequisite", fields: [postrequisiteId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([prerequisiteId, postrequisiteId])
+}
+
+model Student {
+  id           String          @id @default(cuid())
+  studentId    String         @unique
+  name         String
+  facultyId    String
+  faculty      Faculty        @relation(fields: [facultyId], references: [id])
+  departmentId String
+  department   Department     @relation(fields: [departmentId], references: [id])
+  curriculumId String
+  curriculum   Curriculum     @relation(fields: [curriculumId], references: [id])
+  courses      StudentCourse[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model StudentCourse {
+  id        String   @id @default(cuid())
+  studentId String
+  courseId  String
+  grade     String?
+  semester  String?
+  status    String   // 'completed', 'ongoing', 'pending'
+  student   Student  @relation(fields: [studentId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, courseId])
+}
