@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'; // Correct import for Metadata
 import { Poppins } from 'next/font/google';
+import { ThemeProvider } from '@/components/theme-provider';
 
 import './globals.css';
 import { CourseManagementProvider } from './contexts/CourseManagementContext';
@@ -26,16 +27,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={`${poppins.variable} font-sans bg-gray-50`}>
-        <CourseManagementProvider>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <div className="flex-1">
-              {children}
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${poppins.variable} font-sans antialiased`}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <CourseManagementProvider>
+            <div className="relative min-h-screen">
+              <Sidebar />
+              <main className="pl-56">
+                <div className="container py-6">
+                  {children}
+                </div>
+              </main>
             </div>
-          </div>
-        </CourseManagementProvider>
+          </CourseManagementProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
