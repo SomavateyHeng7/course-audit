@@ -1,4 +1,4 @@
-import { ExcelData } from '../components/excel/ExcelUtils';
+import { ExcelData } from '@/components/excel/ExcelUtils';
 
 export interface SessionData {
   id: string;

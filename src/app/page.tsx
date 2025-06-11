@@ -1,7 +1,6 @@
-export default function Home() {
-  return (
-    <div>
-      <h1>Welcome to the Course Audit System</h1>
-    </div>
-  );
+import React from 'react';
+import AuthForm from '@/components/shared/AuthForm';
+
+export default function AuthPage() {
+  return <AuthForm />;
 }

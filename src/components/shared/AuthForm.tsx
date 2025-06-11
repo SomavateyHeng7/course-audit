@@ -1,15 +1,120 @@
 'use client';
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
+import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+
+interface Faculty {
+  id: string;
+  name: string;
+  code: string;
+}
 
 export default function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchFaculties = async () => {
+      try {
+        const response = await fetch('/api/faculties', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch faculties');
+        }
+        
+        const data = await response.json();
+        setFaculties(data);
+      } catch (error) {
+        console.error('Error fetching faculties:', error);
+        setError('Unable to load faculties. Please try again later.');
+      }
+    };
+
+    fetchFaculties();
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+
+      router.push('/home');
+      router.refresh();
+    } catch (error) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      email: formData.get('email') as string,
+      password: formData.get('password') as string,
+      name: formData.get('name') as string,
+      facultyId: formData.get('facultyId') as string,
+    };
+
+    try {
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Signup failed');
+      }
+
+      // After successful signup, switch to login
+      setIsLogin(true);
+      setError(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Error creating account. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-white p-4">
-      <div className="w-full max-w-6xl h-[500px] rounded-3xl bg-white shadow-2xl overflow-hidden relative">
+      <div className="w-full max-w-6xl h-[500px] rounded-xl bg-white overflow-hidden relative">
         {/* Side Panel */}
         <div
-          className={`absolute top-0 w-1/2 h-full rounded-3xl transition-all duration-1000 ease-in-out z-10 ${
+          className={`absolute top-0 w-1/2 h-full rounded-xl transition-all duration-1000 ease-in-out z-10 ${
             isLogin ? 'right-0 rounded-l-none' : 'left-0 rounded-r-none'
           }`}
           style={{
@@ -88,20 +193,28 @@ export default function AuthForm() {
                   Sign In
                 </h2>
                 <p className="text-gray-500 mb-8">
-                  Enter your username and password
+                  Enter your email and password
                 </p>
 
-                <div className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4">
                   <input
-                    type="text"
-                    placeholder="Username"
+                    type="email"
+                    name="email"
+                    placeholder="Email"
+                    required
                     className="w-full rounded-lg bg-gray-100 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-300 transition-all duration-300 transform hover:scale-105 focus:scale-105 focus:shadow-lg"
                   />
                   <input
                     type="password"
+                    name="password"
                     placeholder="Password"
+                    required
                     className="w-full rounded-lg bg-gray-100 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-300 transition-all duration-300 transform hover:scale-105 focus:scale-105 focus:shadow-lg"
                   />
+
+                  {error && (
+                    <div className="text-red-500 text-sm">{error}</div>
+                  )}
 
                   <div className="text-center mt-6">
                     <button
@@ -113,13 +226,14 @@ export default function AuthForm() {
                   </div>
 
                   <button
-                    type="button"
-                    className="w-full mt-8 rounded-lg py-3 text-white font-semibold transition-all duration-500 hover:opacity-90 hover:scale-105 hover:shadow-xl transform hover:-translate-y-1"
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full mt-8 rounded-lg py-3 text-white font-semibold transition-all duration-500 hover:opacity-90 hover:scale-105 hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ backgroundColor: '#ff3366' }}
                   >
-                    SIGN IN
+                    {isLoading ? 'Signing in...' : 'SIGN IN'}
                   </button>
-                </div>
+                </form>
               </div>
             </div>
           </div>
@@ -142,29 +256,57 @@ export default function AuthForm() {
                   Create Account
                 </h2>
                 <p className="text-gray-500 mb-8">
-                  Enter your username and passowrd
+                  Enter your details to sign up
                 </p>
 
-                <div className="space-y-4">
+                <form onSubmit={handleSignup} className="space-y-4">
                   <input
                     type="text"
-                    placeholder="Username"
+                    name="name"
+                    placeholder="Full Name"
+                    required
                     className="w-full rounded-lg bg-gray-100 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-300 transition-all duration-300 transform hover:scale-105 focus:scale-105 focus:shadow-lg"
                   />
                   <input
+                    type="email"
+                    name="email"
+                    placeholder="Email"
+                    required
+                    className="w-full rounded-lg bg-gray-100 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-300 transition-all duration-300 transform hover:scale-105 focus:scale-105 focus:shadow-lg"
+                  />
+                  <select
+                    name="facultyId"
+                    required
+                    className="w-full rounded-lg bg-gray-100 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-300 transition-all duration-300 transform hover:scale-105 focus:scale-105 focus:shadow-lg"
+                  >
+                    <option value="">Select Faculty</option>
+                    {faculties.map((faculty) => (
+                      <option key={faculty.id} value={faculty.id}>
+                        {faculty.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
                     type="password"
+                    name="password"
                     placeholder="Password"
+                    required
                     className="w-full rounded-lg bg-gray-100 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-300 transition-all duration-300 transform hover:scale-105 focus:scale-105 focus:shadow-lg"
                   />
 
+                  {error && (
+                    <div className="text-red-500 text-sm">{error}</div>
+                  )}
+
                   <button
-                    type="button"
-                    className="w-full mt-8 rounded-lg py-3 text-white font-semibold transition-all duration-500 hover:opacity-90 hover:scale-105 hover:shadow-xl transform hover:-translate-y-1"
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full mt-8 rounded-lg py-3 text-white font-semibold transition-all duration-500 hover:opacity-90 hover:scale-105 hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ backgroundColor: '#f8326b' }}
                   >
-                    SIGN UP
+                    {isLoading ? 'Creating account...' : 'SIGN UP'}
                   </button>
-                </div>
+                </form>
               </div>
             </div>
           </div>
@@ -172,4 +314,4 @@ export default function AuthForm() {
       </div>
     </div>
   );
-}
+} 

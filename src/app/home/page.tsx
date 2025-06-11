@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { ExcelUpload } from '../components/excel/ExcelUpload';
-import { ExcelDownload } from '../components/excel/ExcelDownload';
-import { ExcelData, CourseData } from '../components/excel/ExcelUtils';
-import { generateSampleExcelFile } from '../components/excel/generateSampleExcel';
+import ExcelUpload from '@/components/excel/ExcelUpload';
+import ExcelDownload from '@/components/excel/ExcelDownload';
+import { ExcelData, CourseData } from '@/components/excel/ExcelUtils';
+import { generateSampleExcel } from '@/components/excel/generateSampleExcel';
 import { saveAs } from 'file-saver';
 import { useCourseManagement } from '../contexts/CourseManagementContext';
 
@@ -36,7 +36,8 @@ export default function HomePage() {
 
   const handleGenerateSample = () => {
     try {
-      const blob = generateSampleExcelFile();
+      const workbook = generateSampleExcel();
+      const blob = new Blob([workbook], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       saveAs(blob, 'sample-academic-record.xlsx');
     } catch (error) {
       setError('Failed to generate sample Excel file');

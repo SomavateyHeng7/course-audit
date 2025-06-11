@@ -13,14 +13,36 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(STUDENT)
+  facultyId String
+  faculty   Faculty  @relation(fields: [facultyId], references: [id])
+  advisorId String?
+  advisor   User?    @relation("AdvisorStudent", fields: [advisorId], references: [id])
+  students  User[]   @relation("AdvisorStudent")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Faculty {
-  id          String        @id @default(cuid())
-  name        String
-  code        String        @unique
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  users     User[]
   departments Department[]
-  students    Student[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  curricula   Curriculum[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  STUDENT
+  ADVISOR
+  CHAIRPERSON
 }
 
 model Department {
@@ -30,7 +52,6 @@ model Department {
   facultyId   String
   faculty     Faculty      @relation(fields: [facultyId], references: [id])
   curricula   Curriculum[]
-  students    Student[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -42,8 +63,9 @@ model Curriculum {
   year         String
   departmentId String
   department   Department @relation(fields: [departmentId], references: [id])
+  facultyId    String
+  faculty      Faculty    @relation(fields: [facultyId], references: [id])
   courses      Course[]
-  students     Student[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -59,7 +81,6 @@ model Course {
   curriculum    Curriculum      @relation(fields: [curriculumId], references: [id])
   prerequisites CourseLink[]    @relation("prerequisite")
   postrequisites CourseLink[]   @relation("postrequisite")
-  studentCourses StudentCourse[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
@@ -76,34 +97,4 @@ model CourseLink {
   updatedAt       DateTime @updatedAt
 
   @@unique([prerequisiteId, postrequisiteId])
-}
-
-model Student {
-  id           String          @id @default(cuid())
-  studentId    String         @unique
-  name         String
-  facultyId    String
-  faculty      Faculty        @relation(fields: [facultyId], references: [id])
-  departmentId String
-  department   Department     @relation(fields: [departmentId], references: [id])
-  curriculumId String
-  curriculum   Curriculum     @relation(fields: [curriculumId], references: [id])
-  courses      StudentCourse[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-}
-
-model StudentCourse {
-  id        String   @id @default(cuid())
-  studentId String
-  courseId  String
-  grade     String?
-  semester  String?
-  status    String   // 'completed', 'ongoing', 'pending'
-  student   Student  @relation(fields: [studentId], references: [id])
-  course    Course   @relation(fields: [courseId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([studentId, courseId])
 }

@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { ExcelUpload } from "@/app/components/excel/ExcelUpload"
+import ExcelUpload from "@/components/excel/ExcelUpload"
 import { useCourseManagement } from "@/app/contexts/CourseManagementContext"
-import { ExcelData } from "@/app/components/excel/ExcelUtils"
+import { ExcelData } from "@/components/excel/ExcelUtils"
 
 export default function ManagementPage() {
   const router = useRouter()
