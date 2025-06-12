@@ -88,9 +88,7 @@ export default function Sidebar() {
               <span className="text-sm font-medium">NICKNAME</span>
             </div>
           </div>
-        </div>
-
-      {/* Navigation */}
+        </div>      {/* Navigation */}
       <nav className="flex-1 px-2 py-4">
         <div className="space-y-1">
           {navigationItems.map((item) => {
@@ -117,7 +115,9 @@ export default function Sidebar() {
             );
           })}
         </div>
-      </nav>      {/* Logout Button */}
+      </nav>
+
+      {/* Logout Button */}
       <div className="p-4 border-t mt-auto">
         <Button
           onClick={handleLogout}
@@ -127,6 +127,7 @@ export default function Sidebar() {
           <LogOut className="h-5 w-5" />
           Log Out
         </Button>
+      </div>
       </div>
     </div>
   );
