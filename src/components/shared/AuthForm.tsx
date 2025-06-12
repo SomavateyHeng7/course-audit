@@ -62,7 +62,7 @@ export default function AuthForm() {
         return;
       }
 
-      router.push('/management');
+      router.push('/home');
       router.refresh();
     } catch (error) {
       setError('An error occurred. Please try again.');
