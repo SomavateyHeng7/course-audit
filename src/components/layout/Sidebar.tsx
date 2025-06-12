@@ -4,6 +4,8 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -34,11 +36,23 @@ const navigationItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut({
+        redirect: false,
+      });
+      router.push('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   if (!mounted) {
     return null;
@@ -74,48 +88,46 @@ export default function Sidebar() {
               <span className="text-sm font-medium">NICKNAME</span>
             </div>
           </div>
+        </div>      {/* Navigation */}
+      <nav className="flex-1 px-2 py-4">
+        <div className="space-y-1">
+          {navigationItems.map((item) => {
+            const isActive = pathname.startsWith(item.href);
+            const Icon = item.icon;
+            return (
+              <Button
+                key={item.name}
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start gap-2",
+                  isActive && "bg-muted font-medium"
+                )}
+                asChild
+              >
+                <Link href={item.href}>
+                  <Icon className={cn(
+                    "h-5 w-5",
+                    isActive ? "text-primary" : "text-muted-foreground"
+                  )} />
+                  {item.name}
+                </Link>
+              </Button>
+            );
+          })}
         </div>
+      </nav>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-2 py-4">
-          <div className="space-y-1">
-            {navigationItems.map((item) => {
-              const isActive = pathname.startsWith(item.href);
-              const Icon = item.icon;
-              
-              return (
-                <Button
-                  key={item.name}
-                  variant="ghost"
-                  className={cn(
-                    "w-full justify-start gap-2",
-                    isActive && "bg-muted font-medium"
-                  )}
-                  asChild
-                >
-                  <Link href={item.href}>
-                    <Icon className={cn(
-                      "h-5 w-5",
-                      isActive ? "text-primary" : "text-muted-foreground"
-                    )} />
-                    {item.name}
-                  </Link>
-                </Button>
-              );
-            })}
-          </div>
-        </nav>
-
-        {/* Logout Button */}
-        <div className="p-3 border-t">
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="h-5 w-5" />
-            Log Out
-          </Button>
-        </div>
+      {/* Logout Button */}
+      <div className="p-4 border-t mt-auto">
+        <Button
+          onClick={handleLogout}
+          variant="ghost"
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <LogOut className="h-5 w-5" />
+          Log Out
+        </Button>
+      </div>
       </div>
     </div>
   );
