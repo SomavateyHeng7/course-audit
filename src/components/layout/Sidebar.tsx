@@ -4,6 +4,8 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -34,11 +36,23 @@ const navigationItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut({
+        redirect: false,
+      });
+      router.push('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   if (!mounted) {
     return null;
@@ -97,11 +111,10 @@ export default function Sidebar() {
             );
           })}
         </div>
-      </nav>
-
-      {/* Logout Button */}
+      </nav>      {/* Logout Button */}
       <div className="p-4 border-t mt-auto">
         <Button
+          onClick={handleLogout}
           variant="ghost"
           className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
         >
