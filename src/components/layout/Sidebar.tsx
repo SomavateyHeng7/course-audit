@@ -59,30 +59,36 @@ export default function Sidebar() {
   }
 
   return (
-    <div className="fixed inset-y-0 left-0 z-50 w-56 bg-background border-r flex flex-col">
-      {/* Logo */}
-      <div className="px-4 py-6 flex items-center justify-center border-b">
-        <Image
-          src='/image/title.png'
-          alt="EduTrack Logo"
-          width={120}
-          height={40}
-          className="w-28 h-10"
-          priority
-        />
-      </div>
-
-      {/* Profile Section */}
-      <div className="px-4 py-6 border-b flex flex-col items-center gap-3">
-        <div className="bg-muted/50 rounded-lg p-3 w-full flex flex-col items-center">
-          <div className="w-14 h-14 bg-background rounded-full flex items-center justify-center mb-2 ring-1 ring-border">
-            <User className="w-7 h-7 text-muted-foreground" />
+    <div className="fixed inset-y-0 left-0 z-50 w-56 bg-background border-r">
+      <div className="flex h-full flex-col">
+        {/* Logo */}
+        <div className="px-4 py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Image
+                src='/image/title.png'
+                alt="EduTrack Logo"
+                width={64}
+                height={32}
+                className="w-20 h-8"
+                priority
+              />
+            </div>
+            <ThemeToggle />
           </div>
-          <span className="text-sm font-medium">NICKNAME</span>
         </div>
-        {/* Theme Toggle under Profile */}
-        <ThemeToggle />
-      </div>
+
+        {/* Profile Section */}
+        <div className="px-3 py-4 border-b">
+          <div className="bg-muted/50 rounded-lg p-3">
+            <div className="flex flex-col items-center">
+              <div className="w-14 h-14 bg-background rounded-full flex items-center justify-center mb-2 ring-1 ring-border">
+                <User className="w-7 h-7 text-muted-foreground" />
+              </div>
+              <span className="text-sm font-medium">NICKNAME</span>
+            </div>
+          </div>
+        </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-2 py-4">
@@ -125,3 +131,4 @@ export default function Sidebar() {
     </div>
   );
 }
+ 
