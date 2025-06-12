@@ -21,10 +21,13 @@ export default function Home() {
       <section className="py-20 px-4">
         <div className="max-w-6xl mx-auto text-center">
           <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Streamline Your Academic Journey
+            EduTrack
           </h1>
+          <h2 className="text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Streamline Your Academic Journey
+          </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-            Course Audit helps university students manage their academic progress efficiently. 
+            EduTrack helps university students manage their academic progress efficiently. 
             Track courses, monitor requirements, and stay on top of your degree path.
           </p>
           <div className="flex gap-4 justify-center">

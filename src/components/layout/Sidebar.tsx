@@ -22,7 +22,7 @@ const navigationItems = [
   },
   {
     name: 'Advising',
-    href: '/advising',
+    href: '/advisor',
     icon: MessageSquare,
   },
   {
