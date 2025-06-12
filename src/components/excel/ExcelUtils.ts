@@ -1,9 +1,22 @@
 import * as XLSX from 'xlsx';
 
+export interface CourseData {
+  courseCode: string;
+  courseName: string;
+  credits: number;
+  grade?: string;
+  semester?: string;
+  status?: 'completed' | 'ongoing' | 'pending';
+}
+
 export interface ExcelData {
-  courses: any[];
+  courses: CourseData[];
   students: any[];
   programs: any[];
+  studentId?: string;
+  faculty?: string;
+  department?: string;
+  curriculum?: string;
 }
 
 export function readExcelFile(file: File): Promise<ExcelData> {
@@ -13,9 +26,7 @@ export function readExcelFile(file: File): Promise<ExcelData> {
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-
-        const courses = XLSX.utils.sheet_to_json(workbook.Sheets['Courses']);
+        const workbook = XLSX.read(data, { type: 'binary' });        const courses = XLSX.utils.sheet_to_json(workbook.Sheets['Courses']) as CourseData[];
         const students = XLSX.utils.sheet_to_json(workbook.Sheets['Students']);
         const programs = XLSX.utils.sheet_to_json(workbook.Sheets['Programs']);
 
@@ -35,14 +46,13 @@ export function readExcelFile(file: File): Promise<ExcelData> {
 
 export function validateExcelData(data: ExcelData): string[] {
   const errors: string[] = [];
-
   // Validate courses
   if (!Array.isArray(data.courses)) {
     errors.push('Courses sheet is missing or invalid');
   } else {
     data.courses.forEach((course, index) => {
-      if (!course.code) errors.push(`Course ${index + 1} is missing code`);
-      if (!course.name) errors.push(`Course ${index + 1} is missing name`);
+      if (!course.courseCode) errors.push(`Course ${index + 1} is missing course code`);
+      if (!course.courseName) errors.push(`Course ${index + 1} is missing course name`);
       if (!course.credits) errors.push(`Course ${index + 1} is missing credits`);
     });
   }

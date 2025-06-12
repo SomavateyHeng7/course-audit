@@ -1,12 +1,12 @@
-import CredentialsProvider from 'next-auth/providers/credentials';
-import type { NextAuthOptions } from 'next-auth';
+import NextAuth from 'next-auth';
+import Credentials from 'next-auth/providers/credentials';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { Role } from '@prisma/client';
 
-export const authOptions: NextAuthOptions = {
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
-    CredentialsProvider({
+    Credentials({
       name: 'Credentials',
       credentials: {
         email: { label: "Email", type: "email" },
@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
         try {
           const user = await prisma.user.findUnique({
             where: {
-              email: credentials.email,
+              email: credentials.email as string,
             },
             include: {
               faculty: true,
@@ -33,7 +33,7 @@ export const authOptions: NextAuthOptions = {
           }
 
           const isPasswordValid = await bcrypt.compare(
-            credentials.password,
+            credentials.password as string,
             user.password
           );
 
@@ -57,7 +57,7 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   pages: {
-    signIn: '/',
+    signIn: '/auth',
     error: '/auth/error',
   },
   session: {
@@ -77,17 +77,11 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as Role;
+        session.user.role = token.role as any;
         session.user.faculty = token.faculty as any;
         session.user.advisorId = token.advisorId as string;
       }
       return session;
-    },  },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: false, // Disable debug mode to reduce warnings
-  logger: {
-    error: () => {}, // Suppress error logs
-    warn: () => {},  // Suppress warning logs
-    debug: () => {}, // Suppress debug logs
+    },
   },
-};
+});

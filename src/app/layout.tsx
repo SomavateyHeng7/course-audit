@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { Roboto } from 'next/font/google';
 import { SessionProvider } from '@/components/providers/SessionProvider';
 import { CourseManagementProvider } from '@/app/contexts/CourseManagementContext';
-import { ThemeProvider } from '@/components/theme-provider';
 import ConditionalLayout from '@/components/layout/ConditionalLayout';
 import './globals.css';
 
@@ -29,20 +28,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${roboto.variable} font-sans antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <SessionProvider>
-            <CourseManagementProvider>
-              <ConditionalLayout>
-                {children}
-              </ConditionalLayout>
-            </CourseManagementProvider>
-          </SessionProvider>
-        </ThemeProvider>
+        <SessionProvider>
+          <CourseManagementProvider>
+            <ConditionalLayout>
+              {children}
+            </ConditionalLayout>
+          </CourseManagementProvider>
+        </SessionProvider>
       </body>
     </html>
   );

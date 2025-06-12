@@ -11,8 +11,8 @@ export default function ConditionalLayout({
 }) {
   const pathname = usePathname();
   
-  // Don't show sidebar on the main auth page
-  const isAuthPage = pathname === '/';
+  // Don't show sidebar on the landing page and auth page
+  const isLandingOrAuthPage = pathname === '/' || pathname === '/auth';
   
   return (
     <ThemeProvider
@@ -21,7 +21,7 @@ export default function ConditionalLayout({
       enableSystem={false}
       disableTransitionOnChange
     >
-      {isAuthPage ? (
+      {isLandingOrAuthPage ? (
         <>{children}</>
       ) : (
         <div className="h-screen flex">

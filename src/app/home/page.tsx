@@ -6,6 +6,7 @@ import ExcelDownload from '@/components/excel/ExcelDownload';
 import { ExcelData, CourseData } from '@/components/excel/ExcelUtils';
 import { generateSampleExcel } from '@/components/excel/generateSampleExcel';
 import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 import { useCourseManagement } from '../contexts/CourseManagementContext';
 
 export default function HomePage() {
@@ -33,11 +34,11 @@ export default function HomePage() {
   const handleError = (errorMessage: string) => {
     setError(errorMessage);
   };
-
   const handleGenerateSample = () => {
     try {
       const workbook = generateSampleExcel();
-      const blob = new Blob([workbook], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       saveAs(blob, 'sample-academic-record.xlsx');
     } catch (error) {
       setError('Failed to generate sample Excel file');
@@ -248,23 +249,22 @@ export default function HomePage() {
           
           {/* Student Information */}
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium mb-2">Student Information</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <h3 className="font-medium mb-2">Student Information</h3>            <div className="grid grid-cols-2 gap-4">
               <div>
                 <span className="text-gray-600">Student ID:</span>
-                <span className="ml-2">{excelData.studentId}</span>
+                <span className="ml-2">{excelData.studentId || 'N/A'}</span>
               </div>
               <div>
                 <span className="text-gray-600">Faculty:</span>
-                <span className="ml-2">{excelData.faculty}</span>
+                <span className="ml-2">{excelData.faculty || 'N/A'}</span>
               </div>
               <div>
                 <span className="text-gray-600">Department:</span>
-                <span className="ml-2">{excelData.department}</span>
+                <span className="ml-2">{excelData.department || 'N/A'}</span>
               </div>
               <div>
                 <span className="text-gray-600">Curriculum:</span>
-                <span className="ml-2">{excelData.curriculum}</span>
+                <span className="ml-2">{excelData.curriculum || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -304,11 +304,10 @@ export default function HomePage() {
             </table>
           </div>
 
-          {/* Download Button */}
-          <div className="mt-6">
+          {/* Download Button */}          <div className="mt-6">
             <ExcelDownload 
               data={excelData}
-              fileName={`academic-record-${excelData.studentId}.xlsx`}
+              fileName={`academic-record-${excelData.studentId || 'data'}.xlsx`}
               className="w-full sm:w-auto"
             />
           </div>

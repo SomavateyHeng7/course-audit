@@ -57,14 +57,12 @@ export default function AuthForm() {
         email,
         password,
         redirect: false,
-      });
-
-      if (result?.error) {
+      });      if (result?.error) {
         setError(result.error);
         return;
       }
 
-      router.push('/home');
+      router.push('/management');
       router.refresh();
     } catch (error) {
       setError('An error occurred. Please try again.');

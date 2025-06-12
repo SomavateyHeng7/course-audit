@@ -12,13 +12,11 @@ export default function DashboardPage() {
     if (status === 'loading') return; // Still loading
 
     if (!session) {
-      router.push('/');
+      router.push('/auth');
       return;
-    }
-
-    // Redirect based on user role or preferences
-    // For now, redirect to home
-    router.push('/home');
+    }    // Redirect based on user role or preferences
+    // For now, redirect to management
+    router.push('/management');
   }, [session, status, router]);
 
   if (status === 'loading') {
