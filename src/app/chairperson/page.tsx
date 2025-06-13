@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from "react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@/components/layout/ChairPersonSidebar";
 import CurriculumSetup from "@/components/shared/CurriculumSetup";
 
 const ChairpersonPage: React.FC = () => {
