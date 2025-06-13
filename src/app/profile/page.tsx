@@ -12,7 +12,7 @@ export default function StudentProfile() {
       <div className="flex border-b border-gray-300 mb-6">
         <button
           className={`px-6 py-3 text-sm font-medium ${
-            activeTab === "student" ? "border-b-4 border-red-600 text-black" : "text-gray-500"
+            activeTab === "student" ? "border-b-4 border-green-600 text-black" : "text-gray-500"
           }`}
           onClick={() => setActiveTab("student")}
         >
@@ -20,7 +20,7 @@ export default function StudentProfile() {
         </button>
         <button
           className={`px-6 py-3 text-sm font-medium ${
-            activeTab === "advisor" ? "border-b-4 border-red-600 text-black" : "text-gray-500"
+            activeTab === "advisor" ? "border-b-4 border-green-600 text-black" : "text-gray-500"
           }`}
           onClick={() => setActiveTab("advisor")}
         >
