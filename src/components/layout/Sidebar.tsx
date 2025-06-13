@@ -6,14 +6,17 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { useSidebar } from '@/contexts/SidebarContext';
 import {
   LayoutDashboard,
   MessageSquare,
   User,
   LogOut,
+  Menu,
 } from 'lucide-react';
 
 const navigationItems = [
@@ -24,7 +27,7 @@ const navigationItems = [
   },
   {
     name: 'Advising',
-    href: '/advisor',
+    href: '/advisor/advising',
     icon: MessageSquare,
   },
   {
@@ -38,6 +41,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const { isCollapsed, toggleSidebar } = useSidebar();
 
   useEffect(() => {
     setMounted(true);
@@ -56,80 +60,167 @@ export default function Sidebar() {
 
   if (!mounted) {
     return null;
-  }
-
-  return (
-    <div className="fixed inset-y-0 left-0 z-50 w-56 bg-background border-r">
-      <div className="flex h-full flex-col">
-        {/* Logo */}
-        <div className="px-4 py-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Image
-                src='/image/title.png'
-                alt="EduTrack Logo"
-                width={64}
-                height={32}
-                className="w-20 h-8"
-                priority
-              />
+  }  return (    <motion.div
+      initial={{ width: 224 }}
+      animate={{ width: isCollapsed ? 80 : 224 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+      className="fixed inset-y-0 left-0 z-50 border-r border-emerald-200/60 dark:border-emerald-800/40 flex flex-col bg-white dark:bg-background backdrop-blur-sm"
+    >{/* Header with Menu Toggle */}        <div className={cn(
+          "py-5 border-b border-emerald-200/60 dark:border-emerald-800/40",
+          isCollapsed ? "px-2" : "px-4"
+        )}>
+          <div className={cn(
+            "flex items-center",
+            isCollapsed ? "flex-col gap-3" : "justify-between"
+          )}>
+            <AnimatePresence mode="wait">
+              {!isCollapsed ? (                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center gap-1 mr-8"
+                >
+                  <Image
+                    src='/image/logo.png'
+                    alt="EduTrack Logo"
+                    width={32}
+                    height={32}
+                    className="w-7 h-8"
+                    priority
+                  />
+                  <h1 className="text-xl font-bold" style={{ color: '#489581' }}>
+                    EduTrack
+                  </h1>
+                </motion.div>
+              ) : (                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center justify-center"
+                >
+                  <Image
+                    src='/image/logo.png'
+                    alt="EduTrack Logo"
+                    width={32}
+                    height={32}
+                    className="w-7 h-8"
+                    priority
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>            <div className="flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleSidebar}
+                className="p-2 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200"
+                title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
             </div>
+          </div>
+        </div>        {/* Profile Section */}
+        <div className="px-3 py-4 border-b border-emerald-200/60 dark:border-emerald-800/40">
+          <div className="bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg p-3 border border-emerald-200/40 dark:border-emerald-800/30">
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-950/60 rounded-full flex items-center justify-center mb-2 ring-2 ring-emerald-200/60 dark:ring-emerald-800/60">
+                <User className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <AnimatePresence mode="wait">
+                {!isCollapsed && (
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="text-sm font-medium text-emerald-800 dark:text-emerald-200"
+                  >
+                    NICKNAME
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>        {/* Theme Toggle */}
+        <div className="px-3 py-2 border-b border-emerald-200/60 dark:border-emerald-800/40">
+          <div className="flex justify-center">
             <ThemeToggle />
           </div>
         </div>
 
-        {/* Profile Section */}
-        <div className="px-3 py-4 border-b">
-          <div className="bg-muted/50 rounded-lg p-3">
-            <div className="flex flex-col items-center">
-              <div className="w-14 h-14 bg-background rounded-full flex items-center justify-center mb-2 ring-1 ring-border">
-                <User className="w-7 h-7 text-muted-foreground" />
-              </div>
-              <span className="text-sm font-medium">NICKNAME</span>
-            </div>
-          </div>
-        </div>      {/* Navigation */}
-      <nav className="flex-1 px-2 py-4">
-        <div className="space-y-1">
-          {navigationItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
-            const Icon = item.icon;
-            return (
-              <Button
-                key={item.name}
-                variant="ghost"
-                className={cn(
-                  "w-full justify-start gap-2",
-                  isActive && "bg-muted font-medium"
-                )}
-                asChild
-              >
-                <Link href={item.href}>
-                  <Icon className={cn(
-                    "h-5 w-5",
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  )} />
-                  {item.name}
+        {/* Navigation */}
+        <nav className="flex-1 px-2 py-4">
+          <div className="space-y-1">
+            {navigationItems.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              const Icon = item.icon;              if (isCollapsed) {
+                return (
+                  <Link key={item.name} href={item.href} className="block w-full">
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "w-full justify-center px-3 py-2 transition-all duration-200",
+                        isActive 
+                          ? "bg-emerald-100/70 dark:bg-emerald-900/30 text-black dark:text-white shadow-sm" 
+                          : "text-black dark:text-white hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20"
+                      )}
+                      title={item.name}
+                    >
+                      <Icon className="h-5 w-5 flex-shrink-0" />
+                    </Button>
+                  </Link>
+                );
+              }              return (
+                <Link key={item.name} href={item.href}>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start gap-3 px-3 py-2 transition-all duration-200",
+                      isActive 
+                        ? "bg-emerald-100/70 dark:bg-emerald-900/30 text-black dark:text-white shadow-sm font-medium" 
+                        : "text-black dark:text-white hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20"
+                    )}
+                  >
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    <motion.span
+                      initial={{ opacity: 1, x: 0 }}
+                      className="truncate"
+                    >
+                      {item.name}
+                    </motion.span>
+                  </Button>
                 </Link>
-              </Button>
-            );
-          })}
+              );
+            })}
+          </div>
+        </nav>        {/* Logout Button */}        <div className="p-4 border-t mt-auto">
+          {isCollapsed ? (
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              className="w-full justify-center px-3 py-2 text-muted-foreground hover:bg-red-100/60 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300 transition-all duration-200"
+              title="Log Out"
+            >
+              <LogOut className="h-5 w-5 flex-shrink-0" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              className="w-full justify-start gap-3 text-muted-foreground hover:bg-red-100/60 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300 px-3 py-2 transition-all duration-200"
+            >
+              <LogOut className="h-5 w-5 flex-shrink-0" />
+              <motion.span
+                initial={{ opacity: 1, x: 0 }}
+              >
+                Log Out
+              </motion.span>
+            </Button>          )}
         </div>
-      </nav>
-
-      {/* Logout Button */}
-      <div className="p-4 border-t mt-auto">
-        <Button
-          onClick={handleLogout}
-          variant="ghost"
-          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-        >
-          <LogOut className="h-5 w-5" />
-          Log Out
-        </Button>
-      </div>
-      </div>
-    </div>
+      </motion.div>
   );
 }
  

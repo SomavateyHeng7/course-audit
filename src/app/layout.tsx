@@ -11,12 +11,11 @@ const roboto = Roboto({
   variable: '--font-roboto',
 });
 
-export const metadata: Metadata = {
-  title: 'Course Audit',
+export const metadata: Metadata = {  title: 'Course Audit',
   description:
     'Web application designed to streamline academic progress management for university students.',
   icons: {
-    icon: '/images/logo.png',
+    icon: '/image/logo.png',
   },
 };
 
