@@ -12,12 +12,6 @@ import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useSidebar } from '@/contexts/SidebarContext';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
   LayoutDashboard,
   MessageSquare,
   User,
@@ -66,17 +60,13 @@ export default function Sidebar() {
 
   if (!mounted) {
     return null;
-  }
-  return (
-    <TooltipProvider>
-      <motion.div
-        initial={{ width: 224 }}
-        animate={{ width: isCollapsed ? 80 : 224 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="fixed inset-y-0 left-0 z-50 bg-background border-r flex flex-col"
-      >        {/* Header with Menu Toggle */}
-        <div className={cn(
-          "py-5 border-b",
+  }  return (    <motion.div
+      initial={{ width: 224 }}
+      animate={{ width: isCollapsed ? 80 : 224 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+      className="fixed inset-y-0 left-0 z-50 border-r border-emerald-200/60 dark:border-emerald-800/40 flex flex-col bg-white dark:bg-background backdrop-blur-sm"
+    >{/* Header with Menu Toggle */}        <div className={cn(
+          "py-5 border-b border-emerald-200/60 dark:border-emerald-800/40",
           isCollapsed ? "px-2" : "px-4"
         )}>
           <div className={cn(
@@ -121,29 +111,23 @@ export default function Sidebar() {
                 </motion.div>
               )}
             </AnimatePresence>            <div className="flex items-center">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={toggleSidebar}
-                    className="p-2 hover:bg-muted"
-                  >
-                    <Menu className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  {isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                </TooltipContent>
-              </Tooltip>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleSidebar}
+                className="p-2 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200"
+                title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </div>        {/* Profile Section */}
-        <div className="px-3 py-4 border-b">
-          <div className="bg-muted/50 rounded-lg p-3">
+        <div className="px-3 py-4 border-b border-emerald-200/60 dark:border-emerald-800/40">
+          <div className="bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg p-3 border border-emerald-200/40 dark:border-emerald-800/30">
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-background rounded-full flex items-center justify-center mb-2 ring-1 ring-border">
-                <User className="w-6 h-6 text-muted-foreground" />
+              <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-950/60 rounded-full flex items-center justify-center mb-2 ring-2 ring-emerald-200/60 dark:ring-emerald-800/60">
+                <User className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
               </div>
               <AnimatePresence mode="wait">
                 {!isCollapsed && (
@@ -152,7 +136,7 @@ export default function Sidebar() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="text-sm font-medium"
+                    className="text-sm font-medium text-emerald-800 dark:text-emerald-200"
                   >
                     NICKNAME
                   </motion.span>
@@ -160,10 +144,8 @@ export default function Sidebar() {
               </AnimatePresence>
             </div>
           </div>
-        </div>
-
-        {/* Theme Toggle */}
-        <div className="px-3 py-2 border-b">
+        </div>        {/* Theme Toggle */}
+        <div className="px-3 py-2 border-b border-emerald-200/60 dark:border-emerald-800/40">
           <div className="flex justify-center">
             <ThemeToggle />
           </div>
@@ -174,85 +156,61 @@ export default function Sidebar() {
           <div className="space-y-1">
             {navigationItems.map((item) => {
               const isActive = pathname.startsWith(item.href);
-              const Icon = item.icon;
-              
-              if (isCollapsed) {
+              const Icon = item.icon;              if (isCollapsed) {
                 return (
-                  <Tooltip key={item.name}>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className={cn(
-                          "w-full justify-center px-3 py-2",
-                          isActive && "bg-muted font-medium"
-                        )}
-                        asChild
-                      >
-                        <Link href={item.href}>
-                          <Icon className={cn(
-                            "h-5 w-5 flex-shrink-0",
-                            isActive ? "text-primary" : "text-muted-foreground"
-                          )} />
-                        </Link>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      {item.name}
-                    </TooltipContent>
-                  </Tooltip>
+                  <Link key={item.name} href={item.href} className="block w-full">
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "w-full justify-center px-3 py-2 transition-all duration-200",
+                        isActive 
+                          ? "bg-emerald-100/70 dark:bg-emerald-900/30 text-black dark:text-white shadow-sm" 
+                          : "text-black dark:text-white hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20"
+                      )}
+                      title={item.name}
+                    >
+                      <Icon className="h-5 w-5 flex-shrink-0" />
+                    </Button>
+                  </Link>
                 );
-              }
-
-              return (
-                <Button
-                  key={item.name}
-                  variant="ghost"
-                  className={cn(
-                    "w-full justify-start gap-3 px-3 py-2",
-                    isActive && "bg-muted font-medium"
-                  )}
-                  asChild
-                >
-                  <Link href={item.href}>
-                    <Icon className={cn(
-                      "h-5 w-5 flex-shrink-0",
-                      isActive ? "text-primary" : "text-muted-foreground"
-                    )} />
+              }              return (
+                <Link key={item.name} href={item.href}>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start gap-3 px-3 py-2 transition-all duration-200",
+                      isActive 
+                        ? "bg-emerald-100/70 dark:bg-emerald-900/30 text-black dark:text-white shadow-sm font-medium" 
+                        : "text-black dark:text-white hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20"
+                    )}
+                  >
+                    <Icon className="h-5 w-5 flex-shrink-0" />
                     <motion.span
                       initial={{ opacity: 1, x: 0 }}
                       className="truncate"
                     >
                       {item.name}
                     </motion.span>
-                  </Link>
-                </Button>
+                  </Button>
+                </Link>
               );
             })}
           </div>
-        </nav>
-
-        {/* Logout Button */}
-        <div className="p-4 border-t mt-auto">
+        </nav>        {/* Logout Button */}        <div className="p-4 border-t mt-auto">
           {isCollapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  onClick={handleLogout}
-                  variant="ghost"
-                  className="w-full justify-center px-3 py-2 text-muted-foreground hover:text-foreground"
-                >
-                  <LogOut className="h-5 w-5 flex-shrink-0" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                Log Out
-              </TooltipContent>
-            </Tooltip>
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              className="w-full justify-center px-3 py-2 text-muted-foreground hover:bg-red-100/60 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300 transition-all duration-200"
+              title="Log Out"
+            >
+              <LogOut className="h-5 w-5 flex-shrink-0" />
+            </Button>
           ) : (
             <Button
               onClick={handleLogout}
               variant="ghost"
-              className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground px-3 py-2"
+              className="w-full justify-start gap-3 text-muted-foreground hover:bg-red-100/60 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300 px-3 py-2 transition-all duration-200"
             >
               <LogOut className="h-5 w-5 flex-shrink-0" />
               <motion.span
@@ -260,11 +218,9 @@ export default function Sidebar() {
               >
                 Log Out
               </motion.span>
-            </Button>
-          )}
+            </Button>          )}
         </div>
       </motion.div>
-    </TooltipProvider>
   );
 }
  
