@@ -14,11 +14,10 @@ export default function SessionProviderWrapper({
   console.log(pathname)
   const isPageRoute = pathname === '/';
 
-  return (
-    <ThemeProvider
+  return (    <ThemeProvider
       attribute="class"
-      defaultTheme="system"
-      enableSystem
+      defaultTheme="dark"
+      enableSystem={false}
       disableTransitionOnChange
     >
       <CourseManagementProvider>

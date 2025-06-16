@@ -19,14 +19,13 @@ export default function Home() {
 
   return (
     <>
-      <div className="flex flex-col min-h-screen">
-        {/* Hero Section */}
+      <div className="flex flex-col min-h-screen">        {/* Hero Section */}
         <section className="py-20 px-4">
           <div className="max-w-6xl mx-auto text-center">
-            <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
               EduTrack
             </h1>
-            <h2 className="text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h2 className="text-5xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
               Streamline Your Academic Journey
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
@@ -36,21 +35,19 @@ export default function Home() {
             <div className="flex gap-4 justify-center">
               <Link 
                 href="/auth" 
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-8 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors border border-emerald-700"
               >
                 Get Started
               </Link>
               <Link 
                 href="/management" 
-                className="px-8 py-3 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                className="px-8 py-3 border border-emerald-600 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
               >
                 Learn More
               </Link>
             </div>
           </div>
-        </section>
-
-        {/* Features Section */}
+        </section>        {/* Features Section */}
         <section className="py-16 px-4 bg-gray-50 dark:bg-gray-900">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-3xl font-bold text-center mb-12">Key Features</h2>
@@ -95,7 +92,7 @@ export default function Home() {
             </p>
             <Link 
               href="/auth" 
-              className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-block"
+              className="px-8 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors inline-block border border-emerald-700"
             >
               Start Now
             </Link>
