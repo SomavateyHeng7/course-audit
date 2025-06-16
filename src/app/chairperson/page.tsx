@@ -1,16 +1,17 @@
 'use client';
 
 import React, { useState } from "react";
-import Sidebar from "@/components/layout/ChairPersonSidebar";
 import CurriculumSetup from "@/components/shared/CurriculumSetup";
 
 const ChairpersonPage: React.FC = () => {
   return (
-    <div className="flex min-h-screen bg-blue-50">
-      <Sidebar />
-      <main className="flex-1 flex flex-col m-8 bg-white rounded-xl shadow-md p-8">
-        <CurriculumSetup />
-      </main>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto">
+        <h1 className="text-3xl font-bold mb-8 text-foreground">Chairperson Dashboard</h1>
+        <div className="bg-card rounded-xl border border-border p-8">
+          <CurriculumSetup />
+        </div>
+      </div>
     </div>
   );
 };

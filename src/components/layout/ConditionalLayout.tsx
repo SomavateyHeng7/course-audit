@@ -38,10 +38,9 @@ export default function ConditionalLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <ThemeProvider
+  return (    <ThemeProvider
       attribute="class"
-      defaultTheme="light"
+      defaultTheme="dark"
       enableSystem={false}
       disableTransitionOnChange
     >

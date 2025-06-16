@@ -31,11 +31,9 @@ const CurriculumSetup: React.FC = () => {
           <span>Create New Curriculum</span>
           <span>➕</span>
         </button>
-      </div>
-
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full text-sm text-gray-800">
-          <thead className="bg-gray-100 text-gray-700">
+      </div>      <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg overflow-hidden">
+        <table className="min-w-full text-sm text-gray-800 dark:text-foreground">
+          <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
             <tr>
               <th className="text-left py-3 px-4 font-semibold">Curriculum Name</th>
               <th className="text-left py-3 px-4 font-semibold">Last Modified</th>
@@ -44,7 +42,7 @@ const CurriculumSetup: React.FC = () => {
           </thead>
           <tbody>
             {filteredData.map((item, idx) => (
-              <tr key={idx} className="border-t hover:bg-gray-50">
+              <tr key={idx} className="border-t border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-gray-800">
                 <td className="py-3 px-4">{item.name}</td>
                 <td className="py-3 px-4">{item.lastModified}</td>
                 <td className="py-3 px-4 flex space-x-4">
