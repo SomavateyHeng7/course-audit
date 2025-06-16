@@ -12,12 +12,13 @@ export default function CreateCurriculum() {
           <div className="flex gap-12">
             {/* Form Section */}
             <div className="w-[400px]">
-              <h1 className="text-4xl font-extrabold mb-10 text-foreground">Create Curriculum</h1>              <form className="flex flex-col gap-6">
+              <h1 className="text-4xl font-extrabold mb-10 text-foreground">Create Curriculum</h1>
+              <form className="flex flex-col gap-6">
                 <div>
                   <label className="block font-semibold mb-1 text-foreground">Curriculum Name</label>
                   <input
                     type="text"
-                    placeholder="Enter your name"
+                    placeholder="Enter curriculum name"
                     className="w-full border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   />
                 </div>
@@ -25,7 +26,7 @@ export default function CreateCurriculum() {
                   <label className="block font-semibold mb-1 text-foreground">Total Credits</label>
                   <input
                     type="number"
-                    placeholder="Enter your name"
+                    placeholder="Enter total credits"
                     className="w-full border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   />
                 </div>
@@ -56,7 +57,7 @@ export default function CreateCurriculum() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-8m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
                   </svg>
                   <p className="text-center text-sm text-muted-foreground">
-                    Drag and drop previous Excel report here,<br />
+                    Drag and drop Excel file here,<br />
                     or click here to upload.
                   </p>
                   <input

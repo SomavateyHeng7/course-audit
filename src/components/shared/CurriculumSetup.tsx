@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FaEdit, FaTrash } from 'react-icons/fa';
+import { FaInfoCircle, FaTrash } from 'react-icons/fa';
+import { useRouter } from 'next/navigation';
 
 const curriculumData = [
   { name: 'Curriculum for 2022', lastModified: 'May 19, 2025' },
@@ -8,6 +9,10 @@ const curriculumData = [
 
 const CurriculumSetup: React.FC = () => {
   const [search, setSearch] = useState('');
+  const router = useRouter();
+  const handleInfoClick = () => {
+    router.push('/chairperson/curriculum/info_edit');
+  };
 
   const filteredData = curriculumData.filter((item) =>
     item.name.toLowerCase().includes(search.toLowerCase())
@@ -29,9 +34,9 @@ const CurriculumSetup: React.FC = () => {
         </div>
         <button className="bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600 flex items-center space-x-2">
           <span>Create New Curriculum</span>
-          <span>➕</span>
-        </button>
-      </div>      <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg overflow-hidden">
+          <span>➕</span>        </button>
+      </div>
+      <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg overflow-hidden">
         <table className="min-w-full text-sm text-gray-800 dark:text-foreground">
           <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
             <tr>
@@ -46,10 +51,14 @@ const CurriculumSetup: React.FC = () => {
                 <td className="py-3 px-4">{item.name}</td>
                 <td className="py-3 px-4">{item.lastModified}</td>
                 <td className="py-3 px-4 flex space-x-4">
-                  <button className="text-gray-600 hover:text-blue-500" title="Edit">
-                    <FaEdit />
+                  <button 
+                    className="text-gray-600 dark:text-gray-400 hover:text-emerald-500 dark:hover:text-emerald-400" 
+                    title="Info"
+                    onClick={handleInfoClick}
+                  >
+                    <FaInfoCircle />
                   </button>
-                  <button className="text-gray-600 hover:text-red-500" title="Delete">
+                  <button className="text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400" title="Delete">
                     <FaTrash />
                   </button>
                 </td>
