@@ -222,12 +222,16 @@ export default function HomePage() {
       {/* Sample File Generation */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Get Started</h2>
-        <button
-          onClick={handleGenerateSample}
-          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-        >
-          Download Sample Excel File
-        </button>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <button
+            onClick={handleGenerateSample}
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+          >
+            Download Sample Excel File
+          </button>
+          <ExcelDownload curriculumTemplate={true} fileName="curriculum-template.xlsx" className="w-full sm:w-auto" />
+          <ExcelDownload className="w-full sm:w-auto" />
+        </div>
       </div>
 
       {/* Upload Section */}

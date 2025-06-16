@@ -1,0 +1,90 @@
+ASSUMPTION  UNIVERSITY,,,,,,,,,,,,,,,,,,
+MARTIN DE TOURS SCHOOL OF MANAGEMENT AND ECONOMICS,,,,,,,,,,,,,,,,,,
+Adm no. 63x-65x,,,,,,,,,,,,,,,,,,
+NAME:,,ADM.  NO:,,,,,,Specialization:,,,,BBA DIY (142 Credits),,,,,,
+Cur. Sem: 681,,,,,,,,,,,,,,,,,,
+First Year,First Semester,,,,,,,,,,,,,,,,,
+Course Code,Course Title,Credits,Grade ,Pass,Course Type,Prerequisite 1,Prerequisite 2,Prerequisite 3,Prerequisite 4,Prerequisite 5,Prerequisite 6,Prerequisite 7,Remarks,,,,,
+BG1001,English I,3,,,Eng,,,,,,,,,,,,,
+MA1200,Mathematics for Business,3,,,Gen Ed,,,,,,,,,,,,,
+BBA1001,Business Exploration,3,,,Gen Ed,,,,,,,,,,,,,
+BBA1101,Seminar in Business I,1,,,Bus Core,,,,,,,,,,,,,
+BBA1102,Data and Information Literacy,3,,,Bus Core,,,,,,,,,,,,,
+LAW1201,Business Laws for Entreperneurs,3,,,Bus Core,,,,,,,,,,,,,
+GE1302,Ecology and Sustainability,3,,,Gen Ed,,,,,,,,,,,,,
+,,19,,,,,,,,,,,,,,,,
+First Year,Second Semester,,,,,,,,,,,,,,,,,
+Course Code,Course Title,Credits,Grade ,,Course Type,Prerequisite 1,Prerequisite 2,Prerequisite 3,Prerequisite 4,Prerequisite 5,Prerequisite 6,Prerequisite 7,Remarks,,,,,
+BBA1103,Fundamentals of Financial Accounting,3,,,Bus Core,,,,,,,,,,,,,
+BG1002,English II,3,,,Eng,BG1001,,,,,,,,,,,,
+BBA1002,Microeconomics,3,,,Gen Ed,,,,,,,,,,,,,
+SA1001,Business Statistics I,2,,,Bus Core,,,,,,,,,,,,,
+GE1403,Communication in Thai,3,,,Gen Ed,,,,,,,,,,,,,
+GE1405,(for International Students),,,,Gen Ed,,,,,,,,,,,,,
+GE1408,(for Students Graduated from International Schools),,,,Gen Ed,,,,,,,,,,,,,
+BBA1104,Fundamentals of Marketing,3,,,Bus Core,BBA1001,,,,,,,,,,,,
+GE1204,Physical Education,1,,,Gen Ed,,,,,,,,,,,,,
+,,18,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+Second Year,First Semester,,,,,,,,,,,,,,,,,
+Course Code,Course Title,Credits,Grade ,,Course Type,Prerequisite 1,Prerequisite 2,Prerequisite 3,Prerequisite 4,Prerequisite 5,Prerequisite 6,Prerequisite 7,Remarks,,,,,
+BBA2101,Fundamentals of Managerial Accounting,3,,,Bus Core,BBA1103,,,,,,,,,,,,
+BG2000,English III,3,,,Eng,BG1002,,,,,,,,,,,,
+BBA2002,Economic and Financial Environment,3,,,Gen Ed,MA1200,,,,,,,,,,,,
+BBA2001,Human Behavior,3,,,Gen Ed,,,,,,,,,,,,,
+SA2001,Business Statistics II,2,,,Bus Core,SA1001,,,,,,,,,,,,
+BBA2102,Organization and Management,3,,,Bus Core,BBA1001,,,,,,,,,,,,
+,,17,,,,,,,,,,,,,,,,
+Second Year,Second Semester,,,,,,,,,,,,,,,,,
+Course Code,Course Title,Credits,Grade ,,Course Type,Prerequisite 1,Prerequisite 2,Prerequisite 3,Prerequisite 4,Prerequisite 5,Prerequisite 6,Prerequisite 7,Remarks,,,,,
+BG2001,English IV,3,,,Eng,BG2000,,,,,,,,,,,,
+BBA2103,Corporate Finance,3,,,Bus Core,BBA2002,,,,,,,,,,,,
+GE2202,Ethics,3,,,Gen Ed,,,,,,,,,,,,,
+BBA2104,Global Strategy and Communication,3,,,Bus Core,BBA2002,,,,,,,,,,,,
+BBA2105,Operation and Supply Chain Management,3,,,Bus Core,BBA2102,,,,,,,,,,,,
+BBA2106,Seminar in Business II,1,,,Bus Core,,,,,,,,,,,,,
+GE2102,Human Heritage and Globalization,3,,,Gen Ed,,,,,,,,,,,,,
+,,19,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+Third Year,First Semester,,,,,,,,,,,,,MSME,Invalid,Wrong,Wrong,Invalid
+Course Code,Course Title,Credits,Grade ,,Course Type,Prerequisite 1,Prerequisite 2,Prerequisite 3,Prerequisite 4,Prerequisite 5,Prerequisite 6,Prerequisite 7,Remarks,Elec?,Bus Spec,Type,Non-MSME,Bus Elec
+BBA3101,Business Research,3,,,Bus Core,SA2001,,,,,,,,,,,,
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Free Elec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,,18,,,,,,,,,,,,,,,,
+Third Year,Second Semester,,,,,,,,,,,,,,,,,
+Course Code,Course Title,Credits,Grade ,,Course Type,Prerequisite 1,Prerequisite 2,Prerequisite 3,Prerequisite 4,Prerequisite 5,Prerequisite 6,Prerequisite 7,Remarks,,,,,
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Free Elec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,,18,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+Fourth Year,First Semester,,,,,,,,,,,,,,,,,
+Course Code,Course Title,Credits,Grade ,,Course Type,Prerequisite 1,Prerequisite 2,Prerequisite 3,Prerequisite 4,Prerequisite 5,Prerequisite 6,Prerequisite 7,Remarks,,,,,
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Free Elec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,,18,,,,,,,,,,,,,,,,
+Fourth Year,Second Semester,,,,,,,,,,,,,,,,,
+Course Code,Course Title,Credits,Grade ,,Course Type,Prerequisite 1,Prerequisite 2,Prerequisite 3,Prerequisite 4,Prerequisite 5,Prerequisite 6,Prerequisite 7,Remarks,,,,,
+BBA4101,Entreneurship,3,,,Bus Core,118 Credits,Senior Standing,,,,,,,,,,,
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Bus Spec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,Bus Spec/Prof Cert Courses + 1 Free Elective Course,3,,,Free Elec,,,,,,,,,,FALSE,FALSE,FALSE,0
+,,15,,,,,,,,,,,,,,,,
+,Total Credits,142,,,,,,,,,,,,,,,,
+,Credits Completed,0,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,MSME Elective Credits,0,(Must be at least 21 credits),,,,,,,,,,,,,,,
+,Non-MSME Elective Credits,0,,,,,,,,,,,,,,,,
+,Total Elective Credits,0,(Out of 33 credits),,,,,,,,,,,,,,,
