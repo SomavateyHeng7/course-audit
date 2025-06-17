@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FaInfoCircle, FaTrash } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 
+
 const curriculumData = [
   { name: 'Curriculum for 2022', lastModified: 'May 19, 2025' },
   { name: 'Curriculum for 2019', lastModified: 'May 19, 2019' },
@@ -32,9 +33,10 @@ const CurriculumSetup: React.FC = () => {
             className="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
         </div>
-        <button className="bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600 flex items-center space-x-2">
+        <button onClick={() => router.push('/chairperson/curriculum/create')} className="bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600 flex items-center space-x-2">
           <span>Create New Curriculum</span>
-          <span>➕</span>        </button>
+          <span>➕</span>        
+        </button>
       </div>
       <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg overflow-hidden">
         <table className="min-w-full text-sm text-gray-800 dark:text-foreground">
