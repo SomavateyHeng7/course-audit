@@ -24,23 +24,20 @@ export default function HomePage() {
   const [editValue, setEditValue] = useState<string>('');
 
   const handleDataLoaded = (data: ExcelData) => {
-    if (!isSessionActive) {
-      startNewSession();
-    }
+    if (!isSessionActive) startNewSession();
     updateSessionData(data);
     setError('');
   };
 
-  const handleError = (errorMessage: string) => {
-    setError(errorMessage);
-  };
+  const handleError = (errorMessage: string) => setError(errorMessage);
+
   const handleGenerateSample = () => {
     try {
       const workbook = generateSampleExcel();
       const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
       const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       saveAs(blob, 'sample-academic-record.xlsx');
-    } catch (error) {
+    } catch {
       setError('Failed to generate sample Excel file');
     }
   };
@@ -56,17 +53,13 @@ export default function HomePage() {
 
   const handleCellSave = () => {
     if (!excelData || !editingCell) return;
-
     const newCourses = [...excelData.courses];
     const course = { ...newCourses[editingCell.rowIndex] };
 
-    // Validate and transform the value based on the field
     switch (editingCell.field) {
       case 'credits':
         const credits = parseInt(editValue);
-        if (!isNaN(credits) && credits > 0) {
-          course.credits = credits;
-        }
+        if (!isNaN(credits) && credits > 0) course.credits = credits;
         break;
       case 'status':
         if (['completed', 'ongoing', 'pending'].includes(editValue)) {
@@ -88,18 +81,17 @@ export default function HomePage() {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleCellSave();
-    } else if (e.key === 'Escape') {
-      setEditingCell(null);
-    }
+    if (e.key === 'Enter') handleCellSave();
+    else if (e.key === 'Escape') setEditingCell(null);
   };
 
   const renderCell = (course: CourseData, field: keyof CourseData, rowIndex: number) => {
     const value = course[field]?.toString() || '';
-    
     if (editingCell?.rowIndex === rowIndex && editingCell?.field === field) {
-      if (field === 'status') {
+      if (field === 'status' || field === 'grade') {
+        const options = field === 'status'
+          ? ['completed', 'ongoing', 'pending']
+          : ['', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F'];
         return (
           <select
             value={editValue}
@@ -109,36 +101,10 @@ export default function HomePage() {
             className="w-full p-1 border rounded"
             autoFocus
           >
-            <option value="completed">completed</option>
-            <option value="ongoing">ongoing</option>
-            <option value="pending">pending</option>
+            {options.map(opt => <option key={opt} value={opt}>{opt || '-'}</option>)}
           </select>
         );
       }
-      
-      if (field === 'grade') {
-        return (
-          <select
-            value={editValue}
-            onChange={handleCellEdit}
-            onBlur={handleCellSave}
-            onKeyDown={handleKeyPress}
-            className="w-full p-1 border rounded"
-            autoFocus
-          >
-            <option value="">-</option>
-            <option value="A">A</option>
-            <option value="B+">B+</option>
-            <option value="B">B</option>
-            <option value="C+">C+</option>
-            <option value="C">C</option>
-            <option value="D+">D+</option>
-            <option value="D">D</option>
-            <option value="F">F</option>
-          </select>
-        );
-      }
-
       return (
         <input
           type={field === 'credits' ? 'number' : 'text'}
@@ -151,12 +117,8 @@ export default function HomePage() {
         />
       );
     }
-
     return (
-      <div
-        onClick={() => handleCellClick(rowIndex, field, value)}
-        className="cursor-pointer hover:bg-gray-50 p-1 rounded"
-      >
+      <div onClick={() => handleCellClick(rowIndex, field, value)} className="cursor-pointer hover:bg-gray-50 p-1 rounded">
         {value || '-'}
       </div>
     );
@@ -169,117 +131,60 @@ export default function HomePage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Academic Record Excel Handler</h1>
-      
-      {/* Session Timer */}
+    <div className="container mx-auto px-4 py-10 space-y-10">
+      <h1 className="text-4xl font-bold text-center text-gray-800">Academic Record Manager</h1>
+
       {isSessionActive && (
-        <div className="mb-4">
-          <div className={`p-2 rounded ${
-            timeRemaining < 300 ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
-          }`}>
-            Session Time Remaining: {formatTime(timeRemaining)}
-          </div>
+        <div className={`p-3 rounded text-center w-fit mx-auto font-semibold ${timeRemaining < 300 ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
+          Session Time Remaining: {formatTime(timeRemaining)}
         </div>
       )}
 
-      {/* Error Display */}
       {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded text-center">
           {error}
         </div>
       )}
 
-      {/* Session Controls */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Session Management</h2>
-        <div className="flex gap-4">
-          <button
-            onClick={startNewSession}
-            disabled={isSessionActive}
-            className={`px-4 py-2 rounded ${
-              isSessionActive
-                ? 'bg-gray-300 cursor-not-allowed'
-                : 'bg-green-500 text-white hover:bg-green-600'
-            }`}
-          >
-            Start New Session
-          </button>
-          <button
-            onClick={endCurrentSession}
-            disabled={!isSessionActive}
-            className={`px-4 py-2 rounded ${
-              !isSessionActive
-                ? 'bg-gray-300 cursor-not-allowed'
-                : 'bg-red-500 text-white hover:bg-red-600'
-            }`}
-          >
-            End Session
-          </button>
+      <section className="space-y-6">
+        <h2 className="text-2xl font-semibold">Session Controls</h2>
+        <div className="flex flex-wrap gap-4">
+          <button onClick={startNewSession} disabled={isSessionActive} className={`px-6 py-2 rounded ${isSessionActive ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}>Start New Session</button>
+          <button onClick={endCurrentSession} disabled={!isSessionActive} className={`px-6 py-2 rounded ${!isSessionActive ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}>End Session</button>
         </div>
-      </div>
+      </section>
 
-      {/* Sample File Generation */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Get Started</h2>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <button
-            onClick={handleGenerateSample}
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-          >
-            Download Sample Excel File
-          </button>
+      <section className="space-y-6">
+        <h2 className="text-2xl font-semibold">Start with Templates</h2>
+        <div className="flex flex-wrap gap-4">
+          <button onClick={handleGenerateSample} className="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600">Download Sample Excel</button>
           <ExcelDownload curriculumTemplate={true} fileName="curriculum-template.xlsx" className="w-full sm:w-auto" />
           <ExcelDownload className="w-full sm:w-auto" />
         </div>
-      </div>
+      </section>
 
-      {/* Upload Section */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Upload Academic Record</h2>
-        {isSessionActive ? (
-          <ExcelUpload onDataLoaded={handleDataLoaded} onError={handleError} />
-        ) : (
-          <div className="p-4 bg-yellow-100 text-yellow-800 rounded">
-            Please start a new session to upload and manage course data.
-          </div>
-        )}
-      </div>
+      <section className="space-y-6">
+        <h2 className="text-2xl font-semibold">Upload Academic Record</h2>
+        {isSessionActive ? <ExcelUpload onDataLoaded={handleDataLoaded} onError={handleError} /> : <div className="p-4 bg-yellow-100 text-yellow-800 rounded">Please start a session to upload and manage course data.</div>}
+      </section>
 
-      {/* Data Preview Section */}
       {isSessionActive && excelData && (
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Data Preview</h2>
-          
-          {/* Student Information */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium mb-2">Student Information</h3>            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-gray-600">Student ID:</span>
-                <span className="ml-2">{excelData.studentId || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Faculty:</span>
-                <span className="ml-2">{excelData.faculty || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Department:</span>
-                <span className="ml-2">{excelData.department || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Curriculum:</span>
-                <span className="ml-2">{excelData.curriculum || 'N/A'}</span>
-              </div>
-            </div>
+        <section className="space-y-6">
+          <h2 className="text-2xl font-semibold">Student Information</h2>
+          <div className="grid md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+            <div><strong>Student ID:</strong> {excelData.studentId || 'N/A'}</div>
+            <div><strong>Faculty:</strong> {excelData.faculty || 'N/A'}</div>
+            <div><strong>Department:</strong> {excelData.department || 'N/A'}</div>
+            <div><strong>Curriculum:</strong> {excelData.curriculum || 'N/A'}</div>
           </div>
 
-          {/* Courses Table */}
+          <h2 className="text-2xl font-semibold">Course Records</h2>
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white border rounded-lg">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-4 py-2 text-left">Course Code</th>
-                  <th className="px-4 py-2 text-left">Course Name</th>
+                  <th className="px-4 py-2 text-left">Code</th>
+                  <th className="px-4 py-2 text-left">Name</th>
                   <th className="px-4 py-2 text-center">Credits</th>
                   <th className="px-4 py-2 text-center">Grade</th>
                   <th className="px-4 py-2 text-center">Semester</th>
@@ -294,29 +199,18 @@ export default function HomePage() {
                     <td className="px-4 py-2 text-center">{renderCell(course, 'credits', index)}</td>
                     <td className="px-4 py-2 text-center">{renderCell(course, 'grade', index)}</td>
                     <td className="px-4 py-2 text-center">{renderCell(course, 'semester', index)}</td>
-                    <td className="px-4 py-2 text-center">
-                      <span className={`px-2 py-1 rounded-full text-sm
-                        ${course.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          course.status === 'ongoing' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'}`}>
-                        {renderCell(course, 'status', index)}
-                      </span>
-                    </td>
+                    <td className="px-4 py-2 text-center">{renderCell(course, 'status', index)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* Download Button */}          <div className="mt-6">
-            <ExcelDownload 
-              data={excelData}
-              fileName={`academic-record-${excelData.studentId || 'data'}.xlsx`}
-              className="w-full sm:w-auto"
-            />
+          <div className="mt-6">
+            <ExcelDownload data={excelData} fileName={`academic-record-${excelData.studentId || 'data'}.xlsx`} className="w-full sm:w-auto" />
           </div>
-        </div>
+        </section>
       )}
     </div>
   );
-} 
+}
