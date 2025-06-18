@@ -91,10 +91,9 @@ export default function AuthForm() {
       setIsLoading(false);
     }
   };
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white p-4">
-      <div className="w-full max-w-6xl h-[500px] rounded-xl bg-white overflow-hidden relative">
+    <div className="flex min-h-screen items-center justify-center bg-white dark:bg-background p-4">
+      <div className="w-full max-w-6xl h-[500px] rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border overflow-hidden relative">
         {/* ✅ Gradient Side Panel ONLY */}
         <div
           className={`absolute top-0 w-1/2 h-full rounded-xl transition-all duration-1000 ease-in-out z-10 ${
@@ -131,16 +130,15 @@ export default function AuthForm() {
           </div>
         </div>
 
-        <div className="flex relative z-0 h-full">
-          {/* Sign In Form */}
+        <div className="flex relative z-0 h-full">          {/* Sign In Form */}
           <div
-            className={`flex-1 p-12 flex flex-col justify-center transition-all duration-1000 ease-in-out bg-white ${
+            className={`flex-1 p-12 flex flex-col justify-center transition-all duration-1000 ease-in-out bg-white dark:bg-card ${
               isLogin ? 'opacity-100 translate-x-0' : 'opacity-50 -translate-x-8'
             }`}
           >
             <div className="max-w-sm mx-auto w-full">
-              <h2 className="text-3xl font-bold mb-2 text-gray-800">Sign In</h2>
-              <p className="text-gray-500 mb-8">Enter your email and password</p>
+              <h2 className="text-3xl font-bold mb-2 text-gray-800 dark:text-foreground">Sign In</h2>
+              <p className="text-gray-500 dark:text-gray-400 mb-8">Enter your email and password</p>
 
               <form onSubmit={handleLogin} className="space-y-4">
                 <input
@@ -148,20 +146,20 @@ export default function AuthForm() {
                   name="email"
                   placeholder="Email"
                   required
-                  className="w-full rounded-lg bg-gray-100 px-4 py-3 outline-none focus:ring-2 focus:ring-[#4C9A8A] transition-all"
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border border-gray-200 dark:border-gray-700"
                 />
                 <input
                   type="password"
                   name="password"
                   placeholder="Password"
                   required
-                  className="w-full rounded-lg bg-gray-100 px-4 py-3 outline-none focus:ring-2 focus:ring-[#4C9A8A] transition-all"
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border border-gray-200 dark:border-gray-700"
                 />
 
-                {error && <div className="text-red-500 text-sm">{error}</div>}
+                {error && <div className="text-red-500 dark:text-red-400 text-sm">{error}</div>}
 
                 <div className="text-center mt-6">
-                  <button type="button" className="text-gray-500 text-sm hover:text-gray-700">
+                  <button type="button" className="text-gray-500 dark:text-gray-400 text-sm hover:text-gray-700 dark:hover:text-gray-300">
                     Forget Your Password?
                   </button>
                 </div>
@@ -169,7 +167,7 @@ export default function AuthForm() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full mt-8 rounded-lg py-3 text-white font-semibold bg-[#4C9A8A] transition-all hover:opacity-90"
+                  className="w-full mt-8 rounded-lg py-3 text-white font-semibold bg-emerald-600 hover:bg-emerald-700 transition-all border border-emerald-700 disabled:opacity-50"
                 >
                   {isLoading ? 'Signing in...' : 'SIGN IN'}
                 </button>
@@ -179,13 +177,13 @@ export default function AuthForm() {
 
           {/* Sign Up Form */}
           <div
-            className={`flex-1 p-12 flex flex-col justify-center transition-all duration-1000 ease-in-out bg-white ${
+            className={`flex-1 p-12 flex flex-col justify-center transition-all duration-1000 ease-in-out bg-white dark:bg-card ${
               !isLogin ? 'opacity-100 translate-x-0' : 'opacity-50 translate-x-8'
             }`}
           >
             <div className="max-w-sm mx-auto w-full">
-              <h2 className="text-3xl font-bold mb-2 text-gray-800">Create Account</h2>
-              <p className="text-gray-500 mb-8">Enter your details to sign up</p>
+              <h2 className="text-3xl font-bold mb-2 text-gray-800 dark:text-foreground">Create Account</h2>
+              <p className="text-gray-500 dark:text-gray-400 mb-8">Enter your details to sign up</p>
 
               <form onSubmit={handleSignup} className="space-y-4">
                 <input
@@ -193,23 +191,23 @@ export default function AuthForm() {
                   name="name"
                   placeholder="Full Name"
                   required
-                  className="w-full rounded-lg bg-gray-100 px-4 py-3 outline-none focus:ring-2 focus:ring-[#4C9A8A] transition-all"
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border border-gray-200 dark:border-gray-700"
                 />
                 <input
                   type="email"
                   name="email"
                   placeholder="Email"
                   required
-                  className="w-full rounded-lg bg-gray-100 px-4 py-3 outline-none focus:ring-2 focus:ring-[#4C9A8A] transition-all"
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border border-gray-200 dark:border-gray-700"
                 />
                 <select
                   name="facultyId"
                   required
-                  className="w-full rounded-lg bg-gray-100 px-4 py-3 outline-none focus:ring-2 focus:ring-[#4C9A8A] transition-all"
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700"
                 >
-                  <option value="">Select Faculty</option>
+                  <option value="" className="text-gray-500 dark:text-gray-400">Select Faculty</option>
                   {faculties.map((faculty) => (
-                    <option key={faculty.id} value={faculty.id}>
+                    <option key={faculty.id} value={faculty.id} className="text-gray-900 dark:text-white">
                       {faculty.name}
                     </option>
                   ))}
@@ -219,15 +217,15 @@ export default function AuthForm() {
                   name="password"
                   placeholder="Password"
                   required
-                  className="w-full rounded-lg bg-gray-100 px-4 py-3 outline-none focus:ring-2 focus:ring-[#4C9A8A] transition-all"
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border border-gray-200 dark:border-gray-700"
                 />
 
-                {error && <div className="text-red-500 text-sm">{error}</div>}
+                {error && <div className="text-red-500 dark:text-red-400 text-sm">{error}</div>}
 
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full mt-8 rounded-lg py-3 text-white font-semibold bg-[#4C9A8A] transition-all hover:opacity-90"
+                  className="w-full mt-8 rounded-lg py-3 text-white font-semibold bg-emerald-600 hover:bg-emerald-700 transition-all border border-emerald-700 disabled:opacity-50"
                 >
                   {isLoading ? 'Creating account...' : 'SIGN UP'}
                 </button>
