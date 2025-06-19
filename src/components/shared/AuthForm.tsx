@@ -31,7 +31,6 @@ export default function AuthForm() {
     };
     fetchFaculties();
   }, []);
-
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -51,7 +50,17 @@ export default function AuthForm() {
         setError(result.error);
         return;
       }
-      router.push('/home');
+      
+      // Fetch user session to get role information
+      const response = await fetch('/api/auth/session');
+      const session = await response.json();
+      
+      // Redirect based on user role
+      if (session?.user?.role === 'CHAIRPERSON') {
+        router.push('/chairperson');
+      } else {
+        router.push('/home');
+      }
       router.refresh();
     } catch {
       setError('An error occurred. Please try again.');

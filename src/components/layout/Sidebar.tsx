@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,11 @@ import {
   User,
   LogOut,
   Menu,
+  BookOpen,
 } from 'lucide-react';
 
-const navigationItems = [
+// Default navigation for non-chairperson users
+const defaultNavigationItems = [
   {
     name: 'Management',
     href: '/management',
@@ -37,11 +39,31 @@ const navigationItems = [
   },
 ];
 
+// Navigation for chairperson users
+const chairpersonNavigationItems = [
+  {
+    name: 'Curriculum',
+    href: '/chairperson',
+    icon: BookOpen,
+  },
+  {
+    name: 'Profile',
+    href: '/profile',
+    icon: User,
+  },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const { isCollapsed, toggleSidebar } = useSidebar();
+  const { data: session } = useSession();
+
+  // Determine navigation items based on user role
+  const navigationItems = session?.user?.role === 'CHAIRPERSON' 
+    ? chairpersonNavigationItems 
+    : defaultNavigationItems;
 
   useEffect(() => {
     setMounted(true);
@@ -136,27 +158,28 @@ export default function Sidebar() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="text-sm font-medium text-emerald-800 dark:text-emerald-200"
+                    className="text-sm font-medium text-emerald-800 dark:text-emerald-200 text-center"
                   >
-                    NICKNAME
+                    {session?.user?.name || 'User'}
                   </motion.span>
                 )}
               </AnimatePresence>
             </div>
           </div>
-        </div>        {/* Theme Toggle */}
+        </div>{/* Theme Toggle */}
         <div className="px-3 py-2 border-b border-emerald-200/60 dark:border-emerald-800/40">
           <div className="flex justify-center">
             <ThemeToggle />
           </div>
-        </div>
-
-        {/* Navigation */}
+        </div>        {/* Navigation */}
         <nav className="flex-1 px-2 py-4">
           <div className="space-y-1">
             {navigationItems.map((item) => {
-              const isActive = pathname.startsWith(item.href);
-              const Icon = item.icon;              if (isCollapsed) {
+              // Special handling for chairperson curriculum route
+              const isActive = item.href === '/chairperson/curriculum' 
+                ? pathname.startsWith('/chairperson/curriculum')
+                : pathname.startsWith(item.href);
+              const Icon = item.icon;if (isCollapsed) {
                 return (
                   <Link key={item.name} href={item.href} className="block w-full">
                     <Button

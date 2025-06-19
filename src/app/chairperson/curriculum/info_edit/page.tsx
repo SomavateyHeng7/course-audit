@@ -74,6 +74,10 @@ export default function EditCurriculum() {
   const [search, setSearch] = useState("");
   const [requisiteSearch, setRequisiteSearch] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("CSX 4001");
+  const [electiveSearch, setElectiveSearch] = useState("");
+  const [selectedConcentration, setSelectedConcentration] = useState("Software Development");
+  const [majorElectiveCredits, setMajorElectiveCredits] = useState("24");
+  const [minGPA, setMinGPA] = useState("2.5");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allCourses = [
@@ -94,10 +98,29 @@ export default function EditCurriculum() {
     course.code.toLowerCase().includes(search.toLowerCase()) ||
     course.title.toLowerCase().includes(search.toLowerCase())
   );
-
   const filteredRequisiteCourses = allCourses.filter((course) =>
     course.code.toLowerCase().includes(requisiteSearch.toLowerCase()) ||
     course.name.toLowerCase().includes(requisiteSearch.toLowerCase())
+  );
+
+  const electiveCourses = [
+    { code: 'CSX 3001', name: 'Software Testing', credits: 3, category: 'Major Elective' },
+    { code: 'CSX 3002', name: 'Mobile App Development', credits: 3, category: 'Major Elective' },
+    { code: 'CSX 3003', name: 'Web Development', credits: 3, category: 'Major Elective' },
+    { code: 'CSX 4001', name: 'Machine Learning', credits: 3, category: 'Major Elective' },
+    { code: 'CSX 4002', name: 'Data Science', credits: 3, category: 'Major Elective' },
+    { code: 'CSX 4003', name: 'Computer Graphics', credits: 3, category: 'Major Elective' },
+    { code: 'GE 1001', name: 'English Communication', credits: 3, category: 'General Education' },
+    { code: 'GE 1002', name: 'Philosophy', credits: 3, category: 'General Education' },
+    { code: 'GE 1003', name: 'History', credits: 3, category: 'General Education' },
+    { code: 'FREE 1001', name: 'Art Appreciation', credits: 3, category: 'Free Elective' },
+    { code: 'FREE 1002', name: 'Music Theory', credits: 3, category: 'Free Elective' },
+    { code: 'FREE 1003', name: 'Creative Writing', credits: 3, category: 'Free Elective' },
+  ];
+
+  const filteredElectiveCourses = electiveCourses.filter((course) =>
+    course.code.toLowerCase().includes(electiveSearch.toLowerCase()) ||
+    course.name.toLowerCase().includes(electiveSearch.toLowerCase())
   );
 
   const getSelectedCourseData = () => {
@@ -440,12 +463,150 @@ export default function EditCurriculum() {
                 </div>
               </div>
             </div>
-          )}
-
-          {activeTab === "Elective Rules" && (
+          )}          {activeTab === "Elective Rules" && (
             <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-xl p-8">
-              <h2 className="text-xl font-bold mb-4 text-foreground">Elective Rules</h2>
-              <p className="text-muted-foreground">Elective rules content will be displayed here.</p>
+              <div className="flex gap-8 min-h-[700px]">
+                {/* Left Side - Course List */}
+                <div className="w-1/3 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6">
+                  <h3 className="text-lg font-bold mb-4 text-foreground">Available Elective Courses</h3>
+                  
+                  {/* Search Bar */}
+                  <div className="mb-4">
+                    <input
+                      type="text"
+                      placeholder="Search Courses..."
+                      value={electiveSearch}
+                      onChange={(e) => setElectiveSearch(e.target.value)}
+                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground text-sm"
+                    />
+                  </div>
+
+                  {/* Course List */}
+                  <div className="space-y-2 overflow-y-auto max-h-[580px]">
+                    {filteredElectiveCourses.map((course, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 border border-gray-200 dark:border-border rounded-lg bg-white dark:bg-card hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                      >
+                        <div className="font-semibold text-sm text-foreground">{course.code}</div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400">{course.name}</div>
+                        <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">{course.category} • {course.credits} credits</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right Side - Elective Rules Configuration */}
+                <div className="flex-1 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6">
+                  {/* Concentration Selection */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold mb-2 text-foreground">Concentration:</label>
+                    <select 
+                      value={selectedConcentration}
+                      onChange={(e) => setSelectedConcentration(e.target.value)}
+                      className="w-64 border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground"
+                    >
+                      <option value="Software Development">Software Development</option>
+                      <option value="Data Science">Data Science</option>
+                      <option value="Artificial Intelligence">Artificial Intelligence</option>
+                      <option value="Cybersecurity">Cybersecurity</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-8">
+                    {/* Left Column - Elective Categories */}
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold mb-4 text-foreground">Elective Categories</h3>
+                      
+                      {/* Major Electives */}
+                      <div className="mb-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                        <h4 className="font-bold text-foreground mb-1">Major Electives</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Required: 24 credits</p>
+                      </div>
+
+                      {/* General Education Electives */}
+                      <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-lg">
+                        <h4 className="font-bold text-foreground mb-1">General Education Electives</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Required: 24 credits</p>
+                      </div>
+
+                      {/* Free Electives */}
+                      <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-lg">
+                        <h4 className="font-bold text-foreground mb-1">Free Electives</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Required: 6 credits</p>
+                      </div>
+
+                      {/* Elective Distribution */}
+                      <div>
+                        <h3 className="text-lg font-bold mb-4 text-foreground">Elective Distribution</h3>
+                        <div className="flex gap-2">
+                          <button className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 transition border border-emerald-600">
+                            Major
+                          </button>
+                          <button className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 transition border border-emerald-600">
+                            General Education
+                          </button>
+                          <button className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 transition border border-emerald-600">
+                            Free
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column - Major Elective Configuration */}
+                    <div className="w-80">
+                      <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-lg p-6">
+                        <h3 className="text-lg font-bold mb-4 text-foreground">Major Elective Configuration</h3>
+                        
+                        <div className="mb-6">
+                          <h4 className="font-bold mb-3 text-foreground">Settings</h4>
+                          
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium mb-1 text-foreground">Category Name</label>
+                            <input
+                              type="text"
+                              value="Major Electives"
+                              className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground"
+                              readOnly
+                            />
+                          </div>
+
+                          <div className="flex gap-4 mb-4">
+                            <div className="flex-1">
+                              <label className="block text-sm font-medium mb-1 text-foreground">Required Credits</label>
+                              <input
+                                type="number"
+                                value={majorElectiveCredits}
+                                onChange={(e) => setMajorElectiveCredits(e.target.value)}
+                                className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="block text-sm font-medium mb-1 text-foreground">Min. GPA</label>
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={minGPA}
+                                onChange={(e) => setMinGPA(e.target.value)}
+                                className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-border">
+                          <button className="flex-1 bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700 transition border border-emerald-700">
+                            Save Changes
+                          </button>
+                          <button className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:bg-gray-400 dark:hover:bg-gray-500 transition border border-gray-400 dark:border-gray-500">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

@@ -9,8 +9,13 @@ export default auth((req) => {
   // Public paths that don't require authentication
   const publicPaths = ['/', '/auth', '/auth/error']
   const isPublicPath = publicPaths.includes(req.nextUrl.pathname)
+  
   // Redirect authenticated users away from auth pages (but allow landing page)
   if (isAuthenticated && req.nextUrl.pathname === '/auth') {
+    // Redirect based on user role
+    if (token?.user?.role === 'CHAIRPERSON') {
+      return NextResponse.redirect(new URL('/chairperson', req.url))
+    }
     return NextResponse.redirect(new URL('/management', req.url))
   }
 
@@ -18,12 +23,36 @@ export default auth((req) => {
   if (!isAuthenticated && !isPublicPath) {
     return NextResponse.redirect(new URL('/auth', req.url))
   }
+  
   // Role-based access control
   if (isAuthenticated && token?.user?.role) {
-    const role = token.user.role as string    // Protect advisor routes
+    const role = token.user.role as string
+      // Chairperson restrictions - only allow chairperson routes and profile
+    if (role === 'CHAIRPERSON') {
+      const isChairpersonRoute = req.nextUrl.pathname.startsWith('/chairperson')
+      const isProfileRoute = req.nextUrl.pathname === '/profile'
+      const isHomeRoute = req.nextUrl.pathname === '/home'
+      const isAllowedRoute = isChairpersonRoute || isProfileRoute || isPublicPath
+      
+      // Redirect chairpersons from /home to /chairperson
+      if (isHomeRoute) {
+        return NextResponse.redirect(new URL('/chairperson', req.url))
+      }
+      
+      if (!isAllowedRoute) {
+        return NextResponse.redirect(new URL('/chairperson', req.url))
+      }
+    }
+    
+    // Protect advisor routes
     if (req.nextUrl.pathname.startsWith('/advisor') && role !== 'ADVISOR') {
+      if (role === 'CHAIRPERSON') {
+        return NextResponse.redirect(new URL('/chairperson', req.url))
+      }
       return NextResponse.redirect(new URL('/management', req.url))
-    }    // Protect chairperson routes
+    }
+    
+    // Protect chairperson routes
     if (req.nextUrl.pathname.startsWith('/chairperson') && role !== 'CHAIRPERSON') {
       return NextResponse.redirect(new URL('/management', req.url))
     }
