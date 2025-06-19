@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Improved Scholarithm ER Diagram</title>
+    <meta charset="utf-8"/>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .entity {
+            background-color: #e3f2fd;
+            border: 2px solid #1976d2;
+            border-radius: 8px;
+            margin: 10px;
+            padding: 10px;
+            display: inline-block;
+            min-width: 200px;
+            vertical-align: top;
+        }
+        .entity-header {
+            background-color: #1976d2;
+            color: white;
+            padding: 8px;
+            margin: -10px -10px 10px -10px;
+            border-radius: 6px 6px 0 0;
+            font-weight: bold;
+            text-align: center;
+        }
+        .attribute {
+            margin: 4px 0;
+            padding: 2px 4px;
+            font-size: 14px;
+        }
+        .primary-key {
+            background-color: #fff3e0;
+            border-left: 3px solid #ff9800;
+            font-weight: bold;
+        }
+        .foreign-key {
+            background-color: #f3e5f5;
+            border-left: 3px solid #9c27b0;
+            font-style: italic;
+        }
+        .enum {
+            background-color: #e8f5e8;
+            border: 2px solid #4caf50;
+        }
+        .enum .entity-header {
+            background-color: #4caf50;
+        }
+        .relationship {
+            background-color: #fff8e1;
+            border: 2px solid #ffc107;
+            border-radius: 50px;
+            padding: 8px 16px;
+            margin: 10px;
+            display: inline-block;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1976d2;
+            padding-bottom: 5px;
+        }
+        .improvements {
+            background-color: #e8f5e8;
+            border: 2px solid #4caf50;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .improvements h3 {
+            color: #2e7d32;
+            margin-top: 0;
+        }
+        .improvements ul {
+            margin: 10px 0;
+        }
+        .improvements li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center; color: #1976d2;">Improved Scholarithm Database ER Diagram</h1>
+        
+        <div class="improvements">
+            <h3>🎯 Key Improvements Addressing Feedback</h3>
+            <ul>
+                <li><strong>General Education Electives:</strong> Support for credit constraints (e.g., 9 credits from 63 courses)</li>
+                <li><strong>Major-Specific Electives:</strong> Different elective sets for each major within a program</li>
+                <li><strong>Free Elective Blacklists:</strong> Courses that cannot be used as free electives</li>
+                <li><strong>Multiple Majors per Program:</strong> BBA with 6 different majors, each with unique requirements</li>
+                <li><strong>Flexible Course Offerings:</strong> Track when courses are offered by semester/year</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <div class="section-title">👥 Core User Management</div>
+            
+            <div class="entity">
+                <div class="entity-header">User</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute">email: String (Unique)</div>
+                <div class="attribute">password: String</div>
+                <div class="attribute">name: String</div>
+                <div class="attribute">role: Role</div>
+                <div class="attribute foreign-key">🔗 facultyId: String (FK)</div>
+                <div class="attribute foreign-key">🔗 advisorId: String? (FK)</div>
+            </div>
+
+            <div class="entity">
+                <div class="entity-header">Faculty</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute">name: String</div>
+                <div class="attribute">code: String (Unique)</div>
+            </div>
+
+            <div class="entity enum">
+                <div class="entity-header">Role (Enum)</div>
+                <div class="attribute">STUDENT</div>
+                <div class="attribute">ADVISOR</div>
+                <div class="attribute">CHAIRPERSON</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🏫 Academic Structure</div>
+            
+            <div class="entity">
+                <div class="entity-header">Department</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute">name: String</div>
+                <div class="attribute">code: String</div>
+                <div class="attribute foreign-key">🔗 facultyId: String (FK)</div>
+            </div>
+
+            <div class="entity">
+                <div class="entity-header">Program</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute">name: String (e.g., "BBA", "MSME")</div>
+                <div class="attribute">year: String</div>
+                <div class="attribute foreign-key">🔗 departmentId: String (FK)</div>
+                <div class="attribute foreign-key">🔗 facultyId: String (FK)</div>
+            </div>
+
+            <div class="entity">
+                <div class="entity-header">Major</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute">name: String (e.g., "Marketing")</div>
+                <div class="attribute">code: String (e.g., "MKT")</div>
+                <div class="attribute foreign-key">🔗 programId: String (FK)</div>
+            </div>
+
+            <div class="entity">
+                <div class="entity-header">StudentProfile</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute foreign-key">🔗 userId: String (FK)</div>
+                <div class="attribute foreign-key">🔗 programId: String (FK)</div>
+                <div class="attribute foreign-key">🔗 majorId: String (FK)</div>
+                <div class="attribute">enrollmentYear: String</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">📚 Course Management</div>
+            
+            <div class="entity">
+                <div class="entity-header">Course</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute">code: String (Unique)</div>
+                <div class="attribute">name: String</div>
+                <div class="attribute">credits: Int</div>
+                <div class="attribute">description: String?</div>
+            </div>
+
+            <div class="entity">
+                <div class="entity-header">CourseLink</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute foreign-key">🔗 prerequisiteId: String (FK)</div>
+                <div class="attribute foreign-key">🔗 postrequisiteId: String (FK)</div>
+            </div>
+
+            <div class="entity">
+                <div class="entity-header">CourseOffering</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute foreign-key">🔗 courseId: String (FK)</div>
+                <div class="attribute">semester: String</div>
+                <div class="attribute">year: String</div>
+                <div class="attribute">isOffered: Boolean</div>
+                <div class="attribute">capacity: Int?</div>
+                <div class="attribute">instructor: String?</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">📋 Core Requirements</div>
+            
+            <div class="entity">
+                <div class="entity-header">CoreRequirement</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute foreign-key">🔗 majorId: String (FK)</div>
+                <div class="attribute foreign-key">🔗 courseId: String (FK)</div>
+                <div class="attribute">semester: Int?</div>
+                <div class="attribute">year: Int?</div>
+                <div class="attribute">isRequired: Boolean</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🎓 General Education Electives</div>
+            
+            <div class="entity">
+                <div class="entity-header">GeneralEducationRequirement</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute foreign-key">🔗 programId: String (FK)</div>
+                <div class="attribute">name: String</div>
+                <div class="attribute">description: String?</div>
+                <div class="attribute">requiredCredits: Int</div>
+                <div class="attribute">maxCreditsPerCourse: Int?</div>
+                <div class="attribute">minCreditsPerCourse: Int?</div>
+            </div>
+
+            <div class="entity">
+                <div class="entity-header">GeneralEducationCourse</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute foreign-key">🔗 generalEducationRequirementId: String (FK)</div>
+                <div class="attribute foreign-key">🔗 courseId: String (FK)</div>
+                <div class="attribute">isActive: Boolean</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🎯 Major Electives</div>
+            
+            <div class="entity">
+                <div class="entity-header">MajorElectiveRequirement</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute foreign-key">🔗 majorId: String (FK)</div>
+                <div class="attribute">name: String</div>
+                <div class="attribute">description: String?</div>
+                <div class="attribute">requiredCredits: Int</div>
+                <div class="attribute">minCourses: Int?</div>
+                <div class="attribute">maxCourses: Int?</div>
+            </div>
+
+            <div class="entity">
+                <div class="entity-header">MajorElectiveCourse</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute foreign-key">🔗 majorElectiveRequirementId: String (FK)</div>
+                <div class="attribute foreign-key">🔗 courseId: String (FK)</div>
+                <div class="attribute">isActive: Boolean</div>
+                <div class="attribute">priority: Int?</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🆓 Free Electives & Blacklists</div>
+            
+            <div class="entity">
+                <div class="entity-header">FreeElectiveRule</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute foreign-key">🔗 programId: String (FK)</div>
+                <div class="attribute">name: String</div>
+                <div class="attribute">description: String?</div>
+                <div class="attribute">requiredCredits: Int</div>
+                <div class="attribute">allowAnyUniversity: Boolean</div>
+            </div>
+
+            <div class="entity">
+                <div class="entity-header">FreeElectiveBlacklist</div>
+                <div class="attribute primary-key">🔑 id: String (PK)</div>
+                <div class="attribute foreign-key">🔗 freeElectiveRuleId: String (FK)</div>
+                <div class="attribute foreign-key">🔗 courseId: String (FK)</div>
+                <div class="attribute">reason: String?</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🔗 Key Relationships</div>
+            
+            <div class="relationship">User → Faculty (Many-to-One)</div>
+            <div class="relationship">User → User (Advisor-Student)</div>
+            <div class="relationship">Department → Faculty (Many-to-One)</div>
+            <div class="relationship">Program → Department (Many-to-One)</div>
+            <div class="relationship">Major → Program (Many-to-One)</div>
+            <div class="relationship">StudentProfile → User, Program, Major</div>
+            <div class="relationship">Course ↔ Course (Prerequisites)</div>
+            <div class="relationship">CoreRequirement → Major, Course</div>
+            <div class="relationship">GeneralEducationRequirement → Program</div>
+            <div class="relationship">GeneralEducationCourse → GeneralEducationRequirement, Course</div>
+            <div class="relationship">MajorElectiveRequirement → Major</div>
+            <div class="relationship">MajorElectiveCourse → MajorElectiveRequirement, Course</div>
+            <div class="relationship">FreeElectiveRule → Program</div>
+            <div class="relationship">FreeElectiveBlacklist → FreeElectiveRule, Course</div>
+        </div>
+
+        <div class="improvements">
+            <h3>🔧 How This Addresses the Feedback</h3>
+            <ul>
+                <li><strong>General Education Electives:</strong> `GeneralEducationRequirement` now supports credit constraints (9 credits from 63 courses) with min/max credits per course</li>
+                <li><strong>Major-Specific Electives:</strong> Each `Major` can have multiple `MajorElectiveRequirement` sets with different course lists</li>
+                <li><strong>Multiple Majors in Program:</strong> BBA program can have 6 different majors, each with unique core and elective requirements</li>
+                <li><strong>Free Elective Blacklists:</strong> `FreeElectiveBlacklist` prevents specific courses from being used as free electives</li>
+                <li><strong>Flexible Structure:</strong> Supports different plans, course offerings by semester, and complex academic policies</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px; color: #666; font-size: 14px;">
+            Generated on: June 18, 2025<br>
+            This diagram addresses the complex elective requirements for modern academic programs
+        </div>
+    </div>
+</body>
+</html>

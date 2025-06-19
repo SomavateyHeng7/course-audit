@@ -1,0 +1,280 @@
+// IMPROVED PRISMA SCHEMA - ADDRESSING ELECTIVES FEEDBACK
+// This schema addresses the feedback regarding:
+// 1. General Education Electives with credit constraints (e.g., 9 credits from 63 courses)
+// 2. Major-specific electives with different requirements per major
+// 3. Blacklisted courses for free electives
+// 4. Multiple majors within the same program with different requirements
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(STUDENT)
+  facultyId String
+  faculty   Faculty  @relation(fields: [facultyId], references: [id])
+  advisorId String?
+  advisor   User?    @relation("AdvisorStudent", fields: [advisorId], references: [id])
+  students  User[]   @relation("AdvisorStudent")
+  studentProfiles StudentProfile[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Faculty {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  users     User[]
+  departments Department[]
+  programs  Program[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  STUDENT
+  ADVISOR
+  CHAIRPERSON
+}
+
+model Department {
+  id          String       @id @default(cuid())
+  name        String
+  code        String
+  facultyId   String
+  faculty     Faculty      @relation(fields: [facultyId], references: [id])
+  programs    Program[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([code, facultyId])
+}
+
+// New Program model to handle multiple majors within the same program
+model Program {
+  id           String     @id @default(cuid())
+  name         String     // e.g., "BBA", "MSME"
+  year         String     // e.g., "2024", "2025"
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  facultyId    String
+  faculty      Faculty    @relation(fields: [facultyId], references: [id])
+  majors       Major[]
+  generalEducationRequirements GeneralEducationRequirement[]
+  freeElectiveRules FreeElectiveRule[]
+  studentProfiles StudentProfile[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([name, year, departmentId])
+}
+
+// New Major model to handle different majors within a program
+model Major {
+  id        String   @id @default(cuid())
+  name      String   // e.g., "Marketing", "Finance", "Management"
+  code      String   // e.g., "MKT", "FIN", "MGT"
+  programId String
+  program   Program  @relation(fields: [programId], references: [id])
+  coreRequirements CoreRequirement[]
+  majorElectiveRequirements MajorElectiveRequirement[]
+  studentProfiles StudentProfile[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([code, programId])
+}
+
+// Student profile to track which program and major a student is in
+model StudentProfile {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  programId String
+  program   Program  @relation(fields: [programId], references: [id])
+  majorId   String
+  major     Major    @relation(fields: [majorId], references: [id])
+  enrollmentYear String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, programId, majorId])
+}
+
+model Course {
+  id            String          @id @default(cuid())
+  code          String          @unique
+  name          String
+  credits       Int
+  description   String?
+  prerequisites CourseLink[]    @relation("prerequisite")
+  postrequisites CourseLink[]   @relation("postrequisite")
+  
+  // Relations for different types of requirements
+  coreRequirements CoreRequirement[]
+  generalEducationCourses GeneralEducationCourse[]
+  majorElectiveCourses MajorElectiveCourse[]
+  blacklistedForFreeElectives FreeElectiveBlacklist[]
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model CourseLink {
+  id              String   @id @default(cuid())
+  prerequisiteId  String
+  postrequisiteId String
+  prerequisite    Course   @relation("prerequisite", fields: [prerequisiteId], references: [id])
+  postrequisite   Course   @relation("postrequisite", fields: [postrequisiteId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([prerequisiteId, postrequisiteId])
+}
+
+// Core/Required courses for each major
+model CoreRequirement {
+  id         String   @id @default(cuid())
+  majorId    String
+  major      Major    @relation(fields: [majorId], references: [id])
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id])
+  semester   Int?     // Recommended semester
+  year       Int?     // Recommended year
+  isRequired Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([majorId, courseId])
+}
+
+// General Education requirements with credit constraints
+model GeneralEducationRequirement {
+  id                 String   @id @default(cuid())
+  programId          String
+  program            Program  @relation(fields: [programId], references: [id])
+  name               String   // e.g., "General Education Electives"
+  description        String?
+  requiredCredits    Int      // e.g., 9 credits
+  maxCreditsPerCourse Int?    // e.g., maximum 3 credits per course
+  minCreditsPerCourse Int?    // e.g., minimum 1 credit per course
+  courses            GeneralEducationCourse[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([programId, name])
+}
+
+// Available courses for General Education requirements
+model GeneralEducationCourse {
+  id                           String                      @id @default(cuid())
+  generalEducationRequirementId String
+  generalEducationRequirement   GeneralEducationRequirement @relation(fields: [generalEducationRequirementId], references: [id])
+  courseId                     String
+  course                       Course                      @relation(fields: [courseId], references: [id])
+  isActive                     Boolean                     @default(true)
+  createdAt                    DateTime                    @default(now())
+  updatedAt                    DateTime                    @updatedAt
+
+  @@unique([generalEducationRequirementId, courseId])
+}
+
+// Major elective requirements with different sets per major
+model MajorElectiveRequirement {
+  id              String   @id @default(cuid())
+  majorId         String
+  major           Major    @relation(fields: [majorId], references: [id])
+  name            String   // e.g., "Marketing Electives", "Advanced Marketing Electives"
+  description     String?
+  requiredCredits Int      // e.g., 6 credits
+  minCourses      Int?     // Minimum number of courses required
+  maxCourses      Int?     // Maximum number of courses allowed
+  courses         MajorElectiveCourse[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([majorId, name])
+}
+
+// Available courses for major electives
+model MajorElectiveCourse {
+  id                        String                   @id @default(cuid())
+  majorElectiveRequirementId String
+  majorElectiveRequirement   MajorElectiveRequirement @relation(fields: [majorElectiveRequirementId], references: [id])
+  courseId                  String
+  course                    Course                   @relation(fields: [courseId], references: [id])
+  isActive                  Boolean                  @default(true)
+  priority                  Int?                     // For ordering/recommendation
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+
+  @@unique([majorElectiveRequirementId, courseId])
+}
+
+// Free elective rules and blacklists
+model FreeElectiveRule {
+  id                String   @id @default(cuid())
+  programId         String
+  program           Program  @relation(fields: [programId], references: [id])
+  name              String   // e.g., "Free Electives"
+  description       String?
+  requiredCredits   Int      // e.g., 12 credits
+  allowAnyUniversity Boolean @default(false) // Allow courses from other universities
+  blacklistedCourses FreeElectiveBlacklist[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([programId, name])
+}
+
+// Blacklisted courses for free electives
+model FreeElectiveBlacklist {
+  id                 String           @id @default(cuid())
+  freeElectiveRuleId String
+  freeElectiveRule   FreeElectiveRule @relation(fields: [freeElectiveRuleId], references: [id])
+  courseId           String
+  course             Course           @relation(fields: [courseId], references: [id])
+  reason             String?          // Why this course is blacklisted
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([freeElectiveRuleId, courseId])
+}
+
+// Enum for different types of course categories
+enum CourseCategory {
+  CORE
+  GENERAL_EDUCATION
+  MAJOR_ELECTIVE
+  FREE_ELECTIVE
+  PREREQUISITE
+}
+
+// Additional model to track course offerings by semester/year
+model CourseOffering {
+  id         String   @id @default(cuid())
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id])
+  semester   String   // e.g., "Fall", "Spring", "Summer"
+  year       String   // e.g., "2024", "2025"
+  isOffered  Boolean  @default(true)
+  capacity   Int?
+  instructor String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([courseId, semester, year])
+}
+
+// Add relation to Course model (this would be added to the Course model above)
+// courseOfferings CourseOffering[]
