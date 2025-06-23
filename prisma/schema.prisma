@@ -14,18 +14,22 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(STUDENT)
-  facultyId String
-  faculty   Faculty  @relation(fields: [facultyId], references: [id])
-  advisorId String?
-  advisor   User?    @relation("AdvisorStudent", fields: [advisorId], references: [id])
-  students  User[]   @relation("AdvisorStudent")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String         @id @default(cuid())
+  email           String         @unique
+  password        String
+  name            String
+  role            Role           @default(STUDENT)
+  facultyId       String
+  faculty         Faculty        @relation(fields: [facultyId], references: [id])
+  advisorId       String?
+  advisor         User?          @relation("AdvisorStudent", fields: [advisorId], references: [id])
+  students        User[]         @relation("AdvisorStudent")
+  studentCourses  StudentCourse[]
+  gpa             Float?
+  credits         Int?
+  scholarshipHour Int?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 }
 
 model Faculty {
@@ -73,18 +77,35 @@ model Curriculum {
 }
 
 model Course {
-  id            String          @id @default(cuid())
-  code          String
-  name          String
-  credits       Int
-  curriculumId  String
-  curriculum    Curriculum      @relation(fields: [curriculumId], references: [id])
-  prerequisites CourseLink[]    @relation("prerequisite")
-  postrequisites CourseLink[]   @relation("postrequisite")
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id              String          @id @default(cuid())
+  code            String
+  name            String
+  credits         Int
+  category        String          // Core, Major Elective, Free Elective
+  curriculumId    String
+  curriculum      Curriculum      @relation(fields: [curriculumId], references: [id])
+  prerequisites   CourseLink[]    @relation("prerequisite")
+  postrequisites  CourseLink[]    @relation("postrequisite")
+  studentCourses  StudentCourse[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@unique([code, curriculumId])
+}
+
+model StudentCourse {
+  id        String   @id @default(cuid())
+  studentId String
+  courseId  String
+  student   User     @relation(fields: [studentId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+  status    String   // In Progress, Completed, Pending
+  grade     String?
+  semester  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, courseId])
 }
 
 model CourseLink {
