@@ -38,8 +38,7 @@ export default auth((req) => {
       if (isHomeRoute) {
         return NextResponse.redirect(new URL('/chairperson', req.url))
       }
-      
-      if (!isAllowedRoute) {
+        if (!isAllowedRoute) {
         return NextResponse.redirect(new URL('/chairperson', req.url))
       }
     }
