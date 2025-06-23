@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { id: string; courseId: string } }
 ) {
   try {
@@ -32,7 +32,7 @@ export async function GET(
 }
 
 export async function POST(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { id: string; courseId: string } }
 ) {
   try {
@@ -95,7 +95,7 @@ export async function POST(
 }
 
 export async function DELETE(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { id: string; courseId: string } }
 ) {
   try {
