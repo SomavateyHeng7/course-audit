@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -57,6 +56,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [logoError, setLogoError] = useState(false);
   const { isCollapsed, toggleSidebar } = useSidebar();
   const { data: session } = useSession();
 
@@ -68,15 +68,28 @@ export default function Sidebar() {
   useEffect(() => {
     setMounted(true);
   }, []);
+  const handleLogoError = () => {
+    if (!logoError) {
+      console.warn('Logo failed to load');
+      setLogoError(true);
+    }
+  };
 
   const handleLogout = async () => {
     try {
+      // Clear any local/session storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Sign out with redirect to landing page
       await signOut({
-        redirect: false,
+        callbackUrl: '/',
+        redirect: true,
       });
-      router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
+      // Fallback: force redirect to landing page
+      window.location.href = '/';
     }
   };
 
@@ -100,17 +113,22 @@ export default function Sidebar() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center gap-1 mr-8"
+                  transition={{ duration: 0.2 }}                  className="flex items-center gap-1 mr-8"
                 >
-                  <Image
-                    src='/image/logo.png'
-                    alt="EduTrack Logo"
-                    width={32}
-                    height={32}
-                    className="w-7 h-8"
-                    priority
-                  />
+                  {!logoError ? (
+                    <img
+                      src="/image/logo.png"
+                      alt="EduTrack Logo"
+                      width={32}
+                      height={32}
+                      className="w-7 h-8 object-contain"
+                      onError={handleLogoError}
+                    />
+                  ) : (
+                    <div className="w-7 h-8 bg-emerald-600 rounded flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">E</span>
+                    </div>
+                  )}
                   <h1 className="text-xl font-bold" style={{ color: '#489581' }}>
                     EduTrack
                   </h1>
@@ -119,16 +137,25 @@ export default function Sidebar() {
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center justify-center"
+                  transition={{ duration: 0.2 }}                  className="flex items-center justify-center"
                 >
-                  <Image
-                    src='/image/logo.png'
+                  <img
+                    src="/image/logo.png"
                     alt="EduTrack Logo"
                     width={32}
                     height={32}
-                    className="w-7 h-8"
-                    priority
+                    className="w-7 h-8 object-contain"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      // Prevent infinite fallback loops
+                      if (!target.dataset.fallbackAttempted) {
+                        target.dataset.fallbackAttempted = 'true';
+                        target.src = '/next.svg';
+                      } else {
+                        // Hide the image if fallback also fails
+                        target.style.display = 'none';
+                      }
+                    }}
                   />
                 </motion.div>
               )}

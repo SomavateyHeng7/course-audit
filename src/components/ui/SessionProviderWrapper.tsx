@@ -11,7 +11,6 @@ export default function SessionProviderWrapper({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  console.log(pathname)
   const isPageRoute = pathname === '/';
 
   return (    <ThemeProvider
