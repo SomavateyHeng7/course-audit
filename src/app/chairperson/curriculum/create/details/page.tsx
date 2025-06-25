@@ -16,8 +16,10 @@ interface ParsedCourse {
 interface CurriculumInfo {
   name: string;
   totalCredits: string;
-  concentration: string;
+  idStart: string;
+  idEnd: string;
   fileName: string;
+  courseCount?: number;
 }
 
 export default function CurriculumDetails() {
@@ -158,11 +160,10 @@ export default function CurriculumDetails() {
           <div className="bg-card rounded-xl border border-border p-6 mb-6">
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-2">
-                {curriculumInfo.name}
+                {curriculumInfo.name} ({curriculumInfo.idStart} - {curriculumInfo.idEnd})
               </h1>
               <div className="flex gap-6 text-sm text-muted-foreground">
                 <span>Total Credits: {curriculumInfo.totalCredits}</span>
-                <span>Concentration: {curriculumInfo.concentration}</span>
                 <span>Courses: {courses.length}</span>
                 <span>File: {curriculumInfo.fileName}</span>
               </div>

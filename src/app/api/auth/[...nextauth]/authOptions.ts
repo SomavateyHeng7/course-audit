@@ -82,9 +82,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-    async signOut({ token }) {
-      // Clear the token on signout
-      return true;
-    },
   },
 });
