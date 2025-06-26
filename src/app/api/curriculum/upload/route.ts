@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { auth } from '@/app/api/auth/[...nextauth]/authOptions';
 import { parse } from 'csv-parse/sync';
+
+interface CourseRecord {
+  code: string;
+  name: string;
+  credits: number;
+  category: string;
+}
 
 export async function POST(req: Request) {
   try {
@@ -44,20 +51,21 @@ export async function POST(req: Request) {
     });
 
     // Validate CSV structure
-    const requiredColumns = ['code', 'name', 'credits'];
+    const requiredColumns = ['code', 'name', 'credits', 'category'];
     const firstRecord = records[0];
     if (!firstRecord || !requiredColumns.every(col => col in firstRecord)) {
       return NextResponse.json(
-        { error: 'Invalid CSV format. Required columns: code, name, credits' },
+        { error: 'Invalid CSV format. Required columns: code, name, credits, category' },
         { status: 400 }
       );
     }
 
     // Process records and create/update courses
-    const courses = records.map((record: any) => ({
+    const courses: CourseRecord[] = records.map((record: any) => ({
       code: record.code,
       name: record.name,
       credits: parseInt(record.credits, 10),
+      category: record.category,
     }));
 
     // Delete existing courses and create new ones
@@ -68,7 +76,7 @@ export async function POST(req: Request) {
     });
 
     const createdCourses = await prisma.course.createMany({
-      data: courses.map(course => ({
+      data: courses.map((course: CourseRecord) => ({
         ...course,
         curriculumId,
       })),
