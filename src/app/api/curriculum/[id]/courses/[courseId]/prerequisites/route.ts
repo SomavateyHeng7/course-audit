@@ -2,25 +2,29 @@ import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string; courseId: string } }
-) {
+function extractParamsFromUrl(req: NextRequest) {
+  const url = new URL(req.url);
+  const segments = url.pathname.split('/');
+  const id = segments[segments.indexOf('curriculum') + 1];
+  const courseId = segments[segments.indexOf('courses') + 1];
+  return { id, courseId };
+}
+
+export async function GET(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
+    const { courseId } = extractParamsFromUrl(req);
     const prerequisites = await prisma.courseLink.findMany({
       where: {
-        postrequisiteId: params.courseId,
+        postrequisiteId: courseId,
       },
       include: {
         prerequisite: true,
       },
     });
-
     return NextResponse.json(prerequisites);
   } catch (error) {
     console.error('Error fetching prerequisites:', error);
@@ -31,59 +35,43 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string; courseId: string } }
-) {
+export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'CHAIRPERSON') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     const { prerequisiteId } = await req.json();
-
     if (!prerequisiteId) {
       return NextResponse.json(
         { error: 'Missing prerequisite ID' },
         { status: 400 }
       );
     }
-
-    // Check if both courses exist in the curriculum
+    const { id, courseId } = extractParamsFromUrl(req);
     const [course, prerequisite] = await Promise.all([
       prisma.course.findFirst({
-        where: {
-          id: params.courseId,
-          curriculumId: params.id,
-        },
+        where: { id: courseId, curriculumId: id },
       }),
       prisma.course.findFirst({
-        where: {
-          id: prerequisiteId,
-          curriculumId: params.id,
-        },
+        where: { id: prerequisiteId, curriculumId: id },
       }),
     ]);
-
     if (!course || !prerequisite) {
       return NextResponse.json(
         { error: 'Course or prerequisite not found in curriculum' },
         { status: 404 }
       );
     }
-
-    // Create prerequisite link
     const prerequisiteLink = await prisma.courseLink.create({
       data: {
         prerequisiteId,
-        postrequisiteId: params.courseId,
+        postrequisiteId: courseId,
       },
       include: {
         prerequisite: true,
       },
     });
-
     return NextResponse.json(prerequisiteLink, { status: 201 });
   } catch (error) {
     console.error('Error adding prerequisite:', error);
@@ -94,35 +82,28 @@ export async function POST(
   }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string; courseId: string } }
-) {
+export async function DELETE(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'CHAIRPERSON') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     const { prerequisiteId } = await req.json();
-
     if (!prerequisiteId) {
       return NextResponse.json(
         { error: 'Missing prerequisite ID' },
         { status: 400 }
       );
     }
-
-    // Delete prerequisite link
+    const { courseId } = extractParamsFromUrl(req);
     await prisma.courseLink.delete({
       where: {
         prerequisiteId_postrequisiteId: {
           prerequisiteId,
-          postrequisiteId: params.courseId,
+          postrequisiteId: courseId,
         },
       },
     });
-
     return NextResponse.json({ message: 'Prerequisite removed successfully' });
   } catch (error) {
     console.error('Error removing prerequisite:', error);

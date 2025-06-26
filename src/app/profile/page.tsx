@@ -5,10 +5,7 @@ export default function StudentProfile() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isEditingStudent, setIsEditingStudent] = useState(false);
   const [isEditingAdvisor, setIsEditingAdvisor] = useState(false);
-<<<<<<< HEAD
-=======
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
->>>>>>> tey
 
   const [studentInfo, setStudentInfo] = useState({
     faculty: "SCIENCE AND TECHNOLOGY",
@@ -18,9 +15,6 @@ export default function StudentProfile() {
   });
 
   const [selectedAdvisor, setSelectedAdvisor] = useState("John Doe");
-<<<<<<< HEAD
-  const advisors = ["John Doe", "Jane Smith", "Robert Brown", "Emily Johnson"];
-=======
   const [advisors, setAdvisors] = useState<string[]>([]);
 
   useEffect(() => {
@@ -65,21 +59,17 @@ export default function StudentProfile() {
       console.error("Error updating profile:", error);
     }
   };
->>>>>>> tey
 
   return (
     <div className="bg-gray-50 dark:bg-background min-h-screen p-10">
       <h2 className="text-3xl font-bold mb-8 text-gray-800 dark:text-foreground">PROFILE</h2>
 
-<<<<<<< HEAD
-=======
       {showSuccessMessage && (
         <div className="mb-4 p-4 rounded-md bg-green-100 text-green-800 border border-green-300">
           ✅ Changes saved successfully!
         </div>
       )}
 
->>>>>>> tey
       <div className="flex border-b border-gray-300 dark:border-border mb-6">
         {['dashboard', 'student', 'advisor'].map((tab) => (
           <button
@@ -120,11 +110,7 @@ export default function StudentProfile() {
           )}
           <div className="flex justify-end mt-6">
             <button
-<<<<<<< HEAD
-              onClick={() => setIsEditingStudent((prev) => !prev)}
-=======
               onClick={() => isEditingStudent ? handleSave() : setIsEditingStudent(true)}
->>>>>>> tey
               className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
             >
               {isEditingStudent ? "Save" : "Edit"}
@@ -136,20 +122,6 @@ export default function StudentProfile() {
       {activeTab === "advisor" && (
         <div className="bg-white dark:bg-card rounded-xl border border-gray-200 dark:border-border p-8 w-full max-w-4xl">
           {isEditingAdvisor ? (
-<<<<<<< HEAD
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Select Advisor</label>
-              <select
-                value={selectedAdvisor}
-                onChange={(e) => setSelectedAdvisor(e.target.value)}
-                className="w-full border border-gray-300 dark:border-border rounded-lg p-2 bg-white dark:bg-background text-gray-800 dark:text-white"
-              >
-                {advisors.map((advisor) => (
-                  <option key={advisor} value={advisor}>{advisor}</option>
-                ))}
-              </select>
-            </div>
-=======
             <>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Select Advisor</label>
@@ -164,7 +136,6 @@ export default function StudentProfile() {
                 </select>
               </div>
             </>
->>>>>>> tey
           ) : (
             <InfoRow label="Name" value={selectedAdvisor} />
           )}
@@ -176,11 +147,7 @@ export default function StudentProfile() {
 
           <div className="flex justify-end mt-6">
             <button
-<<<<<<< HEAD
-              onClick={() => setIsEditingAdvisor((prev) => !prev)}
-=======
               onClick={() => isEditingAdvisor ? handleSave() : setIsEditingAdvisor(true)}
->>>>>>> tey
               className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
             >
               {isEditingAdvisor ? "Save" : "Edit"}
@@ -222,7 +189,6 @@ function EditableRow({ label, value, onChange, type = "text", min }: {
   );
 }
 
-// Dashboard component placeholder
 function Dashboard() {
   return <div className="text-gray-500 dark:text-gray-400">Dashboard content here...</div>;
 }
