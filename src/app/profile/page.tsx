@@ -61,20 +61,20 @@ export default function StudentProfile() {
   };
 
   return (
-    <div className="bg-gray-50 dark:bg-background min-h-screen p-10">
-      <h2 className="text-3xl font-bold mb-8 text-gray-800 dark:text-foreground">PROFILE</h2>
+    <div className="bg-gray-50 dark:bg-background min-h-screen p-4 sm:p-8 md:p-10">
+      <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-800 dark:text-foreground text-center sm:text-left">PROFILE</h2>
 
       {showSuccessMessage && (
-        <div className="mb-4 p-4 rounded-md bg-green-100 text-green-800 border border-green-300">
+        <div className="mb-4 p-4 rounded-md bg-green-100 text-green-800 border border-green-300 text-center text-sm sm:text-base">
           ✅ Changes saved successfully!
         </div>
       )}
 
-      <div className="flex border-b border-gray-300 dark:border-border mb-6">
+      <div className="flex flex-col sm:flex-row border-b border-gray-300 dark:border-border mb-6">
         {['dashboard', 'student', 'advisor'].map((tab) => (
           <button
             key={tab}
-            className={`px-6 py-3 text-sm font-medium ${
+            className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium ${
               activeTab === tab
                 ? "border-b-4 border-emerald-600 text-black dark:text-white"
                 : "text-gray-500 dark:text-gray-400"
@@ -89,7 +89,7 @@ export default function StudentProfile() {
       {activeTab === "dashboard" && <Dashboard />}
 
       {activeTab === "student" && (
-        <div className="bg-white dark:bg-card rounded-xl border border-gray-200 dark:border-border p-8 w-full max-w-4xl">
+        <div className="bg-white dark:bg-card rounded-xl border border-gray-200 dark:border-border p-4 sm:p-8 w-full max-w-4xl mx-auto">
           {isEditingStudent ? (
             <>
               <EditableRow label="Faculty" value={studentInfo.faculty} onChange={(val) => setStudentInfo({ ...studentInfo, faculty: val })} />
@@ -111,7 +111,7 @@ export default function StudentProfile() {
           <div className="flex justify-end mt-6">
             <button
               onClick={() => isEditingStudent ? handleSave() : setIsEditingStudent(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
+              className="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
             >
               {isEditingStudent ? "Save" : "Edit"}
             </button>
@@ -120,15 +120,15 @@ export default function StudentProfile() {
       )}
 
       {activeTab === "advisor" && (
-        <div className="bg-white dark:bg-card rounded-xl border border-gray-200 dark:border-border p-8 w-full max-w-4xl">
+        <div className="bg-white dark:bg-card rounded-xl border border-gray-200 dark:border-border p-4 sm:p-8 w-full max-w-4xl mx-auto">
           {isEditingAdvisor ? (
             <>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Select Advisor</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Select Advisor</label>
                 <select
                   value={selectedAdvisor}
                   onChange={(e) => setSelectedAdvisor(e.target.value)}
-                  className="w-full border border-gray-300 dark:border-border rounded-lg p-2 bg-white dark:bg-background text-gray-800 dark:text-white"
+                  className="w-full border border-gray-300 dark:border-border rounded-lg p-2 bg-white dark:bg-background text-gray-800 dark:text-white text-xs sm:text-sm"
                 >
                   {advisors.map((advisor) => (
                     <option key={advisor} value={advisor}>{advisor}</option>
@@ -148,7 +148,7 @@ export default function StudentProfile() {
           <div className="flex justify-end mt-6">
             <button
               onClick={() => isEditingAdvisor ? handleSave() : setIsEditingAdvisor(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
+              className="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
             >
               {isEditingAdvisor ? "Save" : "Edit"}
             </button>
@@ -161,8 +161,8 @@ export default function StudentProfile() {
 
 function InfoRow({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex justify-between py-3 border-b border-gray-200 dark:border-border">
-      <span className="font-medium text-gray-600 dark:text-gray-300">{label}</span>
+    <div className="flex flex-col sm:flex-row justify-between py-2 sm:py-3 border-b border-gray-200 dark:border-border text-xs sm:text-base">
+      <span className="font-medium text-gray-600 dark:text-gray-300 mb-1 sm:mb-0">{label}</span>
       <span className="text-gray-800 dark:text-foreground font-medium">{value}</span>
     </div>
   );
@@ -176,14 +176,14 @@ function EditableRow({ label, value, onChange, type = "text", min }: {
   min?: number;
 }) {
   return (
-    <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-border">
-      <label className="font-medium text-gray-600 dark:text-gray-300 w-1/3">{label}</label>
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-2 sm:py-3 border-b border-gray-200 dark:border-border">
+      <label className="font-medium text-gray-600 dark:text-gray-300 w-full sm:w-1/3 mb-1 sm:mb-0 text-xs sm:text-base">{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         min={min}
-        className="w-2/3 border border-gray-300 dark:border-border rounded-md px-3 py-2 dark:bg-background dark:text-white"
+        className="w-full sm:w-2/3 border border-gray-300 dark:border-border rounded-md px-3 py-2 dark:bg-background dark:text-white text-xs sm:text-base"
       />
     </div>
   );
