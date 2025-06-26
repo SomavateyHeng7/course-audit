@@ -155,7 +155,7 @@ export default function EditCurriculum() {
     });
   };
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-background">
+    <div className="flex min-h-screen bg-white dark:bg-background">
       {/* Sidebar is assumed to be rendered by layout */}
       <div className="flex-1 flex flex-col items-center py-10">
         <div className="w-full max-w-6xl bg-white dark:bg-card rounded-2xl border border-gray-200 dark:border-border p-10">

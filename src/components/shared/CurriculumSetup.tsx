@@ -21,7 +21,7 @@ const CurriculumSetup: React.FC = () => {
 
   return (
     <div className="flex flex-col flex-1 p-8">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Curriculum Setup</h1>
+      <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Curriculum Setup</h1>
 
       <div className="flex justify-between items-center mb-4">
         <div className="relative w-1/2 max-w-sm">
