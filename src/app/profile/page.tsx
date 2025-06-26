@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function StudentProfile() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isEditingStudent, setIsEditingStudent] = useState(false);
   const [isEditingAdvisor, setIsEditingAdvisor] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   const [studentInfo, setStudentInfo] = useState({
     faculty: "SCIENCE AND TECHNOLOGY",
@@ -14,11 +15,60 @@ export default function StudentProfile() {
   });
 
   const [selectedAdvisor, setSelectedAdvisor] = useState("John Doe");
-  const advisors = ["John Doe", "Jane Smith", "Robert Brown", "Emily Johnson"];
+  const [advisors, setAdvisors] = useState<string[]>([]);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const res = await fetch("/api/student-profile");
+        if (res.ok) {
+          const data = await res.json();
+          setStudentInfo(data.studentInfo || studentInfo);
+          setSelectedAdvisor(data.advisorInfo?.name || selectedAdvisor);
+          setAdvisors(["John Doe", "Jane Smith", "Robert Brown", "Emily Johnson"]); // Replace with dynamic list if needed
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+        // Fallback to default values
+        setAdvisors(["John Doe", "Jane Smith", "Robert Brown", "Emily Johnson"]);
+      }
+    }
+    fetchProfile();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      const res = await fetch("/api/student-profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentInfo,
+          advisorName: selectedAdvisor,
+        }),
+      });
+
+      if (res.ok) {
+        setIsEditingStudent(false);
+        setIsEditingAdvisor(false);
+        setShowSuccessMessage(true);
+        setTimeout(() => setShowSuccessMessage(false), 3000);
+      } else {
+        console.error("Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+    }
+  };
 
   return (
     <div className="bg-gray-50 dark:bg-background min-h-screen p-10">
       <h2 className="text-3xl font-bold mb-8 text-gray-800 dark:text-foreground">PROFILE</h2>
+
+      {showSuccessMessage && (
+        <div className="mb-4 p-4 rounded-md bg-green-100 text-green-800 border border-green-300">
+          ✅ Changes saved successfully!
+        </div>
+      )}
 
       <div className="flex border-b border-gray-300 dark:border-border mb-6">
         {['dashboard', 'student', 'advisor'].map((tab) => (
@@ -60,7 +110,7 @@ export default function StudentProfile() {
           )}
           <div className="flex justify-end mt-6">
             <button
-              onClick={() => setIsEditingStudent((prev) => !prev)}
+              onClick={() => isEditingStudent ? handleSave() : setIsEditingStudent(true)}
               className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
             >
               {isEditingStudent ? "Save" : "Edit"}
@@ -72,18 +122,20 @@ export default function StudentProfile() {
       {activeTab === "advisor" && (
         <div className="bg-white dark:bg-card rounded-xl border border-gray-200 dark:border-border p-8 w-full max-w-4xl">
           {isEditingAdvisor ? (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Select Advisor</label>
-              <select
-                value={selectedAdvisor}
-                onChange={(e) => setSelectedAdvisor(e.target.value)}
-                className="w-full border border-gray-300 dark:border-border rounded-lg p-2 bg-white dark:bg-background text-gray-800 dark:text-white"
-              >
-                {advisors.map((advisor) => (
-                  <option key={advisor} value={advisor}>{advisor}</option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Select Advisor</label>
+                <select
+                  value={selectedAdvisor}
+                  onChange={(e) => setSelectedAdvisor(e.target.value)}
+                  className="w-full border border-gray-300 dark:border-border rounded-lg p-2 bg-white dark:bg-background text-gray-800 dark:text-white"
+                >
+                  {advisors.map((advisor) => (
+                    <option key={advisor} value={advisor}>{advisor}</option>
+                  ))}
+                </select>
+              </div>
+            </>
           ) : (
             <InfoRow label="Name" value={selectedAdvisor} />
           )}
@@ -95,7 +147,7 @@ export default function StudentProfile() {
 
           <div className="flex justify-end mt-6">
             <button
-              onClick={() => setIsEditingAdvisor((prev) => !prev)}
+              onClick={() => isEditingAdvisor ? handleSave() : setIsEditingAdvisor(true)}
               className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
             >
               {isEditingAdvisor ? "Save" : "Edit"}
