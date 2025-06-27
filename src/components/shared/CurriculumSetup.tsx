@@ -12,7 +12,7 @@ const CurriculumSetup: React.FC = () => {
   const [search, setSearch] = useState('');
   const router = useRouter();
   const handleInfoClick = () => {
-    router.push('/chairperson/curriculum/info_edit');
+    router.push('/chairperson/info_edit');
   };
 
   const filteredData = curriculumData.filter((item) =>
@@ -33,7 +33,7 @@ const CurriculumSetup: React.FC = () => {
             className="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
         </div>
-        <button onClick={() => router.push('/chairperson/curriculum/create')} className="bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600 flex items-center space-x-2">
+        <button onClick={() => router.push('/chairperson/create')} className="bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600 flex items-center space-x-2">
           <span>Create New Curriculum</span>
           <span>➕</span>        
         </button>
