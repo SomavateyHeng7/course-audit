@@ -17,6 +17,7 @@ import {
   LogOut,
   Menu,
   BookOpen,
+  Settings,
 } from 'lucide-react';
 
 // Default navigation for non-chairperson users
@@ -44,6 +45,11 @@ const chairpersonNavigationItems = [
     name: 'Curriculum',
     href: '/chairperson',
     icon: BookOpen,
+  },
+  {
+    name: 'Config',
+    href: '/chairperson/info_config',
+    icon: Settings,
   },
   {
     name: 'Profile',
