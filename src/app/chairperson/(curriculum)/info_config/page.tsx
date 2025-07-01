@@ -25,11 +25,12 @@ interface Concentration {
   createdAt: string;
 }
 
-const mockBlacklistCourses: Course[] = [
-  { code: 'CSX 1001', title: 'Introduction to Computer Science', credits: 3, creditHours: '3-0-6', type: 'Core', description: 'Introduction to fundamental concepts of computer science and programming.' },
-  { code: 'CSX 2005', title: 'Legacy Programming', credits: 3, creditHours: '3-0-6', type: 'Major', description: 'Study of outdated programming languages and practices.' },
-  { code: 'CSX 3008', title: 'Outdated Web Technologies', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Exploration of deprecated web development technologies.' },
-];
+interface Blacklist {
+  id: string;
+  name: string;
+  courses: Course[];
+  createdAt: string;
+}
 
 const defaultCourseTypes: CourseType[] = [
   { id: '1', name: 'Core', color: '#ef4444' }, // red
@@ -60,16 +61,37 @@ const mockConcentrations: Concentration[] = [
   },
 ];
 
+const mockBlacklists: Blacklist[] = [
+  {
+    id: '1',
+    name: 'Outdated Courses',
+    courses: [
+      { code: 'CSX 1001', title: 'Introduction to Computer Science', credits: 3, creditHours: '3-0-6', type: 'Core', description: 'Introduction to fundamental concepts of computer science and programming.' },
+      { code: 'CSX 2005', title: 'Legacy Programming', credits: 3, creditHours: '3-0-6', type: 'Major', description: 'Study of outdated programming languages and practices.' },
+      { code: 'CSX 3008', title: 'Outdated Web Technologies', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Exploration of deprecated web development technologies.' },
+    ],
+    createdAt: '2024-12-15'
+  },
+  {
+    id: '2',
+    name: 'Conflicting Prerequisites',
+    courses: [
+      { code: 'CSX 4001', title: 'Advanced Research Methods', credits: 3, creditHours: '3-0-6', type: 'Major', description: 'Research methodologies with scheduling conflicts.' },
+      { code: 'CSX 4002', title: 'Senior Capstone A', credits: 3, creditHours: '3-0-6', type: 'Major', description: 'Capstone project with prerequisite issues.' },
+    ],
+    createdAt: '2024-11-20'
+  },
+];
+
 export default function InfoConfig() {
-  const [isBlacklistModalOpen, setIsBlacklistModalOpen] = useState(false);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [uploadedCourses, setUploadedCourses] = useState<Course[]>([]);
-  const [isDragOver, setIsDragOver] = useState(false);
+  // Course type management states
   const [courseTypes, setCourseTypes] = useState<CourseType[]>(defaultCourseTypes);
   const [isAddTypeModalOpen, setIsAddTypeModalOpen] = useState(false);
   const [isEditTypeModalOpen, setIsEditTypeModalOpen] = useState(false);
   const [editingType, setEditingType] = useState<CourseType | null>(null);
   const [newType, setNewType] = useState({ name: '', color: '#6366f1' });
+  
+  // Concentration management states
   const [concentrations, setConcentrations] = useState<Concentration[]>(mockConcentrations);
   const [isEditConcentrationTitleOpen, setIsEditConcentrationTitleOpen] = useState(false);
   const [concentrationTitle, setConcentrationTitle] = useState('Concentrations');
@@ -79,60 +101,97 @@ export default function InfoConfig() {
   const [newConcentration, setNewConcentration] = useState({ name: '', courses: [] as Course[] });
   const [concentrationDragOver, setConcentrationDragOver] = useState(false);
   const concentrationFileInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Blacklist management states
+  const [blacklists, setBlacklists] = useState<Blacklist[]>(mockBlacklists);
+  const [isAddBlacklistModalOpen, setIsAddBlacklistModalOpen] = useState(false);
+  const [isEditBlacklistModalOpen, setIsEditBlacklistModalOpen] = useState(false);
+  const [editingBlacklist, setEditingBlacklist] = useState<Blacklist | null>(null);
+  const [newBlacklist, setNewBlacklist] = useState({ name: '', courses: [] as Course[] });
+  const [blacklistDragOver, setBlacklistDragOver] = useState(false);
+  const blacklistFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleViewBlacklist = () => {
-    setIsBlacklistModalOpen(true);
+  // Blacklist management functions
+  const handleAddBlacklist = () => {
+    setIsAddBlacklistModalOpen(true);
   };
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
+  const handleEditBlacklist = (blacklist: Blacklist) => {
+    setEditingBlacklist(blacklist);
+    setNewBlacklist({ name: blacklist.name, courses: blacklist.courses });
+    setIsEditBlacklistModalOpen(true);
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDeleteBlacklist = (blacklistId: string) => {
+    // TODO: Backend integration - Delete blacklist from database
+    // This blacklist belongs to the chairperson's department only
+    setBlacklists(blacklists.filter(b => b.id !== blacklistId));
+  };
+
+  const handleBlacklistDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setIsDragOver(true);
+    setBlacklistDragOver(true);
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleBlacklistDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setIsDragOver(false);
+    setBlacklistDragOver(false);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleBlacklistDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setIsDragOver(false);
+    setBlacklistDragOver(false);
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      handleFileUpload(files[0]);
+      handleBlacklistFileUpload(files[0]);
     }
   };
 
-  const handleFileUpload = (file: File | null) => {
+  const handleBlacklistFileUpload = (file: File | null) => {
     if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
       // Mock parsing of Excel file - in real implementation, parse the Excel file
-      // TODO: Backend integration - Parse Excel file and extract course data
+      // TODO: Backend integration - Parse Excel file and extract course data for blacklist
       const mockUploadedCourses: Course[] = [
         { code: 'CSX 4001', title: 'Advanced Machine Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Advanced techniques in machine learning and artificial intelligence.' },
         { code: 'CSX 4002', title: 'Deep Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Neural networks and deep learning architectures.' },
       ];
-      setUploadedCourses(mockUploadedCourses);
-      setIsUploadModalOpen(true);
+      setNewBlacklist({ ...newBlacklist, courses: mockUploadedCourses });
     }
   };
 
-  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBlacklistFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      handleFileUpload(file);
+      handleBlacklistFileUpload(file);
     }
   };
 
-  const handleConfirmUpload = () => {
-    // TODO: Backend integration - Send blacklist courses to backend
-    console.log('Uploading courses to blacklist:', uploadedCourses);
-    setIsUploadModalOpen(false);
-    setUploadedCourses([]);
+  const handleSaveNewBlacklist = () => {
+    // TODO: Backend integration - Create new blacklist for the department
+    // Each blacklist will be available for assignment to curricula in info_edit
+    const newBlacklistObj: Blacklist = {
+      id: Date.now().toString(),
+      name: newBlacklist.name,
+      courses: newBlacklist.courses,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+    setBlacklists([...blacklists, newBlacklistObj]);
+    setIsAddBlacklistModalOpen(false);
+    setNewBlacklist({ name: '', courses: [] });
+  };
+
+  const handleSaveEditBlacklist = () => {
+    if (editingBlacklist) {
+      // TODO: Backend integration - Update blacklist in database
+      setBlacklists(blacklists.map(b => 
+        b.id === editingBlacklist.id 
+          ? { ...b, name: newBlacklist.name, courses: newBlacklist.courses }
+          : b
+      ));
+      setIsEditBlacklistModalOpen(false);
+      setEditingBlacklist(null);
+      setNewBlacklist({ name: '', courses: [] });
+    }
   };
 
   // Course type management functions
@@ -285,69 +344,75 @@ export default function InfoConfig() {
           {/* Configuration Containers */}
           <div className="space-y-8">
             
-            {/* Black list courses */}
+            {/* Blacklist */}
             <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-foreground mb-2">Black list courses</h2>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    Manage courses that are no longer available or recommended for students in your department.
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-foreground">Blacklist</h2>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">
+                      Manage blacklists of courses that are no longer available or recommended for students.
+                    </p>
+                  </div>
                 </div>
                 <button
-                  onClick={handleViewBlacklist}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors border border-gray-300 dark:border-gray-600"
+                  onClick={handleAddBlacklist}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                 >
-                  <FaEye className="w-4 h-4" />
-                  View Current Blacklist
+                  <FaPlus className="w-4 h-4" />
+                  Add Blacklist
                 </button>
               </div>
 
-              {/* Upload Section */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
-                    Upload New Blacklist Courses
-                  </label>
-                  <div 
-                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                      isDragOver 
-                        ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' 
-                        : 'border-gray-300 dark:border-gray-600 hover:border-emerald-300 dark:hover:border-emerald-600'
-                    }`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
+              <div className="space-y-3">
+                {blacklists.map((blacklist) => (
+                  <div
+                    key={blacklist.id}
+                    className="flex items-center justify-between p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                   >
-                    <div className="flex flex-col items-center">
-                      <FaFileExcel className="w-12 h-12 text-emerald-500 mb-4" />
-                      <div className="mb-4">
-                        <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                          Drop your Excel file here
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          or click to browse
-                        </p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-4">
+                        <h3 className="font-semibold text-gray-900 dark:text-white">{blacklist.name}</h3>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                          {blacklist.courses.length} courses
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          Created {blacklist.createdAt}
+                        </span>
                       </div>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <button
-                        onClick={handleUploadClick}
-                        className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                        onClick={() => handleEditBlacklist(blacklist)}
+                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all"
+                        title="Edit Blacklist"
                       >
-                        Choose File
+                        <FaEdit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteBlacklist(blacklist.id)}
+                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                        title="Delete Blacklist"
+                      >
+                        <FaTrash className="w-4 h-4" />
                       </button>
                     </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".xlsx,.xls"
-                      onChange={handleFileInputChange}
-                      className="hidden"
-                    />
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Upload an Excel file containing course codes, titles, credits, and other course details.
-                  </p>
-                </div>
+                ))}
+                
+                {blacklists.length === 0 && (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <div className="flex flex-col items-center">
+                      <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                        <FaPlus className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <p className="text-lg font-medium mb-2">No blacklists created yet</p>
+                      <p className="text-sm">Create your first blacklist to get started</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -500,14 +565,14 @@ export default function InfoConfig() {
         </div>
       </div>
 
-      {/* View Blacklist Modal */}
-      {isBlacklistModalOpen && (
+      {/* Add Blacklist Modal */}
+      {isAddBlacklistModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-4xl border border-gray-200 dark:border-border shadow-2xl max-h-[80vh] overflow-y-auto">
+          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-2xl border border-gray-200 dark:border-border shadow-2xl max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-foreground">Current Blacklisted Courses</h3>
+              <h3 className="text-xl font-bold text-foreground">Add New Blacklist</h3>
               <button
-                onClick={() => setIsBlacklistModalOpen(false)}
+                onClick={() => setIsAddBlacklistModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -516,77 +581,113 @@ export default function InfoConfig() {
               </button>
             </div>
 
-            {mockBlacklistCourses.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500 dark:text-gray-400">No courses are currently blacklisted.</p>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-foreground">Blacklist Name</label>
+                <input
+                  type="text"
+                  value={newBlacklist.name}
+                  onChange={(e) => setNewBlacklist({ ...newBlacklist, name: e.target.value })}
+                  placeholder="e.g., Outdated Courses"
+                  className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-background text-foreground transition-colors"
+                />
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Course Code
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Course Title
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Credits
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Credit Hours
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Type
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-card divide-y divide-gray-200 dark:divide-border">
-                    {mockBlacklistCourses.map((course, index) => (
-                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                          {course.code}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                          {course.title}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                          {course.credits}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                          {course.creditHours}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                          {course.type || '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
 
-            <div className="mt-6 flex justify-end">
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-foreground">Upload Courses</label>
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    blacklistDragOver 
+                      ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' 
+                      : 'border-gray-300 dark:border-gray-600 hover:border-emerald-300 dark:hover:border-emerald-600'
+                  }`}
+                  onDragOver={handleBlacklistDragOver}
+                  onDragLeave={handleBlacklistDragLeave}
+                  onDrop={handleBlacklistDrop}
+                >
+                  <div className="flex flex-col items-center">
+                    <FaFileExcel className="w-8 h-8 text-emerald-500 mb-3" />
+                    <div className="mb-3">
+                      <p className="font-medium text-gray-900 dark:text-white mb-1">
+                        Drop Excel file with courses
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        or click to browse
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => blacklistFileInputRef.current?.click()}
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
+                    >
+                      Choose File
+                    </button>
+                  </div>
+                  <input
+                    ref={blacklistFileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleBlacklistFileInputChange}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              {newBlacklist.courses.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                    Courses ({newBlacklist.courses.length})
+                  </h4>
+                  <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-gray-50 dark:bg-gray-800">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Code</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Title</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Credits</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-border">
+                        {newBlacklist.courses.map((course, index) => (
+                          <tr key={index}>
+                            <td className="px-3 py-2 text-gray-900 dark:text-white">{course.code}</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.title}</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.credits}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setIsBlacklistModalOpen(false)}
-                className="px-6 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => setIsAddBlacklistModalOpen(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
-                Close
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveNewBlacklist}
+                disabled={!newBlacklist.name.trim() || newBlacklist.courses.length === 0}
+                className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add Blacklist
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Upload Confirmation Modal */}
-      {isUploadModalOpen && (
+      {/* Edit Blacklist Modal */}
+      {isEditBlacklistModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-4xl border border-gray-200 dark:border-border shadow-2xl max-h-[80vh] overflow-y-auto">
+          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-2xl border border-gray-200 dark:border-border shadow-2xl max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-foreground">Confirm Blacklist Upload</h3>
+              <h3 className="text-xl font-bold text-foreground">Edit Blacklist</h3>
               <button
-                onClick={() => setIsUploadModalOpen(false)}
+                onClick={() => setIsEditBlacklistModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -595,69 +696,91 @@ export default function InfoConfig() {
               </button>
             </div>
 
-            <div className="mb-6">
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                The following courses will be added to the blacklist. Please review and confirm:
-              </p>
-              
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Course Code
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Course Title
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Credits
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Credit Hours
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Type
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-card divide-y divide-gray-200 dark:divide-border">
-                    {uploadedCourses.map((course, index) => (
-                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                          {course.code}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                          {course.title}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                          {course.credits}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                          {course.creditHours}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                          {course.type || '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-foreground">Blacklist Name</label>
+                <input
+                  type="text"
+                  value={newBlacklist.name}
+                  onChange={(e) => setNewBlacklist({ ...newBlacklist, name: e.target.value })}
+                  className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-background text-foreground transition-colors"
+                />
               </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-foreground">Update Courses (Optional)</label>
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    blacklistDragOver 
+                      ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' 
+                      : 'border-gray-300 dark:border-gray-600 hover:border-emerald-300 dark:hover:border-emerald-600'
+                  }`}
+                  onDragOver={handleBlacklistDragOver}
+                  onDragLeave={handleBlacklistDragLeave}
+                  onDrop={handleBlacklistDrop}
+                >
+                  <div className="flex flex-col items-center">
+                    <FaFileExcel className="w-8 h-8 text-emerald-500 mb-3" />
+                    <div className="mb-3">
+                      <p className="font-medium text-gray-900 dark:text-white mb-1">
+                        Upload new course list
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        or keep existing courses
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => blacklistFileInputRef.current?.click()}
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
+                    >
+                      Choose File
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {newBlacklist.courses.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                    Current Courses ({newBlacklist.courses.length})
+                  </h4>
+                  <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-gray-50 dark:bg-gray-800">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Code</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Title</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Credits</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-border">
+                        {newBlacklist.courses.map((course, index) => (
+                          <tr key={index}>
+                            <td className="px-3 py-2 text-gray-900 dark:text-white">{course.code}</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.title}</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.credits}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="flex gap-3 justify-end">
+            <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setIsUploadModalOpen(false)}
-                className="px-6 py-2 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                onClick={() => setIsEditBlacklistModalOpen(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={handleConfirmUpload}
-                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors border border-red-700"
+                onClick={handleSaveEditBlacklist}
+                disabled={!newBlacklist.name.trim()}
+                className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Confirm Blacklist
+                Save Changes
               </button>
             </div>
           </div>
