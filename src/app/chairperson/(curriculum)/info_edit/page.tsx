@@ -62,43 +62,49 @@ const coursesData = [
     code: 'CSX 1001',
     title: 'Intro to Computer Science',
     credits: 3,
-    creditHours: 3,
+    creditHours: '3-0-6',
     type: 'Core',
+    description: 'Introduction to fundamental concepts of computer science including programming, problem solving, and computational thinking.',
   },
   {
     code: 'CSX 1002', 
     title: 'Math for Computer Science',
     credits: 3,
-    creditHours: 3,
+    creditHours: '3-0-6',
     type: 'Core',
+    description: 'Mathematical foundations for computer science including discrete mathematics, logic, and mathematical reasoning.',
   },
   {
     code: 'CSX 2001',
     title: 'Database Systems',
     credits: 3,
-    creditHours: 3,
+    creditHours: '3-0-6',
     type: 'Major',
+    description: 'Design and implementation of database systems, SQL, data modeling, and database management principles.',
   },
   {
     code: 'CSX 3001',
     title: 'Software Testing',
     credits: 3,
-    creditHours: 3,
+    creditHours: '3-0-6',
     type: 'Major Elective',
+    description: 'Software testing methodologies, test case design, automated testing tools, and quality assurance practices.',
   },
   {
     code: 'CSX 4001',
     title: 'Machine Learning',
     credits: 3,
-    creditHours: 3,
+    creditHours: '3-0-6',
     type: '', // This will show as "-"
+    description: 'Introduction to machine learning algorithms, supervised and unsupervised learning, and practical applications.',
   },
   {
     code: 'CSX 4002',
     title: 'Data Mining',
     credits: 3,
-    creditHours: 3,
+    creditHours: '3-0-6',
     type: '', // This will show as "-"
+    description: 'Techniques for extracting patterns and knowledge from large datasets using various data mining algorithms.',
   },
 ];
 
@@ -113,7 +119,8 @@ export default function EditCurriculum() {
     title: '',
     credits: '',
     creditHours: '',
-    type: ''
+    type: '',
+    description: ''
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -152,7 +159,8 @@ export default function EditCurriculum() {
       title: '',
       credits: '',
       creditHours: '',
-      type: ''
+      type: '',
+      description: ''
     });
   };
   return (
@@ -217,11 +225,12 @@ export default function EditCurriculum() {
             <ExcelPlusTab />
           )}
         </div>
-      </div>{/* Edit Course Modal */}
-      {isEditModalOpen && (        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-card rounded-xl p-8 w-full max-w-[480px] border border-gray-200 dark:border-border shadow-2xl">
+      </div>      {/* Edit Course Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white dark:bg-card rounded-xl p-6 sm:p-8 w-full max-w-[90vw] sm:max-w-[600px] lg:max-w-[700px] border border-gray-200 dark:border-border shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-foreground">Edit Course Details</h3>              <button
+              <h3 className="text-xl font-bold text-foreground">Edit Course Details</h3><button
                 suppressHydrationWarning
                 onClick={handleCloseEditModal}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -255,7 +264,7 @@ export default function EditCurriculum() {
                   />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold mb-2 text-foreground">Credits</label>
                     <input
@@ -270,13 +279,13 @@ export default function EditCurriculum() {
                   <div>
                     <label className="block text-sm font-semibold mb-2 text-foreground">Credit Hours</label>
                     <input
-                      type="number"
+                      type="text"
                       value={editingCourse.creditHours}
-                      onChange={(e) => setEditingCourse({...editingCourse, creditHours: parseInt(e.target.value) || 0})}
+                      onChange={(e) => setEditingCourse({...editingCourse, creditHours: e.target.value})}
                       className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-background text-foreground transition-colors"
-                      min="0"
-                      max="6"
+                      placeholder="e.g., 3-0-6"
                     />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Format: Lecture-Lab-Total (e.g., 3-0-6)</p>
                   </div>
                 </div>
                 
@@ -296,8 +305,20 @@ export default function EditCurriculum() {
                   </select>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Choose the appropriate course type for curriculum requirements</p>
                 </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-foreground">Course Description</label>
+                  <textarea
+                    value={editingCourse.description || ''}
+                    onChange={(e) => setEditingCourse({...editingCourse, description: e.target.value})}
+                    className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-background text-foreground transition-colors resize-none"
+                    placeholder="Enter a detailed description of the course content and objectives"
+                    rows={4}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Provide a comprehensive description of the course</p>
+                </div>
               </div>            )}
-              <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-border">
+              <div className="flex flex-col sm:flex-row gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-border">
               <button
                 suppressHydrationWarning
                 onClick={handleCloseEditModal}
@@ -317,7 +338,7 @@ export default function EditCurriculum() {
       )}      {/* Add Course Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-card rounded-xl p-8 w-full max-w-[480px] border border-gray-200 dark:border-border shadow-2xl">
+          <div className="bg-white dark:bg-card rounded-xl p-6 sm:p-8 w-full max-w-[90vw] sm:max-w-[600px] lg:max-w-[700px] border border-gray-200 dark:border-border shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-foreground">Add New Course</h3>              <button
                 suppressHydrationWarning
@@ -354,7 +375,7 @@ export default function EditCurriculum() {
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold mb-2 text-foreground">Credits</label>
                   <input
@@ -370,14 +391,13 @@ export default function EditCurriculum() {
                 <div>
                   <label className="block text-sm font-semibold mb-2 text-foreground">Credit Hours</label>
                   <input
-                    type="number"
+                    type="text"
                     value={newCourse.creditHours}
                     onChange={(e) => setNewCourse({...newCourse, creditHours: e.target.value})}
-                    placeholder="3"
+                    placeholder="e.g., 3-0-6"
                     className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-background text-foreground transition-colors"
-                    min="0"
-                    max="6"
                   />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Format: Lecture-Lab-Total (e.g., 3-0-6)</p>
                 </div>
               </div>
               
@@ -397,8 +417,20 @@ export default function EditCurriculum() {
                 </select>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Choose the appropriate course type for curriculum requirements</p>
               </div>
+              
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-foreground">Course Description</label>
+                <textarea
+                  value={newCourse.description}
+                  onChange={(e) => setNewCourse({...newCourse, description: e.target.value})}
+                  className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-background text-foreground transition-colors resize-none"
+                  placeholder="Enter a detailed description of the course content and objectives"
+                  rows={4}
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Provide a comprehensive description of the course</p>
+              </div>
             </div>
-              <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-border">
+              <div className="flex flex-col sm:flex-row gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-border">
               <button
                 suppressHydrationWarning
                 onClick={handleCloseAddModal}

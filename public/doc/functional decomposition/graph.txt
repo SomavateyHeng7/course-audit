@@ -1,0 +1,167 @@
+graph TD
+    A[Course Audit System] --> B[Authentication & Authorization]
+    A --> C[Chairperson Management Module]
+    A --> D[User Interface Components]
+    A --> E[Data Management]
+    A --> F[File Processing]
+    A --> G[Backend Integration Points]
+    A --> H[System Features]
+
+    %% Authentication & Authorization
+    B --> B1[User Login/Signup]
+    B --> B2[Role-based Access Control]
+    B --> B3[Session Management]
+    B2 --> B2a[CHAIRPERSON Role]
+    B2 --> B2b[ADVISOR Role]
+    B2 --> B2c[STUDENT Role]
+
+    %% Chairperson Management Module
+    C --> C1[Curriculum Management]
+    C --> C2[Configuration Management]
+    
+    C1 --> C1a[Create New Curriculum]
+    C1 --> C1b[Edit Curriculum Information]
+    C1 --> C1c[View/Search Existing Curricula]
+    
+    C1b --> C1b1[Basic Information Tab]
+    C1b --> C1b2[Courses Tab]
+    C1b --> C1b3[Concentrations Tab]
+    
+    C1b2 --> C1b2a[Add/Edit/Delete Courses]
+    C1b2 --> C1b2b[Course Type Management]
+    C1b2 --> C1b2c[Course Requirements]
+    
+    C1b3 --> C1b3a[Select Available Concentrations]
+    C1b3 --> C1b3b[Configure Required Courses per Concentration]
+    C1b3 --> C1b3c[Manage Concentration Requirements]
+    
+    C2 --> C2a[Blacklist Courses]
+    C2 --> C2b[Course Categories Types]
+    C2 --> C2c[Concentrations Management]
+    
+    C2a --> C2a1[View Current Blacklist]
+    C2a --> C2a2[Upload Excel File Drag & Drop]
+    C2a --> C2a3[Manage Blacklisted Courses]
+    
+    C2b --> C2b1[Create/Edit/Delete Course Types]
+    C2b --> C2b2[Color Coding for Types]
+    C2b --> C2b3[Type Management Core Major Elective etc]
+    
+    C2c --> C2c1[Create Concentrations via Excel Upload]
+    C2c --> C2c2[Edit/Delete Concentrations]
+    C2c --> C2c3[Configure Concentration Name System-wide]
+    C2c --> C2c4[Department-specific Concentration Management]
+
+    %% User Interface Components
+    D --> D1[Layout Components]
+    D --> D2[Authentication UI]
+    D --> D3[Data Display Components]
+    D --> D4[Form Components]
+    
+    D1 --> D1a[Responsive Sidebar Navigation]
+    D1 --> D1b[Theme Toggle Light/Dark Mode]
+    D1 --> D1c[Header with User Profile]
+    
+    D2 --> D2a[Split Panel Design]
+    D2 --> D2b[Responsive Forms Mobile/Desktop]
+    D2 --> D2c[Form Validation]
+    D2 --> D2d[Loading States]
+    
+    D3 --> D3a[Responsive Tables]
+    D3 --> D3b[Search & Filter Functionality]
+    D3 --> D3c[Modal Dialogs]
+    D3 --> D3d[Drag & Drop File Upload]
+    D3 --> D3e[Interactive Cards/Lists]
+    
+    D4 --> D4a[Input Fields with Validation]
+    D4 --> D4b[Color Picker]
+    D4 --> D4c[File Upload Components]
+    D4 --> D4d[CRUD Operation Forms]
+
+    %% Data Management
+    E --> E1[Course Data Structure]
+    E --> E2[Curriculum Data Structure]
+    E --> E3[Concentration Data Structure]
+    E --> E4[User Data Structure]
+    
+    E1 --> E1a[Course Code]
+    E1 --> E1b[Course Title]
+    E1 --> E1c[Credits]
+    E1 --> E1d[Credit Hours]
+    E1 --> E1e[Course Type]
+    
+    E2 --> E2a[Basic Information]
+    E2 --> E2b[Course Requirements]
+    E2 --> E2c[Concentration Requirements]
+    
+    E3 --> E3a[Concentration Name]
+    E3 --> E3b[Associated Courses]
+    E3 --> E3c[Department Association]
+    E3 --> E3d[Creation Metadata]
+    
+    E4 --> E4a[User Credentials]
+    E4 --> E4b[Role Assignment]
+    E4 --> E4c[Department Association]
+
+    %% File Processing
+    F --> F1[Excel File Upload]
+    F --> F2[File Validation xlsx xls]
+    F --> F3[Data Parsing & Extraction]
+    F --> F4[Error Handling]
+
+    %% Backend Integration Points
+    G --> G1[API Endpoints]
+    G --> G2[Database Operations]
+    G --> G3[Business Logic]
+    
+    G1 --> G1a[Authentication APIs]
+    G1 --> G1b[Curriculum CRUD APIs]
+    G1 --> G1c[Course Management APIs]
+    G1 --> G1d[Configuration APIs]
+    G1 --> G1e[File Upload APIs]
+    
+    G2 --> G2a[User Management]
+    G2 --> G2b[Curriculum Storage]
+    G2 --> G2c[Course Data Management]
+    G2 --> G2d[Blacklist Management]
+    G2 --> G2e[Concentration Management]
+    
+    G3 --> G3a[Role-based Authorization]
+    G3 --> G3b[Department-specific Data Access]
+    G3 --> G3c[Validation Rules]
+    G3 --> G3d[Data Consistency Checks]
+
+    %% System Features
+    H --> H1[Responsive Design]
+    H --> H2[Accessibility]
+    H --> H3[Theme Support]
+    H --> H4[User Experience]
+    
+    H1 --> H1a[Mobile Compatibility]
+    H1 --> H1b[Tablet Optimization]
+    H1 --> H1c[Desktop Layout]
+    
+    H2 --> H2a[Keyboard Navigation]
+    H2 --> H2b[Screen Reader Support]
+    H2 --> H2c[Color Contrast Compliance]
+    
+    H3 --> H3a[Light Mode]
+    H3 --> H3b[Dark Mode]
+    
+    H4 --> H4a[Loading States]
+    H4 --> H4b[Error Handling]
+    H4 --> H4c[Success Feedback]
+    H4 --> H4d[Form Validation]
+    H4 --> H4e[Interactive Transitions]
+
+    %% Styling
+    classDef completed fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef inProgress fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef planned fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef backend fill:#ffebee,stroke:#b71c1c,stroke-width:2px
+
+    %% Apply styles to completed features
+    class B1,B2,B3,C1a,C1b,C1c,C1b1,C1b2,C1b3,C1b2a,C1b2b,C1b3a,C1b3b,C1b3c,C2a,C2b,C2c,C2a1,C2a2,C2b1,C2b2,C2c1,C2c2,D1,D2,D3,D4,D1a,D1b,D2a,D2b,D2c,D3a,D3b,D3c,D3d,D3e,D4a,D4b,D4c,D4d,E1,E2,E3,E4,F1,F2,H1,H2,H3,H4 completed
+
+    %% Apply styles to backend integration points
+    class G,G1,G2,G3,G1a,G1b,G1c,G1d,G1e,G2a,G2b,G2c,G2d,G2e,G3a,G3b,G3c,G3d,F3,F4 backend

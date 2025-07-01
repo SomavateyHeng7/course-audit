@@ -208,9 +208,9 @@ export default function Sidebar() {
         <nav className="flex-1 px-2 py-4">
           <div className="space-y-1">
             {navigationItems.map((item) => {
-              // Special handling for chairperson curriculum route
-              const isActive = item.href === '/chairperson/curriculum' 
-                ? pathname.startsWith('/chairperson/curriculum')
+              // More precise active state logic for chairperson routes
+              const isActive = item.href === '/chairperson' 
+                ? pathname === '/chairperson'  // Exact match for main chairperson page
                 : pathname.startsWith(item.href);
               const Icon = item.icon;if (isCollapsed) {
                 return (

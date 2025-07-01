@@ -291,7 +291,7 @@ export default function CreateCurriculum() {
     }));
 
     // Navigate to details page
-    router.push('/chairperson/curriculum/create/details');
+    router.push('/chairperson/create/details');
   };
 
   const handleDragOver = (e: React.DragEvent) => {

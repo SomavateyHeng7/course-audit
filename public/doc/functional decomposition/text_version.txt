@@ -1,0 +1,163 @@
+Course Audit System
+├── Authentication & Authorization
+│   ├── User Login/Signup
+│   ├── Role-based Access Control
+│   │   ├── CHAIRPERSON Role
+│   │   ├── ADVISOR Role
+│   │   └── STUDENT Role
+│   └── Session Management
+│
+├── Chairperson Management Module
+│   ├── Curriculum Management
+│   │   ├── Create New Curriculum
+│   │   ├── Edit Curriculum Information
+│   │   │   ├── Basic Information Tab
+│   │   │   ├── Courses Tab
+│   │   │   │   ├── Add/Edit/Delete Courses
+│   │   │   │   ├── Course Type Management
+│   │   │   │   └── Course Requirements
+│   │   │   └── Concentrations Tab
+│   │   │       ├── Select Available Concentrations
+│   │   │       ├── Configure Required Courses per Concentration
+│   │   │       └── Manage Concentration Requirements
+│   │   └── View/Search Existing Curricula
+│   │
+│   └── Configuration Management
+│       ├── Blacklist Courses
+│       │   ├── View Current Blacklist
+│       │   ├── Upload Excel File (Drag & Drop)
+│       │   └── Manage Blacklisted Courses
+│       ├── Course Categories (Types)
+│       │   ├── Create/Edit/Delete Course Types
+│       │   ├── Color Coding for Types
+│       │   └── Type Management (Core, Major, Elective, etc.)
+│       └── Concentrations Management
+│           ├── Create Concentrations via Excel Upload
+│           ├── Edit/Delete Concentrations
+│           ├── Configure Concentration Name (System-wide)
+│           └── Department-specific Concentration Management
+│
+├── User Interface Components
+│   ├── Layout Components
+│   │   ├── Responsive Sidebar Navigation
+│   │   ├── Theme Toggle (Light/Dark Mode)
+│   │   └── Header with User Profile
+│   │
+│   ├── Authentication UI
+│   │   ├── Split Panel Design
+│   │   ├── Responsive Forms (Mobile/Desktop)
+│   │   ├── Form Validation
+│   │   └── Loading States
+│   │
+│   ├── Data Display Components
+│   │   ├── Responsive Tables
+│   │   ├── Search & Filter Functionality
+│   │   ├── Modal Dialogs
+│   │   ├── Drag & Drop File Upload
+│   │   └── Interactive Cards/Lists
+│   │
+│   └── Form Components
+│       ├── Input Fields with Validation
+│       ├── Color Picker
+│       ├── File Upload Components
+│       └── CRUD Operation Forms
+│
+├── Data Management
+│   ├── Course Data Structure
+│   │   ├── Course Code
+│   │   ├── Course Title
+│   │   ├── Credits
+│   │   ├── Credit Hours
+│   │   └── Course Type
+│   │
+│   ├── Curriculum Data Structure
+│   │   ├── Basic Information
+│   │   ├── Course Requirements
+│   │   └── Concentration Requirements
+│   │
+│   ├── Concentration Data Structure
+│   │   ├── Concentration Name
+│   │   ├── Associated Courses
+│   │   ├── Department Association
+│   │   └── Creation Metadata
+│   │
+│   └── User Data Structure
+│       ├── User Credentials
+│       ├── Role Assignment
+│       └── Department Association
+│
+├── File Processing
+│   ├── Excel File Upload
+│   ├── File Validation (.xlsx, .xls)
+│   ├── Data Parsing & Extraction
+│   └── Error Handling
+│
+├── Backend Integration Points (TODO)
+│   ├── API Endpoints
+│   │   ├── Authentication APIs
+│   │   ├── Curriculum CRUD APIs
+│   │   ├── Course Management APIs
+│   │   ├── Configuration APIs
+│   │   └── File Upload APIs
+│   │
+│   ├── Database Operations
+│   │   ├── User Management
+│   │   ├── Curriculum Storage
+│   │   ├── Course Data Management
+│   │   ├── Blacklist Management
+│   │   └── Concentration Management
+│   │
+│   └── Business Logic
+│       ├── Role-based Authorization
+│       ├── Department-specific Data Access
+│       ├── Validation Rules
+│       └── Data Consistency Checks
+│
+└── System Features
+    ├── Responsive Design
+    │   ├── Mobile Compatibility
+    │   ├── Tablet Optimization
+    │   └── Desktop Layout
+    │
+    ├── Accessibility
+    │   ├── Keyboard Navigation
+    │   ├── Screen Reader Support
+    │   └── Color Contrast Compliance
+    │
+    ├── Theme Support
+    │   ├── Light Mode
+    │   └── Dark Mode
+    │
+    └── User Experience
+        ├── Loading States
+        ├── Error Handling
+        ├── Success Feedback
+        ├── Form Validation
+        └── Interactive Transitions
+
+
+
+
+
+
+Current Implementation Status:
+✅ Completed Components:
+Authentication system with responsive design
+Chairperson curriculum management interface
+Configuration management (blacklist, types, concentrations)
+Responsive sidebar navigation
+Dark/light theme support
+File upload with drag & drop
+CRUD operations for courses and concentrations
+Search and filter functionality
+🚧 Partially Implemented:
+Backend integration points (marked with TODO comments)
+File processing logic (structure ready, parsing needed)
+API endpoint connections
+📋 Planned/Future Modules:
+Student management and graduation checklist
+Advisor management features
+Complete backend API implementation
+Database schema implementation
+Advanced reporting features
+The system is well-structured with clear separation of concerns, ready for backend integration, and follows modern web development best practices with responsive design and accessibility considerations.

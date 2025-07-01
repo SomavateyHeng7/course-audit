@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { FaEdit, FaTrash } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaInfoCircle } from 'react-icons/fa';
 
 interface Course {
   code: string;
   title: string;
   credits: number;
-  creditHours: number;
+  creditHours: string; // Changed to string to support formats like "3-0-6"
   type: string;
+  description?: string; // Added description field
 }
 
 interface CoursesTabProps {
@@ -19,11 +20,23 @@ interface CoursesTabProps {
 
 export default function CoursesTab({ courses, onEditCourse, onAddCourse }: CoursesTabProps) {
   const [search, setSearch] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const filteredCourses = courses.filter(course =>
     course.code.toLowerCase().includes(search.toLowerCase()) ||
     course.title.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleDescriptionClick = (course: Course) => {
+    setSelectedCourse(course);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedCourse(null);
+  };
 
   return (
     <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-xl p-8">
@@ -54,6 +67,7 @@ export default function CoursesTab({ courses, onEditCourse, onAddCourse }: Cours
               <th className="px-6 py-4 text-center text-sm font-semibold text-emerald-800 dark:text-emerald-200">Credits</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-emerald-800 dark:text-emerald-200">Credit Hours</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-emerald-800 dark:text-emerald-200">Type</th>
+              <th className="px-6 py-4 text-center text-sm font-semibold text-emerald-800 dark:text-emerald-200">Description</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-emerald-800 dark:text-emerald-200">Actions</th>
             </tr>
           </thead>
@@ -89,6 +103,19 @@ export default function CoursesTab({ courses, onEditCourse, onAddCourse }: Cours
                       <span className="text-gray-400 dark:text-gray-500">-</span>
                     )}
                   </td>
+                  <td className="px-6 py-4 text-center">
+                    {course.description ? (
+                      <button
+                        onClick={() => handleDescriptionClick(course)}
+                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                        title="View Description"
+                      >
+                        <FaInfoCircle className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <span className="text-gray-400 dark:text-gray-500">-</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 text-center">                    <div className="flex items-center justify-center gap-2">
                       <button 
                         onClick={() => onEditCourse(course)}
@@ -111,7 +138,7 @@ export default function CoursesTab({ courses, onEditCourse, onAddCourse }: Cours
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={7} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                   <div className="flex flex-col items-center">
                     <svg className="w-12 h-12 mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -161,6 +188,62 @@ export default function CoursesTab({ courses, onEditCourse, onAddCourse }: Cours
           </button>
         </div>
       </div>
+
+      {/* Description Modal */}
+      {isModalOpen && selectedCourse && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-2xl border border-gray-200 dark:border-border shadow-2xl max-h-[80vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-foreground mb-1">
+                  {selectedCourse.code} - {selectedCourse.title}
+                </h3>
+                <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                  <span>Credits: {selectedCourse.credits}</span>
+                  <span>Credit Hours: {selectedCourse.creditHours}</span>
+                  {selectedCourse.type && (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                      selectedCourse.type === 'Core' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                      selectedCourse.type === 'Major' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                      selectedCourse.type === 'Major Elective' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                      selectedCourse.type === 'General Education' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' :
+                      'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                    }`}>
+                      {selectedCourse.type}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-foreground mb-3">Course Description</h4>
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border border-gray-200 dark:border-border">
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                  {selectedCourse.description || 'No description available for this course.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

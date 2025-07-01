@@ -7,8 +7,9 @@ interface Course {
   code: string;
   title: string;
   credits: number;
-  creditHours: number;
+  creditHours: string; // Changed to string to support formats like "3-0-6"
   type: string;
+  description?: string; // Added description field
 }
 
 interface CourseType {
@@ -25,9 +26,9 @@ interface Concentration {
 }
 
 const mockBlacklistCourses: Course[] = [
-  { code: 'CSX 1001', title: 'Introduction to Computer Science', credits: 3, creditHours: 3, type: 'Core' },
-  { code: 'CSX 2005', title: 'Legacy Programming', credits: 3, creditHours: 3, type: 'Major' },
-  { code: 'CSX 3008', title: 'Outdated Web Technologies', credits: 3, creditHours: 3, type: 'Major Elective' },
+  { code: 'CSX 1001', title: 'Introduction to Computer Science', credits: 3, creditHours: '3-0-6', type: 'Core', description: 'Introduction to fundamental concepts of computer science and programming.' },
+  { code: 'CSX 2005', title: 'Legacy Programming', credits: 3, creditHours: '3-0-6', type: 'Major', description: 'Study of outdated programming languages and practices.' },
+  { code: 'CSX 3008', title: 'Outdated Web Technologies', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Exploration of deprecated web development technologies.' },
 ];
 
 const defaultCourseTypes: CourseType[] = [
@@ -43,8 +44,8 @@ const mockConcentrations: Concentration[] = [
     id: '1',
     name: 'Data Science',
     courses: [
-      { code: 'CSX 3001', title: 'Machine Learning', credits: 3, creditHours: 3, type: 'Major Elective' },
-      { code: 'CSX 3002', title: 'Data Mining', credits: 3, creditHours: 3, type: 'Major Elective' },
+      { code: 'CSX 3001', title: 'Machine Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Introduction to machine learning algorithms and applications.' },
+      { code: 'CSX 3002', title: 'Data Mining', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Techniques for extracting patterns from large datasets.' },
     ],
     createdAt: '2024-12-15'
   },
@@ -52,8 +53,8 @@ const mockConcentrations: Concentration[] = [
     id: '2',
     name: 'Software Engineering',
     courses: [
-      { code: 'CSX 3003', title: 'Software Architecture', credits: 3, creditHours: 3, type: 'Major Elective' },
-      { code: 'CSX 3004', title: 'Advanced Testing', credits: 3, creditHours: 3, type: 'Major Elective' },
+      { code: 'CSX 3003', title: 'Software Architecture', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Design principles and patterns for large-scale software systems.' },
+      { code: 'CSX 3004', title: 'Advanced Testing', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Advanced software testing methodologies and tools.' },
     ],
     createdAt: '2024-11-20'
   },
@@ -112,8 +113,8 @@ export default function InfoConfig() {
       // Mock parsing of Excel file - in real implementation, parse the Excel file
       // TODO: Backend integration - Parse Excel file and extract course data
       const mockUploadedCourses: Course[] = [
-        { code: 'CSX 4001', title: 'Advanced Machine Learning', credits: 3, creditHours: 3, type: 'Major Elective' },
-        { code: 'CSX 4002', title: 'Deep Learning', credits: 3, creditHours: 3, type: 'Major Elective' },
+        { code: 'CSX 4001', title: 'Advanced Machine Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Advanced techniques in machine learning and artificial intelligence.' },
+        { code: 'CSX 4002', title: 'Deep Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Neural networks and deep learning architectures.' },
       ];
       setUploadedCourses(mockUploadedCourses);
       setIsUploadModalOpen(true);
@@ -227,8 +228,8 @@ export default function InfoConfig() {
     if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
       // TODO: Backend integration - Parse Excel file for concentration courses
       const mockCourses: Course[] = [
-        { code: 'CSX 4003', title: 'Advanced AI', credits: 3, creditHours: 3, type: 'Major Elective' },
-        { code: 'CSX 4004', title: 'Neural Networks', credits: 3, creditHours: 3, type: 'Major Elective' },
+        { code: 'CSX 4003', title: 'Advanced AI', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Advanced artificial intelligence concepts and applications.' },
+        { code: 'CSX 4004', title: 'Neural Networks', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Design and implementation of neural network architectures.' },
       ];
       setNewConcentration({ ...newConcentration, courses: mockCourses });
     }

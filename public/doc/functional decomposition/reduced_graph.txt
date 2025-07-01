@@ -1,0 +1,51 @@
+graph TD
+    A[Course Audit System] --> B[Authentication]
+    A --> C[Chairperson Module]
+    A --> D[UI Components]
+    A --> E[Data Management]
+    A --> F[System Features]
+
+    %% Authentication
+    B --> B1[Login/Signup]
+    B --> B2[Role Control<br/>CHAIRPERSON/ADVISOR/STUDENT]
+    B --> B3[Session Management]
+
+    %% Chairperson Module
+    C --> C1[Curriculum Management]
+    C --> C2[Configuration]
+    
+    C1 --> C1a[Create/Edit Curriculum]
+    C1 --> C1b[Basic Info Tab]
+    C1 --> C1c[Courses Tab]
+    C1 --> C1d[Concentrations Tab]
+    
+    C2 --> C2a[Blacklist Courses]
+    C2 --> C2b[Course Types]
+    C2 --> C2c[Concentrations Config]
+
+    %% UI Components
+    D --> D1[Layout<br/>Sidebar/Theme/Header]
+    D --> D2[Auth UI<br/>Split Panel/Forms]
+    D --> D3[Data Display<br/>Tables/Modals/Search]
+    D --> D4[Forms<br/>Input/Upload/CRUD]
+
+    %% Data Management
+    E --> E1[Course Data<br/>Code/Title/Credits/Type]
+    E --> E2[Curriculum Data<br/>Info/Requirements]
+    E --> E3[Concentration Data<br/>Name/Courses/Department]
+    E --> E4[User Data<br/>Credentials/Role]
+
+    %% System Features
+    F --> F1[Responsive Design<br/>Mobile/Tablet/Desktop]
+    F --> F2[Accessibility<br/>Keyboard/Screen Reader]
+    F --> F3[Theme Support<br/>Light/Dark Mode]
+    F --> F4[File Processing<br/>Excel Upload/Validation]
+    F --> F5[Backend Integration<br/>APIs/Database/Business Logic]
+
+    %% Styling
+    classDef completed fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef backend fill:#ffebee,stroke:#b71c1c,stroke-width:2px
+
+    %% Apply styles
+    class B1,B2,B3,C1a,C1b,C1c,C1d,C2a,C2b,C2c,D1,D2,D3,D4,E1,E2,E3,E4,F1,F2,F3,F4 completed
+    class F5 backend

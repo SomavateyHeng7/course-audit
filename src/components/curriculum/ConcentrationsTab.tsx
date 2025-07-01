@@ -10,7 +10,7 @@ interface Concentration {
     code: string;
     title: string;
     credits: number;
-    creditHours: number;
+    creditHours: string; // Changed to string to support formats like "3-0-6"
     type: string;
   }>;
   createdAt: string;
@@ -31,10 +31,10 @@ const mockAvailableConcentrations: Concentration[] = [
     id: '1',
     name: 'Data Science',
     courses: [
-      { code: 'CSX 3001', title: 'Machine Learning', credits: 3, creditHours: 3, type: 'Major Elective' },
-      { code: 'CSX 3002', title: 'Data Mining', credits: 3, creditHours: 3, type: 'Major Elective' },
-      { code: 'CSX 3003', title: 'Statistical Analysis', credits: 3, creditHours: 3, type: 'Major Elective' },
-      { code: 'CSX 3004', title: 'Big Data Analytics', credits: 3, creditHours: 3, type: 'Major Elective' },
+      { code: 'CSX 3001', title: 'Machine Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective' },
+      { code: 'CSX 3002', title: 'Data Mining', credits: 3, creditHours: '3-0-6', type: 'Major Elective' },
+      { code: 'CSX 3003', title: 'Statistical Analysis', credits: 3, creditHours: '3-0-6', type: 'Major Elective' },
+      { code: 'CSX 3004', title: 'Big Data Analytics', credits: 3, creditHours: '3-0-6', type: 'Major Elective' },
     ],
     createdAt: '2024-12-15'
   },
@@ -42,10 +42,10 @@ const mockAvailableConcentrations: Concentration[] = [
     id: '2',
     name: 'Software Engineering',
     courses: [
-      { code: 'CSX 3005', title: 'Software Architecture', credits: 3, creditHours: 3, type: 'Major Elective' },
-      { code: 'CSX 3006', title: 'Advanced Testing', credits: 3, creditHours: 3, type: 'Major Elective' },
-      { code: 'CSX 3007', title: 'DevOps Practices', credits: 3, creditHours: 3, type: 'Major Elective' },
-      { code: 'CSX 3008', title: 'Software Project Management', credits: 3, creditHours: 3, type: 'Major Elective' },
+      { code: 'CSX 3005', title: 'Software Architecture', credits: 3, creditHours: '3-0-6', type: 'Major Elective' },
+      { code: 'CSX 3006', title: 'Advanced Testing', credits: 3, creditHours: '3-0-6', type: 'Major Elective' },
+      { code: 'CSX 3007', title: 'DevOps Practices', credits: 3, creditHours: '3-0-6', type: 'Major Elective' },
+      { code: 'CSX 3008', title: 'Software Project Management', credits: 3, creditHours: '3-0-6', type: 'Major Elective' },
     ],
     createdAt: '2024-11-20'
   },
@@ -53,10 +53,10 @@ const mockAvailableConcentrations: Concentration[] = [
     id: '3',
     name: 'Artificial Intelligence',
     courses: [
-      { code: 'CSX 4001', title: 'Neural Networks', credits: 3, creditHours: 3, type: 'Major Elective' },
-      { code: 'CSX 4002', title: 'Computer Vision', credits: 3, creditHours: 3, type: 'Major Elective' },
-      { code: 'CSX 4003', title: 'Natural Language Processing', credits: 3, creditHours: 3, type: 'Major Elective' },
-      { code: 'CSX 4004', title: 'Robotics', credits: 3, creditHours: 3, type: 'Major Elective' },
+      { code: 'CSX 4001', title: 'Neural Networks', credits: 3, creditHours: '3-0-6', type: 'Major Elective' },
+      { code: 'CSX 4002', title: 'Computer Vision', credits: 3, creditHours: '3-0-6', type: 'Major Elective' },
+      { code: 'CSX 4003', title: 'Natural Language Processing', credits: 3, creditHours: '3-0-6', type: 'Major Elective' },
+      { code: 'CSX 4004', title: 'Robotics', credits: 3, creditHours: '3-0-6', type: 'Major Elective' },
     ],
     createdAt: '2024-10-10'
   },
