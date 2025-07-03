@@ -17,7 +17,6 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [majorElectiveCredits, setMajorElectiveCredits] = useState('24');
-  const [minGPA, setMinGPA] = useState('2.0');
   // Sample courses data - NOTE FOR BACKEND: 
   // Auto-determine requirement based on category name containing "elective"
   // Main categories: General Education, Core, Major, Major Elective, Free Elective
@@ -154,22 +153,7 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
                     <option value="Required">Required Course</option>
                     <option value="Elective">Elective Course</option>
                   </select>
-                </div>                {getSelectedCourseData()?.requirement === 'Elective' && (
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-foreground">Minimum GPA Requirement</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="4.0"
-                      defaultValue="2.0"
-                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground"
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Minimum GPA required to enroll in this elective course
-                    </p>
-                  </div>
-                )}
+                </div>
 
                 <div>
                   <label className="block text-sm font-medium mb-2 text-foreground">Minimum Total Credits Required</label>

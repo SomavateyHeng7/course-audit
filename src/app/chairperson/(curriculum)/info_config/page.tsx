@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { FaEye, FaUpload, FaFileExcel, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
+import { FaEye, FaUpload, FaFileExcel, FaEdit, FaTrash, FaPlus, FaInfoCircle } from 'react-icons/fa';
 
 interface Course {
   code: string;
@@ -110,6 +110,12 @@ export default function InfoConfig() {
   const [newBlacklist, setNewBlacklist] = useState({ name: '', courses: [] as Course[] });
   const [blacklistDragOver, setBlacklistDragOver] = useState(false);
   const blacklistFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Info modal states
+  const [isBlacklistInfoModalOpen, setIsBlacklistInfoModalOpen] = useState(false);
+  const [isConcentrationInfoModalOpen, setIsConcentrationInfoModalOpen] = useState(false);
+  const [selectedInfoBlacklist, setSelectedInfoBlacklist] = useState<Blacklist | null>(null);
+  const [selectedInfoConcentration, setSelectedInfoConcentration] = useState<Concentration | null>(null);
 
   // Blacklist management functions
   const handleAddBlacklist = () => {
@@ -126,6 +132,16 @@ export default function InfoConfig() {
     // TODO: Backend integration - Delete blacklist from database
     // This blacklist belongs to the chairperson's department only
     setBlacklists(blacklists.filter(b => b.id !== blacklistId));
+  };
+
+  const handleShowBlacklistInfo = (blacklist: Blacklist) => {
+    setSelectedInfoBlacklist(blacklist);
+    setIsBlacklistInfoModalOpen(true);
+  };
+
+  const handleShowConcentrationInfo = (concentration: Concentration) => {
+    setSelectedInfoConcentration(concentration);
+    setIsConcentrationInfoModalOpen(true);
   };
 
   const handleBlacklistDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -385,6 +401,13 @@ export default function InfoConfig() {
                     </div>
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => handleShowBlacklistInfo(blacklist)}
+                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                        title="View Course Details"
+                      >
+                        <FaInfoCircle className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => handleEditBlacklist(blacklist)}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all"
                         title="Edit Blacklist"
@@ -529,6 +552,13 @@ export default function InfoConfig() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleShowConcentrationInfo(concentration)}
+                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                        title="View Course Details"
+                      >
+                        <FaInfoCircle className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => handleEditConcentration(concentration)}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all"
@@ -1135,6 +1165,170 @@ export default function InfoConfig() {
                 className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Blacklist Info Modal */}
+      {isBlacklistInfoModalOpen && selectedInfoBlacklist && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-6xl border border-gray-200 dark:border-border shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-foreground">Blacklist: {selectedInfoBlacklist.name}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Created on {selectedInfoBlacklist.createdAt} • {selectedInfoBlacklist.courses.length} courses
+                </p>
+              </div>
+              <button
+                onClick={() => setIsBlacklistInfoModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {selectedInfoBlacklist.courses.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full border border-gray-200 dark:border-border rounded-lg overflow-hidden">
+                  <thead className="bg-red-50 dark:bg-red-900/20">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-border">Course Code</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-border">Course Title</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-border">Credits</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-border">Credit Hours</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-border">Type</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-border">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-border">
+                    {selectedInfoBlacklist.courses.map((course, index) => (
+                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{course.code}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.title}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.credits}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.creditHours}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                            {course.type || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300 max-w-xs">
+                          <div className="text-xs leading-relaxed overflow-hidden" style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical'
+                          }}>
+                            {course.description || 'No description available'}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FaInfoCircle className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-lg font-medium mb-2">No courses in this blacklist</p>
+                <p className="text-sm">This blacklist is currently empty</p>
+              </div>
+            )}
+
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-border">
+              <button
+                onClick={() => setIsBlacklistInfoModalOpen(false)}
+                className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Concentration Info Modal */}
+      {isConcentrationInfoModalOpen && selectedInfoConcentration && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-6xl border border-gray-200 dark:border-border shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-foreground">Concentration: {selectedInfoConcentration.name}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Created on {selectedInfoConcentration.createdAt} • {selectedInfoConcentration.courses.length} courses
+                </p>
+              </div>
+              <button
+                onClick={() => setIsConcentrationInfoModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {selectedInfoConcentration.courses.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full border border-gray-200 dark:border-border rounded-lg overflow-hidden">
+                  <thead className="bg-emerald-50 dark:bg-emerald-900/20">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-border">Course Code</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-border">Course Title</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-border">Credits</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-border">Credit Hours</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-border">Type</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-border">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-border">
+                    {selectedInfoConcentration.courses.map((course, index) => (
+                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{course.code}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.title}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.credits}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.creditHours}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                            {course.type || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300 max-w-xs">
+                          <div className="text-xs leading-relaxed overflow-hidden" style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical'
+                          }}>
+                            {course.description || 'No description available'}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FaInfoCircle className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-lg font-medium mb-2">No courses in this concentration</p>
+                <p className="text-sm">This concentration is currently empty</p>
+              </div>
+            )}
+
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-border">
+              <button
+                onClick={() => setIsConcentrationInfoModalOpen(false)}
+                className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>
