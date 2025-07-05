@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 interface ParsedCourse {
   code: string;
@@ -24,11 +25,15 @@ interface CurriculumInfo {
 
 export default function CurriculumDetails() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [courses, setCourses] = useState<ParsedCourse[]>([]);
   const [curriculumInfo, setCurriculumInfo] = useState<CurriculumInfo | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Course categories based on your requirements
   const categories = ['Core', 'Major', 'Major Elective', 'General Education', 'Free Elective'];
@@ -54,9 +59,33 @@ export default function CurriculumDetails() {
       setCurriculumInfo(parsedInfo);
     } else {
       // Redirect back if no data
-      router.push('/chairperson/curriculum/create');
+      router.push('/chairperson/create');
     }
-  }, [router]);
+
+    // Fetch departments for user's faculty
+    if (session?.user?.faculty?.id) {
+      fetchDepartments();
+    }
+  }, [router, session]);
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch('/api/departments');
+      const result = await response.json();
+      
+      if (response.ok && result.departments) {
+        setDepartments(result.departments);
+        // Auto-select first department if only one exists
+        if (result.departments.length === 1) {
+          setSelectedDepartmentId(result.departments[0].id);
+        }
+      } else {
+        console.error('Failed to fetch departments:', result.error);
+      }
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+    }
+  };
 
   // Auto-assignment logic based on course patterns
   const autoAssignCategory = (course: ParsedCourse): string => {
@@ -106,12 +135,101 @@ export default function CurriculumDetails() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleSaveCurriculum = () => {
-    // In a real app, this would save to database
-    console.log('Saving curriculum:', { curriculumInfo, courses });
-    
-    // For demo, navigate to curriculum list or edit page
-    router.push('/chairperson/curriculum');
+  const handleSaveCurriculum = async () => {
+    if (!curriculumInfo || courses.length === 0) {
+      alert('Missing curriculum information or courses');
+      return;
+    }
+
+    if (!selectedDepartmentId) {
+      alert('Please select a department');
+      return;
+    }
+
+    if (!session?.user?.faculty?.id) {
+      alert('User faculty information not available');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const payload = {
+        name: curriculumInfo.name,
+        year: new Date().getFullYear().toString(), // Use current year
+        version: '1.0',
+        description: `Curriculum containing ${courses.length} courses`,
+        departmentId: selectedDepartmentId,
+        facultyId: session.user.faculty.id,
+        courses: courses.map((course, index) => ({
+          code: course.code,
+          name: course.title, // Map title to name
+          credits: course.credits,
+          creditHours: course.creditHours || `${course.credits}-0-${course.credits * 2}`,
+          description: course.description || '',
+          category: course.category || 'Major',
+          requiresPermission: false,
+          summerOnly: false,
+          requiresSeniorStanding: false,
+          isRequired: course.requirement === 'Required',
+          position: index,
+        })),
+        constraints: [], // TODO: Add constraint support
+        electiveRules: [], // TODO: Add elective rules support
+      };
+
+      console.log('🚀 Creating curriculum with payload:');
+      console.log('- Name:', payload.name);
+      console.log('- Year:', payload.year);
+      console.log('- Department ID:', payload.departmentId);
+      console.log('- Faculty ID:', payload.facultyId);
+      console.log('- Number of courses:', payload.courses.length);
+      console.log('- First course:', payload.courses[0]);
+      console.log('- Full payload:', JSON.stringify(payload, null, 2));
+
+      const response = await fetch('/api/curricula', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
+      // Check if response has content before parsing JSON
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        console.error('Response was:', responseText);
+        throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error?.message || `HTTP ${response.status}: ${result.error || 'Failed to create curriculum'}`);
+      }
+
+      console.log('Curriculum created successfully:', result);
+      
+      // Clear session storage
+      sessionStorage.removeItem('uploadedCourses');
+      sessionStorage.removeItem('curriculumInfo');
+      
+      alert('Curriculum created successfully!');
+      router.push('/chairperson');
+
+    } catch (error) {
+      console.error('Error creating curriculum:', error);
+      alert(`Error creating curriculum: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getSelectedCourseData = () => {
@@ -173,6 +291,34 @@ export default function CurriculumDetails() {
                   You can modify them below or use quick actions for bulk updates.
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Department Selection */}
+          <div className="bg-card rounded-xl border border-border p-6 mb-6">
+            <h2 className="text-xl font-bold text-foreground mb-4">Department Selection</h2>
+            <div className="max-w-md">
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Select Department
+              </label>
+              <select
+                value={selectedDepartmentId}
+                onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                required
+              >
+                <option value="">Choose a department...</option>
+                {departments.map(dept => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name} ({dept.code})
+                  </option>
+                ))}
+              </select>
+              {departments.length === 0 && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Loading departments...
+                </p>
+              )}
             </div>
           </div>
 
@@ -325,7 +471,7 @@ export default function CurriculumDetails() {
                             : getSelectedCourseData()?.category === 'Major Elective'
                             ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
                             : getSelectedCourseData()?.category === 'General Education'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                            ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary'
                             : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
                         }`}>
                           {getSelectedCourseData()?.category}
@@ -335,7 +481,7 @@ export default function CurriculumDetails() {
                         <span className="text-sm text-muted-foreground">Requirement:</span>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                           getSelectedCourseData()?.requirement === 'Required' 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                            ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary'
                             : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
                         }`}>
                           {getSelectedCourseData()?.requirement}
@@ -406,9 +552,10 @@ export default function CurriculumDetails() {
           <div className="mt-6 flex justify-end">
             <button
               onClick={handleSaveCurriculum}
-              className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition text-sm"
+              disabled={isLoading || !selectedDepartmentId}
+              className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save Curriculum
+              {isLoading ? 'Creating Curriculum...' : 'Save Curriculum'}
             </button>
           </div>
         </div>

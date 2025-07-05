@@ -392,8 +392,8 @@ export default function CreateCurriculum() {
                 </div>
                 
                 {uploadedFile && (
-                  <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                    <p className="text-sm text-green-700 dark:text-green-300">
+                  <div className="mb-4 p-3 bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30 rounded-lg">
+                    <p className="text-sm text-primary">
                       <strong>File uploaded:</strong> {uploadedFile.name}
                     </p>
                   </div>
@@ -404,7 +404,7 @@ export default function CreateCurriculum() {
                     isDragOver 
                       ? 'border-primary bg-primary/10 text-primary scale-105'
                       : uploadedFile 
-                        ? 'border-green-300 bg-green-50 dark:bg-green-900/20 text-green-600' 
+                        ? 'border-primary/30 bg-primary/10 dark:bg-primary/20 text-primary' 
                         : 'border-border hover:bg-muted/50 text-muted-foreground hover:border-primary/50'
                   }`}
                   onClick={() => fileInputRef.current?.click()}
@@ -428,7 +428,7 @@ export default function CreateCurriculum() {
                     </>
                   ) : uploadedFile ? (
                     <>
-                      <svg className="w-10 h-10 mb-2 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <svg className="w-10 h-10 mb-2 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                       <p className="text-center text-sm">

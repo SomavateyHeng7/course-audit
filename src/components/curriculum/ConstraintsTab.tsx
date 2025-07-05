@@ -68,7 +68,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
     switch(type) {
       case 'prerequisites': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
       case 'bannedCombinations': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-      case 'corequisites': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+      case 'corequisites': return 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary';
       default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300';
     }
   };
@@ -86,7 +86,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
               placeholder="Search courses..."
               value={courseSearch}
               onChange={(e) => setCourseSearch(e.target.value)}
-              className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground text-sm"
+              className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
             />
           </div>          {/* Course List */}
           <div className="flex-1 overflow-hidden">
@@ -96,7 +96,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                   <div
                     key={idx}
                     className={`p-3 border border-gray-200 dark:border-border rounded-lg cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                      course.code === selectedCourse ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700' : 'bg-white dark:bg-card'
+                      course.code === selectedCourse ? 'bg-primary/10 dark:bg-primary/20 border-primary/30 dark:border-primary/40' : 'bg-white dark:bg-card'
                     }`}
                     onClick={() => setSelectedCourse(course.code)}
                   >
@@ -125,7 +125,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
           {/* Simplified Visualization */}
           <div className="mb-6 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-lg p-6">
             <div className="flex items-center justify-center mb-4">
-              <div className="w-32 h-32 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-sm border-4 border-emerald-600 shadow-lg">
+              <div className="w-32 h-32 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold text-sm border-4 border-primary/80 shadow-lg">
                 <div className="text-center">
                   <div className="text-lg">{selectedCourse}</div>
                   <div className="text-xs mt-1">{getSelectedCourseData().name.split(' ').slice(0, 3).join(' ')}</div>
@@ -143,8 +143,8 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                 <div className="text-2xl font-bold text-red-600 dark:text-red-400">{constraints.bannedCombinations.length}</div>
               </div>
               <div>
-                <div className="font-semibold text-green-700 dark:text-green-300 mb-1">Co-requisites</div>
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{constraints.corequisites.length}</div>
+                <div className="font-semibold text-primary mb-1">Co-requisites</div>
+                <div className="text-2xl font-bold text-primary">{constraints.corequisites.length}</div>
               </div>
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                   <select 
                     value={constraintType}
                     onChange={(e) => setConstraintType(e.target.value)}
-                    className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground text-sm"
+                    className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
                   >
                     <option value="prerequisites">Prerequisites</option>
                     <option value="bannedCombinations">Banned Combinations</option>
@@ -202,7 +202,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                   <select 
                     value={selectedConstraintCourse}
                     onChange={(e) => setSelectedConstraintCourse(e.target.value)}
-                    className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground text-sm"
+                    className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
                   >
                     <option value="">Choose a course...</option>
                     {courses.filter(c => c.code !== selectedCourse).map(course => (
@@ -217,7 +217,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                     suppressHydrationWarning
                     onClick={handleAddConstraint}
                     disabled={!selectedConstraintCourse}
-                    className="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-emerald-700 transition border border-emerald-700 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-lg font-semibold hover:bg-primary/90 transition text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
                     Add Constraint
                   </button>
@@ -257,7 +257,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                     onChange={(e) => setRequiresPermission(e.target.checked)}
                     className="sr-only peer" 
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 dark:peer-focus:ring-emerald-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-600"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 dark:peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
                 </label>
               </div>
               
@@ -273,7 +273,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                     onChange={(e) => setSummerOnly(e.target.checked)}
                     className="sr-only peer" 
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 dark:peer-focus:ring-emerald-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-600"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 dark:peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
                 </label>
               </div>
               
@@ -289,7 +289,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                     onChange={(e) => setRequiresSeniorStanding(e.target.checked)}
                     className="sr-only peer" 
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 dark:peer-focus:ring-emerald-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-600"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 dark:peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
                 </label>
               </div>
               
@@ -308,7 +308,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                       step="1"
                       value={minCreditThreshold}
                       onChange={(e) => setMinCreditThreshold(e.target.value)}
-                      className="flex-1 border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground text-sm"
+                      className="flex-1 border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
                       placeholder="90"
                     />
                     <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">credits</span>
@@ -322,7 +322,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
             
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-border">              <button 
                 suppressHydrationWarning
-                className="w-full bg-emerald-600 text-white py-3 rounded-lg font-semibold hover:bg-emerald-700 transition border border-emerald-700"
+                className="w-full bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:bg-primary/90 transition border border-primary"
               >
                 Save All Constraints
               </button>

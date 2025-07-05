@@ -109,14 +109,14 @@ export default function AuthForm() {
           <div
             className="w-full h-32 flex items-center justify-center"
             style={{
-              background: 'linear-gradient(135deg, #4C9A8A 0%, #34786A 100%)',
+              background: 'linear-gradient(135deg, #129990 0%, #0d9488 100%)',
             }}
           >
             <div className="text-center text-white">
               <h2 className="text-2xl font-bold mb-2">{isLogin ? 'Welcome Back!' : 'Welcome!'}</h2>
               <button
                 onClick={() => setIsLogin(!isLogin)}
-                className="border border-white rounded-full px-4 py-1 text-sm font-semibold hover:bg-white hover:text-[#4C9A8A] transition-all"
+                className="border border-white rounded-full px-4 py-1 text-sm font-semibold hover:bg-white hover:text-[#129990] transition-all"
               >
                 {isLogin ? 'SIGN UP' : 'SIGN IN'}
               </button>
@@ -135,14 +135,14 @@ export default function AuthForm() {
                     name="email"
                     placeholder="Email"
                     required
-                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
+                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
                   />
                   <input
                     type="password"
                     name="password"
                     placeholder="Password"
                     required
-                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
+                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
                   />
                   {error && <div className="text-red-600 dark:text-red-400 text-sm">{error}</div>}
                   <div className="text-center mt-4">
@@ -153,7 +153,7 @@ export default function AuthForm() {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full mt-6 rounded-lg py-3 text-white font-semibold bg-gradient-to-r from-emerald-300 to-emerald-500 hover:from-emerald-400 hover:to-emerald-600 transition-all duration-300 border border-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                    className="w-full mt-6 rounded-lg py-3 text-white font-semibold bg-primary hover:bg-primary/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                   >
                     {isLoading ? 'Signing in...' : 'SIGN IN'}
                   </button>
@@ -169,19 +169,19 @@ export default function AuthForm() {
                     name="name"
                     placeholder="Full Name"
                     required
-                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
+                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
                   />
                   <input
                     type="email"
                     name="email"
                     placeholder="Email"
                     required
-                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
+                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
                   />
                   <select
                     name="facultyId"
                     required
-                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700"
+                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700"
                   >
                     <option value="" className="text-gray-500 dark:text-gray-400">Select Faculty</option>
                     {faculties.map((faculty) => (
@@ -195,13 +195,13 @@ export default function AuthForm() {
                     name="password"
                     placeholder="Password"
                     required
-                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
+                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
                   />
                   {error && <div className="text-red-600 dark:text-red-400 text-sm">{error}</div>}
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full mt-6 rounded-lg py-3 text-white font-semibold bg-gradient-to-r from-emerald-300 to-emerald-500 hover:from-emerald-400 hover:to-emerald-600 transition-all duration-300 border border-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                    className="w-full mt-6 rounded-lg py-3 text-white font-semibold bg-primary hover:bg-primary/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                   >
                     {isLoading ? 'Creating account...' : 'SIGN UP'}
                   </button>
@@ -220,7 +220,7 @@ export default function AuthForm() {
             isLogin ? 'right-0 rounded-l-none' : 'left-0 rounded-r-none'
           }`}
           style={{
-            background: 'linear-gradient(135deg, #4C9A8A 0%, #34786A 100%)',
+            background: 'linear-gradient(135deg, #129990 0%, #0d9488 100%)',
           }}
         >
           <div className="flex flex-col justify-center items-center h-full text-white p-8">
@@ -230,7 +230,7 @@ export default function AuthForm() {
                 <p className="text-base mb-6 opacity-90 max-w-xs">Enter your info to sign up</p>
                 <button
                   onClick={() => setIsLogin(false)}
-                  className="border-2 border-white rounded-full px-6 py-2 text-sm font-semibold hover:bg-white hover:text-[#4C9A8A] transition-all duration-500 hover:scale-105 hover:shadow-xl transform hover:-translate-y-1"
+                  className="border-2 border-white rounded-full px-6 py-2 text-sm font-semibold hover:bg-white hover:text-[#129990] transition-all duration-500 hover:scale-105 hover:shadow-xl transform hover:-translate-y-1"
                 >
                   SIGN UP
                 </button>
@@ -241,7 +241,7 @@ export default function AuthForm() {
                 <p className="text-base mb-6 opacity-90 max-w-xs">Please login to your account</p>
                 <button
                   onClick={() => setIsLogin(true)}
-                  className="border-2 border-white rounded-full px-6 py-2 text-sm font-semibold hover:bg-white hover:text-[#4C9A8A] transition-all duration-500 hover:scale-105 hover:shadow-xl transform hover:-translate-y-1"
+                  className="border-2 border-white rounded-full px-6 py-2 text-sm font-semibold hover:bg-white hover:text-[#129990] transition-all duration-500 hover:scale-105 hover:shadow-xl transform hover:-translate-y-1"
                 >
                   SIGN IN
                 </button>
@@ -267,14 +267,14 @@ export default function AuthForm() {
                   name="email"
                   placeholder="Email"
                   required
-                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
                 />
                 <input
                   type="password"
                   name="password"
                   placeholder="Password"
                   required
-                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
                 />
 
                 {error && <div className="text-red-600 dark:text-red-400 text-xs">{error}</div>}
@@ -288,7 +288,7 @@ export default function AuthForm() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full mt-4 rounded-lg py-2.5 text-sm text-white font-semibold bg-gradient-to-r from-emerald-300 to-emerald-500 hover:from-emerald-400 hover:to-emerald-600 transition-all duration-300 border border-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                  className="w-full mt-4 rounded-lg py-2.5 text-sm text-white font-semibold bg-primary hover:bg-primary/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                 >
                   {isLoading ? 'Signing in...' : 'SIGN IN'}
                 </button>
@@ -312,19 +312,19 @@ export default function AuthForm() {
                   name="name"
                   placeholder="Full Name"
                   required
-                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
                 />
                 <input
                   type="email"
                   name="email"
                   placeholder="Email"
                   required
-                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
                 />
                 <select
                   name="facultyId"
                   required
-                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700"
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700"
                 >
                   <option value="" className="text-gray-500 dark:text-gray-400">Select Faculty</option>
                   {faculties.map((faculty) => (
@@ -338,7 +338,7 @@ export default function AuthForm() {
                   name="password"
                   placeholder="Password"
                   required
-                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 border border-gray-200 dark:border-gray-700"
                 />
 
                 {error && <div className="text-red-600 dark:text-red-400 text-xs">{error}</div>}
@@ -346,7 +346,7 @@ export default function AuthForm() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full mt-4 rounded-lg py-2.5 text-sm text-white font-semibold bg-gradient-to-r from-emerald-300 to-emerald-500 hover:from-emerald-400 hover:to-emerald-600 transition-all duration-300 border border-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                  className="w-full mt-4 rounded-lg py-2.5 text-sm text-white font-semibold bg-primary hover:bg-primary/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                 >
                   {isLoading ? 'Creating account...' : 'SIGN UP'}
                 </button>

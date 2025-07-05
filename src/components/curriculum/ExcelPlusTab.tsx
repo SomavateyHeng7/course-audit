@@ -83,7 +83,7 @@ export default function ExcelPlusTab({}: ExcelPlusTabProps) {
                 type="text"
                 placeholder="Enter curriculum name"
                 defaultValue="Curriculum for 2022"
-                className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground"
+                className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
               />
             </div>
             <div>
@@ -92,14 +92,14 @@ export default function ExcelPlusTab({}: ExcelPlusTabProps) {
                 type="number"
                 placeholder="Enter total credits"
                 defaultValue="132"
-                className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground"
+                className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
               />
             </div>            <div>
               <label className="block font-semibold mb-1 text-foreground">Concentration</label>
               <select 
                 value={curriculumConcentration}
                 onChange={(e) => setCurriculumConcentration(e.target.value)}
-                className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground"
+                className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
               >
                 <option value="Software Development">Software Development</option>
                 <option value="Informatic and Data Science">Informatic and Data Science</option>
@@ -168,7 +168,7 @@ export default function ExcelPlusTab({}: ExcelPlusTabProps) {
             </div>            <button
               type="submit"
               suppressHydrationWarning
-              className="bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700 transition mt-4 w-32 self-start border border-emerald-700"
+              className="bg-primary text-primary-foreground py-2 rounded-lg font-semibold hover:bg-primary/90 transition mt-4 w-32 self-start"
             >
               Update
             </button>
@@ -191,8 +191,8 @@ export default function ExcelPlusTab({}: ExcelPlusTabProps) {
             </div>
             
             {uploadedFile && (
-              <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                <p className="text-sm text-green-700 dark:text-green-300">
+              <div className="mb-4 p-3 bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30 rounded-lg">
+                <p className="text-sm text-primary">
                   <strong>File uploaded:</strong> {uploadedFile.name}
                 </p>
               </div>
@@ -203,7 +203,7 @@ export default function ExcelPlusTab({}: ExcelPlusTabProps) {
                 isDragOver 
                   ? 'border-primary bg-primary/10 text-primary scale-105'
                   : uploadedFile 
-                    ? 'border-green-300 bg-green-50 dark:bg-green-900/20 text-green-600' 
+                    ? 'border-primary/30 bg-primary/10 dark:bg-primary/20 text-primary' 
                     : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-primary/50'
               }`}
               onClick={() => fileInputRef.current?.click()}
@@ -227,7 +227,7 @@ export default function ExcelPlusTab({}: ExcelPlusTabProps) {
                 </>
               ) : uploadedFile ? (
                 <>
-                  <svg className="w-10 h-10 mb-2 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <svg className="w-10 h-10 mb-2 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                   <p className="text-center text-sm">

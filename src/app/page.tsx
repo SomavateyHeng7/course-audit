@@ -22,10 +22,10 @@ export default function Home() {
       <div className="flex flex-col min-h-screen">        {/* Hero Section */}
         <section className="py-12 sm:py-20 px-4 sm:px-8 md:px-16">
           <div className="max-w-6xl mx-auto text-center">
-            <h1 className="text-3xl sm:text-5xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl sm:text-5xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
               EduTrack
             </h1>
-            <h2 className="text-2xl sm:text-5xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+            <h2 className="text-2xl sm:text-5xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
               Streamline Your Academic Journey
             </h2>
             <p className="text-base sm:text-xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 max-w-2xl mx-auto">
@@ -35,13 +35,13 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
                 href="/auth" 
-                className="px-6 sm:px-8 py-2 sm:py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors border border-emerald-700 text-base sm:text-lg text-center"
+                className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors border border-primary text-base sm:text-lg text-center"
               >
                 Get Started
               </Link>
               <Link 
                 href="/management" 
-                className="px-6 sm:px-8 py-2 sm:py-3 border border-emerald-600 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors text-base sm:text-lg text-center"
+                className="px-6 sm:px-8 py-2 sm:py-3 border border-primary text-primary dark:text-primary rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-base sm:text-lg text-center"
               >
                 Learn More
               </Link>
@@ -71,8 +71,8 @@ export default function Home() {
                 <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">Visualize your academic progress with intuitive analytics.</p>
               </div>
               <div className="p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mb-3 sm:mb-4">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 dark:bg-primary/20 rounded-lg flex items-center justify-center mb-3 sm:mb-4">
+                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                   </svg>
                 </div>
@@ -92,7 +92,7 @@ export default function Home() {
             </p>
             <Link 
               href="/auth" 
-              className="px-6 sm:px-8 py-2 sm:py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors inline-block border border-emerald-700 text-base sm:text-lg"
+              className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors inline-block border border-primary text-base sm:text-lg"
             >
               Start Now
             </Link>
