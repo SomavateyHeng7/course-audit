@@ -48,11 +48,11 @@ export async function GET(
         courses: {
           include: {
             course: {
-              select: { 
-                id: true, 
-                code: true, 
-                name: true, 
-                credits: true, 
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                credits: true,
                 category: true,
                 creditHours: true,
                 description: true,
@@ -64,6 +64,7 @@ export async function GET(
         _count: {
           select: {
             courses: true,
+            curriculumBlacklists: true,
           },
         },
       },
@@ -152,13 +153,16 @@ export async function PUT(
       }
     }
 
+    // Store original data for audit
+    const originalData = {
+      name: existingBlacklist.name,
+      description: existingBlacklist.description,
+    };
+
     // Update blacklist
     const updatedBlacklist = await prisma.blacklist.update({
       where: { id },
-      data: {
-        name: validatedData.name,
-        description: validatedData.description,
-      },
+      data: validatedData,
       include: {
         department: {
           select: { id: true, name: true, code: true },
@@ -166,9 +170,25 @@ export async function PUT(
         createdBy: {
           select: { id: true, name: true, email: true },
         },
+        courses: {
+          include: {
+            course: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                credits: true,
+                category: true,
+                creditHours: true,
+                description: true,
+              },
+            },
+          },
+        },
         _count: {
           select: {
             courses: true,
+            curriculumBlacklists: true,
           },
         },
       },
@@ -179,18 +199,23 @@ export async function PUT(
       data: {
         userId: session.user.id,
         entityType: 'Blacklist',
-        entityId: updatedBlacklist.id,
+        entityId: id,
         action: 'UPDATE',
-        description: `Updated blacklist: ${updatedBlacklist.name}`,
-        blacklistId: updatedBlacklist.id,
+        description: `Updated blacklist "${updatedBlacklist.name}"`,
         changes: {
-          name: validatedData.name ? { from: existingBlacklist.name, to: validatedData.name } : undefined,
-          description: validatedData.description !== undefined ? { from: existingBlacklist.description, to: validatedData.description } : undefined,
+          before: originalData,
+          after: {
+            name: updatedBlacklist.name,
+            description: updatedBlacklist.description,
+          },
         },
       },
     });
 
-    return NextResponse.json({ blacklist: updatedBlacklist });
+    return NextResponse.json({
+      message: 'Blacklist updated successfully',
+      blacklist: updatedBlacklist,
+    });
 
   } catch (error) {
     console.error('Error updating blacklist:', error);
@@ -260,6 +285,14 @@ export async function DELETE(
       );
     }
 
+    // Store blacklist data for audit before deletion
+    const blacklistData = {
+      id: blacklist.id,
+      name: blacklist.name,
+      description: blacklist.description,
+      courseCount: blacklist._count.courses,
+    };
+
     // Delete blacklist (courses will be deleted via cascade)
     await prisma.blacklist.delete({
       where: { id },
@@ -272,19 +305,16 @@ export async function DELETE(
         entityType: 'Blacklist',
         entityId: id,
         action: 'DELETE',
-        description: `Deleted blacklist: ${blacklist.name}`,
+        description: `Deleted blacklist "${blacklistData.name}"`,
         changes: {
-          deletedBlacklist: {
-            id: blacklist.id,
-            name: blacklist.name,
-            courseCount: blacklist._count.courses,
-          },
+          deletedBlacklist: blacklistData,
         },
       },
     });
 
     return NextResponse.json({
       message: 'Blacklist deleted successfully',
+      deletedBlacklist: blacklistData,
     });
 
   } catch (error) {

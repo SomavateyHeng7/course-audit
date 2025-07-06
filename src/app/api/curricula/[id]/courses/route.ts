@@ -3,12 +3,24 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
-// Validation schema for adding courses to blacklist
+// Validation schema for adding courses to curriculum
 const addCoursesSchema = z.object({
   courseIds: z.array(z.string().min(1, 'Course ID is required')).min(1, 'At least one course ID is required'),
+  isRequired: z.boolean().optional().default(true),
+  semester: z.string().optional(),
+  year: z.number().optional(),
+  position: z.number().optional(),
 });
 
-// GET /api/blacklists/[id]/courses - Get courses in blacklist
+// Validation schema for updating curriculum course
+const updateCurriculumCourseSchema = z.object({
+  isRequired: z.boolean().optional(),
+  semester: z.string().optional(),
+  year: z.number().optional(),
+  position: z.number().optional(),
+});
+
+// GET /api/curricula/[id]/courses - Get courses in curriculum
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -31,25 +43,25 @@ export async function GET(
       );
     }
 
-    // Check if blacklist exists and user owns it
-    const blacklist = await prisma.blacklist.findFirst({
+    // Check if curriculum exists and user owns it
+    const curriculum = await prisma.curriculum.findFirst({
       where: {
         id,
         createdById: session.user.id,
       },
     });
 
-    if (!blacklist) {
+    if (!curriculum) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Blacklist not found' } },
+        { error: { code: 'NOT_FOUND', message: 'Curriculum not found' } },
         { status: 404 }
       );
     }
 
-    // Get courses in the blacklist
-    const blacklistCourses = await prisma.blacklistCourse.findMany({
+    // Get courses in the curriculum
+    const curriculumCourses = await prisma.curriculumCourse.findMany({
       where: {
-        blacklistId: id,
+        curriculumId: id,
       },
       include: {
         course: {
@@ -64,21 +76,25 @@ export async function GET(
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { year: 'asc' },
+        { semester: 'asc' },
+        { position: 'asc' },
+      ],
     });
 
-    return NextResponse.json({ blacklistCourses });
+    return NextResponse.json({ curriculumCourses });
 
   } catch (error) {
-    console.error('Error fetching blacklist courses:', error);
+    console.error('Error fetching curriculum courses:', error);
     return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch blacklist courses' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch curriculum courses' } },
       { status: 500 }
     );
   }
 }
 
-// POST /api/blacklists/[id]/courses - Add courses to blacklist
+// POST /api/curricula/[id]/courses - Add courses to curriculum
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -104,17 +120,17 @@ export async function POST(
     const body = await request.json();
     const validatedData = addCoursesSchema.parse(body);
 
-    // Check if blacklist exists and user owns it
-    const blacklist = await prisma.blacklist.findFirst({
+    // Check if curriculum exists and user owns it
+    const curriculum = await prisma.curriculum.findFirst({
       where: {
         id,
         createdById: session.user.id,
       },
     });
 
-    if (!blacklist) {
+    if (!curriculum) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Blacklist not found' } },
+        { error: { code: 'NOT_FOUND', message: 'Curriculum not found' } },
         { status: 404 }
       );
     }
@@ -141,16 +157,16 @@ export async function POST(
       );
     }
 
-    // Check which courses are already in the blacklist
-    const existingBlacklistCourses = await prisma.blacklistCourse.findMany({
+    // Check which courses are already in the curriculum
+    const existingCurriculumCourses = await prisma.curriculumCourse.findMany({
       where: {
-        blacklistId: id,
+        curriculumId: id,
         courseId: { in: validatedData.courseIds },
       },
       select: { courseId: true },
     });
 
-    const existingCourseIds = existingBlacklistCourses.map(bc => bc.courseId);
+    const existingCourseIds = existingCurriculumCourses.map(cc => cc.courseId);
     const newCourseIds = validatedData.courseIds.filter(courseId => !existingCourseIds.includes(courseId));
 
     if (newCourseIds.length === 0) {
@@ -158,18 +174,32 @@ export async function POST(
         { 
           error: { 
             code: 'COURSES_ALREADY_EXIST', 
-            message: 'All courses are already in this blacklist' 
+            message: 'All courses are already in this curriculum' 
           } 
         },
         { status: 409 }
       );
     }
 
-    // Add new courses to blacklist
-    const addedBlacklistCourses = await prisma.blacklistCourse.createMany({
-      data: newCourseIds.map(courseId => ({
-        blacklistId: id,
+    // Get the next position if not specified
+    let nextPosition = validatedData.position;
+    if (nextPosition === undefined) {
+      const maxPosition = await prisma.curriculumCourse.aggregate({
+        where: { curriculumId: id },
+        _max: { position: true },
+      });
+      nextPosition = (maxPosition._max.position || 0) + 1;
+    }
+
+    // Add new courses to curriculum
+    const addedCurriculumCourses = await prisma.curriculumCourse.createMany({
+      data: newCourseIds.map((courseId, index) => ({
+        curriculumId: id,
         courseId,
+        isRequired: validatedData.isRequired,
+        semester: validatedData.semester,
+        year: validatedData.year,
+        position: nextPosition + index,
       })),
     });
 
@@ -180,10 +210,11 @@ export async function POST(
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,
-        entityType: 'Blacklist',
-        entityId: blacklist.id,
+        entityType: 'Curriculum',
+        entityId: curriculum.id,
         action: 'ASSIGN',
-        description: `Added ${addedCourses.length} courses to blacklist: ${blacklist.name}`,
+        description: `Added ${addedCourses.length} courses to curriculum: ${curriculum.name}`,
+        curriculumId: curriculum.id,
         changes: {
           addedCourses: addedCourses.map(course => ({
             id: course.id,
@@ -196,21 +227,21 @@ export async function POST(
     });
 
     return NextResponse.json({
-      message: 'Courses added to blacklist successfully',
+      message: 'Courses added to curriculum successfully',
       addedCourses,
-      count: addedBlacklistCourses.count,
+      count: addedCurriculumCourses.count,
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Error adding courses to blacklist:', error);
+    console.error('Error adding courses to curriculum:', error);
     return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: 'Failed to add courses to blacklist' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to add courses to curriculum' } },
       { status: 500 }
     );
   }
 }
 
-// DELETE /api/blacklists/[id]/courses - Remove courses from blacklist
+// DELETE /api/curricula/[id]/courses - Remove courses from curriculum
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -243,25 +274,25 @@ export async function DELETE(
       );
     }
 
-    // Check if blacklist exists and user owns it
-    const blacklist = await prisma.blacklist.findFirst({
+    // Check if curriculum exists and user owns it
+    const curriculum = await prisma.curriculum.findFirst({
       where: {
         id,
         createdById: session.user.id,
       },
     });
 
-    if (!blacklist) {
+    if (!curriculum) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Blacklist not found' } },
+        { error: { code: 'NOT_FOUND', message: 'Curriculum not found' } },
         { status: 404 }
       );
     }
 
-    // Get courses that are actually in the blacklist
-    const blacklistCourses = await prisma.blacklistCourse.findMany({
+    // Get courses that are actually in the curriculum
+    const curriculumCourses = await prisma.curriculumCourse.findMany({
       where: {
-        blacklistId: id,
+        curriculumId: id,
         courseId: { in: courseIds },
       },
       include: {
@@ -271,12 +302,12 @@ export async function DELETE(
       },
     });
 
-    if (blacklistCourses.length === 0) {
+    if (curriculumCourses.length === 0) {
       return NextResponse.json(
         { 
           error: { 
             code: 'COURSES_NOT_FOUND', 
-            message: 'None of the specified courses are in this blacklist' 
+            message: 'None of the specified courses are in this curriculum' 
           } 
         },
         { status: 404 }
@@ -284,17 +315,17 @@ export async function DELETE(
     }
 
     // Store course data for audit before deletion
-    const courseData = blacklistCourses.map((bc: any) => ({
-      id: bc.course.id,
-      code: bc.course.code,
-      name: bc.course.name,
-      credits: bc.course.credits,
+    const courseData = curriculumCourses.map(cc => ({
+      id: cc.course.id,
+      code: cc.course.code,
+      name: cc.course.name,
+      credits: cc.course.credits,
     }));
 
-    // Remove courses from blacklist
-    await prisma.blacklistCourse.deleteMany({
+    // Remove courses from curriculum
+    await prisma.curriculumCourse.deleteMany({
       where: {
-        blacklistId: id,
+        curriculumId: id,
         courseId: { in: courseIds },
       },
     });
@@ -303,10 +334,11 @@ export async function DELETE(
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,
-        entityType: 'Blacklist',
-        entityId: blacklist.id,
+        entityType: 'Curriculum',
+        entityId: curriculum.id,
         action: 'UNASSIGN',
-        description: `Removed ${courseData.length} courses from blacklist: ${blacklist.name}`,
+        description: `Removed ${courseData.length} courses from curriculum: ${curriculum.name}`,
+        curriculumId: curriculum.id,
         changes: {
           removedCourses: courseData,
         },
@@ -314,15 +346,15 @@ export async function DELETE(
     });
 
     return NextResponse.json({
-      message: 'Courses removed from blacklist successfully',
+      message: 'Courses removed from curriculum successfully',
       removedCourses: courseData,
       count: courseData.length,
     });
 
   } catch (error) {
-    console.error('Error removing courses from blacklist:', error);
+    console.error('Error removing courses from curriculum:', error);
     return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: 'Failed to remove courses from blacklist' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to remove courses from curriculum' } },
       { status: 500 }
     );
   }
