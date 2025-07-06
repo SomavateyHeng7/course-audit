@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/departments - Get departments for user's faculty
+// GET /api/departments - List departments for current user's faculty
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -14,33 +14,39 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { searchParams } = new URL(request.url);
-    const facultyId = searchParams.get('facultyId') || session.user.faculty?.id;
-
-    if (!facultyId) {
+    if (session.user.role !== 'CHAIRPERSON') {
       return NextResponse.json(
-        { error: { code: 'BAD_REQUEST', message: 'Faculty ID is required' } },
-        { status: 400 }
+        { error: { code: 'FORBIDDEN', message: 'Chairperson access required' } },
+        { status: 403 }
       );
     }
 
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search') || '';
+
+    const where = {
+      facultyId: session.user.faculty.id,
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' as const } },
+          { code: { contains: search, mode: 'insensitive' as const } },
+        ],
+      }),
+    };
+
     const departments = await prisma.department.findMany({
-      where: {
-        facultyId,
-      },
+      where,
       include: {
-        faculty: true,
+        faculty: {
+          select: { id: true, name: true, code: true },
+        },
         _count: {
           select: {
             curricula: true,
-            concentrations: true,
-            blacklists: true,
           },
         },
       },
-      orderBy: {
-        name: 'asc',
-      },
+      orderBy: { name: 'asc' },
     });
 
     return NextResponse.json({ departments });
@@ -53,3 +59,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+

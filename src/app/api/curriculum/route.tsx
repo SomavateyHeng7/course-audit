@@ -15,7 +15,7 @@ export async function GET() {
       },
       include: {
         department: true,
-        courses: true,
+        curriculumCourses: true,
       },
       orderBy: {
         year: 'desc',
@@ -39,10 +39,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { year, departmentId, courses } = await req.json();
+    const { name, year, departmentId, courses, description, version } = await req.json();
 
     // Validate input
-    if (!year || !departmentId || !courses) {
+    if (!name || !year || !departmentId || !courses) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -67,10 +67,14 @@ export async function POST(req: Request) {
     // Create curriculum with courses
     const curriculum = await prisma.curriculum.create({
       data: {
+        name,
         year,
         departmentId,
         facultyId: session.user.faculty.id,
-        courses: {
+        createdById: session.user.id,
+        description: description || null,
+        version: version || '1.0',
+        curriculumCourses: {
           create: courses.map((course: any) => ({
             code: course.code,
             name: course.name,
@@ -79,7 +83,8 @@ export async function POST(req: Request) {
         },
       },
       include: {
-        courses: true,
+        curriculumCourses: true,
+        department: true,
       },
     });
 

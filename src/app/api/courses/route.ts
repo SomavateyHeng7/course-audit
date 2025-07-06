@@ -86,22 +86,17 @@ export async function GET(request: NextRequest) {
       prisma.course.count({ where }),
     ]);
 
-    // Log access for audit
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user.id,
-        entityType: 'Course',
-        entityId: 'SEARCH',
-        action: 'CREATE', // Using CREATE for search access
-        description: `Searched courses with term: "${search}", category: "${category}"`,
-        changes: {
-          searchTerm: search,
-          category,
-          credits,
-          resultCount: courses.length,
-        },
-      },
-    });
+    // Option 1: Remove audit log for search access (recommended)
+    // Option 2: If you want to log, use 'ASSIGN' or another valid action
+    // await prisma.auditLog.create({
+    //   data: {
+    //     userId: session.user.id,
+    //     entityType: 'Course',
+    //     entityId: 'search',
+    //     action: 'ASSIGN',
+    //     description: `Searched for courses`,
+    //   },
+    // });
 
     return NextResponse.json({
       courses,
