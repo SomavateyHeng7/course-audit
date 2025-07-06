@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { FaEdit, FaTrash, FaInfoCircle } from 'react-icons/fa';
 
 interface Course {
-  id: string;
   code: string;
   title: string;
   credits: number;
@@ -16,16 +15,13 @@ interface Course {
 interface CoursesTabProps {
   courses: Course[];
   onEditCourse: (course: Course) => void;
-  onDeleteCourse: (courseId: string) => void;
   onAddCourse: () => void;
 }
 
-export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAddCourse }: CoursesTabProps) {
+export default function CoursesTab({ courses, onEditCourse, onAddCourse }: CoursesTabProps) {
   const [search, setSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
 
   const filteredCourses = courses.filter(course =>
     course.code.toLowerCase().includes(search.toLowerCase()) ||
@@ -42,24 +38,6 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
     setSelectedCourse(null);
   };
 
-  const handleDeleteClick = (course: Course) => {
-    setCourseToDelete(course);
-    setIsDeleteModalOpen(true);
-  };
-
-  const handleConfirmDelete = () => {
-    if (courseToDelete) {
-      onDeleteCourse(courseToDelete.id);
-      setIsDeleteModalOpen(false);
-      setCourseToDelete(null);
-    }
-  };
-
-  const handleCancelDelete = () => {
-    setIsDeleteModalOpen(false);
-    setCourseToDelete(null);
-  };
-
   return (
     <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-xl p-8">
       <div className="mb-6 flex items-center justify-between">        <div className="relative">
@@ -68,7 +46,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
             placeholder="Search courses by code or title..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-80 border border-gray-300 dark:border-border rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
+            className="w-80 border border-gray-300 dark:border-border rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-background text-foreground transition-colors"
             suppressHydrationWarning
           />
           <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,15 +60,15 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
       
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg overflow-hidden shadow-sm">
-          <thead className="bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10">
+          <thead className="bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/20">
             <tr>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-primary">Course Code</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-primary">Title</th>
-              <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Credits</th>
-              <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Credit Hours</th>
-              <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Type</th>
-              <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Description</th>
-              <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Actions</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold text-emerald-800 dark:text-emerald-200">Course Code</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold text-emerald-800 dark:text-emerald-200">Title</th>
+              <th className="px-6 py-4 text-center text-sm font-semibold text-emerald-800 dark:text-emerald-200">Credits</th>
+              <th className="px-6 py-4 text-center text-sm font-semibold text-emerald-800 dark:text-emerald-200">Credit Hours</th>
+              <th className="px-6 py-4 text-center text-sm font-semibold text-emerald-800 dark:text-emerald-200">Type</th>
+              <th className="px-6 py-4 text-center text-sm font-semibold text-emerald-800 dark:text-emerald-200">Description</th>
+              <th className="px-6 py-4 text-center text-sm font-semibold text-emerald-800 dark:text-emerald-200">Actions</th>
             </tr>
           </thead>
           
@@ -114,7 +92,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                     {course.type ? (
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         course.type === 'Core' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                        course.type === 'Major' ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary' :
+                        course.type === 'Major' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
                         course.type === 'Major Elective' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
                         course.type === 'General Education' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' :
                         'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
@@ -141,14 +119,13 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                   <td className="px-6 py-4 text-center">                    <div className="flex items-center justify-center gap-2">
                       <button 
                         onClick={() => onEditCourse(course)}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all" 
+                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all" 
                         title="Edit Course"
                         suppressHydrationWarning
                       >
                         <FaEdit className="w-4 h-4" />
                       </button>
                       <button 
-                        onClick={() => handleDeleteClick(course)}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all" 
                         title="Delete Course"
                         suppressHydrationWarning
@@ -173,7 +150,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                     {search && (
                       <button 
                         onClick={() => setSearch('')}
-                        className="mt-3 text-primary hover:underline text-sm"
+                        className="mt-3 text-emerald-600 dark:text-emerald-400 hover:underline text-sm"
                       >
                         Clear search
                       </button>
@@ -192,7 +169,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
         </div>        <div className="flex gap-3">
           <button 
             onClick={onAddCourse}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors border border-primary shadow-sm"
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors border border-emerald-700 shadow-sm"
             suppressHydrationWarning
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -201,7 +178,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
             Add Course
           </button>
           <button 
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors border border-primary shadow-sm"
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors border border-emerald-700 shadow-sm"
             suppressHydrationWarning
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -227,7 +204,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                   {selectedCourse.type && (
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                       selectedCourse.type === 'Core' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                      selectedCourse.type === 'Major' ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary' :
+                      selectedCourse.type === 'Major' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
                       selectedCourse.type === 'Major Elective' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
                       selectedCourse.type === 'General Education' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' :
                       'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
@@ -262,61 +239,6 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                 className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
               >
                 Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {isDeleteModalOpen && courseToDelete && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-md border border-gray-200 dark:border-border shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-foreground">Remove Course</h3>
-              <button
-                onClick={handleCancelDelete}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="mb-6">
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mr-4">
-                  <FaTrash className="w-6 h-6 text-red-600 dark:text-red-400" />
-                </div>
-                <div>
-                  <h4 className="text-lg font-semibold text-foreground">Are you sure?</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">This will remove the course from this curriculum.</p>
-                </div>
-              </div>
-              
-              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border border-gray-200 dark:border-border">
-                <p className="text-sm text-foreground mb-2">
-                  <span className="font-semibold">Course:</span> {courseToDelete.code} - {courseToDelete.title}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  This will remove the course from the current curriculum. The course will still exist globally and can be added back later.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleCancelDelete}
-                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-              >
-                Remove Course
               </button>
             </div>
           </div>

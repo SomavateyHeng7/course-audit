@@ -16,7 +16,7 @@ export default function AdvisingDashboard() {
               <span className="material-icons text-gray-400 dark:text-gray-500 text-5xl">person</span>
             </div>
             <div className="text-gray-800 dark:text-foreground font-bold text-xl mb-6">ADVISOR NAME</div>
-            <button className="bg-primary text-white px-6 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-primary transition border border-primary">
+            <button className="bg-emerald-600 text-white px-6 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-emerald-700 transition border border-emerald-700">
               Session Ongoing
               <span className="material-icons text-base">arrow_forward</span>
             </button>
@@ -53,7 +53,7 @@ export default function AdvisingDashboard() {
 
         {/* Validated Feedback */}
         <div className="bg-white dark:bg-card rounded-2xl border border-gray-200 dark:border-border p-8 w-full">
-          <h2 className="text-primary dark:text-primary/40 font-bold text-lg mb-3">VALIDATED</h2>
+          <h2 className="text-emerald-600 dark:text-emerald-400 font-bold text-lg mb-3">VALIDATED</h2>
           <div className="w-full border border-gray-200 dark:border-border rounded-lg bg-gray-50 dark:bg-gray-800/50 p-4 text-gray-500 dark:text-gray-400 min-h-[60px]">
             Feedback...
           </div>
