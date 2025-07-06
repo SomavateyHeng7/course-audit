@@ -33,7 +33,7 @@ const CurriculumSetup: React.FC = () => {
             className="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
         </div>
-        <button onClick={() => router.push('/chairperson/create')} className="bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600 flex items-center space-x-2">
+        <button onClick={() => router.push('/chairperson/create')} className="bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90 flex items-center space-x-2">
           <span>Create New Curriculum</span>
           <span>➕</span>        
         </button>
@@ -54,7 +54,7 @@ const CurriculumSetup: React.FC = () => {
                 <td className="py-3 px-4">{item.lastModified}</td>
                 <td className="py-3 px-4 flex space-x-4">
                   <button 
-                    className="text-gray-600 dark:text-gray-400 hover:text-emerald-500 dark:hover:text-emerald-400" 
+                    className="text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary" 
                     title="Info"
                     onClick={handleInfoClick}
                   >

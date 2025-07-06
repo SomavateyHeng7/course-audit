@@ -169,7 +169,7 @@ export default function CoursesTab({ courses, onEditCourse, onAddCourse }: Cours
         </div>        <div className="flex gap-3">
           <button 
             onClick={onAddCourse}
-            className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-emerald-700 transition-colors border border-emerald-700 shadow-sm"
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors border border-emerald-700 shadow-sm"
             suppressHydrationWarning
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -178,7 +178,7 @@ export default function CoursesTab({ courses, onEditCourse, onAddCourse }: Cours
             Add Course
           </button>
           <button 
-            className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-emerald-700 transition-colors border border-emerald-700 shadow-sm"
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors border border-emerald-700 shadow-sm"
             suppressHydrationWarning
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

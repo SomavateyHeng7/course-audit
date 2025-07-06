@@ -105,9 +105,9 @@ export default function Sidebar() {
       initial={{ width: 224 }}
       animate={{ width: isCollapsed ? 80 : 224 }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
-      className="fixed inset-y-0 left-0 z-50 border-r border-emerald-200/60 dark:border-emerald-800/40 flex flex-col bg-white dark:bg-background backdrop-blur-sm"
+      className="fixed inset-y-0 left-0 z-50 border-r border-teal-200/60 dark:border-teal-800/40 flex flex-col bg-white dark:bg-background backdrop-blur-sm"
     >{/* Header with Menu Toggle */}        <div className={cn(
-          "py-5 border-b border-emerald-200/60 dark:border-emerald-800/40",
+          "py-5 border-b border-teal-200/60 dark:border-teal-800/40",
           isCollapsed ? "px-2" : "px-4"
         )}>
           <div className={cn(
@@ -131,11 +131,11 @@ export default function Sidebar() {
                       onError={handleLogoError}
                     />
                   ) : (
-                    <div className="w-7 h-8 bg-emerald-600 rounded flex items-center justify-center">
+                    <div className="w-7 h-8 bg-primary rounded flex items-center justify-center">
                       <span className="text-white text-xs font-bold">E</span>
                     </div>
                   )}
-                  <h1 className="text-xl font-bold" style={{ color: '#489581' }}>
+                  <h1 className="text-xl font-bold text-primary">
                     EduTrack
                   </h1>
                 </motion.div>
@@ -170,7 +170,7 @@ export default function Sidebar() {
                 variant="ghost"
                 size="sm"
                 onClick={toggleSidebar}
-                className="p-2 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200"
+                className="p-2 hover:bg-teal-100/80 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:hover:text-teal-200"
                 title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >
                 <Menu className="h-4 w-4" />
@@ -178,11 +178,11 @@ export default function Sidebar() {
             </div>
           </div>
         </div>        {/* Profile Section */}
-        <div className="px-3 py-4 border-b border-emerald-200/60 dark:border-emerald-800/40">
-          <div className="bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg p-3 border border-emerald-200/40 dark:border-emerald-800/30">
+        <div className="px-3 py-4 border-b border-teal-200/60 dark:border-teal-800/40">
+          <div className="bg-teal-100/50 dark:bg-teal-900/30 rounded-lg p-3 border border-teal-200/40 dark:border-teal-800/30">
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-950/60 rounded-full flex items-center justify-center mb-2 ring-2 ring-emerald-200/60 dark:ring-emerald-800/60">
-                <User className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              <div className="w-12 h-12 bg-teal-50 dark:bg-teal-950/60 rounded-full flex items-center justify-center mb-2 ring-2 ring-teal-200/60 dark:ring-teal-800/60">
+                <User className="w-6 h-6 text-teal-600 dark:text-teal-400" />
               </div>
               <AnimatePresence mode="wait">
                 {!isCollapsed && (
@@ -191,7 +191,7 @@ export default function Sidebar() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="text-sm font-medium text-emerald-800 dark:text-emerald-200 text-center"
+                    className="text-sm font-medium text-primary dark:text-primary text-center"
                   >
                     {session?.user?.name || 'User'}
                   </motion.span>
@@ -200,7 +200,7 @@ export default function Sidebar() {
             </div>
           </div>
         </div>{/* Theme Toggle */}
-        <div className="px-3 py-2 border-b border-emerald-200/60 dark:border-emerald-800/40">
+        <div className="px-3 py-2 border-b border-teal-200/60 dark:border-teal-800/40">
           <div className="flex justify-center">
             <ThemeToggle />
           </div>
@@ -220,8 +220,8 @@ export default function Sidebar() {
                       className={cn(
                         "w-full justify-center px-3 py-2 transition-all duration-200",
                         isActive 
-                          ? "bg-emerald-100/70 dark:bg-emerald-900/30 text-black dark:text-white shadow-sm" 
-                          : "text-black dark:text-white hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20"
+                          ? "bg-primary/10 dark:bg-primary/20 text-primary shadow-sm" 
+                          : "text-black dark:text-white hover:bg-primary/10 dark:hover:bg-primary/20"
                       )}
                       title={item.name}
                     >
@@ -236,8 +236,8 @@ export default function Sidebar() {
                     className={cn(
                       "w-full justify-start gap-3 px-3 py-2 transition-all duration-200",
                       isActive 
-                        ? "bg-emerald-100/70 dark:bg-emerald-900/30 text-black dark:text-white shadow-sm font-medium" 
-                        : "text-black dark:text-white hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20"
+                        ? "bg-primary/10 dark:bg-primary/20 text-primary shadow-sm font-medium" 
+                        : "text-black dark:text-white hover:bg-primary/10 dark:hover:bg-primary/20"
                     )}
                   >
                     <Icon className="h-5 w-5 flex-shrink-0" />

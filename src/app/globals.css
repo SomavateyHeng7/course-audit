@@ -13,7 +13,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
  
-    --primary: 158 58% 35%; /* #489581 equivalent */
+    --primary: 174 78% 34%; /* #129990 */
     --primary-foreground: 210 40% 98%;
  
     --secondary: 210 40% 96.1%;
@@ -22,28 +22,28 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
  
-    --accent: 158 30% 92%; /* Light emerald accent */
-    --accent-foreground: 158 58% 35%;
+    --accent: 174 50% 92%; /* Light teal accent */
+    --accent-foreground: 174 78% 34%;
  
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 158 58% 35%; /* Green focus ring */    --radius: 0.5rem;
+    --ring: 174 78% 34%; /* Teal focus ring */    --radius: 0.5rem;
   }
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 217.2 32.6% 12%; /* Brighter dark background - increased from 8% to 12% */
     --foreground: 210 40% 98%;
  
-    --card: 222.2 84% 4.9%;
+    --card: 217.2 32.6% 14%; /* Slightly brighter cards */
     --card-foreground: 210 40% 98%;
  
-    --popover: 222.2 84% 4.9%;
+    --popover: 217.2 32.6% 14%;
     --popover-foreground: 210 40% 98%;
  
-    --primary: 158 45% 70%; /* Lighter green for dark mode */
-    --primary-foreground: 158 58% 15%;
+    --primary: 174 65% 65%; /* Teal for dark mode */
+    --primary-foreground: 217.2 32.6% 12%;
  
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -51,15 +51,15 @@
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
  
-    --accent: 158 20% 15%; /* Dark emerald accent */
-    --accent-foreground: 158 45% 70%;
+    --accent: 174 30% 20%; /* Dark teal accent */
+    --accent-foreground: 174 65% 65%;
  
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
  
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 158 45% 70%; /* Green focus ring for dark mode */
+    --ring: 174 65% 65%; /* Teal focus ring for dark mode */
   }
 }
  
