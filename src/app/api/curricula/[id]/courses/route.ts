@@ -26,12 +26,37 @@ export async function POST(
 
     const { id: curriculumId } = await params;
     const body = await request.json();
-    const { courseId, isRequired = true, year = '1', semester = '1', position } = body;
+    const { courseId, isRequired = true, year = 1, semester = '1', position } = body;
+
+    // Debug logging
+    console.log('Add course request body:', body);
+    console.log('Parsed values:', { courseId, isRequired, year, semester, position });
+
+    // Convert year to integer if it's a string, keep semester as string
+    const yearInt = typeof year === 'string' ? parseInt(year) : year;
+    const semesterStr = typeof semester === 'number' ? semester.toString() : semester;
+
+    console.log('Converted values:', { yearInt, semesterStr, yearType: typeof yearInt, semesterType: typeof semesterStr });
 
     // Validate required fields
     if (!courseId) {
       return NextResponse.json(
         { error: { code: 'INVALID_INPUT', message: 'Course ID is required' } },
+        { status: 400 }
+      );
+    }
+
+    // Validate year and semester
+    if (isNaN(yearInt) || yearInt < 1 || yearInt > 6) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_INPUT', message: 'Year must be between 1 and 6' } },
+        { status: 400 }
+      );
+    }
+
+    if (!semesterStr || !['1', '2', '3'].includes(semesterStr)) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_INPUT', message: 'Semester must be 1, 2, or 3' } },
         { status: 400 }
       );
     }
@@ -87,9 +112,9 @@ export async function POST(
         curriculumId,
         courseId,
         isRequired,
-        year,
-        semester,
-        position,
+        year: yearInt,
+        semester: semesterStr,
+        ...(position !== undefined && { position }),
       },
       include: {
         course: true,
@@ -108,8 +133,8 @@ export async function POST(
           courseId,
           curriculumId,
           isRequired,
-          year,
-          semester,
+          year: yearInt,
+          semester: semesterStr,
         },
       },
     });

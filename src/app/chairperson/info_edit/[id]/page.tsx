@@ -282,7 +282,7 @@ export default function EditCurriculum() {
         body: JSON.stringify({
           courseId: courseData.course.id,
           isRequired: true,
-          year: '1',
+          year: 1,
           semester: '1',
         }),
       });
@@ -301,7 +301,7 @@ export default function EditCurriculum() {
           id: curriculumData.curriculumCourse.id,
           course: courseData.course,
           isRequired: true,
-          year: '1',
+          year: 1,
           semester: '1',
         };
         
