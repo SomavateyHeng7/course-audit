@@ -39,6 +39,19 @@ export default function EditCurriculum() {
     type: '',
     description: ''
   });
+  
+  // Course search and selection state
+  const [courseSearch, setCourseSearch] = useState('');
+  const [availableCourses, setAvailableCourses] = useState<any[]>([]);
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [showAddCourseForm, setShowAddCourseForm] = useState(false);
+  const [courseAssignment, setCourseAssignment] = useState({
+    year: 1,
+    semester: '1',
+    isRequired: true
+  });
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch curriculum data
@@ -165,6 +178,16 @@ export default function EditCurriculum() {
       type: '',
       description: ''
     });
+    // Reset course search and selection state
+    setCourseSearch('');
+    setAvailableCourses([]);
+    setSelectedCourse(null);
+    setShowAddCourseForm(false);
+    setCourseAssignment({
+      year: 1,
+      semester: '1',
+      isRequired: true
+    });
   };
 
   const handleSaveEditCourse = async () => {
@@ -249,41 +272,105 @@ export default function EditCurriculum() {
     }
   };
 
+  // Course search and management functions
+  const fetchAvailableCourses = async (search = '') => {
+    try {
+      setIsLoadingCourses(true);
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      params.append('limit', '50');
+      
+      const response = await fetch(`/api/courses?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableCourses(data.courses || []);
+      }
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      setAvailableCourses([]);
+    } finally {
+      setIsLoadingCourses(false);
+    }
+  };
+
+  // Effect to fetch courses when search changes
+  useEffect(() => {
+    if (courseSearch) {
+      const timeoutId = setTimeout(() => {
+        fetchAvailableCourses(courseSearch);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setAvailableCourses([]);
+    }
+  }, [courseSearch]);
+
+  // Filter out courses that are already in curriculum
+  const filteredAvailableCourses = availableCourses.filter((course: any) => 
+    !coursesData.some((existingCourse: any) => existingCourse.id === course.id)
+  );
+
+  const handleSelectCourse = (course: any) => {
+    setSelectedCourse(course);
+    setCourseSearch('');
+    setAvailableCourses([]);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedCourse(null);
+    setCourseSearch('');
+    setAvailableCourses([]);
+  };
+
   const handleSaveAddCourse = async () => {
     try {
-      // First create the course
-      const createResponse = await fetch('/api/courses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          code: newCourse.code,
-          name: newCourse.title,
-          credits: parseInt(newCourse.credits) || 0,
-          creditHours: newCourse.creditHours,
-          category: newCourse.type,
-          description: newCourse.description,
-        }),
-      });
+      let courseId;
+      let courseToAdd;
 
-      const courseData = await createResponse.json();
+      if (selectedCourse) {
+        // Use selected existing course
+        courseId = selectedCourse.id;
+        courseToAdd = selectedCourse;
+      } else if (showAddCourseForm && newCourse.code && newCourse.title) {
+        // Create new course first
+        const createResponse = await fetch('/api/courses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            code: newCourse.code,
+            name: newCourse.title,
+            credits: parseInt(newCourse.credits) || 0,
+            creditHours: newCourse.creditHours,
+            category: newCourse.type,
+            description: newCourse.description,
+          }),
+        });
 
-      if (!createResponse.ok) {
-        throw new Error(courseData.error?.message || 'Failed to create course');
+        const courseData = await createResponse.json();
+
+        if (!createResponse.ok) {
+          throw new Error(courseData.error?.message || 'Failed to create course');
+        }
+
+        courseId = courseData.course.id;
+        courseToAdd = courseData.course;
+      } else {
+        throw new Error('Please select a course or fill in the new course form');
       }
 
-      // Then add it to the curriculum
+      // Add the course to the curriculum
       const addToCurriculumResponse = await fetch(`/api/curricula/${curriculumId}/courses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          courseId: courseData.course.id,
-          isRequired: true,
-          year: 1,
-          semester: '1',
+          courseId,
+          isRequired: courseAssignment.isRequired,
+          year: courseAssignment.year,
+          semester: courseAssignment.semester,
         }),
       });
 
@@ -299,10 +386,10 @@ export default function EditCurriculum() {
         
         const newCurriculumCourse = {
           id: curriculumData.curriculumCourse.id,
-          course: courseData.course,
-          isRequired: true,
-          year: 1,
-          semester: '1',
+          course: courseToAdd,
+          isRequired: courseAssignment.isRequired,
+          year: courseAssignment.year,
+          semester: courseAssignment.semester,
         };
         
         return {
@@ -667,7 +754,8 @@ export default function EditCurriculum() {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
           <div className="bg-white dark:bg-card rounded-xl p-6 sm:p-8 w-full max-w-[90vw] sm:max-w-[600px] lg:max-w-[700px] border border-gray-200 dark:border-border shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-foreground">Add New Course</h3>              <button
+              <h3 className="text-xl font-bold text-foreground">Add Course to Curriculum</h3>
+              <button
                 suppressHydrationWarning
                 onClick={handleCloseAddModal}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -677,87 +765,219 @@ export default function EditCurriculum() {
                 </svg>
               </button>
             </div>
-            
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-foreground">Course Code</label>
-                <input
-                  type="text"
-                  value={newCourse.code}
-                  onChange={(e) => setNewCourse({...newCourse, code: e.target.value})}
-                  placeholder="e.g., CSX 1001"
-                  className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter a unique course code (e.g., CSX 1001)</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-foreground">Course Title</label>
-                <input
-                  type="text"
-                  value={newCourse.title}
-                  onChange={(e) => setNewCourse({...newCourse, title: e.target.value})}
-                  placeholder="e.g., Introduction to Computer Science"
-                  className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-foreground">Credits</label>
-                  <input
-                    type="number"
-                    value={newCourse.credits}
-                    onChange={(e) => setNewCourse({...newCourse, credits: e.target.value})}
-                    placeholder="3"
-                    className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
-                    min="0"
-                    max="6"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-foreground">Credit Hours</label>
-                  <input
-                    type="text"
-                    value={newCourse.creditHours}
-                    onChange={(e) => setNewCourse({...newCourse, creditHours: e.target.value})}
-                    placeholder="e.g., 3-0-6"
-                    className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Format: Lecture-Lab-Total (e.g., 3-0-6)</p>
+
+            <div className="space-y-6">
+              {/* Course Assignment Settings */}
+              <div className="border border-gray-200 dark:border-border rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
+                <h5 className="font-medium text-foreground mb-3">Course Assignment Settings</h5>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-foreground">Year</label>
+                    <select
+                      value={courseAssignment.year}
+                      onChange={(e) => setCourseAssignment({...courseAssignment, year: parseInt(e.target.value)})}
+                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                    >
+                      <option value={1}>Year 1</option>
+                      <option value={2}>Year 2</option>
+                      <option value={3}>Year 3</option>
+                      <option value={4}>Year 4</option>
+                      <option value={5}>Year 5</option>
+                      <option value={6}>Year 6</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-foreground">Semester</label>
+                    <select
+                      value={courseAssignment.semester}
+                      onChange={(e) => setCourseAssignment({...courseAssignment, semester: e.target.value})}
+                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                    >
+                      <option value="1">Semester 1</option>
+                      <option value="2">Semester 2</option>
+                      <option value="3">Summer</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-foreground">Type</label>
+                    <select
+                      value={courseAssignment.isRequired ? 'required' : 'elective'}
+                      onChange={(e) => setCourseAssignment({...courseAssignment, isRequired: e.target.value === 'required'})}
+                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                    >
+                      <option value="required">Required</option>
+                      <option value="elective">Elective</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-              
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-foreground">Course Type</label>
-                <select
-                  value={newCourse.type}
-                  onChange={(e) => setNewCourse({...newCourse, type: e.target.value})}
-                  className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
-                >
-                  <option value="">Select Course Type</option>
-                  <option value="Core">Core Course</option>
-                  <option value="Major">Major Course</option>
-                  <option value="Major Elective">Major Elective</option>
-                  <option value="General Education">General Education</option>
-                  <option value="Free Elective">Free Elective</option>
-                </select>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Choose the appropriate course type for curriculum requirements</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-foreground">Course Description</label>
-                <textarea
-                  value={newCourse.description}
-                  onChange={(e) => setNewCourse({...newCourse, description: e.target.value})}
-                  className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors resize-none"
-                  placeholder="Enter a detailed description of the course content and objectives"
-                  rows={4}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Provide a comprehensive description of the course</p>
-              </div>
+
+              {/* Search and Add Existing Courses */}
+              {!selectedCourse && (
+                <div className="border border-gray-200 dark:border-border rounded-lg p-4">
+                  <h5 className="font-medium text-foreground mb-3">Search Database Courses</h5>
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      placeholder="Search by course code or title..."
+                      value={courseSearch}
+                      onChange={(e) => setCourseSearch(e.target.value)}
+                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                    />
+                    
+                    {isLoadingCourses && (
+                      <div className="text-center py-2">
+                        <div className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                          Searching...
+                        </div>
+                      </div>
+                    )}
+                    
+                    {courseSearch && !isLoadingCourses && (
+                      <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
+                        {filteredAvailableCourses.length > 0 ? (
+                          filteredAvailableCourses.map((course: any, index: number) => (
+                            <div
+                              key={index}
+                              className="p-3 border-b border-gray-200 dark:border-border last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex justify-between items-center"
+                              onClick={() => handleSelectCourse(course)}
+                            >
+                              <div>
+                                <div className="font-semibold text-sm text-foreground">{course.code}</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">{course.name}</div>
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">{course.credits} credits</div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-3 text-center text-gray-500 dark:text-gray-400 text-sm">
+                            No courses found matching "{courseSearch}"
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Selected Course Display */}
+              {selectedCourse && (
+                <div className="border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h5 className="font-medium text-green-800 dark:text-green-300 mb-1">Selected Course</h5>
+                      <div className="font-semibold text-green-900 dark:text-green-200">{selectedCourse.code}</div>
+                      <div className="text-sm text-green-700 dark:text-green-400">{selectedCourse.name}</div>
+                      <div className="text-xs text-green-600 dark:text-green-500">{selectedCourse.credits} credits • {selectedCourse.category}</div>
+                    </div>
+                    <button
+                      onClick={handleClearSelection}
+                      className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200 transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Add New Course Form */}
+              {!selectedCourse && (
+                <div className="border border-gray-200 dark:border-border rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <h5 className="font-medium text-foreground">Create New Course</h5>
+                    <button
+                      onClick={() => setShowAddCourseForm(!showAddCourseForm)}
+                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
+                    >
+                      {showAddCourseForm ? 'Cancel' : '+ Create New'}
+                    </button>
+                  </div>
+                  
+                  {showAddCourseForm && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-foreground">Course Code</label>
+                          <input
+                            type="text"
+                            value={newCourse.code}
+                            onChange={(e) => setNewCourse({...newCourse, code: e.target.value})}
+                            placeholder="e.g., CSX 1001"
+                            className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-foreground">Course Title</label>
+                          <input
+                            type="text"
+                            value={newCourse.title}
+                            onChange={(e) => setNewCourse({...newCourse, title: e.target.value})}
+                            placeholder="e.g., Introduction to Computer Science"
+                            className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-foreground">Credits</label>
+                          <input
+                            type="number"
+                            value={newCourse.credits}
+                            onChange={(e) => setNewCourse({...newCourse, credits: e.target.value})}
+                            placeholder="3"
+                            className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                            min="0"
+                            max="6"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-foreground">Credit Hours</label>
+                          <input
+                            type="text"
+                            value={newCourse.creditHours}
+                            onChange={(e) => setNewCourse({...newCourse, creditHours: e.target.value})}
+                            placeholder="e.g., 3-0-6"
+                            className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-foreground">Course Type</label>
+                          <select
+                            value={newCourse.type}
+                            onChange={(e) => setNewCourse({...newCourse, type: e.target.value})}
+                            className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                          >
+                            <option value="">Select Type</option>
+                            <option value="Core">Core</option>
+                            <option value="Major">Major</option>
+                            <option value="Major Elective">Major Elective</option>
+                            <option value="General Education">General Education</option>
+                            <option value="Free Elective">Free Elective</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-1 text-foreground">Course Description</label>
+                        <textarea
+                          value={newCourse.description}
+                          onChange={(e) => setNewCourse({...newCourse, description: e.target.value})}
+                          placeholder="Course description (optional)"
+                          className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm resize-none"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-              <div className="flex flex-col sm:flex-row gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-border">
+
+            <div className="flex flex-col sm:flex-row gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-border">
               <button
                 suppressHydrationWarning
                 onClick={handleCloseAddModal}
@@ -768,7 +988,8 @@ export default function EditCurriculum() {
               <button
                 suppressHydrationWarning
                 onClick={handleSaveAddCourse}
-                className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary transition-colors border border-primary font-semibold shadow-sm"
+                disabled={!selectedCourse && (!showAddCourseForm || !newCourse.code || !newCourse.title)}
+                className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary transition-colors border border-primary font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add Course
               </button>

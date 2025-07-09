@@ -200,7 +200,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
             </svg>
             Add Course
           </button>
-          <button 
+          {/* <button 
             className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors border border-primary shadow-sm"
             suppressHydrationWarning
           >
@@ -208,7 +208,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
             </svg>
             Save Changes
-          </button>
+          </button> */}
         </div>
       </div>
 
