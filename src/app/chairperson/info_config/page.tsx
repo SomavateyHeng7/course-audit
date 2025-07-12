@@ -720,7 +720,7 @@ export default function InfoConfig() {
                 <div className="space-y-4">
                   {/* Search and Add Existing Courses */}
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
-                    <h5 className="font-medium text-gray-900 dark:text-primary-foreground mb-3">Search Database Courses</h5>
+                    <h5 className="font-medium text-foreground mb-3">Search Database Courses</h5>
                     <div className="space-y-3">
                       <input
                         type="text"
@@ -762,7 +762,7 @@ export default function InfoConfig() {
                   {/* Add New Course */}
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
                     <div className="flex justify-between items-center mb-3">
-                      <h5 className="font-medium text-gray-900 dark:text-primary-foreground">Add New Course</h5>
+                      <h5 className="font-medium text-foreground">Add New Course</h5>
                       <button
                         onClick={() => setShowAddCourseForm(!showAddCourseForm)}
                         className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
@@ -853,7 +853,7 @@ export default function InfoConfig() {
                   
                   {/* File Upload Option */}
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
-                    <h5 className="font-medium text-gray-900 dark:text-primary-foreground mb-3">Or Upload Excel File</h5>
+                    <h5 className="font-medium text-foreground mb-3">Or Upload Excel File</h5>
                     <div 
                       className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
                         blacklistDragOver 
@@ -978,7 +978,7 @@ export default function InfoConfig() {
                 <div className="space-y-4">
                   {/* Search and Add Existing Courses */}
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
-                    <h5 className="font-medium text-gray-900 dark:text-primary-foreground mb-3">Search Database Courses</h5>
+                    <h5 className="font-medium text-foreground mb-3">Search Database Courses</h5>
                     <div className="space-y-3">
                       <input
                         type="text"
@@ -1020,7 +1020,7 @@ export default function InfoConfig() {
                   {/* Add New Course */}
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
                     <div className="flex justify-between items-center mb-3">
-                      <h5 className="font-medium text-gray-900 dark:text-primary-foreground">Add New Course</h5>
+                      <h5 className="font-medium text-foreground">Add New Course</h5>
                       <button
                         onClick={() => setShowAddCourseForm(!showAddCourseForm)}
                         className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
@@ -1111,7 +1111,7 @@ export default function InfoConfig() {
                   
                   {/* File Upload Option */}
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
-                    <h5 className="font-medium text-gray-900 dark:text-primary-foreground mb-3">Or Upload Excel File</h5>
+                    <h5 className="font-medium text-foreground mb-3">Or Upload Excel File</h5>
                     <div 
                       className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
                         blacklistDragOver 
@@ -1148,7 +1148,7 @@ export default function InfoConfig() {
 
               {newBlacklist.courses.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-primary-foreground mb-3">
+                  <h4 className="font-semibold text-foreground mb-3">
                     Current Courses ({newBlacklist.courses.length})
                   </h4>
                   <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
@@ -1163,9 +1163,9 @@ export default function InfoConfig() {
                       <tbody className="divide-y divide-gray-200 dark:divide-border">
                         {newBlacklist.courses.map((course, index) => (
                           <tr key={index}>
-                            <td className="px-3 py-2 text-gray-900 dark:text-primary-foreground">{course.code}</td>
-                            <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.title}</td>
-                            <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.credits}</td>
+                            <td className="px-3 py-2 text-foreground">{course.code}</td>
+                            <td className="px-3 py-2 text-foreground">{course.title}</td>
+                            <td className="px-3 py-2 text-foreground">{course.credits}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1359,7 +1359,7 @@ export default function InfoConfig() {
                 <div className="space-y-4">
                   {/* Search and Add Existing Courses */}
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
-                    <h5 className="font-medium text-gray-900 dark:text-primary-foreground mb-3">Search Database Courses</h5>
+                    <h5 className="font-medium text-foreground mb-3">Search Database Courses</h5>
                     <div className="space-y-3">
                       <input
                         type="text"
@@ -1401,7 +1401,7 @@ export default function InfoConfig() {
                   {/* Add New Course */}
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
                     <div className="flex justify-between items-center mb-3">
-                      <h5 className="font-medium text-gray-900 dark:text-primary-foreground">Add New Course</h5>
+                      <h5 className="font-medium text-foreground">Add New Course</h5>
                       <button
                         onClick={() => setShowAddCourseForm(!showAddCourseForm)}
                         className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
@@ -1492,7 +1492,7 @@ export default function InfoConfig() {
                   
                   {/* File Upload Option */}
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
-                    <h5 className="font-medium text-gray-900 dark:text-primary-foreground mb-3">Or Upload Excel File</h5>
+                    <h5 className="font-medium text-foreground mb-3">Or Upload Excel File</h5>
                     <div 
                       className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
                         concentrationDragOver 
@@ -1617,7 +1617,7 @@ export default function InfoConfig() {
                 <div className="space-y-4">
                   {/* Search and Add Existing Courses */}
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
-                    <h5 className="font-medium text-gray-900 dark:text-primary-foreground mb-3">Search Database Courses</h5>
+                    <h5 className="font-medium text-foreground mb-3">Search Database Courses</h5>
                     <div className="space-y-3">
                       <input
                         type="text"
@@ -1659,7 +1659,7 @@ export default function InfoConfig() {
                   {/* Add New Course */}
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
                     <div className="flex justify-between items-center mb-3">
-                      <h5 className="font-medium text-gray-900 dark:text-primary-foreground">Add New Course</h5>
+                      <h5 className="font-medium text-foreground">Add New Course</h5>
                       <button
                         onClick={() => setShowAddCourseForm(!showAddCourseForm)}
                         className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
@@ -1750,7 +1750,7 @@ export default function InfoConfig() {
                   
                   {/* File Upload Option */}
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
-                    <h5 className="font-medium text-gray-900 dark:text-primary-foreground mb-3">Or Upload Excel File</h5>
+                    <h5 className="font-medium text-foreground mb-3">Or Upload Excel File</h5>
                     <div 
                       className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
                         concentrationDragOver 
