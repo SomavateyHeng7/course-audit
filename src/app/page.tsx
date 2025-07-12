@@ -34,16 +34,16 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
-                href="/auth" 
+                href="/student" 
                 className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors border border-primary text-base sm:text-lg text-center"
               >
-                Get Started
+                Browse Courses (Anonymous)
               </Link>
               <Link 
-                href="/management" 
+                href="/auth" 
                 className="px-6 sm:px-8 py-2 sm:py-3 border border-primary text-primary dark:text-primary rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-base sm:text-lg text-center"
               >
-                Learn More
+                Login for Full Access
               </Link>
             </div>
           </div>
@@ -90,12 +90,20 @@ export default function Home() {
             <p className="text-base sm:text-xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8">
               Join thousands of students who are already using Course Audit to manage their academic progress.
             </p>
-            <Link 
-              href="/auth" 
-              className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors inline-block border border-primary text-base sm:text-lg"
-            >
-              Start Now
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link 
+                href="/student" 
+                className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors border border-primary text-base sm:text-lg"
+              >
+                Browse Courses (Anonymous)
+              </Link>
+              <Link 
+                href="/auth" 
+                className="px-6 sm:px-8 py-2 sm:py-3 border border-primary text-primary dark:text-primary rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-base sm:text-lg"
+              >
+                Login for Full Access
+              </Link>
+            </div>
           </div>
         </section>
       </div>
