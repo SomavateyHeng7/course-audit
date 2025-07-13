@@ -58,6 +58,12 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
     return course.id || course.code;
   };
 
+  const getSelectedCourseData = () => {
+    if (!selectedCourse) return { id: '', code: 'No course selected', name: 'Please select a course' };
+    const found = courses.find(course => getCourseIdentifier(course) === selectedCourse);
+    return found || { id: '', code: 'No course selected', name: 'Please select a course' };
+  };
+
   // Set default selected course when courses are available
   useEffect(() => {
     if (courses.length > 0 && !selectedCourse) {
@@ -135,12 +141,6 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
       course.code.toLowerCase().includes(constraintCourseSearch.toLowerCase()) ||
       course.name.toLowerCase().includes(constraintCourseSearch.toLowerCase())
     );
-
-  const getSelectedCourseData = () => {
-    if (!selectedCourse) return { id: '', code: 'No course selected', name: 'Please select a course' };
-    const found = courses.find(course => getCourseIdentifier(course) === selectedCourse);
-    return found || { id: '', code: 'No course selected', name: 'Please select a course' };
-  };
 
   const handleAddConstraint = async () => {
     if (!selectedConstraintCourse || !selectedCourse) return;
@@ -279,12 +279,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
         }
       `}</style>
       
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <div className="text-red-800 dark:text-red-200 font-semibold">Error</div>
-          <div className="text-red-700 dark:text-red-300 text-sm">{error}</div>
-        </div>
-      )}
+
       
       <div className="flex gap-8 min-h-[700px]">
         {/* Left Side - Course Selection */}
@@ -344,16 +339,17 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
               )}
             </div>
             
-            {/* Scrollable course list with max height for optimal display */}
-            <div 
-              className={`space-y-2 overflow-y-auto hide-scrollbar ${
-                filteredCourses.length > 15 ? 'max-h-[500px]' : 'h-full'
-              }`}
-              style={{ 
-                // Calculate height for optimal display (each course item ~56px including gap)
-                maxHeight: filteredCourses.length > 15 ? '500px' : 'auto'
-              }}
-            >
+            {/* Scrollable course list with proper container */}
+            <div className="border border-gray-200 dark:border-border rounded-lg p-2 bg-gray-50 dark:bg-gray-800/30">
+              <div 
+                className={`space-y-2 overflow-y-auto hide-scrollbar ${
+                  filteredCourses.length > 15 ? 'max-h-[480px]' : 'h-full'
+                }`}
+                style={{ 
+                  // Calculate height for optimal display (each course item ~56px including gap)
+                  maxHeight: filteredCourses.length > 15 ? '480px' : 'auto', paddingRight: '0.2rem',paddingLeft: '0.2rem',
+                }}
+              >
               {filteredCourses.length > 0 ? (
                 filteredCourses.map((course, idx) => {
                   const courseId = getCourseIdentifier(course);
@@ -362,7 +358,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                   return (
                   <div
                     key={courseId || idx}
-                    className={`p-3 mx-1 border border-gray-200 dark:border-border rounded-lg cursor-pointer transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+                    className={`p-3 border border-gray-200 dark:border-border rounded-lg cursor-pointer transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/50 ${
                       isSelected 
                         ? 'bg-primary/10 dark:bg-primary/20 border-primary/40 dark:border-primary/50 shadow-md ring-2 ring-primary/30' 
                         : 'bg-white dark:bg-card hover:shadow-sm'
@@ -416,6 +412,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                   </div>
                 </div>
               )}
+            </div>
             </div>
           </div>
         </div>
