@@ -52,6 +52,7 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [flagSaving, setFlagSaving] = useState(false);
 
   // Helper function to get course identifier (use id if available, otherwise use code)
   const getCourseIdentifier = (course: Course) => {
@@ -143,34 +144,52 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
     );
 
   const handleAddConstraint = async () => {
-    if (!selectedConstraintCourse || !selectedCourse) return;
+    if (!selectedConstraintCourse || !selectedCourse) {
+      console.log('Missing required fields:', { selectedConstraintCourse, selectedCourse });
+      return;
+    }
     
     setSaving(true);
     setError(null);
     
     try {
-      // If using course codes as identifiers, we need to convert to actual IDs
+      // Get the actual course data to find the real ID
       const selectedCourseData = getSelectedCourseData();
       const constraintCourseData = courses.find(c => getCourseIdentifier(c) === selectedConstraintCourse);
       
+      console.log('Adding constraint:', {
+        selectedCourse,
+        selectedCourseData,
+        selectedConstraintCourse,
+        constraintCourseData,
+        constraintType
+      });
+      
       if (!selectedCourseData.id || !constraintCourseData?.id) {
-        setError('Course IDs are missing. Cannot add constraints without proper course IDs.');
+        const errorMsg = 'Course IDs are missing. Cannot add constraints without proper course IDs.';
+        console.error(errorMsg, { selectedCourseData, constraintCourseData });
+        setError(errorMsg);
         return;
       }
       
       if (constraintType === 'prerequisites') {
+        console.log('Adding prerequisite:', selectedCourseData.id, '->', constraintCourseData.id);
         await courseConstraintsApi.addPrerequisite(selectedCourseData.id, constraintCourseData.id);
       } else if (constraintType === 'corequisites') {
+        console.log('Adding corequisite:', selectedCourseData.id, '<->', constraintCourseData.id);
         await courseConstraintsApi.addCorequisite(selectedCourseData.id, constraintCourseData.id);
       } else if (constraintType === 'bannedCombinations') {
         // Handle banned combinations at curriculum level
         console.log('Banned combinations would be handled at curriculum level');
+        setError('Banned combinations are not yet implemented');
+        return;
       }
       
       setSelectedConstraintCourse('');
       setConstraintCourseSearch('');
       // Reload constraints to get updated data
       await loadConstraints();
+      console.log('Constraint added successfully');
     } catch (err) {
       console.error('Error adding constraint:', err);
       setError(err instanceof Error ? err.message : 'Failed to add constraint');
@@ -247,6 +266,38 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Auto-save function for flags
+  const autoSaveFlags = async (newFlags: CourseConstraintFlags) => {
+    if (!selectedCourse) return;
+    
+    setFlagSaving(true);
+    
+    try {
+      const selectedCourseData = getSelectedCourseData();
+      
+      if (!selectedCourseData.id) {
+        console.error('Course ID is missing. Cannot save flags.');
+        return;
+      }
+      
+      console.log('Auto-saving flags for course:', selectedCourseData.id, newFlags);
+      await courseConstraintsApi.updateConstraintFlags(selectedCourseData.id, newFlags);
+      console.log('Flags auto-saved successfully');
+    } catch (err) {
+      console.error('Error auto-saving flags:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save flag changes');
+    } finally {
+      setFlagSaving(false);
+    }
+  };
+
+  // Handle flag changes with auto-save
+  const handleFlagChange = (flagName: keyof CourseConstraintFlags, value: any) => {
+    const newFlags = { ...courseFlags, [flagName]: value };
+    setCourseFlags(newFlags);
+    autoSaveFlags(newFlags);
   };
 
   const getConstraintTypeLabel = (type: string) => {
@@ -603,6 +654,12 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
           <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-900/50 border border-gray-200 dark:border-border rounded-xl p-6">
             <h4 className="text-lg font-bold mb-4 text-foreground flex items-center gap-2">
               Course Flags & Special Requirements
+              {flagSaving && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="animate-spin w-4 h-4 border-2 border-gray-300 border-t-primary rounded-full"></div>
+                  Saving...
+                </div>
+              )}
             </h4>
             
             <div className="space-y-4">
@@ -615,10 +672,11 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                   <input 
                     type="checkbox" 
                     checked={courseFlags.requiresPermission}
-                    onChange={(e) => setCourseFlags(prev => ({ ...prev, requiresPermission: e.target.checked }))}
+                    onChange={(e) => handleFlagChange('requiresPermission', e.target.checked)}
+                    disabled={flagSaving}
                     className="sr-only peer" 
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 dark:peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 dark:peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary peer-disabled:opacity-50"></div>
                 </label>
               </div>
               
@@ -631,10 +689,11 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                   <input 
                     type="checkbox" 
                     checked={courseFlags.summerOnly}
-                    onChange={(e) => setCourseFlags(prev => ({ ...prev, summerOnly: e.target.checked }))}
+                    onChange={(e) => handleFlagChange('summerOnly', e.target.checked)}
+                    disabled={flagSaving}
                     className="sr-only peer" 
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 dark:peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 dark:peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary peer-disabled:opacity-50"></div>
                 </label>
               </div>
               
@@ -647,19 +706,20 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                   <input 
                     type="checkbox" 
                     checked={courseFlags.requiresSeniorStanding}
-                    onChange={(e) => setCourseFlags(prev => ({ ...prev, requiresSeniorStanding: e.target.checked }))}
+                    onChange={(e) => handleFlagChange('requiresSeniorStanding', e.target.checked)}
+                    disabled={flagSaving}
                     className="sr-only peer" 
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 dark:peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 dark:peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary peer-disabled:opacity-50"></div>
                 </label>
               </div>
               
-              {/* Credit Threshold Input - only shown when Senior Standing is enabled */}
-              {courseFlags.requiresSeniorStanding && (
+              {/* Credit Threshold Input - shown when Senior Standing is disabled so user can set it before enabling */}
+              {!courseFlags.requiresSeniorStanding && (
                 <div className="p-3 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg">
                   <div className="mb-3">
                     <div className="font-semibold text-foreground">Minimum Credit Threshold</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Minimum credits required for senior standing to take this course</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Set minimum credits required for senior standing before enabling the requirement</div>
                   </div>
                   <div className="flex items-center gap-3">
                     <input
@@ -668,28 +728,18 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                       max="200"
                       step="1"
                       value={courseFlags.minCreditThreshold || 90}
-                      onChange={(e) => setCourseFlags(prev => ({ ...prev, minCreditThreshold: parseInt(e.target.value) || 90 }))}
-                      className="flex-1 border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
+                      onChange={(e) => handleFlagChange('minCreditThreshold', parseInt(e.target.value) || 90)}
+                      disabled={flagSaving}
+                      className="flex-1 border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm disabled:opacity-50"
                       placeholder="90"
                     />
                     <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">credits</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    NOTE: Backend will verify student ID to determine senior standing status
+                    NOTE: This threshold will be used when "Senior Standing Required" is enabled
                   </p>
                 </div>
               )}
-            </div>
-            
-            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-border">
-              <button 
-                suppressHydrationWarning
-                onClick={handleSaveConstraints}
-                disabled={saving || !selectedCourse}
-                className="w-full bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:bg-primary/90 transition border border-primary disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {saving ? 'Saving...' : 'Save All Constraints'}
-              </button>
             </div>
           </div>
           </>
