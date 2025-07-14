@@ -1,24 +1,51 @@
-"use client";
+'use client';
 
-import { useState, useRef, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { FaEdit, FaTrash, FaBook, FaGavel, FaGraduationCap, FaStar, FaBan } from 'react-icons/fa';
-import CoursesTab from '@/components/curriculum/CoursesTab';
-import ConstraintsTab from '@/components/curriculum/ConstraintsTab';
-import ElectiveRulesTab from '@/components/curriculum/ElectiveRulesTab';
-import ConcentrationsTab from '@/components/curriculum/ConcentrationsTab';
-import BlacklistTab from '@/components/curriculum/BlacklistTab';
+import React, { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { FaArrowLeft, FaEdit, FaSave, FaTimes } from 'react-icons/fa';
 
-const tabs = [
-  { name: "Courses", icon: FaBook },
-  { name: "Constraints", icon: FaGavel },
-  { name: "Elective Rules", icon: FaGraduationCap },
-  { name: "Concentrations", icon: FaStar },
-  { name: "Blacklist", icon: FaBan }
-];
+interface Curriculum {
+  id: string;
+  name: string;
+  year: string;
+  version: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  department: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  faculty: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  _count: {
+    curriculumCourses: number;
+    curriculumConstraints: number;
+    electiveRules: number;
+  };
+}
 
-export default function EditCurriculum() {
+const CurriculumInfoEditPage: React.FC = () => {
   const params = useParams();
+  const router = useRouter();
+  const { data: session } = useSession();
+  const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    year: '',
+    version: '',
+    description: '',
+    isActive: true
+  });
+
   const curriculumId = params.id as string;
   
   // State for curriculum data
@@ -56,24 +83,6 @@ export default function EditCurriculum() {
 
   // Fetch curriculum data
   useEffect(() => {
-    const fetchCurriculum = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch(`/api/curricula/${curriculumId}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch curriculum');
-        }
-        
-        const data = await response.json();
-        setCurriculum(data.curriculum);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     if (curriculumId) {
       fetchCurriculum();
     }
@@ -190,58 +199,25 @@ export default function EditCurriculum() {
     });
   };
 
-  const handleSaveEditCourse = async () => {
-    if (!editingCourse) return;
-
+  const handleSave = async () => {
     try {
-      const response = await fetch(`/api/courses/${editingCourse.id}`, {
+      const response = await fetch(`/api/curricula/${curriculumId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: editingCourse.title,
-          credits: editingCourse.credits,
-          creditHours: editingCourse.creditHours,
-          category: editingCourse.type,
-          description: editingCourse.description,
-        }),
+        body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error?.message || 'Failed to update course');
+      if (response.ok) {
+        const updatedCurriculum = await response.json();
+        setCurriculum(updatedCurriculum);
+        setEditing(false);
+      } else {
+        console.error('Failed to update curriculum');
       }
-
-      // Update the curriculum state with the new course data
-      setCurriculum((prev: any) => {
-        if (!prev) return prev;
-        
-        return {
-          ...prev,
-          curriculumCourses: prev.curriculumCourses.map((cc: any) => 
-            cc.course.id === editingCourse.id 
-              ? {
-                  ...cc,
-                  course: {
-                    ...cc.course,
-                    name: editingCourse.title,
-                    credits: editingCourse.credits,
-                    creditHours: editingCourse.creditHours,
-                    category: editingCourse.type,
-                    description: editingCourse.description,
-                  }
-                }
-              : cc
-          )
-        };
-      });
-
-      handleCloseEditModal();
     } catch (error) {
-      console.error('Error updating course:', error);
-      alert('Failed to update course. Please try again.');
+      console.error('Error updating curriculum:', error);
     }
   };
 
@@ -589,132 +565,139 @@ export default function EditCurriculum() {
           {/* Tab Navigation Buttons */}
           <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200 dark:border-border">
             <button
-              onClick={goToPreviousTab}
-              disabled={isFirstTab}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                isFirstTab
-                  ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
-                  : "text-primary dark:text-primary/40 hover:bg-primary/10 dark:hover:bg-primary/20/20 hover:text-primary dark:hover:text-primary/30"
-              }`}
+              onClick={() => router.push('/chairperson')}
+              className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Previous
+              <FaArrowLeft size={20} />
             </button>
-            
-            <div className="flex items-center gap-2">
-              {tabs.map((tab, index) => (
-                <button
-                  key={tab.name}
-                  onClick={() => setActiveTab(tab.name)}
-                  className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                    activeTab === tab.name
-                      ? "bg-primary w-6"
-                      : index < currentTabIndex
-                      ? "bg-primary/30 dark:bg-primary"
-                      : "bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500"
-                  }`}
-                  title={tab.name}
-                />
-              ))}
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">
+                Curriculum Information
+              </h1>
+              <p className="text-muted-foreground">
+                View and edit curriculum details
+              </p>
             </div>
-            
-            <button
-              onClick={goToNextTab}
-              disabled={isLastTab}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                isLastTab
-                  ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
-                  : "text-primary dark:text-primary/40 hover:bg-primary/10 dark:hover:bg-primary/20/20 hover:text-primary dark:hover:text-primary/30"
-              }`}
-            >
-              Next
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
           </div>
-            </>
-          )}
-        </div>
-      </div>      {/* Edit Course Modal */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-card rounded-xl p-6 sm:p-8 w-full max-w-[90vw] sm:max-w-[600px] lg:max-w-[700px] border border-gray-200 dark:border-border shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-foreground">Edit Course Details</h3><button
-                suppressHydrationWarning
-                onClick={handleCloseEditModal}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+
+          <div className="flex gap-2">
+            {editing ? (
+              <>
+                <button
+                  onClick={handleSave}
+                  className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+                >
+                  <FaSave size={16} />
+                  Save Changes
+                </button>
+                <button
+                  onClick={handleCancel}
+                  className="bg-secondary text-secondary-foreground px-4 py-2 rounded-lg font-medium hover:bg-secondary/90 transition-colors flex items-center gap-2"
+                >
+                  <FaTimes size={16} />
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setEditing(true)}
+                className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <FaEdit size={16} />
+                Edit Curriculum
               </button>
-            </div>
-              {editingCourse && (
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-foreground">Course Code</label>
+            )}
+          </div>
+        </div>
+
+        {/* Curriculum Details */}
+        <div className="bg-card border border-border rounded-lg p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-foreground border-b border-border pb-2">
+                Basic Information
+              </h2>
+              
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Curriculum Name
+                </label>
+                {editing ? (
                   <input
                     type="text"
-                    value={editingCourse.code}
-                    readOnly
-                    className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-not-allowed"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Course code cannot be modified</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-foreground">Course Title</label>
+                ) : (
+                  <div className="text-foreground font-medium">{curriculum.name}</div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Academic Year
+                </label>
+                {editing ? (
                   <input
                     type="text"
-                    value={editingCourse.title}
-                    onChange={(e) => setEditingCourse({...editingCourse, title: e.target.value})}
-                    className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
-                    placeholder="Enter course title"
+                    value={formData.year}
+                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                    className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   />
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-foreground">Credits</label>
-                    <input
-                      type="number"
-                      value={editingCourse.credits}
-                      onChange={(e) => setEditingCourse({...editingCourse, credits: parseInt(e.target.value) || 0})}
-                      className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
-                      min="0"
-                      max="6"
-                    />
+                ) : (
+                  <div className="text-foreground font-medium">{curriculum.year}</div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Version
+                </label>
+                {editing ? (
+                  <input
+                    type="text"
+                    value={formData.version}
+                    onChange={(e) => setFormData({ ...formData, version: e.target.value })}
+                    className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  />
+                ) : (
+                  <div className="text-foreground font-medium">v{curriculum.version}</div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Description
+                </label>
+                {editing ? (
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    placeholder="Enter curriculum description..."
+                  />
+                ) : (
+                  <div className="text-foreground">
+                    {curriculum.description || 'No description provided'}
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-foreground">Credit Hours</label>
-                    <input
-                      type="text"
-                      value={editingCourse.creditHours}
-                      onChange={(e) => setEditingCourse({...editingCourse, creditHours: e.target.value})}
-                      className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
-                      placeholder="e.g., 3-0-6"
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Format: Lecture-Lab-Total (e.g., 3-0-6)</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-foreground">Course Type</label>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Status
+                </label>
+                {editing ? (
                   <select
-                    value={editingCourse.type}
-                    onChange={(e) => setEditingCourse({...editingCourse, type: e.target.value})}
-                    className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
+                    value={formData.isActive ? 'active' : 'inactive'}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'active' })}
+                    className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   >
-                    <option value="">Select Course Type</option>
-                    <option value="Core">Core Course</option>
-                    <option value="Major">Major Course</option>
-                    <option value="Major Elective">Major Elective</option>
-                    <option value="General Education">General Education</option>
-                    <option value="Free Elective">Free Elective</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
                   </select>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Choose the appropriate course type for curriculum requirements</p>
                 </div>
@@ -996,7 +979,7 @@ export default function EditCurriculum() {
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

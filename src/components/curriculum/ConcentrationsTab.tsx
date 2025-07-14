@@ -118,14 +118,14 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
           <input
             type="text"
             placeholder={`Search ${concentrationTitle}...`}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-background text-foreground"
           />
         </div>
 
         {/* Category Filter */}
         <div className="mb-6">
           {/* TODO: Backend integration - Filter concentrations by category */}
-          <select className="w-full px-4 py-2 border border-gray-300 dark:border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground">
+          <select className="w-full px-4 py-2 border border-gray-300 dark:border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-background text-foreground">
             <option>All</option>
             <option>Technical</option>
             <option>Business</option>
@@ -146,7 +146,7 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
                 onClick={() => handleConcentrationClick(concentration.id)}
                 className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                   isSelected 
-                    ? 'border-primary/40 bg-primary/10 dark:bg-primary/20/20' 
+                    ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' 
                     : 'border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-gray-800/50'
                 }`}
               >
@@ -155,7 +155,7 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
                     <div className="flex items-center gap-3 mb-1">
                       <span className="font-semibold text-gray-900 dark:text-white">{concentration.name}</span>
                       {isSelected && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary dark:bg-primary/20/30 dark:text-primary/30">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
                           Selected
                         </span>
                       )}
@@ -168,7 +168,7 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
                     </p>
                   </div>
                   {isSelected && (
-                    <div className="w-6 h-6 bg-ring rounded-full flex items-center justify-center">
+                    <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
                       <FaCheck className="w-3 h-3 text-white" />
                     </div>
                   )}

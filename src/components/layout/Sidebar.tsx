@@ -18,24 +18,39 @@ import {
   Menu,
   BookOpen,
   Settings,
+  Book,
 } from 'lucide-react';
 
 // Default navigation for non-chairperson users
+// const defaultNavigationItems = [
+//   {
+//     name: 'Management',
+//     href: '/management',
+//     icon: LayoutDashboard,
+//   },
+//   {
+//     name: 'Advising',
+//     href: '/advisor/advising',
+//     icon: MessageSquare,
+//   },
+//   {
+//     name: 'Profile',
+//     href: '/profile',
+//     icon: User,
+//   },
+// ];
+
+//student
 const defaultNavigationItems = [
   {
-    name: 'Management',
+    name: 'Course Management',
     href: '/management',
     icon: LayoutDashboard,
   },
   {
-    name: 'Advising',
-    href: '/advisor/advising',
-    icon: MessageSquare,
-  },
-  {
-    name: 'Profile',
-    href: '/profile',
-    icon: User,
+    name: 'All Curricula',
+    href: '/allCurricula',
+    icon: Book,
   },
 ];
 
@@ -105,9 +120,9 @@ export default function Sidebar() {
       initial={{ width: 224 }}
       animate={{ width: isCollapsed ? 80 : 224 }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
-      className="fixed inset-y-0 left-0 z-50 border-r border-primary/20 dark:border-primary/30 flex flex-col bg-white dark:bg-background backdrop-blur-sm"
+      className="fixed inset-y-0 left-0 z-50 border-r border-teal-200/60 dark:border-teal-800/40 flex flex-col bg-white dark:bg-background backdrop-blur-sm"
     >{/* Header with Menu Toggle */}        <div className={cn(
-          "py-5 border-b border-primary/20 dark:border-primary/30",
+          "py-5 border-b border-teal-200/60 dark:border-teal-800/40",
           isCollapsed ? "px-2" : "px-4"
         )}>
           <div className={cn(
@@ -170,7 +185,7 @@ export default function Sidebar() {
                 variant="ghost"
                 size="sm"
                 onClick={toggleSidebar}
-                className="p-2 hover:bg-primary/10 dark:hover:bg-primary/20 text-primary hover:text-primary/80 transition-colors"
+                className="p-2 hover:bg-teal-100/80 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:hover:text-teal-200"
                 title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >
                 <Menu className="h-4 w-4" />
@@ -178,11 +193,11 @@ export default function Sidebar() {
             </div>
           </div>
         </div>        {/* Profile Section */}
-        <div className="px-3 py-4 border-b border-primary/20 dark:border-primary/30">
-          <div className="bg-primary/10 dark:bg-primary/20 rounded-lg p-3 border border-primary/20 dark:border-primary/30">
+        <div className="px-3 py-4 border-b border-teal-200/60 dark:border-teal-800/40">
+          <div className="bg-teal-100/50 dark:bg-teal-900/30 rounded-lg p-3 border border-teal-200/40 dark:border-teal-800/30">
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-primary/5 dark:bg-primary/10 rounded-full flex items-center justify-center mb-2 ring-2 ring-primary/20 dark:ring-primary/30">
-                <User className="w-6 h-6 text-primary" />
+              <div className="w-12 h-12 bg-teal-50 dark:bg-teal-950/60 rounded-full flex items-center justify-center mb-2 ring-2 ring-teal-200/60 dark:ring-teal-800/60">
+                <User className="w-6 h-6 text-teal-600 dark:text-teal-400" />
               </div>
               <AnimatePresence mode="wait">
                 {!isCollapsed && (
@@ -200,7 +215,7 @@ export default function Sidebar() {
             </div>
           </div>
         </div>{/* Theme Toggle */}
-        <div className="px-3 py-2 border-b border-primary/20 dark:border-primary/30">
+        <div className="px-3 py-2 border-b border-teal-200/60 dark:border-teal-800/40">
           <div className="flex justify-center">
             <ThemeToggle />
           </div>
