@@ -65,7 +65,7 @@ export default function StudentProfile() {
       <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-800 dark:text-foreground text-center sm:text-left">PROFILE</h2>
 
       {showSuccessMessage && (
-        <div className="mb-4 p-4 rounded-md bg-primary/10 text-primary border border-primary/20 dark:bg-primary/20 dark:border-primary/30 text-center text-sm sm:text-base">
+        <div className="mb-4 p-4 rounded-md bg-green-100 text-green-800 border border-green-300 text-center text-sm sm:text-base">
           ✅ Changes saved successfully!
         </div>
       )}
@@ -76,7 +76,7 @@ export default function StudentProfile() {
             key={tab}
             className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium ${
               activeTab === tab
-                ? "border-b-4 border-primary text-foreground"
+                ? "border-b-4 border-emerald-600 text-black dark:text-white"
                 : "text-gray-500 dark:text-gray-400"
             }`}
             onClick={() => setActiveTab(tab)}
@@ -111,7 +111,7 @@ export default function StudentProfile() {
           <div className="flex justify-end mt-6">
             <button
               onClick={() => isEditingStudent ? handleSave() : setIsEditingStudent(true)}
-              className="px-4 py-2 text-xs sm:text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg"
+              className="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
             >
               {isEditingStudent ? "Save" : "Edit"}
             </button>
@@ -148,7 +148,7 @@ export default function StudentProfile() {
           <div className="flex justify-end mt-6">
             <button
               onClick={() => isEditingAdvisor ? handleSave() : setIsEditingAdvisor(true)}
-              className="px-4 py-2 text-xs sm:text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg"
+              className="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
             >
               {isEditingAdvisor ? "Save" : "Edit"}
             </button>
