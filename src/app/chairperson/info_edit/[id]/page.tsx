@@ -573,7 +573,7 @@ export default function EditCurriculum() {
               onAddCourse={handleAddCourse}
             />
           )}          {activeTab === "Constraints" && (
-            <ConstraintsTab courses={allCourses} />
+            <ConstraintsTab courses={allCourses} curriculumId={curriculumId} />
           )}
 
           {activeTab === "Elective Rules" && (

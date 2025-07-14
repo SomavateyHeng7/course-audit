@@ -12,6 +12,7 @@ interface Course {
 
 interface ConstraintsTabProps {
   courses: Course[];
+  curriculumId?: string;
 }
 
 interface CourseConstraints {
@@ -27,7 +28,9 @@ interface CourseConstraintFlags {
   minCreditThreshold?: number;
 }
 
-export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
+export default function ConstraintsTab({ courses, curriculumId }: ConstraintsTabProps) {
+  console.log('ConstraintsTab initialized with curriculumId:', curriculumId);
+  
   const [courseSearch, setCourseSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [constraintType, setConstraintType] = useState('prerequisites');
@@ -98,10 +101,42 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
       // Load all constraints for the selected course
       const constraintsData = await courseConstraintsApi.getConstraints(selectedCourseData.id);
       
+      // Load curriculum-level banned combinations
+      let bannedCombinations: any[] = constraintsData.bannedCombinations || [];
+      if (curriculumId) {
+        try {
+          const curriculumResponse = await fetch(`/api/curricula/${curriculumId}/constraints`);
+          if (curriculumResponse.ok) {
+            const curriculumConstraints = await curriculumResponse.json();
+            console.log('Loaded curriculum constraints:', curriculumConstraints);
+            
+            // Filter for banned combinations that involve this course
+            const curriculumBannedCombinations = curriculumConstraints
+              .filter((constraint: any) => 
+                constraint.type === 'CUSTOM' && 
+                constraint.config?.type === 'banned_combination' &&
+                constraint.config?.courses?.some((course: any) => course.id === selectedCourseData.id)
+              )
+              .map((constraint: any) => ({
+                id: constraint.id,
+                type: 'curriculumConstraint',
+                otherCourse: constraint.config.courses.find((course: any) => course.id !== selectedCourseData.id),
+                constraintName: constraint.name,
+                description: constraint.description
+              }));
+            
+            // Combine course-level and curriculum-level banned combinations
+            bannedCombinations = [...bannedCombinations, ...curriculumBannedCombinations];
+          }
+        } catch (err) {
+          console.warn('Could not load curriculum constraints:', err);
+        }
+      }
+      
       setConstraints({
         prerequisites: constraintsData.prerequisites || [],
         corequisites: constraintsData.corequisites || [],
-        bannedCombinations: constraintsData.bannedCombinations || [],
+        bannedCombinations: bannedCombinations,
       });
       
       setCourseFlags(constraintsData.flags || {
@@ -180,9 +215,27 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
         await courseConstraintsApi.addCorequisite(selectedCourseData.id, constraintCourseData.id);
       } else if (constraintType === 'bannedCombinations') {
         // Handle banned combinations at curriculum level
-        console.log('Banned combinations would be handled at curriculum level');
-        setError('Banned combinations are not yet implemented');
-        return;
+        console.log('Entered bannedCombinations branch');
+        console.log('curriculumId check:', curriculumId);
+        
+        if (!curriculumId) {
+          const errorMsg = 'Curriculum ID is missing. Cannot add banned combinations without curriculum ID.';
+          console.error(errorMsg);
+          setError(errorMsg);
+          return;
+        }
+        
+        console.log('Adding banned combination:', selectedCourseData.id, '<X>', constraintCourseData.id);
+        console.log('Current curriculumId:', curriculumId);
+        
+        try {
+          console.log('About to call addBannedCombination...');
+          const result = await addBannedCombination(curriculumId, selectedCourseData.id, constraintCourseData.id);
+          console.log('Banned combination added successfully via addBannedCombination:', result);
+        } catch (bannedErr) {
+          console.error('Error in addBannedCombination:', bannedErr);
+          throw bannedErr; // Re-throw to be caught by main try-catch
+        }
       }
       
       setSelectedConstraintCourse('');
@@ -198,7 +251,63 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
     }
   };
 
-  const handleRemoveConstraint = async (type: string, course: Course) => {
+  // Function to add banned combination constraint
+  const addBannedCombination = async (curriculumId: string, courseId1: string, courseId2: string) => {
+    console.log('Starting addBannedCombination:', { curriculumId, courseId1, courseId2 });
+    
+    const course1 = courses.find(c => c.id === courseId1);
+    const course2 = courses.find(c => c.id === courseId2);
+    
+    if (!course1 || !course2) {
+      throw new Error('Could not find course data for banned combination');
+    }
+    
+    const constraintName = `Banned: ${course1.code} + ${course2.code}`;
+    const description = `Students cannot take ${course1.code} (${course1.name}) and ${course2.code} (${course2.name}) together`;
+    
+    const config = {
+      type: 'banned_combination',
+      courses: [
+        { id: courseId1, code: course1.code, name: course1.name },
+        { id: courseId2, code: course2.code, name: course2.name }
+      ]
+    };
+    
+    const requestBody = {
+      type: 'CUSTOM',
+      name: constraintName,
+      description: description,
+      isRequired: true,
+      config: config
+    };
+    
+    console.log('Making POST request to:', `/api/curricula/${curriculumId}/constraints`);
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
+    
+    const response = await fetch(`/api/curricula/${curriculumId}/constraints`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+    const data = await response.json();
+    console.log('Response data:', data);
+    
+    if (!response.ok) {
+      console.error('API Error:', data);
+      throw new Error(data.error?.message || data.message || 'Failed to add banned combination');
+    }
+    
+    console.log('Banned combination added successfully:', data);
+    return data;
+  };
+
+  const handleRemoveConstraint = async (type: string, course: Course | any) => {
     if (!selectedCourse) return;
     
     setSaving(true);
@@ -227,8 +336,20 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
         if (relation) {
           await courseConstraintsApi.removeCorequisite(selectedCourseData.id, relation.id);
         }
+      } else if (type === 'bannedCombinations') {
+        // Handle curriculum-level banned combinations
+        if (course.type === 'curriculumConstraint' && course.id && curriculumId) {
+          const response = await fetch(`/api/curricula/${curriculumId}/constraints/${course.id}`, {
+            method: 'DELETE',
+          });
+          
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error?.message || 'Failed to remove banned combination');
+          }
+        }
+        // Course-level banned combinations would be handled differently if they existed
       }
-      // Note: Banned combinations would be handled at curriculum level
       
       // Reload constraints to get updated data
       await loadConstraints();
@@ -546,26 +667,34 @@ export default function ConstraintsTab({ courses }: ConstraintsTabProps) {
                   <h5 className="font-semibold mb-2 text-foreground">{getConstraintTypeLabel(type)}</h5>
                   <div className="flex flex-wrap gap-2">
                     {courseList.length > 0 ? (
-                      courseList.map((course: Course, idx: number) => (
-                        <div key={course.id || idx} className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${getConstraintColor(type)} group hover:shadow-sm transition-all`}>
-                          <span className="font-medium">{course.code}</span>
-                          <span className="text-xs opacity-75">({course.name.split(' ').slice(0, 2).join(' ')})</span>
-                          <button 
-                            suppressHydrationWarning
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (window.confirm(`Remove ${course.code} from ${getConstraintTypeLabel(type).toLowerCase()}?`)) {
-                                handleRemoveConstraint(type, course);
-                              }
-                            }}
-                            disabled={saving}
-                            className="text-current hover:text-red-500 dark:hover:text-red-400 text-base font-bold disabled:opacity-50 ml-1 hover:scale-110 transition-all"
-                            title={`Remove ${course.code} from ${getConstraintTypeLabel(type).toLowerCase()}`}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))
+                      courseList.map((item: any, idx: number) => {
+                        // Handle different constraint structures
+                        const course = item.otherCourse || item; // For curriculum constraints vs regular course constraints
+                        const displayCode = course.code || course.id || 'Unknown';
+                        const displayName = course.name || 'Unknown Course';
+                        const itemKey = item.id || course.id || idx;
+                        
+                        return (
+                          <div key={itemKey} className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${getConstraintColor(type)} group hover:shadow-sm transition-all`}>
+                            <span className="font-medium">{displayCode}</span>
+                            <span className="text-xs opacity-75">({displayName.split(' ').slice(0, 2).join(' ')})</span>
+                            <button 
+                              suppressHydrationWarning
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`Remove ${displayCode} from ${getConstraintTypeLabel(type).toLowerCase()}?`)) {
+                                  handleRemoveConstraint(type, item);
+                                }
+                              }}
+                              disabled={saving}
+                              className="text-current hover:text-red-500 dark:hover:text-red-400 text-base font-bold disabled:opacity-50 ml-1 hover:scale-110 transition-all"
+                              title={`Remove ${displayCode} from ${getConstraintTypeLabel(type).toLowerCase()}`}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })
                     ) : (
                       <span className="text-gray-500 dark:text-gray-400 text-sm italic">No {type} set</span>
                     )}
