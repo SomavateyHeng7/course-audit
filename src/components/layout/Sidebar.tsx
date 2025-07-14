@@ -18,24 +18,39 @@ import {
   Menu,
   BookOpen,
   Settings,
+  Book,
 } from 'lucide-react';
 
 // Default navigation for non-chairperson users
+// const defaultNavigationItems = [
+//   {
+//     name: 'Management',
+//     href: '/management',
+//     icon: LayoutDashboard,
+//   },
+//   {
+//     name: 'Advising',
+//     href: '/advisor/advising',
+//     icon: MessageSquare,
+//   },
+//   {
+//     name: 'Profile',
+//     href: '/profile',
+//     icon: User,
+//   },
+// ];
+
+//student
 const defaultNavigationItems = [
   {
-    name: 'Management',
+    name: 'Course Management',
     href: '/management',
     icon: LayoutDashboard,
   },
   {
-    name: 'Advising',
-    href: '/advisor/advising',
-    icon: MessageSquare,
-  },
-  {
-    name: 'Profile',
-    href: '/profile',
-    icon: User,
+    name: 'All Curricula',
+    href: '/allCurricula',
+    icon: Book,
   },
 ];
 
