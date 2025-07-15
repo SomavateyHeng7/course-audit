@@ -17,9 +17,13 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [majorElectiveCredits, setMajorElectiveCredits] = useState('24');
+  const [freeElectiveCredits, setFreeElectiveCredits] = useState('6'); // Credits for free electives
+  
   // Sample courses data - NOTE FOR BACKEND: 
   // Auto-determine requirement based on category name containing "elective"
   // Main categories: General Education, Core, Major, Major Elective, Free Elective
+  // IMPORTANT: The courses shown in "Available Courses List" are the courses 
+  // that are in the current curriculum and not the whole database
   const [electiveCourses, setElectiveCourses] = useState<ElectiveCourse[]>([
     { code: 'CSX 1001', name: 'Introduction to Computer Science', category: 'Core', credits: 3, requirement: 'Required' },
     { code: 'CSX 1002', name: 'Programming Fundamentals', category: 'Core', credits: 3, requirement: 'Required' },
@@ -59,6 +63,11 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
         {/* Left Side - Course List */}
         <div className="w-1/2 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6">
           <h3 className="text-lg font-bold mb-4 text-foreground">Available Courses</h3>
+          
+          {/* NOTE: The courses shown here are courses that are in the current curriculum, not the whole database */}
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 italic">
+            * Showing courses from the current curriculum only
+          </p>
           
           {/* Search Bar */}
           <div className="mb-4 space-y-3">
@@ -213,6 +222,9 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
           </div>
 
           {/* Category Breakdown */}
+          {/* NOTE FOR BACKEND: Course types/categories will be queried from the database, 
+              not using these predetermined types. The breakdown will be dynamic based on 
+              actual course data from the curriculum. */}
           <h4 className="text-md font-bold mb-3 text-foreground">Category Breakdown</h4>
           <div className="space-y-3">
             {categories.slice(1).map(category => {
@@ -225,13 +237,24 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
                 <div key={category} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-lg">
                   <div>
                     <h5 className="font-semibold text-sm text-foreground">{category}</h5>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">
-                      {requiredCount} Required • {electiveCount} Elective
-                    </div>
+                    {/* Don't show requirement counts for Free Elective since we only specify credits */}
+                    {category !== 'Free Elective' ? (
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        {requiredCount} Required • {electiveCount} Elective
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        Credit requirement only
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-semibold text-gray-600 dark:text-gray-400">{totalCredits} credits</div>
-                    <div className="text-xs text-gray-500">{coursesInCategory.length} courses</div>
+                    {category !== 'Free Elective' ? (
+                      <div className="text-xs text-gray-500">{coursesInCategory.length} courses</div>
+                    ) : (
+                      <div className="text-xs text-gray-500">Variable courses</div>
+                    )}
                   </div>
                 </div>
               );
@@ -239,79 +262,90 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
           </div>
         </div>
 
-        {/* Right Side - Quick Actions */}
+        {/* Right Side - Free Electives Credits Configuration */}
         <div className="w-80 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6">
-          <h3 className="text-lg font-bold mb-4 text-foreground">Quick Actions</h3>
+          <h3 className="text-lg font-bold mb-4 text-foreground">Free Electives Configuration</h3>
           
-          <div className="space-y-3">
-            <button 
-              suppressHydrationWarning
-              onClick={() => {
-                // Set all Major Elective courses to Elective
-                const updated = electiveCourses.map(course => 
-                  course.category === 'Major Elective' 
-                    ? { ...course, requirement: 'Elective' as const }
-                    : course
-                );
-                setElectiveCourses(updated);
-              }}
-              className="w-full text-left px-4 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition border border-blue-200 dark:border-blue-800"
-            >
-              <div className="font-semibold text-sm">Set Major Electives as Elective</div>
-              <div className="text-xs text-blue-600 dark:text-blue-400">Apply elective status to all Major Elective courses</div>
-            </button>
-            
-            <button 
-              suppressHydrationWarning
-              onClick={() => {
-                // Set all Core courses to Required
-                const updated = electiveCourses.map(course => 
-                  course.category === 'Core' 
-                    ? { ...course, requirement: 'Required' as const }
-                    : course
-                );
-                setElectiveCourses(updated);
-              }}
-              className="w-full text-left px-4 py-3 bg-primary/10 dark:bg-primary/20 text-primary rounded-lg hover:bg-primary/15 dark:hover:bg-primary/25 transition border border-primary/20 dark:border-primary/30"
-            >
-              <div className="font-semibold text-sm">Set Core Courses as Required</div>
-              <div className="text-xs text-primary">Apply required status to all Core courses</div>
-            </button>
+          <div className="space-y-6">
+            {/* Free Electives Credits Input */}
+            <div>
+              <label className="block text-sm font-medium mb-2 text-foreground">
+                Required Free Electives Credits
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  max="60"
+                  step="3"
+                  value={freeElectiveCredits}
+                  onChange={(e) => setFreeElectiveCredits(e.target.value)}
+                  className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 pr-20 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
+                  placeholder="6"
+                />
+                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400 pointer-events-none">
+                  credits
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Total credits students must take from courses not listed in the curriculum (free electives)
+              </p>
+            </div>
 
-            <button 
-              suppressHydrationWarning
-              onClick={() => {
-                // Set all Free Elective courses to Elective
-                const updated = electiveCourses.map(course => 
-                  course.category === 'Free Elective' 
-                    ? { ...course, requirement: 'Elective' as const }
-                    : course
-                );
-                setElectiveCourses(updated);
-              }}
-              className="w-full text-left px-4 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition border border-purple-200 dark:border-purple-800"
-            >
-              <div className="font-semibold text-sm">Set Free Electives as Elective</div>
-              <div className="text-xs text-purple-600 dark:text-purple-400">Apply elective status to all Free Elective courses</div>
-            </button>
+            {/* Information Box */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-1">
+                    About Free Electives
+                  </h4>
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    Free electives are courses that students can choose from outside the curriculum. 
+                    Since we cannot predict all possible courses, we specify the required credit amount instead.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Current Configuration Summary */}
+            <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-foreground mb-3">Current Configuration</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Free Electives:</span>
+                  <span className="font-medium text-foreground">{freeElectiveCredits} credits</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Curriculum Courses:</span>
+                  <span className="font-medium text-foreground">
+                    {electiveCourses.filter(c => c.category !== 'Free Elective').reduce((sum, c) => sum + c.credits, 0)} credits
+                  </span>
+                </div>
+                <div className="border-t border-gray-200 dark:border-border pt-2 mt-2">
+                  <div className="flex justify-between items-center text-sm font-semibold">
+                    <span className="text-foreground">Total Program:</span>
+                    <span className="text-primary">
+                      {electiveCourses.filter(c => c.category !== 'Free Elective').reduce((sum, c) => sum + c.credits, 0) + parseInt(freeElectiveCredits || '0')} credits
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Global Actions */}
+          {/* Save Button */}
           <div className="mt-6 pt-4 border-t border-gray-200 dark:border-border">
-            <div className="flex gap-2">
-              <button 
-                suppressHydrationWarning
-                className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg font-semibold hover:bg-primary/90 transition text-sm"
-              >
-                Save All Changes
-              </button>
-              <button 
-                suppressHydrationWarning
-                className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:bg-gray-400 dark:hover:bg-gray-500 transition border border-gray-400 dark:border-gray-500 text-sm"
-              >
-                Reset
-              </button>
-            </div>
+            <button 
+              suppressHydrationWarning
+              className="w-full bg-primary text-primary-foreground py-2 rounded-lg font-semibold hover:bg-primary/90 transition text-sm"
+            >
+              Save Configuration
+            </button>
           </div>
         </div>
       </div>

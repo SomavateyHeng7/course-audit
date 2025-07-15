@@ -100,8 +100,10 @@ export default function EditCurriculum() {
   })) || [];
 
   const allCourses = coursesData.map((course: any) => ({
+    id: course.id,
     code: course.code,
-    name: course.title
+    name: course.title,
+    credits: course.credits
   }));
 
   // Navigation functions
@@ -571,7 +573,7 @@ export default function EditCurriculum() {
               onAddCourse={handleAddCourse}
             />
           )}          {activeTab === "Constraints" && (
-            <ConstraintsTab courses={allCourses} />
+            <ConstraintsTab courses={allCourses} curriculumId={curriculumId} />
           )}
 
           {activeTab === "Elective Rules" && (
