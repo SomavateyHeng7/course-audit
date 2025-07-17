@@ -56,7 +56,7 @@ export default function AllCurriculaPage() {
       <div className="flex flex-col md:flex-row gap-4 mb-8">
         <div className="relative w-full md:w-auto">
           <select
-            className="w-full min-w-[200px] pl-4 pr-16 py-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground appearance-none"
+            className="w-full min-w-[140px] pl-3 pr-10 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground appearance-none text-sm"
             value={faculty}
             onChange={(e) => setFaculty(e.target.value)}
           >
@@ -71,7 +71,7 @@ export default function AllCurriculaPage() {
           </span>
         </div>
         <input
-          className="w-full pl-4 pr-12 py-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+          className="w-full pl-3 pr-10 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
           type="text"
           placeholder="Search curriculum..."
           value={search}
@@ -99,7 +99,7 @@ function CurriculumCard({ curriculum }: { curriculum: any }) {
   return (
     <div className=" border border-gray-200 dark:border-[#23272f] rounded-xl p-6 shadow-sm flex flex-col gap-3 relative transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-teal-400 dark:hover:border-teal-500">
       <div className="mb-2">
-        <div className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{curriculum.name}</div>
+        <div className="font-bold text-gray-900 dark:text-white leading-tight">{curriculum.name}</div>
         <div className={`text-sm font-medium mt-1 ${curriculum.department.color}`}>{curriculum.department.name}</div>
         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{curriculum.faculty} &gt; {curriculum.program}</div>
       </div>
