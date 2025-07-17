@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { useState, createContext, useContext } from 'react';
+import { useState, createContext, useContext, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowRight } from 'lucide-react';
 import { FaTrash } from 'react-icons/fa';
@@ -63,6 +63,23 @@ const statusLabels: Record<'not_completed' | 'completed' | 'taking' | 'planning'
 
 const gradeOptions: string[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'S'];
 
+// Remove all API helpers and backend calls
+
+// Helper to sync with localStorage
+function loadCoursesFromStorage() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem('student_courses');
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+function saveCoursesToStorage(courses) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('student_courses', JSON.stringify(courses));
+}
+
 export default function DataEntryPage() {
   const router = useRouter();
   const {
@@ -75,16 +92,31 @@ export default function DataEntryPage() {
 
   const [form, setForm] = useState({ code: '', title: '', credits: '' });
   const [searchQuery, setSearchQuery] = useState('');
+  const [userCourses, setUserCourses] = useState<any[]>(() => loadCoursesFromStorage());
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Sync to localStorage on every change
+  useEffect(() => {
+    saveCoursesToStorage(userCourses);
+  }, [userCourses]);
+
+  // Add course (local only)
   const handleAdd = () => {
     if (!form.code.trim() || !form.title.trim() || !form.credits) return;
-    const newEntry = { code: form.code.trim(), title: form.title.trim(), credits: Number(form.credits) };
-    setFreeElectives(prev => [...prev, newEntry]);
+    const newEntry = { code: form.code.trim(), title: form.title.trim(), credits: Number(form.credits), id: Date.now().toString() };
+    setUserCourses(prev => [...prev, newEntry]);
     setForm({ code: '', title: '', credits: '' });
   };
 
+  // Remove course (local only)
   const handleRemove = (idx: number) => {
-    setFreeElectives(prev => prev.filter((_, i) => i !== idx));
+    setUserCourses(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // Save progress (local only, just show alert)
+  const handleSaveProgress = () => {
+    alert('Progress saved locally!');
   };
 
   const handleContinue = () => {
@@ -546,9 +578,11 @@ export default function DataEntryPage() {
                                   type="button"
                                   className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded shadow text-sm font-medium focus:outline-none hover:bg-primary/90 transition-colors"
                                   onClick={handleAdd}
+                                  disabled={isLoading}
                                 >
-                                  <span className="text-lg leading-none">+</span> Add Course
+                                  {isLoading ? 'Adding...' : 'Add Course'}
                                 </button>
+                                {apiError && <div className="text-red-600 mb-2">{apiError}</div>}
                               </div>
                             </div>
 
@@ -573,10 +607,10 @@ export default function DataEntryPage() {
                           </div>
 
                           {/* List of added free electives */}
-                          {freeElectives.length > 0 && (
+                          {userCourses.length > 0 && (
                             <div className="mt-4 flex flex-col gap-2">
-                              {freeElectives.map((course, idx) => (
-                                <div key={course.code + idx} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white dark:bg-background rounded-lg px-4 py-3 border border-border mb-2 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                              {userCourses.map((course, idx) => (
+                                <div key={course.id + idx} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white dark:bg-background rounded-lg px-4 py-3 border border-border mb-2 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                                     <span className="font-semibold text-sm">{course.code} - {course.title}</span>
                                     <span className="text-sm text-muted-foreground">{course.credits} credits</span>
@@ -603,8 +637,9 @@ export default function DataEntryPage() {
                                       className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
                                       onClick={() => handleRemove(idx)}
                                       title="Delete Course"
+                                      disabled={isLoading}
                                     >
-                                      <FaTrash className="w-4 h-4" />
+                                      {isLoading ? 'Deleting...' : <FaTrash className="w-4 h-4" />}
                                     </button>
                                   </div>
                                 </div>
@@ -665,6 +700,14 @@ export default function DataEntryPage() {
                   >
                     <ArrowRight className="w-5 h-5 mr-2 inline-block" />
                     Continue
+                  </Button>
+                  <Button 
+                    className="bg-green-500 text-white hover:bg-green-600" 
+                    variant="default" 
+                    onClick={handleSaveProgress}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Saving...' : 'Save Progress'}
                   </Button>
                 </div>
               </div>

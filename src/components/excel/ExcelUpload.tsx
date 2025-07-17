@@ -23,16 +23,24 @@ export default function ExcelUpload({ onDataLoaded, onError }: ExcelUploadProps)
     setError(null);
 
     try {
-      const data = await readExcelFile(file);      const errors = validateExcelData(data);
+      const formData = new FormData();
+      formData.append('file', file);
 
-      if (errors.length > 0) {
-        onError(errors.join('\n'));
+      const response = await fetch('/api/management/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const { error } = await response.json();
+        onError(error || 'Failed to upload file');
         return;
       }
 
+      const { data } = await response.json();
       onDataLoaded(data);
     } catch (error) {
-      onError('Failed to process Excel file');
+      onError('Failed to upload or process Excel file');
     } finally {
       setIsLoading(false);
     }
