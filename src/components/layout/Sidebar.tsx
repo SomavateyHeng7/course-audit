@@ -19,28 +19,13 @@ import {
   BookOpen,
   Settings,
   Book,
+  Users,
+  Building,
+  GraduationCap,
 } from 'lucide-react';
+import Image from 'next/image';
 
-// Default navigation for non-chairperson users
-// const defaultNavigationItems = [
-//   {
-//     name: 'Management',
-//     href: '/management',
-//     icon: LayoutDashboard,
-//   },
-//   {
-//     name: 'Advising',
-//     href: '/advisor/advising',
-//     icon: MessageSquare,
-//   },
-//   {
-//     name: 'Profile',
-//     href: '/profile',
-//     icon: User,
-//   },
-// ];
-
-//student
+// Default navigation for student users
 const defaultNavigationItems = [
   {
     name: 'Course Management',
@@ -51,6 +36,30 @@ const defaultNavigationItems = [
     name: 'All Curricula',
     href: '/allCurricula',
     icon: Book,
+  },
+];
+
+// Navigation for admin users
+const adminNavigationItems = [
+  {
+    name: 'User Management',
+    href: '/admin',
+    icon: Users,
+  },
+  {
+    name: 'Faculty Management',
+    href: '/admin/faculty',
+    icon: GraduationCap,
+  },
+  {
+    name: 'Department Management',
+    href: '/admin/department',
+    icon: Building,
+  },
+  {
+    name: 'Profile',
+    href: '/profile',
+    icon: User,
   },
 ];
 
@@ -84,6 +93,8 @@ export default function Sidebar() {
   // Determine navigation items based on user role
   const navigationItems = session?.user?.role === 'CHAIRPERSON' 
     ? chairpersonNavigationItems 
+    : session?.user?.role === 'SUPER_ADMIN'
+    ? adminNavigationItems
     : defaultNavigationItems;
 
   useEffect(() => {
@@ -137,13 +148,15 @@ export default function Sidebar() {
                   transition={{ duration: 0.2 }}                  className="flex items-center gap-1 mr-8"
                 >
                   {!logoError ? (
-                    <img
+                    // Use Next.js Image component for logo
+                    <Image
                       src="/image/logo.png"
                       alt="EduTrack Logo"
                       width={32}
                       height={32}
                       className="w-7 h-8 object-contain"
                       onError={handleLogoError}
+                      priority
                     />
                   ) : (
                     <div className="w-7 h-8 bg-primary rounded flex items-center justify-center">
