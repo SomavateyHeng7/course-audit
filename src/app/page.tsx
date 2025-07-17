@@ -34,16 +34,16 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
-                href="/student" 
+                href="/management" 
                 className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors border border-primary text-base sm:text-lg text-center"
               >
-                Browse Courses (Anonymous)
+                Students
               </Link>
               <Link 
                 href="/auth" 
                 className="px-6 sm:px-8 py-2 sm:py-3 border border-primary text-primary dark:text-primary rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-base sm:text-lg text-center"
               >
-                Login for Full Access
+                Login
               </Link>
             </div>
           </div>
@@ -92,7 +92,7 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
-                href="/student" 
+                href="/management" 
                 className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors border border-primary text-base sm:text-lg"
               >
                 Browse Courses (Anonymous)

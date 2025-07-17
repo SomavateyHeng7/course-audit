@@ -1,45 +1,38 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card, CardContent, CardDescription, CardHeader, CardTitle
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye,
-  Shield,
-  UserCheck,
-  GraduationCap
+import {
+  Users, Plus, Edit, Trash2, Shield, UserCheck
 } from 'lucide-react';
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: 'STUDENT' | 'ADVISOR' | 'CHAIRPERSON' | 'SUPER_ADMIN';
+  role: 'ADVISOR' | 'CHAIRPERSON';
   faculty: {
     name: string;
   };
   createdAt: string;
 }
 
-const roleColors = {
+const roleColors: Record<string, string> = {
   STUDENT: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
   ADVISOR: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
   CHAIRPERSON: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
   SUPER_ADMIN: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
 };
 
-const roleIcons = {
-  STUDENT: GraduationCap,
+const roleIcons: Record<string, React.ElementType> = {
   ADVISOR: UserCheck,
   CHAIRPERSON: Shield,
-  SUPER_ADMIN: Shield,
 };
 
 export default function RoleManagement() {
@@ -50,7 +43,7 @@ export default function RoleManagement() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'STUDENT' as const,
+    role: 'ADVISOR' as 'ADVISOR' | 'CHAIRPERSON',
     facultyId: '',
   });
 
@@ -83,7 +76,7 @@ export default function RoleManagement() {
 
       if (response.ok) {
         setShowCreateModal(false);
-        setFormData({ name: '', email: '', role: 'STUDENT', facultyId: '' });
+        resetForm();
         fetchUsers();
       }
     } catch (error) {
@@ -104,7 +97,7 @@ export default function RoleManagement() {
 
       if (response.ok) {
         setEditingUser(null);
-        setFormData({ name: '', email: '', role: 'STUDENT', facultyId: '' });
+        resetForm();
         fetchUsers();
       }
     } catch (error) {
@@ -128,6 +121,12 @@ export default function RoleManagement() {
     }
   };
 
+  const resetForm = () => {
+    setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '' });
+    setShowCreateModal(false);
+    setEditingUser(null);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -146,7 +145,7 @@ export default function RoleManagement() {
             Manage user roles and permissions across the entire system
           </p>
         </div>
-        <Button 
+        <Button
           onClick={() => setShowCreateModal(true)}
           className="bg-[#1F3A93] hover:bg-[#1F3A93]/90"
         >
@@ -169,7 +168,7 @@ export default function RoleManagement() {
         <CardContent>
           <div className="space-y-4">
             {users.map((user) => {
-              const RoleIcon = roleIcons[user.role];
+              const RoleIcon = roleIcons[user.role] || Users;
               return (
                 <div
                   key={user.id}
@@ -180,21 +179,13 @@ export default function RoleManagement() {
                       <RoleIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-900 dark:text-white">
-                        {user.name}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {user.email}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500">
-                        {user.faculty.name}
-                      </p>
+                      <h3 className="font-medium text-gray-900 dark:text-white">{user.name}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{user.email}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500">{user.faculty.name}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className={roleColors[user.role]}>
-                      {user.role}
-                    </Badge>
+                    <Badge className={roleColors[user.role] || ''}>{user.role}</Badge>
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
@@ -205,7 +196,7 @@ export default function RoleManagement() {
                             name: user.name,
                             email: user.email,
                             role: user.role,
-                            facultyId: '',
+                            facultyId: '', // Update if you support changing it
                           });
                         }}
                       >
@@ -260,15 +251,22 @@ export default function RoleManagement() {
                 <select
                   id="role"
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'ADVISOR' | 'CHAIRPERSON' })}
                   className="w-full p-2 border rounded-md"
                   required
                 >
-                  <option value="STUDENT">Student</option>
                   <option value="ADVISOR">Advisor</option>
                   <option value="CHAIRPERSON">Chairperson</option>
-                  <option value="SUPER_ADMIN">Super Admin</option>
                 </select>
+              </div>
+              <div>
+                <Label htmlFor="facultyId">Faculty ID</Label>
+                <Input
+                  id="facultyId"
+                  value={formData.facultyId}
+                  onChange={(e) => setFormData({ ...formData, facultyId: e.target.value })}
+                  required
+                />
               </div>
               <div className="flex gap-2">
                 <Button type="submit" className="flex-1 bg-[#1F3A93] hover:bg-[#1F3A93]/90">
@@ -277,11 +275,7 @@ export default function RoleManagement() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setEditingUser(null);
-                    setFormData({ name: '', email: '', role: 'STUDENT', facultyId: '' });
-                  }}
+                  onClick={resetForm}
                   className="flex-1"
                 >
                   Cancel
@@ -293,4 +287,4 @@ export default function RoleManagement() {
       )}
     </div>
   );
-} 
+}

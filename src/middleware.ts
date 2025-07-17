@@ -8,7 +8,7 @@ export default auth((req) => {
 
   // Public paths that don't require authentication
   const publicPaths = ['/', '/auth', '/auth/error']
-  const isPublicPath = publicPaths.includes(req.nextUrl.pathname)
+  const isPublicPath = publicPaths.includes(req.nextUrl.pathname) || req.nextUrl.pathname.startsWith('/management')
   
   // Redirect authenticated users away from auth pages (but allow landing page)
   if (isAuthenticated && req.nextUrl.pathname === '/auth') {
