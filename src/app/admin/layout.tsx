@@ -6,11 +6,11 @@ import Sidebar from '@/components/layout/Sidebar';
 
 function AdminContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed } = useSidebar();
-  
+
   return (
     <div className="h-screen flex">
       <Sidebar />
-      <main 
+      <main
         className={`flex-1 overflow-y-auto transition-all duration-300 ${
           isCollapsed ? 'ml-20' : 'ml-56'
         }`}

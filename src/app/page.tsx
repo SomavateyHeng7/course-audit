@@ -33,8 +33,8 @@ export default function Home() {
               Track courses, monitor requirements, and stay on top of your degree path.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link 
-                href="/management" 
+              <Link
+                href="/management"
                 className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors border border-primary text-base sm:text-lg text-center"
               >
                 Students
@@ -91,8 +91,8 @@ export default function Home() {
               Join thousands of students who are already using Course Audit to manage their academic progress.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link 
-                href="/management" 
+              <Link
+                href="/management"
                 className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors border border-primary text-base sm:text-lg"
               >
                 Browse Courses (Anonymous)
