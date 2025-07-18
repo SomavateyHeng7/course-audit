@@ -1,50 +1,227 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { electiveRulesApi, type ElectiveRule, type CurriculumCourse } from '@/services/electiveRulesApi';
 
 interface ElectiveCourse {
+  id: string;
   code: string;
   name: string;
   category: string;
   credits: number;
   requirement: 'Required' | 'Elective';
+  semester: string;
+  year: number;
 }
 
-interface ElectiveRulesTabProps {}
+interface ElectiveRulesTabProps {
+  curriculumId: string;
+}
 
-export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
+export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps) {
   const [electiveSearch, setElectiveSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [majorElectiveCredits, setMajorElectiveCredits] = useState('24');
-  const [freeElectiveCredits, setFreeElectiveCredits] = useState('6'); // Credits for free electives
+  const [freeElectiveCredits, setFreeElectiveCredits] = useState('6');
+  const [freeElectiveName, setFreeElectiveName] = useState('Free Electives');
   
-  // Sample courses data - NOTE FOR BACKEND: 
-  // Auto-determine requirement based on category name containing "elective"
-  // Main categories: General Education, Core, Major, Major Elective, Free Elective
-  // IMPORTANT: The courses shown in "Available Courses List" are the courses 
-  // that are in the current curriculum and not the whole database
-  const [electiveCourses, setElectiveCourses] = useState<ElectiveCourse[]>([
-    { code: 'CSX 1001', name: 'Introduction to Computer Science', category: 'Core', credits: 3, requirement: 'Required' },
-    { code: 'CSX 1002', name: 'Programming Fundamentals', category: 'Core', credits: 3, requirement: 'Required' },
-    { code: 'CSX 2001', name: 'Data Structures', category: 'Major', credits: 3, requirement: 'Required' },
-    { code: 'CSX 2002', name: 'Algorithms', category: 'Major', credits: 3, requirement: 'Required' },
-    { code: 'CSX 3101', name: 'Mobile App Development', category: 'Major Elective', credits: 3, requirement: 'Elective' },
-    { code: 'CSX 3102', name: 'Machine Learning', category: 'Major Elective', credits: 3, requirement: 'Elective' },
-    { code: 'CSX 3103', name: 'Cybersecurity', category: 'Major Elective', credits: 3, requirement: 'Elective' },
-    { code: 'GEN 1001', name: 'Philosophy', category: 'General Education', credits: 3, requirement: 'Required' },
-    { code: 'GEN 1002', name: 'Psychology', category: 'General Education', credits: 3, requirement: 'Required' },
-    { code: 'FREE 1001', name: 'Art Appreciation', category: 'Free Elective', credits: 3, requirement: 'Elective' },
-    { code: 'FREE 1002', name: 'Music Theory', category: 'Free Elective', credits: 3, requirement: 'Elective' },
-  ]);  const updateCourseRequirement = (courseIndex: number, requirement: 'Required' | 'Elective') => {
-    setElectiveCourses(prev => 
-      prev.map((course, idx) => 
-        idx === courseIndex ? { ...course, requirement } : course
-      )
-    );
+  // Backend data states
+  const [electiveCourses, setElectiveCourses] = useState<ElectiveCourse[]>([]);
+  const [electiveRules, setElectiveRules] = useState<ElectiveRule[]>([]);
+  const [categories, setCategories] = useState<string[]>(['All']);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Load data from backend
+  useEffect(() => {
+    if (curriculumId) {
+      loadElectiveRulesData();
+    }
+  }, [curriculumId]);
+
+  const loadElectiveRulesData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const data = await electiveRulesApi.getElectiveRules(curriculumId);
+      
+      // Convert curriculum courses to our format
+      const courses: ElectiveCourse[] = data.curriculumCourses.map(course => ({
+        id: course.id,
+        code: course.code,
+        name: course.name,
+        category: course.category || 'Uncategorized',
+        credits: course.credits,
+        requirement: course.isRequired ? 'Required' : 'Elective',
+        semester: course.semester,
+        year: course.year
+      }));
+      
+      setElectiveCourses(courses);
+      setElectiveRules(data.electiveRules);
+      
+      // Set categories
+      const allCategories = ['All', ...data.courseCategories];
+      setCategories(allCategories);
+      
+      // Set free elective credits from rules
+      const freeElectiveRule = data.electiveRules.find(rule => rule.category.toLowerCase().includes('free'));
+      if (freeElectiveRule) {
+        setFreeElectiveCredits(freeElectiveRule.requiredCredits.toString());
+        setFreeElectiveName(freeElectiveRule.category);
+      }
+      
+      // Set major elective credits from rules
+      const majorElectiveRule = data.electiveRules.find(rule => rule.category === 'Major Elective');
+      if (majorElectiveRule) {
+        setMajorElectiveCredits(majorElectiveRule.requiredCredits.toString());
+      }
+      
+    } catch (err) {
+      console.error('Error loading elective rules data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load elective rules data');
+    } finally {
+      setLoading(false);
+    }
+  };  const updateCourseRequirement = async (courseIndex: number, requirement: 'Required' | 'Elective') => {
+    try {
+      setSaving(true);
+      setError(null);
+      
+      const course = electiveCourses[courseIndex];
+      const isRequired = requirement === 'Required';
+      
+      // Update locally first for immediate UI feedback
+      setElectiveCourses(prev => 
+        prev.map((c, idx) => 
+          idx === courseIndex ? { ...c, requirement } : c
+        )
+      );
+      
+      // Update on backend
+      await electiveRulesApi.updateElectiveSettings(curriculumId, {
+        courseRequirements: [{
+          courseId: course.id,
+          isRequired
+        }]
+      });
+      
+    } catch (err) {
+      console.error('Error updating course requirement:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update course requirement');
+      // Revert local change on error
+      await loadElectiveRulesData();
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const categories = ['All', 'Core', 'Major', 'Major Elective', 'General Education', 'Free Elective'];
+  const updateFreeElectiveCredits = async (credits: string) => {
+    try {
+      setSaving(true);
+      setError(null);
+      
+      const creditsNum = parseInt(credits) || 0;
+      
+      // Update locally first
+      setFreeElectiveCredits(credits);
+      
+      // Update on backend - create or update the free elective rule
+      await electiveRulesApi.updateElectiveSettings(curriculumId, {
+        freeElectiveCredits: creditsNum
+      });
+      
+    } catch (err) {
+      console.error('Error updating free elective credits:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update free elective credits');
+      // Reload data on error
+      await loadElectiveRulesData();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateFreeElectiveName = async (name: string) => {
+    try {
+      setSaving(true);
+      setError(null);
+      
+      // Update locally first
+      setFreeElectiveName(name);
+      
+      // Update on backend
+      await electiveRulesApi.updateElectiveSettings(curriculumId, {
+        freeElectiveName: name
+      });
+      
+    } catch (err) {
+      console.error('Error updating free elective name:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update free elective name');
+      // Reload data on error
+      await loadElectiveRulesData();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveConfiguration = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      
+      // Save both free elective settings and all course requirements
+      const courseRequirements = electiveCourses.map(course => ({
+        courseId: course.id,
+        isRequired: course.requirement === 'Required'
+      }));
+      
+      await electiveRulesApi.updateElectiveSettings(curriculumId, {
+        freeElectiveCredits: parseInt(freeElectiveCredits) || 0,
+        freeElectiveName: freeElectiveName,
+        courseRequirements
+      });
+      
+      // Show success message (you could add a toast notification here)
+      console.log('Configuration saved successfully');
+      
+    } catch (err) {
+      console.error('Error saving configuration:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save configuration');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveCourseSettings = async () => {
+    if (!selectedCourse) return;
+    
+    try {
+      setSaving(true);
+      setError(null);
+      
+      const course = electiveCourses.find(c => c.code === selectedCourse);
+      if (!course) return;
+      
+      // Save the current course's requirement status
+      await electiveRulesApi.updateElectiveSettings(curriculumId, {
+        courseRequirements: [{
+          courseId: course.id,
+          isRequired: course.requirement === 'Required'
+        }]
+      });
+      
+      console.log('Course settings saved successfully');
+      
+    } catch (err) {
+      console.error('Error saving course settings:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save course settings');
+    } finally {
+      setSaving(false);
+    }
+  };
   const filteredElectiveCourses = electiveCourses.filter(course => {
     const matchesSearch = course.code.toLowerCase().includes(electiveSearch.toLowerCase()) ||
                          course.name.toLowerCase().includes(electiveSearch.toLowerCase());
@@ -56,6 +233,42 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
     if (!selectedCourse) return null;
     return electiveCourses.find(course => course.code === selectedCourse);
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-xl p-8">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading elective rules...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-xl p-8">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-red-700 dark:text-red-400">{error}</span>
+          </div>
+        </div>
+        <button
+          onClick={loadElectiveRulesData}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-xl p-8">
       {/* Top Section: Course List and Requirements */}
@@ -181,10 +394,12 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
 
               <div className="flex gap-2 mt-6 pt-4 border-t border-gray-200 dark:border-border">
                 <button 
+                  onClick={saveCourseSettings}
+                  disabled={saving}
                   suppressHydrationWarning
-                  className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg font-semibold hover:bg-primary/90 transition"
+                  className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg font-semibold hover:bg-primary/90 transition disabled:opacity-50"
                 >
-                  Save Course Settings
+                  {saving ? 'Saving...' : 'Save Course Settings'}
                 </button>
               </div>
             </div>
@@ -227,6 +442,21 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
               actual course data from the curriculum. */}
           <h4 className="text-md font-bold mb-3 text-foreground">Category Breakdown</h4>
           <div className="space-y-3">
+            {/* Always show free electives first */}
+            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-lg">
+              <div>
+                <h5 className="font-semibold text-sm text-foreground">{freeElectiveName}</h5>
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  Credit requirement only
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-semibold text-gray-600 dark:text-gray-400">{freeElectiveCredits} credits</div>
+                <div className="text-xs text-gray-500">Variable courses</div>
+              </div>
+            </div>
+            
+            {/* Then show other categories from curriculum */}
             {categories.slice(1).map(category => {
               const coursesInCategory = electiveCourses.filter(c => c.category === category);
               const totalCredits = coursesInCategory.reduce((sum, c) => sum + c.credits, 0);
@@ -237,24 +467,13 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
                 <div key={category} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-lg">
                   <div>
                     <h5 className="font-semibold text-sm text-foreground">{category}</h5>
-                    {/* Don't show requirement counts for Free Elective since we only specify credits */}
-                    {category !== 'Free Elective' ? (
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
-                        {requiredCount} Required • {electiveCount} Elective
-                      </div>
-                    ) : (
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
-                        Credit requirement only
-                      </div>
-                    )}
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                      {requiredCount} Required • {electiveCount} Elective
+                    </div>
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-semibold text-gray-600 dark:text-gray-400">{totalCredits} credits</div>
-                    {category !== 'Free Elective' ? (
-                      <div className="text-xs text-gray-500">{coursesInCategory.length} courses</div>
-                    ) : (
-                      <div className="text-xs text-gray-500">Variable courses</div>
-                    )}
+                    <div className="text-xs text-gray-500">{coursesInCategory.length} courses</div>
                   </div>
                 </div>
               );
@@ -267,10 +486,29 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
           <h3 className="text-lg font-bold mb-4 text-foreground">Free Electives Configuration</h3>
           
           <div className="space-y-6">
+            {/* Free Electives Name Input */}
+            <div>
+              <label className="block text-sm font-medium mb-2 text-foreground">
+                Free Electives Category Name
+              </label>
+              <input
+                type="text"
+                value={freeElectiveName}
+                onChange={(e) => setFreeElectiveName(e.target.value)}
+                onBlur={(e) => updateFreeElectiveName(e.target.value)}
+                disabled={saving}
+                className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm disabled:opacity-50"
+                placeholder="Free Electives"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Customize the name for free electives (e.g., "General Electives", "Open Electives")
+              </p>
+            </div>
+
             {/* Free Electives Credits Input */}
             <div>
               <label className="block text-sm font-medium mb-2 text-foreground">
-                Required Free Electives Credits
+                Required Credits
               </label>
               <div className="relative">
                 <input
@@ -280,7 +518,9 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
                   step="3"
                   value={freeElectiveCredits}
                   onChange={(e) => setFreeElectiveCredits(e.target.value)}
-                  className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 pr-20 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
+                  onBlur={(e) => updateFreeElectiveCredits(e.target.value)}
+                  disabled={saving}
+                  className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 pr-20 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm disabled:opacity-50"
                   placeholder="6"
                 />
                 <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400 pointer-events-none">
@@ -314,10 +554,9 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
 
             {/* Current Configuration Summary */}
             <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-foreground mb-3">Current Configuration</h4>
-              <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-foreground mb-3">Current Configuration</h4>                <div className="space-y-2">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Free Electives:</span>
+                  <span className="text-gray-600 dark:text-gray-400">{freeElectiveName}:</span>
                   <span className="font-medium text-foreground">{freeElectiveCredits} credits</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
@@ -341,10 +580,11 @@ export default function ElectiveRulesTab({}: ElectiveRulesTabProps) {
           {/* Save Button */}
           <div className="mt-6 pt-4 border-t border-gray-200 dark:border-border">
             <button 
-              suppressHydrationWarning
-              className="w-full bg-primary text-primary-foreground py-2 rounded-lg font-semibold hover:bg-primary/90 transition text-sm"
+              onClick={saveConfiguration}
+              disabled={saving}
+              className="w-full bg-primary text-primary-foreground py-2 rounded-lg font-semibold hover:bg-primary/90 transition text-sm disabled:opacity-50"
             >
-              Save Configuration
+              {saving ? 'Saving...' : 'Save Configuration'}
             </button>
           </div>
         </div>

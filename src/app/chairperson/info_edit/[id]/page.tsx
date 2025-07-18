@@ -577,7 +577,7 @@ export default function EditCurriculum() {
           )}
 
           {activeTab === "Elective Rules" && (
-            <ElectiveRulesTab />
+            <ElectiveRulesTab curriculumId={curriculumId} />
           )}
 
           {activeTab === "Concentrations" && (

@@ -1,0 +1,202 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+
+// GET /api/curricula/[id]/elective-rules - Get all elective rules for a curriculum
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
+
+    if (session.user.role !== 'CHAIRPERSON') {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Chairperson access required' } },
+        { status: 403 }
+      );
+    }
+
+    const { id: curriculumId } = await params;
+
+    // Verify curriculum exists and user has access
+    const curriculum = await prisma.curriculum.findFirst({
+      where: {
+        id: curriculumId,
+        createdById: session.user.id
+      }
+    });
+
+    if (!curriculum) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'Curriculum not found or access denied' } },
+        { status: 404 }
+      );
+    }
+
+    // Get elective rules for the curriculum
+    const electiveRules = await prisma.electiveRule.findMany({
+      where: { curriculumId },
+      orderBy: { category: 'asc' }
+    });
+
+    // Get curriculum courses with their categories for breakdown
+    const curriculumCourses = await prisma.curriculumCourse.findMany({
+      where: { curriculumId },
+      include: {
+        course: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            category: true,
+            credits: true
+          }
+        }
+      }
+    });
+
+    // Get unique categories from courses
+    const courseCategories = [...new Set(
+      curriculumCourses.map(cc => cc.course.category).filter(Boolean)
+    )];
+
+    return NextResponse.json({
+      electiveRules,
+      courseCategories,
+      curriculumCourses: curriculumCourses.map(cc => ({
+        id: cc.course.id,
+        code: cc.course.code,
+        name: cc.course.name,
+        category: cc.course.category,
+        credits: cc.course.credits,
+        isRequired: cc.isRequired,
+        semester: cc.semester,
+        year: cc.year
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error fetching elective rules:', error);
+    return NextResponse.json(
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch elective rules' } },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/curricula/[id]/elective-rules - Create new elective rule
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
+
+    if (session.user.role !== 'CHAIRPERSON') {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Chairperson access required' } },
+        { status: 403 }
+      );
+    }
+
+    const { id: curriculumId } = await params;
+    const { category, requiredCredits, description } = await request.json();
+
+    // Validate input
+    if (!category || !requiredCredits) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_INPUT', message: 'Category and required credits are required' } },
+        { status: 400 }
+      );
+    }
+
+    if (typeof requiredCredits !== 'number' || requiredCredits < 0) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_INPUT', message: 'Required credits must be a non-negative number' } },
+        { status: 400 }
+      );
+    }
+
+    // Verify curriculum exists and user has access
+    const curriculum = await prisma.curriculum.findFirst({
+      where: {
+        id: curriculumId,
+        createdById: session.user.id
+      }
+    });
+
+    if (!curriculum) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'Curriculum not found or access denied' } },
+        { status: 404 }
+      );
+    }
+
+    // Check if elective rule for this category already exists
+    const existingRule = await prisma.electiveRule.findUnique({
+      where: {
+        curriculumId_category: {
+          curriculumId,
+          category
+        }
+      }
+    });
+
+    if (existingRule) {
+      return NextResponse.json(
+        { error: { code: 'DUPLICATE', message: 'Elective rule for this category already exists' } },
+        { status: 409 }
+      );
+    }
+
+    // Create elective rule
+    const electiveRule = await prisma.electiveRule.create({
+      data: {
+        curriculumId,
+        category,
+        requiredCredits,
+        description
+      }
+    });
+
+    // Log the action
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        entityType: 'ElectiveRule',
+        entityId: electiveRule.id,
+        action: 'CREATE',
+        changes: {
+          category,
+          requiredCredits,
+          description
+        },
+        curriculumId
+      }
+    });
+
+    return NextResponse.json({ electiveRule }, { status: 201 });
+
+  } catch (error) {
+    console.error('Error creating elective rule:', error);
+    return NextResponse.json(
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to create elective rule' } },
+      { status: 500 }
+    );
+  }
+}
