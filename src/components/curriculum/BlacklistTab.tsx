@@ -1,108 +1,177 @@
 "use client";
 
-import { useState } from "react";
-import { FaCheck, FaExclamationTriangle } from 'react-icons/fa';
-
-interface Course {
-  code: string;
-  title: string;
-  credits: number;
-  creditHours: string; // Changed to string to support formats like "3-0-6"
-  type: string;
-  description?: string;
-}
-
-interface Blacklist {
-  id: string;
-  name: string;
-  courses: Course[];
-  createdAt: string;
-}
-
-interface CurriculumBlacklist {
-  blacklistId: string;
-}
+import { useState, useEffect } from "react";
+import { FaCheck, FaExclamationTriangle, FaSpinner, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { curriculumBlacklistApi, type CurriculumBlacklist, type AssignedBlacklist, type CurriculumBlacklistsResponse } from '@/services/curriculumBlacklistApi';
 
 interface BlacklistTabProps {
-  // No blacklistTitle prop since "Blacklist" title is fixed and not editable
+  curriculumId: string;
 }
 
-// Mock data - in real implementation, this will come from backend
-const mockAvailableBlacklists: Blacklist[] = [
-  {
-    id: '1',
-    name: 'Outdated Courses',
-    courses: [
-      { code: 'CSX 1001', title: 'Introduction to Computer Science', credits: 3, creditHours: '3-0-6', type: 'Core', description: 'Introduction to fundamental concepts of computer science and programming.' },
-      { code: 'CSX 2005', title: 'Legacy Programming', credits: 3, creditHours: '3-0-6', type: 'Major', description: 'Study of outdated programming languages and practices.' },
-      { code: 'CSX 3008', title: 'Outdated Web Technologies', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Exploration of deprecated web development technologies.' },
-    ],
-    createdAt: '2024-12-15'
-  },
-  {
-    id: '2',
-    name: 'Conflicting Prerequisites',
-    courses: [
-      { code: 'CSX 4001', title: 'Advanced Research Methods', credits: 3, creditHours: '3-0-6', type: 'Major', description: 'Research methodologies with scheduling conflicts.' },
-      { code: 'CSX 4002', title: 'Senior Capstone A', credits: 3, creditHours: '3-0-6', type: 'Major', description: 'Capstone project with prerequisite issues.' },
-    ],
-    createdAt: '2024-11-20'
-  },
-  {
-    id: '3',
-    name: 'Discontinued Electives',
-    courses: [
-      { code: 'CSX 3010', title: 'Flash Development', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Development using discontinued Flash technology.' },
-      { code: 'CSX 3011', title: 'Silverlight Programming', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Programming with discontinued Silverlight framework.' },
-      { code: 'CSX 3012', title: 'Internet Explorer Extensions', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Developing extensions for deprecated browser.' },
-    ],
-    createdAt: '2024-10-10'
-  },
-];
-
-export default function BlacklistTab() {
-  const [selectedBlacklists, setSelectedBlacklists] = useState<CurriculumBlacklist[]>([]);
+export default function BlacklistTab({ curriculumId }: BlacklistTabProps) {
+  // State for blacklist data
+  const [data, setData] = useState<CurriculumBlacklistsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // UI state
   const [searchTerm, setSearchTerm] = useState('');
+  const [assigningBlacklists, setAssigningBlacklists] = useState<Set<string>>(new Set());
+  const [removingBlacklists, setRemovingBlacklists] = useState<Set<string>>(new Set());
+  const [expandedBlacklists, setExpandedBlacklists] = useState<Set<string>>(new Set());
 
-  const handleBlacklistClick = (blacklistId: string) => {
-    const existing = selectedBlacklists.find(b => b.blacklistId === blacklistId);
-    if (existing) {
-      // If already selected, remove it
-      // TODO: Backend integration - Remove blacklist application from curriculum
-      setSelectedBlacklists(prev => prev.filter(b => b.blacklistId !== blacklistId));
-    } else {
-      // If not selected, add it
-      // TODO: Backend integration - Apply blacklist to curriculum
-      const newBlacklist: CurriculumBlacklist = {
-        blacklistId: blacklistId,
-      };
-      setSelectedBlacklists(prev => [...prev, newBlacklist]);
+  // Load curriculum blacklists on mount
+  useEffect(() => {
+    loadCurriculumBlacklists();
+  }, [curriculumId]);
+
+  const loadCurriculumBlacklists = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await curriculumBlacklistApi.getCurriculumBlacklists(curriculumId);
+      setData(response);
+    } catch (err) {
+      console.error('Error loading curriculum blacklists:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load blacklists');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getBlacklistById = (id: string) => {
-    return mockAvailableBlacklists.find(b => b.id === id);
+  const handleAssignBlacklist = async (blacklistId: string) => {
+    try {
+      setAssigningBlacklists(prev => new Set(prev).add(blacklistId));
+      setError(null);
+      
+      await curriculumBlacklistApi.assignBlacklistToCurriculum(curriculumId, { blacklistId });
+      
+      // Reload data to get updated assignments
+      await loadCurriculumBlacklists();
+      
+    } catch (err) {
+      console.error('Error assigning blacklist:', err);
+      setError(err instanceof Error ? err.message : 'Failed to assign blacklist');
+    } finally {
+      setAssigningBlacklists(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(blacklistId);
+        return newSet;
+      });
+    }
   };
 
-  const isBlacklistSelected = (blacklistId: string) => {
-    return selectedBlacklists.some(b => b.blacklistId === blacklistId);
+  const handleRemoveBlacklist = async (blacklistId: string) => {
+    try {
+      setRemovingBlacklists(prev => new Set(prev).add(blacklistId));
+      setError(null);
+      
+      await curriculumBlacklistApi.removeBlacklistFromCurriculum(curriculumId, blacklistId);
+      
+      // Reload data to get updated assignments
+      await loadCurriculumBlacklists();
+      
+    } catch (err) {
+      console.error('Error removing blacklist:', err);
+      setError(err instanceof Error ? err.message : 'Failed to remove blacklist');
+    } finally {
+      setRemovingBlacklists(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(blacklistId);
+        return newSet;
+      });
+    }
   };
 
-  const filteredBlacklists = mockAvailableBlacklists.filter(blacklist =>
+  const toggleBlacklistExpansion = (blacklistId: string) => {
+    setExpandedBlacklists(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(blacklistId)) {
+        newSet.delete(blacklistId);
+      } else {
+        newSet.add(blacklistId);
+      }
+      return newSet;
+    });
+  };
+
+  const isBlacklistAssigned = (blacklistId: string) => {
+    return data?.assignedBlacklists.some(ab => ab.blacklistId === blacklistId) || false;
+  };
+
+  const filteredAvailableBlacklists = data?.availableBlacklists.filter(blacklist =>
     blacklist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     blacklist.courses.some(course => 
       course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.title.toLowerCase().includes(searchTerm.toLowerCase())
+      course.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
-  );
+  ) || [];
 
-  const totalBlacklistedCourses = selectedBlacklists.reduce((total, selected) => {
-    const blacklist = getBlacklistById(selected.blacklistId);
-    return total + (blacklist?.courses.length || 0);
-  }, 0);
+  const filteredAssignedBlacklists = data?.assignedBlacklists.filter(assigned =>
+    assigned.blacklist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    assigned.blacklist.courses.some(course => 
+      course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  ) || [];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+          <FaSpinner className="w-5 h-5 animate-spin" />
+          <span>Loading blacklists...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+        <div className="flex items-center gap-3 text-red-800 dark:text-red-300">
+          <FaExclamationTriangle className="w-5 h-5" />
+          <div>
+            <h3 className="font-medium">Error Loading Blacklists</h3>
+            <p className="text-sm mt-1">{error}</p>
+            <button
+              onClick={loadCurriculumBlacklists}
+              className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
+      {/* Stats Bar */}
+      <div className="bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-lg p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+              {data?.stats.totalAvailable || 0}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Available Blacklists</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+              {data?.stats.totalAssigned || 0}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Assigned to Curriculum</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+              {data?.stats.totalBlacklistedCourses || 0}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Total Blacklisted Courses</div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left Column - Available Blacklists */}
         <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6">
@@ -110,7 +179,6 @@ export default function BlacklistTab() {
           
           {/* Search Input */}
           <div className="mb-4">
-            {/* TODO: Backend integration - Implement real-time search functionality for blacklists */}
             <input
               type="text"
               placeholder="Search blacklists or courses..."
@@ -120,43 +188,86 @@ export default function BlacklistTab() {
             />
           </div>
 
-          {/* Blacklists List */}
+          {/* Available Blacklists List */}
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {/* TODO: Backend integration - Replace with actual blacklist data from API
-                 API endpoint: GET /api/blacklists?department={departmentId} */}
-            {filteredBlacklists.map((blacklist) => {
-              const isSelected = isBlacklistSelected(blacklist.id);
+            {filteredAvailableBlacklists.map((blacklist) => {
+              const isAssigned = isBlacklistAssigned(blacklist.id);
+              const isAssigning = assigningBlacklists.has(blacklist.id);
+              const isExpanded = expandedBlacklists.has(blacklist.id);
               
               return (
                 <div 
                   key={blacklist.id} 
-                  onClick={() => handleBlacklistClick(blacklist.id)}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                    isSelected 
+                  className={`p-4 border rounded-lg transition-colors ${
+                    isAssigned 
                       ? 'border-red-400 bg-red-50 dark:bg-red-900/20' 
                       : 'border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-gray-800/50'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-1">
-                        <span className="font-semibold text-gray-900 dark:text-white">{blacklist.name}</span>
-                        {isSelected && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                            Applied
-                          </span>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-1">
+                          <span className="font-semibold text-gray-900 dark:text-white">{blacklist.name}</span>
+                          {isAssigned && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                              Assigned
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                          {blacklist.courseCount} courses • {blacklist.description || 'No description'}
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {/* Preview Button */}
+                        <button
+                          onClick={() => toggleBlacklistExpansion(blacklist.id)}
+                          className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                          title={isExpanded ? "Hide courses" : "Show courses"}
+                        >
+                          {isExpanded ? <FaEyeSlash className="w-4 h-4" /> : <FaEye className="w-4 h-4" />}
+                        </button>
+
+                        {/* Assign/Assigned Button */}
+                        {isAssigned ? (
+                          <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                            <FaCheck className="w-3 h-3 text-white" />
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleAssignBlacklist(blacklist.id)}
+                            disabled={isAssigning}
+                            className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                          >
+                            {isAssigning ? (
+                              <>
+                                <FaSpinner className="w-3 h-3 animate-spin" />
+                                Assigning...
+                              </>
+                            ) : (
+                              'Assign'
+                            )}
+                          </button>
                         )}
                       </div>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm">
-                        {blacklist.courses.length} courses blacklisted
-                      </p>
-                      <p className="text-gray-500 dark:text-gray-500 text-xs mt-1">
-                        Created {blacklist.createdAt}
-                      </p>
                     </div>
-                    {isSelected && (
-                      <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                        <FaCheck className="w-3 h-3 text-white" />
+
+                    {/* Course Preview */}
+                    {isExpanded && (
+                      <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                          Blacklisted Courses ({blacklist.courseCount}):
+                        </h4>
+                        <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+                          {blacklist.courses.map((course) => (
+                            <div key={course.id} className="flex items-center justify-between text-sm">
+                              <span className="font-mono text-gray-800 dark:text-gray-200">{course.code}</span>
+                              <span className="text-gray-600 dark:text-gray-400 truncate ml-2">{course.name}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -164,89 +275,103 @@ export default function BlacklistTab() {
               );
             })}
 
-            {filteredBlacklists.length === 0 && (
+            {filteredAvailableBlacklists.length === 0 && (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <p className="text-sm">
-                  {searchTerm ? 'No blacklists match your search.' : 'No blacklists available.'}
+                  {searchTerm ? 'No blacklists match your search.' : 'No blacklists available in your department.'}
                 </p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Column - Applied Blacklists Summary */}
+        {/* Right Column - Assigned Blacklists */}
         <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-foreground">Applied Blacklists</h2>
-            {selectedBlacklists.length > 0 && (
+            <h2 className="text-xl font-bold text-gray-900 dark:text-foreground">Assigned Blacklists</h2>
+            {(data?.stats.totalAssigned || 0) > 0 && (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                {totalBlacklistedCourses} courses blacklisted
+                {data?.stats.totalBlacklistedCourses} courses blacklisted
               </span>
             )}
           </div>
 
-          {/* Show applied blacklists when any are selected */}
-          {/* TODO: Backend integration - Display and save blacklist applications */}
-          {selectedBlacklists.length === 0 ? (
+          {/* Assigned Blacklists List */}
+          {filteredAssignedBlacklists.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                 <FaExclamationTriangle className="w-8 h-8 text-gray-400" />
               </div>
               <p className="text-gray-500 dark:text-gray-400 text-sm mb-2">
-                No blacklists applied to this curriculum
+                No blacklists assigned to this curriculum
               </p>
               <p className="text-gray-400 dark:text-gray-500 text-xs">
-                Select blacklists from the list to restrict courses for students
+                Assign blacklists from the available list to restrict courses for students
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {selectedBlacklists.map((selected) => {
-                const blacklist = getBlacklistById(selected.blacklistId);
-                if (!blacklist) return null;
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {filteredAssignedBlacklists.map((assigned) => {
+                const isRemoving = removingBlacklists.has(assigned.blacklistId);
+                const isExpanded = expandedBlacklists.has(assigned.blacklistId);
                 
                 return (
-                  <div key={selected.blacklistId} className="border border-red-200 dark:border-red-800 rounded-lg p-4 bg-red-50/50 dark:bg-red-900/10">
+                  <div key={assigned.id} className="border border-red-200 dark:border-red-800 rounded-lg p-4 bg-red-50/50 dark:bg-red-900/10">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                            {blacklist.name}
+                            {assigned.blacklist.name}
                           </h3>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {blacklist.courses.length} courses will be restricted
+                            {assigned.blacklist.courseCount} courses restricted • Assigned {new Date(assigned.assignedAt).toLocaleDateString()}
                           </p>
                         </div>
-                        <button
-                          onClick={() => handleBlacklistClick(selected.blacklistId)}
-                          className="px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-all text-sm font-medium"
-                        >
-                          Remove
-                        </button>
+                        
+                        <div className="flex items-center gap-2">
+                          {/* Preview Button */}
+                          <button
+                            onClick={() => toggleBlacklistExpansion(assigned.blacklistId)}
+                            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                            title={isExpanded ? "Hide courses" : "Show courses"}
+                          >
+                            {isExpanded ? <FaEyeSlash className="w-4 h-4" /> : <FaEye className="w-4 h-4" />}
+                          </button>
+
+                          {/* Remove Button */}
+                          <button
+                            onClick={() => handleRemoveBlacklist(assigned.blacklistId)}
+                            disabled={isRemoving}
+                            className="px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                          >
+                            {isRemoving ? (
+                              <>
+                                <FaSpinner className="w-3 h-3 animate-spin" />
+                                Removing...
+                              </>
+                            ) : (
+                              'Remove'
+                            )}
+                          </button>
+                        </div>
                       </div>
 
                       {/* Course Preview */}
-                      <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-red-200 dark:border-red-700">
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                          Blacklisted Courses:
-                        </h4>
-                        <div className="space-y-1 max-h-32 overflow-y-auto">
-                          {blacklist.courses.map((course, index) => (
-                            <div key={index} className="flex items-center justify-between text-xs">
-                              <span className="text-gray-700 dark:text-gray-300 font-medium">
-                                {course.code}
-                              </span>
-                              <span className="text-gray-500 dark:text-gray-400 truncate ml-2">
-                                {course.title}
-                              </span>
-                            </div>
-                          ))}
+                      {isExpanded && (
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-red-200 dark:border-red-700">
+                          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                            Blacklisted Courses ({assigned.blacklist.courseCount}):
+                          </h4>
+                          <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+                            {assigned.blacklist.courses.map((course) => (
+                              <div key={course.id} className="flex items-center justify-between text-sm">
+                                <span className="font-mono text-gray-800 dark:text-gray-200">{course.code}</span>
+                                <span className="text-gray-600 dark:text-gray-400 truncate ml-2">{course.name}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                        Created {blacklist.createdAt}
-                      </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -261,8 +386,8 @@ export default function BlacklistTab() {
                       Important Notice
                     </p>
                     <p className="text-amber-700 dark:text-amber-300">
-                      Students enrolled in this curriculum will not be able to register for any courses in the applied blacklists. 
-                      Make sure these restrictions align with your curriculum requirements.
+                      Students enrolled in this curriculum will not be able to register for any courses in the assigned blacklists. 
+                      These restrictions are automatically effective and will apply immediately to all students.
                     </p>
                   </div>
                 </div>

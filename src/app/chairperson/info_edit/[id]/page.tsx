@@ -585,7 +585,7 @@ export default function EditCurriculum() {
           )}
 
           {activeTab === "Blacklist" && (
-            <BlacklistTab />
+            <BlacklistTab curriculumId={curriculumId} />
           )}
           
           {/* Tab Navigation Buttons */}
