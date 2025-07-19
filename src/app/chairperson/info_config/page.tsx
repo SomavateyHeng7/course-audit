@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { FaEye, FaUpload, FaFileExcel, FaEdit, FaTrash, FaPlus, FaInfoCircle } from 'react-icons/fa';
+import { blacklistApi, type BlacklistData, type BlacklistCourse } from '@/services/blacklistApi';
 
 interface Course {
   code: string;
@@ -103,19 +104,42 @@ export default function InfoConfig() {
   const concentrationFileInputRef = useRef<HTMLInputElement>(null);
   
   // Blacklist management states
-  const [blacklists, setBlacklists] = useState<Blacklist[]>(mockBlacklists);
+  const [blacklists, setBlacklists] = useState<BlacklistData[]>([]);
   const [isAddBlacklistModalOpen, setIsAddBlacklistModalOpen] = useState(false);
   const [isEditBlacklistModalOpen, setIsEditBlacklistModalOpen] = useState(false);
-  const [editingBlacklist, setEditingBlacklist] = useState<Blacklist | null>(null);
-  const [newBlacklist, setNewBlacklist] = useState({ name: '', courses: [] as Course[] });
+  const [editingBlacklist, setEditingBlacklist] = useState<BlacklistData | null>(null);
+  const [newBlacklist, setNewBlacklist] = useState({ name: '', description: '', courses: [] as BlacklistCourse[] });
   const [blacklistDragOver, setBlacklistDragOver] = useState(false);
   const blacklistFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Loading and error states
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Info modal states
   const [isBlacklistInfoModalOpen, setIsBlacklistInfoModalOpen] = useState(false);
   const [isConcentrationInfoModalOpen, setIsConcentrationInfoModalOpen] = useState(false);
-  const [selectedInfoBlacklist, setSelectedInfoBlacklist] = useState<Blacklist | null>(null);
+  const [selectedInfoBlacklist, setSelectedInfoBlacklist] = useState<BlacklistData | null>(null);
   const [selectedInfoConcentration, setSelectedInfoConcentration] = useState<Concentration | null>(null);
+
+  // Load blacklists on component mount
+  useEffect(() => {
+    loadBlacklists();
+  }, []);
+
+  const loadBlacklists = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await blacklistApi.getBlacklists();
+      setBlacklists(response.blacklists);
+    } catch (err) {
+      console.error('Error loading blacklists:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load blacklists');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Manual course addition states
   const [courseSearch, setCourseSearch] = useState('');
@@ -144,22 +168,7 @@ export default function InfoConfig() {
     setIsAddBlacklistModalOpen(true);
   };
 
-  const handleEditBlacklist = (blacklist: Blacklist) => {
-    setEditingBlacklist(blacklist);
-    setNewBlacklist({ name: blacklist.name, courses: blacklist.courses });
-    setIsEditBlacklistModalOpen(true);
-  };
-
-  const handleDeleteBlacklist = (blacklistId: string) => {
-    // TODO: Backend integration - Delete blacklist from database
-    // This blacklist belongs to the chairperson's department only
-    setBlacklists(blacklists.filter(b => b.id !== blacklistId));
-  };
-
-  const handleShowBlacklistInfo = (blacklist: Blacklist) => {
-    setSelectedInfoBlacklist(blacklist);
-    setIsBlacklistInfoModalOpen(true);
-  };
+  // Handler functions are defined later in the component
 
   const handleShowConcentrationInfo = (concentration: Concentration) => {
     setSelectedInfoConcentration(concentration);
@@ -185,15 +194,157 @@ export default function InfoConfig() {
     }
   };
 
-  const handleBlacklistFileUpload = (file: File | null) => {
-    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
-      // Mock parsing of Excel file - in real implementation, parse the Excel file
-      // TODO: Backend integration - Parse Excel file and extract course data for blacklist
-      const mockUploadedCourses: Course[] = [
-        { code: 'CSX 4001', title: 'Advanced Machine Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Advanced techniques in machine learning and artificial intelligence.' },
-        { code: 'CSX 4002', title: 'Deep Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Neural networks and deep learning architectures.' },
-      ];
-      setNewBlacklist({ ...newBlacklist, courses: mockUploadedCourses });
+  const handleBlacklistFileUpload = async (file: File | null) => {
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
+      try {
+        setLoading(true);
+        let uploadedCourses: any[] = [];
+        
+        if (file.name.endsWith('.csv')) {
+          // For CSV files, read as text and parse
+          const fileContent = await file.text();
+          uploadedCourses = blacklistApi.parseCSVContent(fileContent);
+        } else {
+          // For Excel files, parse directly with the file object
+          uploadedCourses = await blacklistApi.parseExcelFile(file);
+        }
+        
+        setNewBlacklist({ ...newBlacklist, courses: uploadedCourses });
+      } catch (err) {
+        console.error('Error parsing file:', err);
+        setError('Failed to parse file. Please check the file format.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setError('Please upload a valid Excel (.xlsx, .xls) or CSV file');
+    }
+  };
+
+  const handleSaveNewBlacklist = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Validate input
+      const validationErrors = blacklistApi.validateBlacklistData({
+        name: newBlacklist.name,
+        description: newBlacklist.description
+      });
+      
+      if (validationErrors.length > 0) {
+        setError(validationErrors[0]);
+        return;
+      }
+      
+      // Check for duplicate names
+      const nameExists = await blacklistApi.checkNameExists(newBlacklist.name);
+      if (nameExists) {
+        setError('A blacklist with this name already exists');
+        return;
+      }
+      
+      // Map course codes to course IDs if we have courses from file upload
+      let courseIds: string[] = [];
+      if (newBlacklist.courses && newBlacklist.courses.length > 0) {
+        const courseCodes = newBlacklist.courses.map(course => course.code);
+        const mappingResults = await blacklistApi.mapCodesToIds(courseCodes);
+        
+        // Separate found courses from courses that need to be created
+        const foundCourses = mappingResults.filter(result => result.found);
+        const coursesToCreate = mappingResults.filter(result => !result.found && result.isNew);
+        
+        // Get course IDs for found courses
+        courseIds = foundCourses.map(result => result.id);
+        
+        // Create new courses for those that don't exist
+        if (coursesToCreate.length > 0) {
+          const coursesToCreateData = coursesToCreate.map(result => {
+            const originalCourse = newBlacklist.courses.find(c => c.code === result.code);
+            return originalCourse!;
+          });
+          
+          try {
+            const createdCourses = await blacklistApi.createCoursesFromBlacklistData(coursesToCreateData);
+            courseIds.push(...createdCourses.map(c => c.id));
+          } catch (createError) {
+            console.error('Error creating new courses:', createError);
+            setError('Failed to create some courses. Please try again.');
+            return;
+          }
+        }
+      }
+      
+      // Create the blacklist with course IDs
+      const createdBlacklist = await blacklistApi.createBlacklist({
+        name: newBlacklist.name,
+        description: newBlacklist.description || undefined,
+        courseIds: courseIds.length > 0 ? courseIds : undefined
+      });
+      
+      // Update local state
+      setBlacklists([...blacklists, createdBlacklist]);
+      setIsAddBlacklistModalOpen(false);
+      setNewBlacklist({ name: '', description: '', courses: [] });
+      
+    } catch (err) {
+      console.error('Error creating blacklist:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create blacklist');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveEditBlacklist = async () => {
+    if (!editingBlacklist) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Validate input
+      const validationErrors = blacklistApi.validateBlacklistData({
+        name: newBlacklist.name,
+        description: newBlacklist.description
+      });
+      
+      if (validationErrors.length > 0) {
+        setError(validationErrors[0]);
+        return;
+      }
+      
+      // Check for duplicate names (excluding current blacklist)
+      const nameExists = await blacklistApi.checkNameExists(newBlacklist.name, editingBlacklist.id);
+      if (nameExists) {
+        setError('A blacklist with this name already exists');
+        return;
+      }
+      
+      // Extract course IDs for API update
+      const courseIds = newBlacklist.courses.map(course => course.id).filter(id => id && !id.startsWith('temp_'));
+      console.log('Saving blacklist with course IDs:', courseIds);
+      console.log('Original courses:', newBlacklist.courses);
+
+      // Update the blacklist
+      const updatedBlacklist = await blacklistApi.updateBlacklist(editingBlacklist.id, {
+        name: newBlacklist.name,
+        description: newBlacklist.description || undefined,
+        courseIds
+      });
+      
+      // Update local state
+      setBlacklists(blacklists.map(b => 
+        b.id === editingBlacklist.id ? updatedBlacklist : b
+      ));
+      setIsEditBlacklistModalOpen(false);
+      setEditingBlacklist(null);
+      setNewBlacklist({ name: '', description: '', courses: [] });
+      
+    } catch (err) {
+      console.error('Error updating blacklist:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update blacklist');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -204,31 +355,40 @@ export default function InfoConfig() {
     }
   };
 
-  const handleSaveNewBlacklist = () => {
-    // TODO: Backend integration - Create new blacklist for the department
-    // Each blacklist will be available for assignment to curricula in info_edit
-    const newBlacklistObj: Blacklist = {
-      id: Date.now().toString(),
-      name: newBlacklist.name,
-      courses: newBlacklist.courses,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-    setBlacklists([...blacklists, newBlacklistObj]);
-    setIsAddBlacklistModalOpen(false);
-    setNewBlacklist({ name: '', courses: [] });
+  const handleEditBlacklist = (blacklist: BlacklistData) => {
+    setEditingBlacklist(blacklist);
+    setNewBlacklist({ 
+      name: blacklist.name, 
+      description: blacklist.description || '',
+      courses: blacklist.courses 
+    });
+    setIsEditBlacklistModalOpen(true);
   };
 
-  const handleSaveEditBlacklist = () => {
-    if (editingBlacklist) {
-      // TODO: Backend integration - Update blacklist in database
-      setBlacklists(blacklists.map(b => 
-        b.id === editingBlacklist.id 
-          ? { ...b, name: newBlacklist.name, courses: newBlacklist.courses }
-          : b
-      ));
-      setIsEditBlacklistModalOpen(false);
-      setEditingBlacklist(null);
-      setNewBlacklist({ name: '', courses: [] });
+  const handleShowBlacklistInfo = (blacklist: BlacklistData) => {
+    setSelectedInfoBlacklist(blacklist);
+    setIsBlacklistInfoModalOpen(true);
+  };
+
+  const handleDeleteBlacklist = async (blacklist: BlacklistData) => {
+    if (!confirm(`Are you sure you want to delete the blacklist "${blacklist.name}"?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      await blacklistApi.deleteBlacklist(blacklist.id);
+      
+      // Update local state
+      setBlacklists(blacklists.filter(b => b.id !== blacklist.id));
+      
+    } catch (err) {
+      console.error('Error deleting blacklist:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete blacklist');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -377,9 +537,18 @@ export default function InfoConfig() {
         courses: [...prev.courses, course]
       }));
     } else {
+      const blacklistCourse: BlacklistCourse = {
+        id: (course as any).id || crypto.randomUUID(), // Use course ID if available, otherwise generate one
+        code: course.code,
+        name: course.title,
+        credits: course.credits,
+        category: course.type,
+        description: course.description
+      };
+      
       setNewBlacklist(prev => ({
         ...prev,
-        courses: [...prev.courses, course]
+        courses: [...prev.courses, blacklistCourse]
       }));
     }
   };
@@ -401,9 +570,18 @@ export default function InfoConfig() {
           courses: [...prev.courses, courseToAdd]
         }));
       } else {
+        const blacklistCourse: BlacklistCourse = {
+          id: crypto.randomUUID(),
+          code: courseToAdd.code,
+          name: courseToAdd.title,
+          credits: courseToAdd.credits,
+          category: courseToAdd.type,
+          description: courseToAdd.description
+        };
+        
         setNewBlacklist(prev => ({
           ...prev,
-          courses: [...prev.courses, courseToAdd]
+          courses: [...prev.courses, blacklistCourse]
         }));
       }
       
@@ -467,7 +645,8 @@ export default function InfoConfig() {
                 </div>
                 <button
                   onClick={handleAddBlacklist}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FaPlus className="w-4 h-4" />
                   Add Blacklist
@@ -507,7 +686,7 @@ export default function InfoConfig() {
                         <FaEdit className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteBlacklist(blacklist.id)}
+                        onClick={() => handleDeleteBlacklist(blacklist)}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
                         title="Delete Blacklist"
                       >
@@ -619,7 +798,8 @@ export default function InfoConfig() {
                 </div>
                 <button
                   onClick={handleAddConcentration}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FaPlus className="w-4 h-4" />
                   Add Concentration
@@ -907,7 +1087,7 @@ export default function InfoConfig() {
                         {newBlacklist.courses.map((course, index) => (
                           <tr key={index}>
                             <td className="px-3 py-2 text-gray-900 dark:text-primary-foreground">{course.code}</td>
-                            <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.title}</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.name}</td>
                             <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.credits}</td>
                             <td className="px-3 py-2">
                               <button
@@ -936,10 +1116,17 @@ export default function InfoConfig() {
               </button>
               <button
                 onClick={handleSaveNewBlacklist}
-                disabled={!newBlacklist.name.trim() || newBlacklist.courses.length === 0}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || !newBlacklist.name.trim() || newBlacklist.courses.length === 0}
+                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Add Blacklist
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"></div>
+                    Creating...
+                  </>
+                ) : (
+                  'Add Blacklist'
+                )}
               </button>
             </div>
           </div>
@@ -1158,14 +1345,24 @@ export default function InfoConfig() {
                           <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Code</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Title</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Credits</th>
+                          <th className="px-3 py-2 text-center font-medium text-gray-500 dark:text-gray-400">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-border">
                         {newBlacklist.courses.map((course, index) => (
                           <tr key={index}>
                             <td className="px-3 py-2 text-foreground">{course.code}</td>
-                            <td className="px-3 py-2 text-foreground">{course.title}</td>
+                            <td className="px-3 py-2 text-foreground">{course.name}</td>
                             <td className="px-3 py-2 text-foreground">{course.credits}</td>
+                            <td className="px-3 py-2 text-center">
+                              <button
+                                onClick={() => handleRemoveCourseFromBlacklist(index)}
+                                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors p-1"
+                                title="Remove course from blacklist"
+                              >
+                                <FaTrash className="w-3 h-3" />
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1575,10 +1772,17 @@ export default function InfoConfig() {
               </button>
               <button
                 onClick={handleSaveNewConcentration}
-                disabled={!newConcentration.name.trim() || newConcentration.courses.length === 0}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || !newConcentration.name.trim() || newConcentration.courses.length === 0}
+                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Add Concentration
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"></div>
+                    Creating...
+                  </>
+                ) : (
+                  'Add Concentration'
+                )}
               </button>
             </div>
           </div>
@@ -1881,12 +2085,12 @@ export default function InfoConfig() {
                     {selectedInfoBlacklist.courses.map((course, index) => (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                         <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-primary-foreground">{course.code}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.title}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.name}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.credits}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.creditHours}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.credits}</td>
                         <td className="px-4 py-3 text-sm">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                            {course.type || '-'}
+                            {course.category || '-'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300 max-w-xs">

@@ -383,7 +383,7 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
                     type="number"
                     min="0"
                     max="200"
-                    defaultValue="60"
+                    defaultValue="0"
                     className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">

@@ -15,7 +15,11 @@ export async function GET() {
       },
       include: {
         department: true,
-        courses: true,
+        curriculumCourses: {
+          include: {
+            course: true
+          }
+        }
       },
       orderBy: {
         year: 'desc',
@@ -39,10 +43,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { year, departmentId, courses } = await req.json();
+    const { name, year, departmentId, courses } = await req.json();
 
     // Validate input
-    if (!year || !departmentId || !courses) {
+    if (!name || !year || !departmentId || !courses) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -67,19 +71,34 @@ export async function POST(req: Request) {
     // Create curriculum with courses
     const curriculum = await prisma.curriculum.create({
       data: {
-        year,
-        departmentId,
+        name: name,
+        year: year,
+        departmentId: departmentId,
         facultyId: session.user.faculty.id,
-        courses: {
-          create: courses.map((course: any) => ({
-            code: course.code,
-            name: course.name,
-            credits: course.credits,
+        createdById: session.user.id,
+        curriculumCourses: {
+          create: courses.map((course: any, index: number) => ({
+            course: {
+              create: {
+                code: course.code,
+                name: course.name,
+                credits: course.credits,
+                creditHours: `${course.credits}-0-${course.credits * 2}`,
+                category: course.category || 'General'
+              }
+            },
+            year: course.year || 1,
+            semester: course.semester || 1,
+            position: index + 1
           })),
         },
       },
       include: {
-        courses: true,
+        curriculumCourses: {
+          include: {
+            course: true
+          }
+        }
       },
     });
 

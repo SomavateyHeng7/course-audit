@@ -5,9 +5,10 @@ import { prisma } from '@/lib/prisma';
 // GET /api/courses/[courseId] - Get individual course details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
+    const { courseId } = await params;
     const session = await auth();
     
     if (!session?.user?.id) {
@@ -24,8 +25,6 @@ export async function GET(
       );
     }
 
-    const courseId = params.courseId;
-    
     if (!courseId) {
       return NextResponse.json(
         { error: { code: 'INVALID_INPUT', message: 'Course ID is required' } },
@@ -85,9 +84,10 @@ export async function GET(
 // PUT /api/courses/[courseId] - Update course details
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
+    const { courseId } = await params;
     const session = await auth();
     
     if (!session?.user?.id) {
@@ -104,8 +104,6 @@ export async function PUT(
       );
     }
 
-    const courseId = params.courseId;
-    
     if (!courseId) {
       return NextResponse.json(
         { error: { code: 'INVALID_INPUT', message: 'Course ID is required' } },
@@ -176,9 +174,10 @@ export async function PUT(
 // DELETE /api/courses/[courseId] - Soft delete course
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
+    const { courseId } = await params;
     const session = await auth();
     
     if (!session?.user?.id) {
@@ -195,8 +194,6 @@ export async function DELETE(
       );
     }
 
-    const courseId = params.courseId;
-    
     if (!courseId) {
       return NextResponse.json(
         { error: { code: 'INVALID_INPUT', message: 'Course ID is required' } },
