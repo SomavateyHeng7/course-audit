@@ -8,14 +8,7 @@ import ConstraintsTab from '@/components/curriculum/ConstraintsTab';
 import ElectiveRulesTab from '@/components/curriculum/ElectiveRulesTab';
 import ConcentrationsTab from '@/components/curriculum/ConcentrationsTab';
 import BlacklistTab from '@/components/curriculum/BlacklistTab';
-
-const tabs = [
-  { name: "Courses", icon: FaBook },
-  { name: "Constraints", icon: FaGavel },
-  { name: "Elective Rules", icon: FaGraduationCap },
-  { name: "Concentrations", icon: FaStar },
-  { name: "Blacklist", icon: FaBan }
-];
+import { facultyLabelApi } from '@/services/facultyLabelApi';
 
 export default function EditCurriculum() {
   const params = useParams();
@@ -25,6 +18,16 @@ export default function EditCurriculum() {
   const [curriculum, setCurriculum] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [concentrationTitle, setConcentrationTitle] = useState('Concentrations');
+  
+  // Dynamic tabs based on concentration title
+  const tabs = [
+    { name: "Courses", icon: FaBook },
+    { name: "Constraints", icon: FaGavel },
+    { name: "Elective Rules", icon: FaGraduationCap },
+    { name: concentrationTitle, icon: FaStar },
+    { name: "Blacklist", icon: FaBan }
+  ];
   
   // UI State
   const [activeTab, setActiveTab] = useState("Courses");
@@ -78,6 +81,21 @@ export default function EditCurriculum() {
       fetchCurriculum();
     }
   }, [curriculumId]);
+
+  // Load concentration title
+  useEffect(() => {
+    const loadConcentrationTitle = async () => {
+      try {
+        const response = await facultyLabelApi.getConcentrationLabel();
+        setConcentrationTitle(response.concentrationLabel);
+      } catch (err) {
+        console.error('Error loading concentration title:', err);
+        // Keep default title if loading fails
+      }
+    };
+
+    loadConcentrationTitle();
+  }, []);
 
   // Process curriculum data for display
   const summary = curriculum ? {
@@ -580,8 +598,8 @@ export default function EditCurriculum() {
             <ElectiveRulesTab curriculumId={curriculumId} />
           )}
 
-          {activeTab === "Concentrations" && (
-            <ConcentrationsTab />
+          {activeTab === concentrationTitle && (
+            <ConcentrationsTab curriculumId={curriculumId} concentrationTitle={concentrationTitle} />
           )}
 
           {activeTab === "Blacklist" && (

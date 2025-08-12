@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { FaEye, FaUpload, FaFileExcel, FaEdit, FaTrash, FaPlus, FaInfoCircle } from 'react-icons/fa';
 import { blacklistApi, type BlacklistData, type BlacklistCourse } from '@/services/blacklistApi';
+import { concentrationApi, type ConcentrationData, type ConcentrationCourse } from '@/services/concentrationApi';
+import { facultyLabelApi } from '@/services/facultyLabelApi';
 
 interface Course {
   code: string;
@@ -19,12 +21,7 @@ interface CourseType {
   color: string;
 }
 
-interface Concentration {
-  id: string;
-  name: string;
-  courses: Course[];
-  createdAt: string;
-}
+// Use ConcentrationData from API instead of local Concentration interface
 
 interface Blacklist {
   id: string;
@@ -41,26 +38,7 @@ const defaultCourseTypes: CourseType[] = [
   { id: '5', name: 'Free Elective', color: '#6b7280' }, // gray
 ];
 
-const mockConcentrations: Concentration[] = [
-  {
-    id: '1',
-    name: 'Data Science',
-    courses: [
-      { code: 'CSX 3001', title: 'Machine Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Introduction to machine learning algorithms and applications.' },
-      { code: 'CSX 3002', title: 'Data Mining', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Techniques for extracting patterns from large datasets.' },
-    ],
-    createdAt: '2024-12-15'
-  },
-  {
-    id: '2',
-    name: 'Software Engineering',
-    courses: [
-      { code: 'CSX 3003', title: 'Software Architecture', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Design principles and patterns for large-scale software systems.' },
-      { code: 'CSX 3004', title: 'Advanced Testing', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Advanced software testing methodologies and tools.' },
-    ],
-    createdAt: '2024-11-20'
-  },
-];
+// Mock concentrations removed - now using API data
 
 const mockBlacklists: Blacklist[] = [
   {
@@ -93,12 +71,12 @@ export default function InfoConfig() {
   const [newType, setNewType] = useState({ name: '', color: '#6366f1' });
   
   // Concentration management states
-  const [concentrations, setConcentrations] = useState<Concentration[]>(mockConcentrations);
+  const [concentrations, setConcentrations] = useState<ConcentrationData[]>([]);
   const [isEditConcentrationTitleOpen, setIsEditConcentrationTitleOpen] = useState(false);
   const [concentrationTitle, setConcentrationTitle] = useState('Concentrations');
   const [isAddConcentrationModalOpen, setIsAddConcentrationModalOpen] = useState(false);
   const [isEditConcentrationModalOpen, setIsEditConcentrationModalOpen] = useState(false);
-  const [editingConcentration, setEditingConcentration] = useState<Concentration | null>(null);
+  const [editingConcentration, setEditingConcentration] = useState<ConcentrationData | null>(null);
   const [newConcentration, setNewConcentration] = useState({ name: '', courses: [] as Course[] });
   const [concentrationDragOver, setConcentrationDragOver] = useState(false);
   const concentrationFileInputRef = useRef<HTMLInputElement>(null);
@@ -120,11 +98,21 @@ export default function InfoConfig() {
   const [isBlacklistInfoModalOpen, setIsBlacklistInfoModalOpen] = useState(false);
   const [isConcentrationInfoModalOpen, setIsConcentrationInfoModalOpen] = useState(false);
   const [selectedInfoBlacklist, setSelectedInfoBlacklist] = useState<BlacklistData | null>(null);
-  const [selectedInfoConcentration, setSelectedInfoConcentration] = useState<Concentration | null>(null);
+  const [selectedInfoConcentration, setSelectedInfoConcentration] = useState<ConcentrationData | null>(null);
 
   // Load blacklists on component mount
   useEffect(() => {
     loadBlacklists();
+  }, []);
+
+  // Load concentrations on component mount
+  useEffect(() => {
+    loadConcentrations();
+  }, []);
+
+  // Load concentration title on component mount
+  useEffect(() => {
+    loadConcentrationTitle();
   }, []);
 
   const loadBlacklists = async () => {
@@ -138,6 +126,30 @@ export default function InfoConfig() {
       setError(err instanceof Error ? err.message : 'Failed to load blacklists');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadConcentrations = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await concentrationApi.getConcentrations();
+      setConcentrations(response || []);
+    } catch (err) {
+      console.error('Error loading concentrations:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load concentrations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadConcentrationTitle = async () => {
+    try {
+      const response = await facultyLabelApi.getConcentrationLabel();
+      setConcentrationTitle(response.concentrationLabel);
+    } catch (err) {
+      console.error('Error loading concentration title:', err);
+      // Keep default title if loading fails
     }
   };
 
@@ -170,7 +182,7 @@ export default function InfoConfig() {
 
   // Handler functions are defined later in the component
 
-  const handleShowConcentrationInfo = (concentration: Concentration) => {
+  const handleShowConcentrationInfo = (concentration: ConcentrationData) => {
     setSelectedInfoConcentration(concentration);
     setIsConcentrationInfoModalOpen(true);
   };
@@ -439,27 +451,46 @@ export default function InfoConfig() {
     setIsEditConcentrationTitleOpen(true);
   };
 
-  const handleSaveConcentrationTitle = () => {
-    // TODO: Backend integration - Update concentration title system-wide
-    // This will affect all concentrations displayed throughout the system
-    // Update the database field that stores the concentration category name
-    setIsEditConcentrationTitleOpen(false);
+  const handleSaveConcentrationTitle = async () => {
+    try {
+      await facultyLabelApi.updateConcentrationLabel({ label: concentrationTitle });
+      setIsEditConcentrationTitleOpen(false);
+      // Optionally reload the data to ensure consistency
+      await loadConcentrationTitle();
+    } catch (error) {
+      console.error('Error updating concentration title:', error);
+      alert('Failed to update concentration title. Please try again.');
+    }
   };
 
   const handleAddConcentration = () => {
     setIsAddConcentrationModalOpen(true);
   };
 
-  const handleEditConcentration = (concentration: Concentration) => {
+  const handleEditConcentration = (concentration: ConcentrationData) => {
     setEditingConcentration(concentration);
-    setNewConcentration({ name: concentration.name, courses: concentration.courses });
+    // Convert ConcentrationCourse[] to Course[] for the edit form
+    const coursesForEdit: Course[] = concentration.courses.map(course => ({
+      code: course.code,
+      title: course.name, // API uses 'name', form uses 'title'
+      credits: course.credits,
+      creditHours: course.creditHours,
+      type: course.category, // API uses 'category', form uses 'type'
+      description: course.description
+    }));
+    setNewConcentration({ name: concentration.name, courses: coursesForEdit });
     setIsEditConcentrationModalOpen(true);
   };
 
-  const handleDeleteConcentration = (concentrationId: string) => {
-    // TODO: Backend integration - Delete concentration from database
-    // This concentration belongs to the chairperson's department only
-    setConcentrations(concentrations.filter(c => c.id !== concentrationId));
+  const handleDeleteConcentration = async (concentrationId: string) => {
+    try {
+      await concentrationApi.deleteConcentration(concentrationId);
+      // Reload concentrations from API to get the latest data
+      await loadConcentrations();
+    } catch (error) {
+      console.error('Error deleting concentration:', error);
+      alert('Failed to delete concentration. Please try again.');
+    }
   };
 
   const handleConcentrationDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -499,33 +530,140 @@ export default function InfoConfig() {
     }
   };
 
-  const handleSaveNewConcentration = () => {
+  const handleSaveNewConcentration = async () => {
     if (newConcentration.name.trim() && newConcentration.courses.length > 0) {
-      // TODO: Backend integration - Save new concentration to database
-      // This concentration will be associated with the chairperson's department only
-      const newConcentrationObj: Concentration = {
-        id: Date.now().toString(),
-        name: newConcentration.name,
-        courses: newConcentration.courses,
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      setConcentrations([...concentrations, newConcentrationObj]);
-      setIsAddConcentrationModalOpen(false);
-      setNewConcentration({ name: '', courses: [] });
+      try {
+        // Step 1: Create the concentration with basic info only
+        const newConcentrationData = await concentrationApi.createConcentration({
+          name: newConcentration.name.trim(),
+          description: `${newConcentration.name.trim()} concentration`,
+        });
+
+        // Step 2: Add courses to the concentration
+        if (newConcentration.courses.length > 0) {
+          // Convert Course[] to the format expected by the courses API
+          const coursesForAPI = newConcentration.courses.map(course => {
+            // Parse creditHours safely
+            let creditHours = 3; // default
+            if (course.creditHours && typeof course.creditHours === 'string') {
+              const parsed = parseInt(course.creditHours.split('-')[0]);
+              if (!isNaN(parsed) && parsed > 0) {
+                creditHours = parsed;
+              }
+            }
+
+            return {
+              code: course.code.trim(),
+              name: course.title.trim(),
+              credits: Number(course.credits) || 3,
+              creditHours: creditHours,
+              description: course.description?.trim() || '',
+              category: course.type?.trim() || 'Elective'
+            };
+          });
+
+          // Add courses via the dedicated course endpoint using direct fetch
+          const addCoursesResponse = await fetch(`/api/concentrations/${newConcentrationData.id}/courses`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ courses: coursesForAPI }),
+          });
+
+          if (!addCoursesResponse.ok) {
+            const error = await addCoursesResponse.json();
+            throw new Error(error.error?.message || 'Failed to add courses to concentration');
+          }
+        }
+
+        // Reload concentrations from API to get the latest data
+        await loadConcentrations();
+        setIsAddConcentrationModalOpen(false);
+        setNewConcentration({ name: '', courses: [] });
+      } catch (error) {
+        console.error('Error creating concentration:', error);
+        alert('Failed to create concentration. Please try again.');
+      }
     }
   };
 
-  const handleSaveEditConcentration = () => {
+  const handleSaveEditConcentration = async () => {
     if (editingConcentration && newConcentration.name.trim()) {
-      // TODO: Backend integration - Update concentration in database
-      setConcentrations(concentrations.map(c => 
-        c.id === editingConcentration.id 
-          ? { ...c, name: newConcentration.name, courses: newConcentration.courses }
-          : c
-      ));
-      setIsEditConcentrationModalOpen(false);
-      setEditingConcentration(null);
-      setNewConcentration({ name: '', courses: [] });
+      try {
+        // Step 1: Update basic concentration info
+        await concentrationApi.updateConcentration(editingConcentration.id, {
+          name: newConcentration.name,
+          description: editingConcentration.description || undefined,
+        });
+
+        // Step 2: Handle course changes
+        if (editingConcentration.courses && newConcentration.courses) {
+          const originalCourseIds = editingConcentration.courses.map(c => c.id);
+          const newCourseIds = newConcentration.courses.map(c => (c as any).id).filter(Boolean);
+          
+          // Find courses to remove (in original but not in new)
+          const coursesToRemove = originalCourseIds.filter(id => !newCourseIds.includes(id));
+          
+          // Find courses to add (new courses without IDs or with IDs not in original)
+          const coursesToAdd = newConcentration.courses.filter(course => 
+            !(course as any).id || !originalCourseIds.includes((course as any).id)
+          );
+
+          // Remove courses that are no longer in the list
+          if (coursesToRemove.length > 0) {
+            for (const courseId of coursesToRemove) {
+              await fetch(`/api/concentrations/${editingConcentration.id}/courses?courseId=${courseId}`, {
+                method: 'DELETE',
+              });
+            }
+          }
+
+          // Add new courses
+          if (coursesToAdd.length > 0) {
+            const coursesForAPI = coursesToAdd.map(course => {
+              let creditHours = 3; // default
+              if (course.creditHours && typeof course.creditHours === 'string') {
+                const parsed = parseInt(course.creditHours.split('-')[0]);
+                if (!isNaN(parsed) && parsed > 0) {
+                  creditHours = parsed;
+                }
+              }
+
+              return {
+                code: course.code.trim(),
+                name: course.title.trim(),
+                credits: Number(course.credits) || 3,
+                creditHours: creditHours,
+                description: course.description?.trim() || '',
+                category: course.type?.trim() || 'Elective'
+              };
+            });
+
+            const addCoursesResponse = await fetch(`/api/concentrations/${editingConcentration.id}/courses`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ courses: coursesForAPI }),
+            });
+
+            if (!addCoursesResponse.ok) {
+              const error = await addCoursesResponse.json();
+              throw new Error(error.error?.message || 'Failed to add courses to concentration');
+            }
+          }
+        }
+
+        // Reload concentrations from API to get the latest data
+        await loadConcentrations();
+        setIsEditConcentrationModalOpen(false);
+        setEditingConcentration(null);
+        setNewConcentration({ name: '', courses: [] });
+      } catch (error) {
+        console.error('Error updating concentration:', error);
+        alert('Failed to update concentration. Please try again.');
+      }
     }
   };
 
@@ -646,7 +784,7 @@ export default function InfoConfig() {
                 <button
                   onClick={handleAddBlacklist}
                   disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FaPlus className="w-4 h-4" />
                   Add Blacklist
@@ -721,7 +859,7 @@ export default function InfoConfig() {
                 </div>
                 <button
                   onClick={handleAddType}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   <FaPlus className="w-4 h-4" />
                   Add Type
@@ -799,7 +937,7 @@ export default function InfoConfig() {
                 <button
                   onClick={handleAddConcentration}
                   disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FaPlus className="w-4 h-4" />
                   Add Concentration
@@ -1023,7 +1161,7 @@ export default function InfoConfig() {
                         <button
                           onClick={() => handleAddNewCourse('blacklist')}
                           disabled={!newCourse.code.trim() || !newCourse.title.trim()}
-                          className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Add Course
                         </button>
@@ -1051,7 +1189,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => blacklistFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primarary rounded text-sm hover:bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -1070,7 +1208,7 @@ export default function InfoConfig() {
 
               {newBlacklist.courses.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-primary-foreground mb-3">
+                  <h4 className="font-semibold text-gray-900 dararymb-3">
                     Courses ({newBlacklist.courses.length})
                   </h4>
                   <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
@@ -1086,7 +1224,7 @@ export default function InfoConfig() {
                       <tbody className="divide-y divide-gray-200 dark:divide-border">
                         {newBlacklist.courses.map((course, index) => (
                           <tr key={index}>
-                            <td className="px-3 py-2 text-gray-900 dark:text-primary-foreground">{course.code}</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-foreground">{course.code}</td>
                             <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.name}</td>
                             <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.credits}</td>
                             <td className="px-3 py-2">
@@ -1117,7 +1255,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveNewBlacklist}
                 disabled={loading || !newBlacklist.name.trim() || newBlacklist.courses.length === 0}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -1288,7 +1426,7 @@ export default function InfoConfig() {
                         <button
                           onClick={() => handleAddNewCourse('blacklist')}
                           disabled={!newCourse.code.trim() || !newCourse.title.trim()}
-                          className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Add Course
                         </button>
@@ -1316,7 +1454,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => blacklistFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primarary rounded text-sm hover:bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -1382,7 +1520,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveEditBlacklist}
                 disabled={!newBlacklist.name.trim()}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Changes
               </button>
@@ -1449,7 +1587,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveNewType}
                 disabled={!newType.name.trim()}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add Type
               </button>
@@ -1514,7 +1652,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveEditType}
                 disabled={!newType.name.trim()}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Changes
               </button>
@@ -1679,7 +1817,7 @@ export default function InfoConfig() {
                         <button
                           onClick={() => handleAddNewCourse('concentration')}
                           disabled={!newCourse.code.trim() || !newCourse.title.trim()}
-                          className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-4 py-2 bg-primary rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Add Course
                         </button>
@@ -1707,7 +1845,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => concentrationFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primarary rounded text-sm hover:bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -1726,7 +1864,7 @@ export default function InfoConfig() {
 
               {newConcentration.courses.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-primary-foreground mb-3">
+                  <h4 className="font-semibold text-gray-900 dararymb-3">
                     Courses ({newConcentration.courses.length})
                   </h4>
                   <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
@@ -1742,7 +1880,7 @@ export default function InfoConfig() {
                       <tbody className="divide-y divide-gray-200 dark:divide-border">
                         {newConcentration.courses.map((course, index) => (
                           <tr key={index}>
-                            <td className="px-3 py-2 text-gray-900 dark:text-primary-foreground">{course.code}</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-foreground">{course.code}</td>
                             <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.title}</td>
                             <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.credits}</td>
                             <td className="px-3 py-2">
@@ -1773,7 +1911,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveNewConcentration}
                 disabled={loading || !newConcentration.name.trim() || newConcentration.courses.length === 0}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -1944,7 +2082,7 @@ export default function InfoConfig() {
                         <button
                           onClick={() => handleAddNewCourse('concentration')}
                           disabled={!newCourse.code.trim() || !newCourse.title.trim()}
-                          className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-4 py-2 bg-primary rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Add Course
                         </button>
@@ -1972,7 +2110,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => concentrationFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primary rounded text-sm hover:bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -1991,7 +2129,7 @@ export default function InfoConfig() {
 
               {newConcentration.courses.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-primary-foreground mb-3">
+                  <h4 className="font-semibold text-gray-900 dararymb-3">
                     Current Courses ({newConcentration.courses.length})
                   </h4>
                   <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
@@ -2007,7 +2145,7 @@ export default function InfoConfig() {
                       <tbody className="divide-y divide-gray-200 dark:divide-border">
                         {newConcentration.courses.map((course, index) => (
                           <tr key={index}>
-                            <td className="px-3 py-2 text-gray-900 dark:text-primary-foreground">{course.code}</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-foreground">{course.code}</td>
                             <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.title}</td>
                             <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.credits}</td>
                             <td className="px-3 py-2">
@@ -2038,7 +2176,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveEditConcentration}
                 disabled={!newConcentration.name.trim()}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Changes
               </button>
@@ -2073,18 +2211,18 @@ export default function InfoConfig() {
                 <table className="min-w-full border border-gray-200 dark:border-border rounded-lg overflow-hidden">
                   <thead className="bg-red-50 dark:bg-red-900/20">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Course Code</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Course Title</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Credits</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Credit Hours</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Type</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Description</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Course Code</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Course Title</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Credits</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Credit Hours</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Type</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Description</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-border">
                     {selectedInfoBlacklist.courses.map((course, index) => (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-primary-foreground">{course.code}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-foreground">{course.code}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.name}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.credits}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.credits}</td>
@@ -2120,7 +2258,7 @@ export default function InfoConfig() {
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-border">
               <button
                 onClick={() => setIsBlacklistInfoModalOpen(false)}
-                className="w-full px-4 py-2 bg-gray-600 text-primary-foreground rounded-lg hover:bg-gray-700 transition-colors"
+                className="w-full px-4 py-2 bg-gray-60aryrounded-lg hover:bg-gray-700 transition-colors"
               >
                 Close
               </button>
@@ -2155,24 +2293,24 @@ export default function InfoConfig() {
                 <table className="min-w-full border border-gray-200 dark:border-border rounded-lg overflow-hidden">
                   <thead className="bg-primary/10 dark:bg-primary/20/20">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Course Code</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Course Title</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Credits</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Credit Hours</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Type</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Description</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Course Code</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Course Title</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Credits</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Credit Hours</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Type</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Description</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-border">
                     {selectedInfoConcentration.courses.map((course, index) => (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-primary-foreground">{course.code}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.title}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-foreground">{course.code}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.name}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.credits}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.creditHours}</td>
                         <td className="px-4 py-3 text-sm">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary dark:bg-primary/20/30 dark:text-primary/30">
-                            {course.type || '-'}
+                            {course.category || '-'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300 max-w-xs">
@@ -2202,7 +2340,7 @@ export default function InfoConfig() {
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-border">
               <button
                 onClick={() => setIsConcentrationInfoModalOpen(false)}
-                className="w-full px-4 py-2 bg-gray-600 text-primary-foreground rounded-lg hover:bg-gray-700 transition-colors"
+                className="w-full px-4 py-2 bg-gray-600 text-foreground rounded-lg hover:bg-gray-700 transition-colors"
               >
                 Close
               </button>

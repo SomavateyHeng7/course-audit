@@ -1,0 +1,281 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { z } from 'zod';
+
+// Validation schema for creating concentrations
+const createConcentrationSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(255, 'Name too long'),
+  description: z.string().optional().transform(val => val || undefined),
+  courses: z.array(z.object({
+    code: z.string().min(1, 'Course code is required'),
+    name: z.string().min(1, 'Course name is required'),
+    credits: z.number().min(0, 'Credits must be non-negative'),
+    creditHours: z.number().min(0, 'Credit hours must be non-negative').optional(),
+    description: z.string().optional().transform(val => val || undefined),
+    category: z.string().optional().transform(val => val || undefined),
+  })).optional().default([]),
+});
+
+// GET /api/concentrations - List concentrations for the user's department
+export async function GET(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
+
+    if (session.user.role !== 'CHAIRPERSON') {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Chairperson access required' } },
+        { status: 403 }
+      );
+    }
+
+    // Get user's faculty and department
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        faculty: {
+          include: {
+            departments: true
+          }
+        }
+      }
+    });
+
+    if (!user?.faculty || !user.faculty.departments.length) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'User faculty or department not found' } },
+        { status: 404 }
+      );
+    }
+
+    // Use the first department of the faculty
+    const department = user.faculty.departments[0];
+
+    // Get concentrations for the department, but only show ones created by this user
+    const concentrations = await prisma.concentration.findMany({
+      where: {
+        departmentId: department.id,
+        createdById: session.user.id
+      },
+      include: {
+        courses: {
+          include: {
+            course: true
+          }
+        },
+        _count: {
+          select: {
+            courses: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Transform data for frontend
+    const transformedConcentrations = concentrations.map(concentration => ({
+      id: concentration.id,
+      name: concentration.name,
+      description: concentration.description,
+      departmentId: concentration.departmentId,
+      courseCount: concentration._count.courses,
+      courses: concentration.courses.map(cc => ({
+        id: cc.course.id,
+        code: cc.course.code,
+        name: cc.course.name,
+        credits: cc.course.credits,
+        creditHours: cc.course.creditHours,
+        category: cc.course.category,
+        description: cc.course.description,
+      })),
+      createdAt: concentration.createdAt,
+      updatedAt: concentration.updatedAt,
+    }));
+
+    return NextResponse.json(transformedConcentrations);
+  } catch (error) {
+    console.error('Error fetching concentrations:', error);
+    return NextResponse.json(
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch concentrations' } },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/concentrations - Create new concentration
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth();
+    
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
+
+    if (session.user.role !== 'CHAIRPERSON') {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Chairperson access required' } },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const validatedData = createConcentrationSchema.parse(body);
+
+    // Get user's faculty and department
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        faculty: {
+          include: {
+            departments: true
+          }
+        }
+      }
+    });
+
+    if (!user?.faculty || !user.faculty.departments.length) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'User faculty or department not found' } },
+        { status: 404 }
+      );
+    }
+
+    // Use the first department of the faculty
+    const department = user.faculty.departments[0];
+
+    // Check if concentration with same name already exists for this user in this department
+    const existingConcentration = await prisma.concentration.findFirst({
+      where: {
+        name: validatedData.name.trim(),
+        departmentId: department.id,
+        createdById: session.user.id
+      }
+    });
+
+    if (existingConcentration) {
+      return NextResponse.json(
+        { error: { code: 'CONFLICT', message: 'A concentration with this name already exists' } },
+        { status: 409 }
+      );
+    }
+
+    // Use transaction to ensure consistency
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the concentration
+      const concentration = await tx.concentration.create({
+        data: {
+          name: validatedData.name,
+          description: validatedData.description,
+          department: {
+            connect: { id: department.id }
+          },
+          createdBy: {
+            connect: { id: session.user.id }
+          }
+        }
+      });
+
+      // Process courses if provided
+      if (validatedData.courses && validatedData.courses.length > 0) {
+        const courseIds: string[] = [];
+
+        for (const courseData of validatedData.courses) {
+          // Check if course exists by code
+          let course = await tx.course.findUnique({
+            where: { code: courseData.code }
+          });
+
+          // Create course if it doesn't exist
+          if (!course) {
+            course = await tx.course.create({
+              data: {
+                code: courseData.code,
+                name: courseData.name,
+                credits: courseData.credits,
+                creditHours: courseData.creditHours?.toString() || courseData.credits.toString(),
+                description: courseData.description,
+                category: courseData.category || 'Elective',
+              }
+            });
+          }
+
+          courseIds.push(course.id);
+        }
+
+        // Create concentration-course relationships
+        await tx.concentrationCourse.createMany({
+          data: courseIds.map(courseId => ({
+            concentrationId: concentration.id,
+            courseId: courseId,
+          }))
+        });
+      }
+
+      return concentration;
+    });
+
+    // Fetch the complete concentration with courses
+    const fullConcentration = await prisma.concentration.findUnique({
+      where: { id: result.id },
+      include: {
+        courses: {
+          include: {
+            course: true
+          }
+        },
+        _count: {
+          select: {
+            courses: true
+          }
+        }
+      }
+    });
+
+    // Transform for response
+    const response = {
+      id: fullConcentration!.id,
+      name: fullConcentration!.name,
+      description: fullConcentration!.description,
+      departmentId: fullConcentration!.departmentId,
+      courseCount: fullConcentration!._count.courses,
+      courses: fullConcentration!.courses.map(cc => ({
+        id: cc.course.id,
+        code: cc.course.code,
+        name: cc.course.name,
+        credits: cc.course.credits,
+        creditHours: cc.course.creditHours,
+        category: cc.course.category,
+        description: cc.course.description,
+      })),
+      createdAt: fullConcentration!.createdAt,
+      updatedAt: fullConcentration!.updatedAt,
+    };
+
+    return NextResponse.json(response, { status: 201 });
+  } catch (error) {
+    console.error('Error creating concentration:', error instanceof Error ? error.message : String(error));
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input', details: error.errors } },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to create concentration' } },
+      { status: 500 }
+    );
+  }
+}

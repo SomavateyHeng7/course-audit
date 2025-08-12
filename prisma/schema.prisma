@@ -42,6 +42,7 @@ model Faculty {
   id        String   @id @default(cuid())
   name      String
   code      String   @unique
+  concentrationLabel String @default("Concentrations")
   users     User[]
   departments Department[]
   curricula   Curriculum[]
@@ -56,6 +57,7 @@ enum Role {
   STUDENT
   ADVISOR
   CHAIRPERSON
+  ADMIN
 }
 
 model Department {

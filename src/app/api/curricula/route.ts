@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching curricula:', error);
+    console.error('Error fetching curricula:', error || 'Unknown error');
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch curricula' } },
       { status: 500 }
