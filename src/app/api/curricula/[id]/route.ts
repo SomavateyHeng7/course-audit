@@ -106,6 +106,41 @@ export async function GET(
       );
     }
 
+    // Get course type assignments for courses in this curriculum
+    const courseIds = curriculum.curriculumCourses.map(cc => cc.course.id);
+    
+    const courseTypeAssignments = await prisma.departmentCourseType.findMany({
+      where: {
+        courseId: { in: courseIds },
+        departmentId: curriculum.departmentId
+      },
+      include: {
+        courseType: true
+      }
+    });
+
+    // Create a map of courseId -> courseType for easy lookup
+    const courseTypeMap = new Map();
+    courseTypeAssignments.forEach(assignment => {
+      courseTypeMap.set(assignment.courseId, {
+        id: assignment.courseType.id,
+        name: assignment.courseType.name,
+        color: assignment.courseType.color
+      });
+    });
+
+    // Enhance curriculum courses with course type information
+    const enhancedCurriculum = {
+      ...curriculum,
+      curriculumCourses: curriculum.curriculumCourses.map(cc => ({
+        ...cc,
+        course: {
+          ...cc.course,
+          courseType: courseTypeMap.get(cc.course.id) || null
+        }
+      }))
+    };
+
     // Log audit event
     await prisma.auditLog.create({
       data: {
@@ -118,7 +153,7 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({ curriculum });
+    return NextResponse.json({ curriculum: enhancedCurriculum });
 
   } catch (error) {
     console.error('Error fetching curriculum:', error);

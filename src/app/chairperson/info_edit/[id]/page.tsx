@@ -55,6 +55,10 @@ export default function EditCurriculum() {
     isRequired: true
   });
   
+  // Course Types State
+  const [courseTypes, setCourseTypes] = useState<any[]>([]);
+  const [isLoadingCourseTypes, setIsLoadingCourseTypes] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch curriculum data
@@ -97,6 +101,28 @@ export default function EditCurriculum() {
     loadConcentrationTitle();
   }, []);
 
+  // Load course types when curriculum is available
+  useEffect(() => {
+    const fetchCourseTypes = async () => {
+      if (!curriculum?.departmentId) return;
+      
+      setIsLoadingCourseTypes(true);
+      try {
+        const response = await fetch(`/api/course-types?departmentId=${curriculum.departmentId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setCourseTypes(data.courseTypes || []);
+        }
+      } catch (error) {
+        console.error('Error fetching course types:', error);
+      } finally {
+        setIsLoadingCourseTypes(false);
+      }
+    };
+
+    fetchCourseTypes();
+  }, [curriculum?.departmentId]);
+
   // Process curriculum data for display
   const summary = curriculum ? {
     totalCredits: curriculum.curriculumCourses?.reduce((total: number, cc: any) => total + cc.course.credits, 0) || 0,
@@ -112,6 +138,7 @@ export default function EditCurriculum() {
     creditHours: cc.course.creditHours || '3-0-6',
     type: cc.course.category || '',
     description: cc.course.description || '',
+    courseType: cc.course.courseType || null, // Add course type information
     year: cc.year,
     semester: cc.semester,
     isRequired: cc.isRequired,
@@ -175,7 +202,11 @@ export default function EditCurriculum() {
 
   const handleEditCourse = (course: any) => {
     // Create a copy of the course to avoid mutating the original
-    setEditingCourse({...course});
+    setEditingCourse({
+      ...course,
+      // Set the course type ID if available
+      selectedCourseTypeId: course.courseType?.id || ''
+    });
     setIsEditModalOpen(true);
   };
 
@@ -214,7 +245,8 @@ export default function EditCurriculum() {
     if (!editingCourse) return;
 
     try {
-      const response = await fetch(`/api/courses/${editingCourse.id}`, {
+      // First, update the course basic information
+      const courseResponse = await fetch(`/api/courses/${editingCourse.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -223,20 +255,40 @@ export default function EditCurriculum() {
           name: editingCourse.title,
           credits: editingCourse.credits,
           creditHours: editingCourse.creditHours,
-          category: editingCourse.type,
           description: editingCourse.description,
         }),
       });
 
-      const data = await response.json();
+      if (!courseResponse.ok) {
+        const errorData = await courseResponse.json();
+        throw new Error(errorData.error?.message || 'Failed to update course');
+      }
 
-      if (!response.ok) {
-        throw new Error(data.error?.message || 'Failed to update course');
+      // Then, handle course type assignment if a course type is selected
+      if (editingCourse.selectedCourseTypeId && curriculum?.departmentId) {
+        const assignResponse = await fetch('/api/course-types/assign', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            courseIds: [editingCourse.id],
+            courseTypeId: editingCourse.selectedCourseTypeId,
+            departmentId: curriculum.departmentId
+          }),
+        });
+
+        if (!assignResponse.ok) {
+          console.error('Failed to assign course type, but course was updated');
+        }
       }
 
       // Update the curriculum state with the new course data
       setCurriculum((prev: any) => {
         if (!prev) return prev;
+        
+        // Find the selected course type for display
+        const selectedCourseType = courseTypes.find(ct => ct.id === editingCourse.selectedCourseTypeId);
         
         return {
           ...prev,
@@ -247,10 +299,11 @@ export default function EditCurriculum() {
                   course: {
                     ...cc.course,
                     name: editingCourse.title,
+                    title: editingCourse.title,
                     credits: editingCourse.credits,
                     creditHours: editingCourse.creditHours,
-                    category: editingCourse.type,
                     description: editingCourse.description,
+                    courseType: selectedCourseType || null
                   }
                 }
               : cc
@@ -589,6 +642,20 @@ export default function EditCurriculum() {
               onEditCourse={handleEditCourse}
               onDeleteCourse={handleDeleteCourse}
               onAddCourse={handleAddCourse}
+              curriculumId={curriculumId}
+              departmentId={curriculum?.departmentId}
+              onRefreshCurriculum={async () => {
+                // Refetch curriculum data
+                try {
+                  const response = await fetch(`/api/curricula/${curriculumId}`);
+                  if (response.ok) {
+                    const data = await response.json();
+                    setCurriculum(data.curriculum);
+                  }
+                } catch (error) {
+                  console.error('Error refreshing curriculum:', error);
+                }
+              }}
             />
           )}          {activeTab === "Constraints" && (
             <ConstraintsTab courses={allCourses} curriculumId={curriculumId} />
@@ -725,18 +792,21 @@ export default function EditCurriculum() {
                 <div>
                   <label className="block text-sm font-semibold mb-2 text-foreground">Course Type</label>
                   <select
-                    value={editingCourse.type}
-                    onChange={(e) => setEditingCourse({...editingCourse, type: e.target.value})}
+                    value={editingCourse.selectedCourseTypeId || ''}
+                    onChange={(e) => setEditingCourse({...editingCourse, selectedCourseTypeId: e.target.value})}
                     className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
+                    disabled={isLoadingCourseTypes}
                   >
                     <option value="">Select Course Type</option>
-                    <option value="Core">Core Course</option>
-                    <option value="Major">Major Course</option>
-                    <option value="Major Elective">Major Elective</option>
-                    <option value="General Education">General Education</option>
-                    <option value="Free Elective">Free Elective</option>
+                    {courseTypes.map((courseType) => (
+                      <option key={courseType.id} value={courseType.id}>
+                        {courseType.name}
+                      </option>
+                    ))}
                   </select>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Choose the appropriate course type for curriculum requirements</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {isLoadingCourseTypes ? 'Loading course types...' : 'Choose the appropriate course type for curriculum requirements'}
+                  </p>
                 </div>
                 
                 <div>
