@@ -111,16 +111,31 @@ export async function GET(request: NextRequest) {
       prisma.curriculum.count({ where }),
     ]);
 
-    // Log audit event
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user.id,
-        entityType: 'Curriculum',
-        entityId: 'LIST',
-        action: 'CREATE', // Using CREATE for list access
-        description: `Listed curricula with search: "${search}"`,
-      },
-    });
+    // Log audit event - with safety check for user existence
+    try {
+      if (session?.user?.id) {
+        // Verify user exists before creating audit log
+        const userExists = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { id: true }
+        });
+        
+        if (userExists) {
+          await prisma.auditLog.create({
+            data: {
+              userId: session.user.id,
+              entityType: 'Curriculum',
+              entityId: 'LIST',
+              action: 'CREATE', // Using CREATE for list access
+              description: `Listed curricula with search: "${search}"`,
+            },
+          });
+        }
+      }
+    } catch (auditError) {
+      // Don't fail the main request if audit logging fails
+      console.warn('Audit logging failed:', auditError instanceof Error ? auditError.message : String(auditError));
+    }
 
     return NextResponse.json({
       curricula,
@@ -133,7 +148,16 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching curricula:', error || 'Unknown error');
+    // Fix console.error TypeError by ensuring error is properly formatted
+    const errorMessage = error instanceof Error ? error.message : String(error || 'Unknown error');
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('Error fetching curricula:', {
+      message: errorMessage,
+      stack: errorStack,
+      type: typeof error
+    });
+    
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch curricula' } },
       { status: 500 }
@@ -243,7 +267,6 @@ export async function POST(request: NextRequest) {
                 credits: courseInfo.credits,
                 creditHours: courseInfo.creditHours,
                 description: courseInfo.description,
-                category: courseInfo.category,
                 requiresPermission: courseInfo.requiresPermission,
                 summerOnly: courseInfo.summerOnly,
                 requiresSeniorStanding: courseInfo.requiresSeniorStanding,
@@ -260,7 +283,6 @@ export async function POST(request: NextRequest) {
                 credits: courseInfo.credits,
                 creditHours: courseInfo.creditHours,
                 description: courseInfo.description,
-                category: courseInfo.category,
                 requiresPermission: courseInfo.requiresPermission || false,
                 summerOnly: courseInfo.summerOnly || false,
                 requiresSeniorStanding: courseInfo.requiresSeniorStanding || false,
@@ -379,22 +401,32 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 6. Create audit log
-      await tx.auditLog.create({
-        data: {
-          userId: session.user.id,
-          entityType: 'Curriculum',
-          entityId: curriculum.id,
-          action: 'CREATE',
-          description: `Created curriculum "${curriculum.name}" for year ${curriculum.year}`,
-          curriculumId: curriculum.id,
-          changes: {
-            courseCount: courseData.length,
-            constraintCount: constraints.length,
-            electiveRuleCount: electiveRules.length,
-          },
-        },
-      });
+      // 6. Create audit log - with safety check
+      if (session?.user?.id) {
+        // Verify user exists before creating audit log
+        const userExists = await tx.user.findUnique({
+          where: { id: session.user.id },
+          select: { id: true }
+        });
+        
+        if (userExists) {
+          await tx.auditLog.create({
+            data: {
+              userId: session.user.id,
+              entityType: 'Curriculum',
+              entityId: curriculum.id,
+              action: 'CREATE',
+              description: `Created curriculum "${curriculum.name}" for year ${curriculum.year}`,
+              curriculumId: curriculum.id,
+              changes: {
+                courseCount: courseData.length,
+                constraintCount: constraints.length,
+                electiveRuleCount: electiveRules.length,
+              },
+            },
+          });
+        }
+      }
 
       return {
         curriculum: {

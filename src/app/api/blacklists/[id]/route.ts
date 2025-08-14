@@ -64,7 +64,6 @@ export async function GET(
                 code: true,
                 name: true,
                 credits: true,
-                category: true,
                 description: true
               }
             }
@@ -317,7 +316,6 @@ export async function PUT(
                 code: true,
                 name: true,
                 credits: true,
-                category: true,
                 description: true
               }
             }

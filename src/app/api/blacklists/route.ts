@@ -58,7 +58,6 @@ export async function GET(request: NextRequest) {
                 code: true,
                 name: true,
                 credits: true,
-                category: true,
                 description: true
               }
             }
@@ -253,7 +252,6 @@ export async function POST(request: NextRequest) {
                 code: true,
                 name: true,
                 credits: true,
-                category: true,
                 description: true
               }
             }

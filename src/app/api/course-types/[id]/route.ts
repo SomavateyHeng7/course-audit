@@ -3,18 +3,19 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
-// Validation schema for updating concentrations
-const updateConcentrationSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(255, 'Name too long'),
-  description: z.string().optional(),
+// Validation schema for updating course types
+const updateCourseTypeSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(50, 'Name too long'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be a valid hex color'),
 });
 
-// GET /api/concentrations/[id] - Get specific concentration
+// GET /api/course-types/[id] - Get specific course type
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -49,71 +50,49 @@ export async function GET(
       );
     }
 
-    // Use the first department of the faculty
     const department = user.faculty.departments[0];
 
-    const concentration = await prisma.concentration.findFirst({
+    // Find the course type
+    const courseType = await prisma.courseType.findFirst({
       where: {
         id: params.id,
-        departmentId: department.id,
-        createdById: session.user.id // Ensure user can only access their own concentrations
-      },
-      include: {
-        courses: {
-          include: {
-            course: true
-          }
-        },
-        _count: {
-          select: {
-            courses: true
-          }
-        }
+        departmentId: department.id
       }
     });
 
-    if (!concentration) {
+    if (!courseType) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Concentration not found' } },
+        { error: { code: 'NOT_FOUND', message: 'Course type not found' } },
         { status: 404 }
       );
     }
 
-    // Transform for response
     const response = {
-      id: concentration.id,
-      name: concentration.name,
-      description: concentration.description,
-      departmentId: concentration.departmentId,
-      courseCount: concentration._count.courses,
-      courses: concentration.courses.map(cc => ({
-        id: cc.course.id,
-        code: cc.course.code,
-        name: cc.course.name,
-        credits: cc.course.credits,
-        creditHours: cc.course.creditHours,
-        description: cc.course.description,
-      })),
-      createdAt: concentration.createdAt,
-      updatedAt: concentration.updatedAt,
+      id: courseType.id,
+      name: courseType.name,
+      color: courseType.color,
+      departmentId: courseType.departmentId,
+      createdAt: courseType.createdAt.toISOString(),
+      updatedAt: courseType.updatedAt.toISOString(),
     };
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Error fetching concentration:', error);
+    console.error('Error fetching course type:', error);
     return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch concentration' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch course type' } },
       { status: 500 }
     );
   }
 }
 
-// PUT /api/concentrations/[id] - Update concentration
+// PUT /api/course-types/[id] - Update course type
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -148,73 +127,69 @@ export async function PUT(
       );
     }
 
-    // Use the first department of the faculty
     const department = user.faculty.departments[0];
 
+    // Parse and validate request body
     const body = await request.json();
-    const validatedData = updateConcentrationSchema.parse(body);
+    const validatedData = updateCourseTypeSchema.parse(body);
 
-    // Check if concentration exists and belongs to user
-    const existingConcentration = await prisma.concentration.findFirst({
+    // Check if course type exists and belongs to user's department
+    const existingCourseType = await prisma.courseType.findFirst({
       where: {
         id: params.id,
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: department.id
       }
     });
 
-    if (!existingConcentration) {
+    if (!existingCourseType) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Concentration not found' } },
+        { error: { code: 'NOT_FOUND', message: 'Course type not found' } },
         { status: 404 }
       );
     }
 
-    // Update the concentration
-    const updatedConcentration = await prisma.concentration.update({
+    // Check if the new name conflicts with another course type
+    if (validatedData.name !== existingCourseType.name) {
+      const nameConflict = await prisma.courseType.findFirst({
+        where: {
+          name: validatedData.name,
+          departmentId: department.id,
+          NOT: {
+            id: params.id
+          }
+        }
+      });
+
+      if (nameConflict) {
+        return NextResponse.json(
+          { error: { code: 'DUPLICATE', message: 'Course type name already exists' } },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Update the course type
+    const updatedCourseType = await prisma.courseType.update({
       where: { id: params.id },
       data: {
         name: validatedData.name,
-        description: validatedData.description,
-      },
-      include: {
-        courses: {
-          include: {
-            course: true
-          }
-        },
-        _count: {
-          select: {
-            courses: true
-          }
-        }
+        color: validatedData.color
       }
     });
 
-    // Transform for response
     const response = {
-      id: updatedConcentration.id,
-      name: updatedConcentration.name,
-      description: updatedConcentration.description,
-      departmentId: updatedConcentration.departmentId,
-      courseCount: updatedConcentration._count.courses,
-      courses: updatedConcentration.courses.map(cc => ({
-        id: cc.course.id,
-        code: cc.course.code,
-        name: cc.course.name,
-        credits: cc.course.credits,
-        creditHours: cc.course.creditHours,
-        // category: cc.course.category,
-        description: cc.course.description,
-      })),
-      createdAt: updatedConcentration.createdAt,
-      updatedAt: updatedConcentration.updatedAt,
+      id: updatedCourseType.id,
+      name: updatedCourseType.name,
+      color: updatedCourseType.color,
+      departmentId: updatedCourseType.departmentId,
+      createdAt: updatedCourseType.createdAt.toISOString(),
+      updatedAt: updatedCourseType.updatedAt.toISOString(),
     };
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Error updating concentration:', error);
-    
+    console.error('Error updating course type:', error);
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: { code: 'VALIDATION_ERROR', message: 'Invalid input', details: error.errors } },
@@ -223,18 +198,19 @@ export async function PUT(
     }
 
     return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: 'Failed to update concentration' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to update course type' } },
       { status: 500 }
     );
   }
 }
 
-// DELETE /api/concentrations/[id] - Delete concentration
+// DELETE /api/course-types/[id] - Delete course type
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -269,37 +245,49 @@ export async function DELETE(
       );
     }
 
-    // Use the first department of the faculty
     const department = user.faculty.departments[0];
 
-    // Check if concentration exists and belongs to user
-    const existingConcentration = await prisma.concentration.findFirst({
+    // Check if course type exists and belongs to user's department
+    const existingCourseType = await prisma.courseType.findFirst({
       where: {
         id: params.id,
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: department.id
       }
     });
 
-    if (!existingConcentration) {
+    if (!existingCourseType) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Concentration not found' } },
+        { error: { code: 'NOT_FOUND', message: 'Course type not found' } },
         { status: 404 }
       );
     }
 
-    // Delete the concentration (CASCADE will handle related records)
-    await prisma.concentration.delete({
+    // Check if course type is in use by any course assignments
+    const assignmentsUsingType = await prisma.departmentCourseType.findFirst({
+      where: {
+        courseTypeId: params.id
+      }
+    });
+
+    if (assignmentsUsingType) {
+      return NextResponse.json(
+        { error: { code: 'CONFLICT', message: 'Cannot delete course type that is currently assigned to courses' } },
+        { status: 409 }
+      );
+    }
+
+    // Delete the course type
+    await prisma.courseType.delete({
       where: { id: params.id }
     });
 
     return NextResponse.json({
-      message: 'Concentration deleted successfully'
+      message: 'Course type deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting concentration:', error);
+    console.error('Error deleting course type:', error);
     return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: 'Failed to delete concentration' } },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to delete course type' } },
       { status: 500 }
     );
   }

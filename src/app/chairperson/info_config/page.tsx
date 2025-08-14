@@ -5,6 +5,7 @@ import { FaEye, FaUpload, FaFileExcel, FaEdit, FaTrash, FaPlus, FaInfoCircle } f
 import { blacklistApi, type BlacklistData, type BlacklistCourse } from '@/services/blacklistApi';
 import { concentrationApi, type ConcentrationData, type ConcentrationCourse } from '@/services/concentrationApi';
 import { facultyLabelApi } from '@/services/facultyLabelApi';
+import { courseTypesApi, type CourseTypeData } from '@/services/courseTypesApi';
 
 interface Course {
   code: string;
@@ -20,6 +21,8 @@ interface CourseType {
   name: string;
   color: string;
 }
+
+// Use CourseTypeData from API instead of local CourseType interface
 
 // Use ConcentrationData from API instead of local Concentration interface
 
@@ -64,10 +67,10 @@ const mockBlacklists: Blacklist[] = [
 
 export default function InfoConfig() {
   // Course type management states
-  const [courseTypes, setCourseTypes] = useState<CourseType[]>(defaultCourseTypes);
+  const [courseTypes, setCourseTypes] = useState<CourseTypeData[]>([]);
   const [isAddTypeModalOpen, setIsAddTypeModalOpen] = useState(false);
   const [isEditTypeModalOpen, setIsEditTypeModalOpen] = useState(false);
-  const [editingType, setEditingType] = useState<CourseType | null>(null);
+  const [editingType, setEditingType] = useState<CourseTypeData | null>(null);
   const [newType, setNewType] = useState({ name: '', color: '#6366f1' });
   
   // Concentration management states
@@ -115,6 +118,11 @@ export default function InfoConfig() {
     loadConcentrationTitle();
   }, []);
 
+  // Load course types on component mount
+  useEffect(() => {
+    loadCourseTypes();
+  }, []);
+
   const loadBlacklists = async () => {
     try {
       setLoading(true);
@@ -150,6 +158,43 @@ export default function InfoConfig() {
     } catch (err) {
       console.error('Error loading concentration title:', err);
       // Keep default title if loading fails
+    }
+  };
+
+  const loadCourseTypes = async () => {
+    try {
+      const response = await courseTypesApi.getAllCourseTypes();
+      setCourseTypes(response.courseTypes || []);
+      
+      // If no course types exist in database, create defaults
+      if (!response.courseTypes || response.courseTypes.length === 0) {
+        await createDefaultCourseTypes();
+      }
+    } catch (err) {
+      console.error('Error loading course types:', err);
+      // Fallback to defaults if API fails
+      setCourseTypes(defaultCourseTypes.map(type => ({
+        ...type,
+        departmentId: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })));
+    }
+  };
+
+  const createDefaultCourseTypes = async () => {
+    try {
+      const createdTypes: CourseTypeData[] = [];
+      for (const defaultType of defaultCourseTypes) {
+        const newType = await courseTypesApi.createCourseType({
+          name: defaultType.name,
+          color: defaultType.color
+        });
+        createdTypes.push(newType);
+      }
+      setCourseTypes(createdTypes);
+    } catch (err) {
+      console.error('Error creating default course types:', err);
     }
   };
 
@@ -409,40 +454,70 @@ export default function InfoConfig() {
     setIsAddTypeModalOpen(true);
   };
 
-  const handleEditType = (type: CourseType) => {
+  const handleEditType = (type: CourseTypeData) => {
     setEditingType(type);
     setNewType({ name: type.name, color: type.color });
     setIsEditTypeModalOpen(true);
   };
 
-  const handleDeleteType = (typeId: string) => {
-    // TODO: Backend integration - Check if type is in use before deletion
-    setCourseTypes(courseTypes.filter(type => type.id !== typeId));
+  const handleDeleteType = async (typeId: string) => {
+    try {
+      await courseTypesApi.deleteCourseType(typeId);
+      setCourseTypes(courseTypes.filter(type => type.id !== typeId));
+    } catch (error) {
+      console.error('Error deleting course type:', error);
+      alert('Failed to delete course type. Please try again.');
+    }
   };
 
-  const handleSaveNewType = () => {
-    // TODO: Backend integration - Save new course type
-    const newTypeObj: CourseType = {
-      id: Date.now().toString(),
-      name: newType.name,
-      color: newType.color
-    };
-    setCourseTypes([...courseTypes, newTypeObj]);
-    setIsAddTypeModalOpen(false);
-    setNewType({ name: '', color: '#6366f1' });
-  };
+  const handleSaveNewType = async () => {
+    try {
+      // Validate input
+      const errors = courseTypesApi.validateCourseType(newType.name, newType.color);
+      if (errors.length > 0) {
+        alert(errors.join('\n'));
+        return;
+      }
 
-  const handleSaveEditType = () => {
-    if (editingType) {
-      // TODO: Backend integration - Update course type
-      setCourseTypes(courseTypes.map(type => 
-        type.id === editingType.id 
-          ? { ...type, name: newType.name, color: newType.color }
-          : type
-      ));
-      setIsEditTypeModalOpen(false);
-      setEditingType(null);
+      const newTypeData = await courseTypesApi.createCourseType({
+        name: newType.name.trim(),
+        color: newType.color
+      });
+
+      setCourseTypes([...courseTypes, newTypeData]);
+      setIsAddTypeModalOpen(false);
       setNewType({ name: '', color: '#6366f1' });
+    } catch (error) {
+      console.error('Error creating course type:', error);
+      alert('Failed to create course type. Please try again.');
+    }
+  };
+
+  const handleSaveEditType = async () => {
+    if (editingType) {
+      try {
+        // Validate input
+        const errors = courseTypesApi.validateCourseType(newType.name, newType.color);
+        if (errors.length > 0) {
+          alert(errors.join('\n'));
+          return;
+        }
+
+        const updatedType = await courseTypesApi.updateCourseType(editingType.id, {
+          name: newType.name.trim(),
+          color: newType.color
+        });
+
+        setCourseTypes(courseTypes.map(type => 
+          type.id === editingType.id ? updatedType : type
+        ));
+        setIsEditTypeModalOpen(false);
+        setEditingType(null);
+        setNewType({ name: '', color: '#6366f1' });
+      } catch (error) {
+        console.error('Error updating course type:', error);
+        alert('Failed to update course type. Please try again.');
+      }
     }
   };
 

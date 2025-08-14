@@ -54,6 +54,6 @@
     "typescript": "^5"
   },
   "prisma": {
-    "seed": "node prisma/seed.js"
+    "seed": "tsx prisma/foundation_seed.ts"
   }
 }

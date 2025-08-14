@@ -112,7 +112,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, credits, creditHours, category, description } = body;
+    const { name, credits, creditHours, description } = body;
 
     // Validate required fields
     if (!name?.trim()) {
@@ -151,7 +151,6 @@ export async function PUT(
         name: name.trim(),
         credits,
         creditHours: creditHours?.trim() || null,
-        category: category?.trim() || null,
         description: description?.trim() || null,
         updatedAt: new Date()
       }

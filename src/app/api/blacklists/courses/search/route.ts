@@ -73,7 +73,6 @@ export async function GET(request: NextRequest) {
             code: true,
             name: true,
             credits: true,
-            category: true,
             description: true
           }
         }

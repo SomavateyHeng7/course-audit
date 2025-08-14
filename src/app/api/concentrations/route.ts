@@ -6,14 +6,14 @@ import { z } from 'zod';
 // Validation schema for creating concentrations
 const createConcentrationSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255, 'Name too long'),
-  description: z.string().optional().transform(val => val || undefined),
+  description: z.string().optional(),
   courses: z.array(z.object({
     code: z.string().min(1, 'Course code is required'),
     name: z.string().min(1, 'Course name is required'),
     credits: z.number().min(0, 'Credits must be non-negative'),
     creditHours: z.number().min(0, 'Credit hours must be non-negative').optional(),
-    description: z.string().optional().transform(val => val || undefined),
-    category: z.string().optional().transform(val => val || undefined),
+    description: z.string().optional(),
+    category: z.string().optional(),
   })).optional().default([]),
 });
 
@@ -93,7 +93,6 @@ export async function GET(request: NextRequest) {
         name: cc.course.name,
         credits: cc.course.credits,
         creditHours: cc.course.creditHours,
-        category: cc.course.category,
         description: cc.course.description,
       })),
       createdAt: concentration.createdAt,
@@ -205,7 +204,7 @@ export async function POST(request: NextRequest) {
                 credits: courseData.credits,
                 creditHours: courseData.creditHours?.toString() || courseData.credits.toString(),
                 description: courseData.description,
-                category: courseData.category || 'Elective',
+                // category: courseData.category || 'Elective',
               }
             });
           }
@@ -255,7 +254,7 @@ export async function POST(request: NextRequest) {
         name: cc.course.name,
         credits: cc.course.credits,
         creditHours: cc.course.creditHours,
-        category: cc.course.category,
+        // category: cc.course.category,
         description: cc.course.description,
       })),
       createdAt: fullConcentration!.createdAt,
@@ -264,7 +263,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
-    console.error('Error creating concentration:', error instanceof Error ? error.message : String(error));
+    console.error('Error creating concentration:', error);
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(

@@ -7,7 +7,6 @@ interface CourseCreateData {
   name: string;
   credits: number;
   creditHours?: string;
-  category: string;
   description?: string;
   isActive: boolean;
   isBlacklistCourse?: boolean;
@@ -122,7 +121,6 @@ export async function POST(request: NextRequest) {
               name: courseData.name.trim(),
               credits: courseData.credits,
               creditHours: creditHours,
-              category: courseData.category || 'General',
               description: courseData.description?.trim() || null,
               isActive: courseData.isActive !== false, // Default to true
             }
@@ -141,7 +139,6 @@ export async function POST(request: NextRequest) {
               code: course.code,
               name: course.name,
               credits: course.credits,
-              category: course.category,
               isBlacklistCourse: courseData.isBlacklistCourse || false
             },
             description: `Created course ${course.code} via bulk creation${courseData.isBlacklistCourse ? ' (for blacklist)' : ''}`
@@ -181,7 +178,6 @@ export async function POST(request: NextRequest) {
         code: course.code,
         name: course.name,
         credits: course.credits,
-        category: course.category,
         description: course.description,
         isActive: course.isActive,
         createdAt: course.createdAt

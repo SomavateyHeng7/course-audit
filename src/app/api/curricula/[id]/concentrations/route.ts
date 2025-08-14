@@ -47,7 +47,6 @@ export async function GET(
           name: c.course.name,
           credits: c.course.credits,
           creditHours: c.course.creditHours,
-          category: c.course.category,
           description: c.course.description
         })),
         createdAt: cc.concentration.createdAt.toISOString().split('T')[0]
@@ -56,7 +55,16 @@ export async function GET(
 
     return NextResponse.json({ concentrations });
   } catch (error) {
-    console.error('Error fetching curriculum concentrations:', error);
+    // Fix console.error TypeError by ensuring error is properly formatted
+    const errorMessage = error instanceof Error ? error.message : String(error || 'Unknown error');
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('Error fetching curriculum concentrations:', {
+      message: errorMessage,
+      stack: errorStack,
+      type: typeof error
+    });
+    
     return NextResponse.json(
       { error: 'Failed to fetch curriculum concentrations' },
       { status: 500 }
@@ -153,7 +161,6 @@ export async function POST(
           name: c.course.name,
           credits: c.course.credits,
           creditHours: c.course.creditHours,
-          category: c.course.category,
           description: c.course.description
         })),
         createdAt: curriculumConcentration.concentration.createdAt.toISOString().split('T')[0]
@@ -162,7 +169,16 @@ export async function POST(
 
     return NextResponse.json({ curriculumConcentration: response }, { status: 201 });
   } catch (error) {
-    console.error('Error adding concentration to curriculum:', error);
+    // Fix console.error TypeError by ensuring error is properly formatted
+    const errorMessage = error instanceof Error ? error.message : String(error || 'Unknown error');
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('Error adding concentration to curriculum:', {
+      message: errorMessage,
+      stack: errorStack,
+      type: typeof error
+    });
+    
     return NextResponse.json(
       { error: 'Failed to add concentration to curriculum' },
       { status: 500 }

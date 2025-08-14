@@ -25,7 +25,6 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || '';
-    const category = searchParams.get('category') || '';
     const credits = searchParams.get('credits');
 
     // Build where clause for filtering
@@ -42,10 +41,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Filter by category
-    if (category) {
-      where.category = { contains: category, mode: 'insensitive' };
-    }
+    // Filter by category - REMOVED (category field no longer exists)
 
     // Filter by credits
     if (credits) {
@@ -93,10 +89,9 @@ export async function GET(request: NextRequest) {
         entityType: 'Course',
         entityId: 'SEARCH',
         action: 'CREATE', // Using CREATE for search access
-        description: `Searched courses with term: "${search}", category: "${category}"`,
+        description: `Searched courses with term: "${search}"`,
         changes: {
           searchTerm: search,
-          category,
           credits,
           resultCount: courses.length,
         },
@@ -148,7 +143,6 @@ export async function POST(request: NextRequest) {
       credits,
       creditHours,
       description,
-      category,
       requiresPermission = false,
       summerOnly = false,
       requiresSeniorStanding = false,
@@ -156,12 +150,12 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (!code || !name || credits === undefined || !creditHours || !category) {
+    if (!code || !name || credits === undefined || !creditHours) {
       return NextResponse.json(
         { 
           error: { 
             code: 'VALIDATION_ERROR', 
-            message: 'Missing required fields: code, name, credits, creditHours, category' 
+            message: 'Missing required fields: code, name, credits, creditHours' 
           } 
         },
         { status: 400 }
@@ -194,7 +188,6 @@ export async function POST(request: NextRequest) {
           credits,
           creditHours,
           description,
-          category,
           requiresPermission,
           summerOnly,
           requiresSeniorStanding,
@@ -233,7 +226,6 @@ export async function POST(request: NextRequest) {
               code: course.code,
               name: course.name,
               credits: course.credits,
-              category: course.category,
             },
           },
         },

@@ -84,7 +84,6 @@ export async function GET(
                 code: true,
                 name: true,
                 credits: true,
-                category: true,
                 description: true
               }
             }
@@ -117,7 +116,6 @@ export async function GET(
                     code: true,
                     name: true,
                     credits: true,
-                    category: true,
                     description: true
                   }
                 }
@@ -146,7 +144,6 @@ export async function GET(
         code: bc.course.code,
         name: bc.course.name,
         credits: bc.course.credits,
-        category: bc.course.category,
         description: bc.course.description
       })),
       courseCount: blacklist._count.courses,
@@ -167,7 +164,6 @@ export async function GET(
           code: bc.course.code,
           name: bc.course.name,
           credits: bc.course.credits,
-          category: bc.course.category,
           description: bc.course.description
         })),
         courseCount: cb.blacklist._count.courses,
@@ -317,7 +313,6 @@ export async function POST(
                       code: true,
                       name: true,
                       credits: true,
-                      category: true,
                       description: true
                     }
                   }
@@ -362,7 +357,6 @@ export async function POST(
             code: bc.course.code,
             name: bc.course.name,
             credits: bc.course.credits,
-            category: bc.course.category,
             description: bc.course.description
           })),
           courseCount: result.blacklist.courses.length

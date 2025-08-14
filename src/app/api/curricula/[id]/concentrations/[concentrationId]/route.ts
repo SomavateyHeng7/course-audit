@@ -72,7 +72,6 @@ export async function PUT(
           name: c.course.name,
           credits: c.course.credits,
           creditHours: c.course.creditHours,
-          category: c.course.category,
           description: c.course.description
         })),
         createdAt: curriculumConcentration.concentration.createdAt.toISOString().split('T')[0]
