@@ -71,6 +71,8 @@ model Curriculum {
   year                     String
   version                  String                    @default("1.0")
   description              String?
+  startId                  String                    // Student ID range start (e.g., "63001")
+  endId                    String                    // Student ID range end (e.g., "65999")
   isActive                 Boolean                   @default(true)
   departmentId             String
   facultyId                String
@@ -87,7 +89,7 @@ model Curriculum {
   curriculumCourses        CurriculumCourse[]
   electiveRules            ElectiveRule[]
 
-  @@unique([year, version, departmentId])
+  @@unique([year, startId, endId])
   @@map("curricula")
 }
 

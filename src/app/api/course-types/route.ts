@@ -46,13 +46,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Check if a specific departmentId is requested
+    const { searchParams } = new URL(request.url);
+    const requestedDepartmentId = searchParams.get('departmentId');
+    
+    let targetDepartment;
+    if (requestedDepartmentId) {
+      // Verify the requested department belongs to the user's faculty
+      targetDepartment = user.faculty.departments.find(dept => dept.id === requestedDepartmentId);
+      if (!targetDepartment) {
+        return NextResponse.json(
+          { error: { code: 'FORBIDDEN', message: 'Department not accessible' } },
+          { status: 403 }
+        );
+      }
+    } else {
+      // Use the first department of the faculty
+      targetDepartment = user.faculty.departments[0];
+    }
 
     // Get all course types for this department
     const courseTypes = await prisma.courseType.findMany({
       where: {
-        departmentId: department.id
+        departmentId: targetDepartment.id
       },
       orderBy: [
         { name: 'asc' }

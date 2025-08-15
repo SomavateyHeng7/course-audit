@@ -11,6 +11,8 @@ interface Curriculum {
   year: string;
   version: string;
   description?: string;
+  startId: string;
+  endId: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -228,7 +230,7 @@ const ChairpersonPage: React.FC = () => {
                         {curriculum.name}
                       </h3>
                       <div className="text-sm text-muted-foreground">
-                        {curriculum.year} • v{curriculum.version}
+                        {curriculum.year} • v{curriculum.version} • ID: {curriculum.startId}-{curriculum.endId}
                       </div>
                       {curriculum.description && (
                         <div className="text-sm text-muted-foreground mt-1 line-clamp-2">
