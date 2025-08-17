@@ -15,7 +15,11 @@ export async function GET() {
       },
       include: {
         department: true,
-        courses: true,
+        curriculumCourses: {
+          include: {
+            course: true
+          }
+        }
       },
       orderBy: {
         year: 'desc',
@@ -39,10 +43,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { year, departmentId, courses } = await req.json();
+    const { name, year, departmentId, startId, endId, courses } = await req.json();
 
     // Validate input
-    if (!year || !departmentId || !courses) {
+    if (!name || !year || !departmentId || !startId || !endId || !courses) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -64,22 +68,55 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check if curriculum with same year/startId/endId in the same department already exists
+    const existingCurriculum = await prisma.curriculum.findFirst({
+      where: {
+        year: year,
+        startId: startId,
+        endId: endId,
+        departmentId: departmentId,
+      },
+    });
+
+    if (existingCurriculum) {
+      return NextResponse.json(
+        { error: `Curriculum for year ${year} with ID range ${startId}-${endId} already exists in this department.` },
+        { status: 409 }
+      );
+    }
+
     // Create curriculum with courses
     const curriculum = await prisma.curriculum.create({
       data: {
-        year,
-        departmentId,
+        name: name,
+        year: year,
+        startId: startId,
+        endId: endId,
+        departmentId: departmentId,
         facultyId: session.user.faculty.id,
-        courses: {
-          create: courses.map((course: any) => ({
-            code: course.code,
-            name: course.name,
-            credits: course.credits,
+        createdById: session.user.id,
+        curriculumCourses: {
+          create: courses.map((course: any, index: number) => ({
+            course: {
+              create: {
+                code: course.code,
+                name: course.name,
+                credits: course.credits,
+                creditHours: `${course.credits}-0-${course.credits * 2}`,
+              }
+            },
+            year: course.year || 1,
+            semester: course.semester || 1,
+            position: index + 1
           })),
         },
       },
       include: {
-        courses: true,
+        curriculumCourses: {
+          include: {
+            course: true
+          }
+        }
       },
     });
 

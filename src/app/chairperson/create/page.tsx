@@ -16,6 +16,7 @@ export default function CreateCurriculum() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [curriculumName, setCurriculumName] = useState('');
+  const [year, setYear] = useState(new Date().getFullYear().toString());
   const [totalCredits, setTotalCredits] = useState('');
   const [idStart, setIdStart] = useState('');
   const [idEnd, setIdEnd] = useState('');
@@ -270,8 +271,8 @@ export default function CreateCurriculum() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!curriculumName || !totalCredits || !idStart || !idEnd) {
-      alert('Please fill in all required fields: curriculum name, total credits, ID start, and ID end');
+    if (!curriculumName || !year || !totalCredits || !idStart || !idEnd) {
+      alert('Please fill in all required fields: curriculum name, year, total credits, ID start, and ID end');
       return;
     }
     if (!uploadedFile || parsedCourses.length === 0) {
@@ -283,6 +284,7 @@ export default function CreateCurriculum() {
     sessionStorage.setItem('uploadedCourses', JSON.stringify(parsedCourses));
     sessionStorage.setItem('curriculumInfo', JSON.stringify({
       name: curriculumName,
+      year: year,
       totalCredits: totalCredits,
       idStart: idStart,
       idEnd: idEnd,
@@ -342,6 +344,19 @@ export default function CreateCurriculum() {
                   />
                 </div>
                 <div>
+                  <label className="block font-semibold mb-1 text-foreground">Academic Year</label>
+                  <input
+                    type="text"
+                    placeholder="Enter academic year (e.g., 2024, 2025)"
+                    value={year}
+                    onChange={(e) => setYear(e.target.value)}
+                    className="w-full border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    required
+                    pattern="[0-9]{4}"
+                    title="Please enter a 4-digit year"
+                  />
+                </div>
+                <div>
                   <label className="block font-semibold mb-1 text-foreground">Total Credits</label>
                   <input
                     type="number"
@@ -356,23 +371,29 @@ export default function CreateCurriculum() {
                   <label className="block font-semibold mb-1 text-foreground">ID - Start</label>
                   <input
                     type="text"
-                    placeholder="Enter starting ID (e.g., 63001)"
+                    placeholder="Enter starting ID (e.g., 63001, 64001, 65001)"
                     value={idStart}
                     onChange={(e) => setIdStart(e.target.value)}
                     className="w-full border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                     required
                   />
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Sample: 63xxx, 64xxx, 65xxx (first 2 digits = batch year)
+                  </div>
                 </div>
                 <div>
                   <label className="block font-semibold mb-1 text-foreground">ID - End</label>
                   <input
                     type="text"
-                    placeholder="Enter ending ID (e.g., 65999)"
+                    placeholder="Enter ending ID (e.g., 63999, 64999, 65999)"
                     value={idEnd}
                     onChange={(e) => setIdEnd(e.target.value)}
                     className="w-full border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                     required
                   />
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Sample: 63xxx, 64xxx, 65xxx (first 2 digits = batch year)
+                  </div>
                 </div>
                 <button
                   type="submit"

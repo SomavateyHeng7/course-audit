@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { FaEye, FaUpload, FaFileExcel, FaEdit, FaTrash, FaPlus, FaInfoCircle } from 'react-icons/fa';
+import { blacklistApi, type BlacklistData, type BlacklistCourse } from '@/services/blacklistApi';
+import { concentrationApi, type ConcentrationData, type ConcentrationCourse } from '@/services/concentrationApi';
+import { facultyLabelApi } from '@/services/facultyLabelApi';
+import { courseTypesApi, type CourseTypeData } from '@/services/courseTypesApi';
 
 interface Course {
   code: string;
@@ -18,12 +22,9 @@ interface CourseType {
   color: string;
 }
 
-interface Concentration {
-  id: string;
-  name: string;
-  courses: Course[];
-  createdAt: string;
-}
+// Use CourseTypeData from API instead of local CourseType interface
+
+// Use ConcentrationData from API instead of local Concentration interface
 
 interface Blacklist {
   id: string;
@@ -40,26 +41,7 @@ const defaultCourseTypes: CourseType[] = [
   { id: '5', name: 'Free Elective', color: '#6b7280' }, // gray
 ];
 
-const mockConcentrations: Concentration[] = [
-  {
-    id: '1',
-    name: 'Data Science',
-    courses: [
-      { code: 'CSX 3001', title: 'Machine Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Introduction to machine learning algorithms and applications.' },
-      { code: 'CSX 3002', title: 'Data Mining', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Techniques for extracting patterns from large datasets.' },
-    ],
-    createdAt: '2024-12-15'
-  },
-  {
-    id: '2',
-    name: 'Software Engineering',
-    courses: [
-      { code: 'CSX 3003', title: 'Software Architecture', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Design principles and patterns for large-scale software systems.' },
-      { code: 'CSX 3004', title: 'Advanced Testing', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Advanced software testing methodologies and tools.' },
-    ],
-    createdAt: '2024-11-20'
-  },
-];
+// Mock concentrations removed - now using API data
 
 const mockBlacklists: Blacklist[] = [
   {
@@ -85,37 +67,136 @@ const mockBlacklists: Blacklist[] = [
 
 export default function InfoConfig() {
   // Course type management states
-  const [courseTypes, setCourseTypes] = useState<CourseType[]>(defaultCourseTypes);
+  const [courseTypes, setCourseTypes] = useState<CourseTypeData[]>([]);
   const [isAddTypeModalOpen, setIsAddTypeModalOpen] = useState(false);
   const [isEditTypeModalOpen, setIsEditTypeModalOpen] = useState(false);
-  const [editingType, setEditingType] = useState<CourseType | null>(null);
+  const [editingType, setEditingType] = useState<CourseTypeData | null>(null);
   const [newType, setNewType] = useState({ name: '', color: '#6366f1' });
   
   // Concentration management states
-  const [concentrations, setConcentrations] = useState<Concentration[]>(mockConcentrations);
+  const [concentrations, setConcentrations] = useState<ConcentrationData[]>([]);
   const [isEditConcentrationTitleOpen, setIsEditConcentrationTitleOpen] = useState(false);
   const [concentrationTitle, setConcentrationTitle] = useState('Concentrations');
   const [isAddConcentrationModalOpen, setIsAddConcentrationModalOpen] = useState(false);
   const [isEditConcentrationModalOpen, setIsEditConcentrationModalOpen] = useState(false);
-  const [editingConcentration, setEditingConcentration] = useState<Concentration | null>(null);
+  const [editingConcentration, setEditingConcentration] = useState<ConcentrationData | null>(null);
   const [newConcentration, setNewConcentration] = useState({ name: '', courses: [] as Course[] });
   const [concentrationDragOver, setConcentrationDragOver] = useState(false);
   const concentrationFileInputRef = useRef<HTMLInputElement>(null);
   
   // Blacklist management states
-  const [blacklists, setBlacklists] = useState<Blacklist[]>(mockBlacklists);
+  const [blacklists, setBlacklists] = useState<BlacklistData[]>([]);
   const [isAddBlacklistModalOpen, setIsAddBlacklistModalOpen] = useState(false);
   const [isEditBlacklistModalOpen, setIsEditBlacklistModalOpen] = useState(false);
-  const [editingBlacklist, setEditingBlacklist] = useState<Blacklist | null>(null);
-  const [newBlacklist, setNewBlacklist] = useState({ name: '', courses: [] as Course[] });
+  const [editingBlacklist, setEditingBlacklist] = useState<BlacklistData | null>(null);
+  const [newBlacklist, setNewBlacklist] = useState({ name: '', description: '', courses: [] as BlacklistCourse[] });
   const [blacklistDragOver, setBlacklistDragOver] = useState(false);
   const blacklistFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Loading and error states
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Info modal states
   const [isBlacklistInfoModalOpen, setIsBlacklistInfoModalOpen] = useState(false);
   const [isConcentrationInfoModalOpen, setIsConcentrationInfoModalOpen] = useState(false);
-  const [selectedInfoBlacklist, setSelectedInfoBlacklist] = useState<Blacklist | null>(null);
-  const [selectedInfoConcentration, setSelectedInfoConcentration] = useState<Concentration | null>(null);
+  const [selectedInfoBlacklist, setSelectedInfoBlacklist] = useState<BlacklistData | null>(null);
+  const [selectedInfoConcentration, setSelectedInfoConcentration] = useState<ConcentrationData | null>(null);
+
+  // Load blacklists on component mount
+  useEffect(() => {
+    loadBlacklists();
+  }, []);
+
+  // Load concentrations on component mount
+  useEffect(() => {
+    loadConcentrations();
+  }, []);
+
+  // Load concentration title on component mount
+  useEffect(() => {
+    loadConcentrationTitle();
+  }, []);
+
+  // Load course types on component mount
+  useEffect(() => {
+    loadCourseTypes();
+  }, []);
+
+  const loadBlacklists = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await blacklistApi.getBlacklists();
+      setBlacklists(response.blacklists);
+    } catch (err) {
+      console.error('Error loading blacklists:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load blacklists');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadConcentrations = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await concentrationApi.getConcentrations();
+      setConcentrations(response || []);
+    } catch (err) {
+      console.error('Error loading concentrations:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load concentrations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadConcentrationTitle = async () => {
+    try {
+      const response = await facultyLabelApi.getConcentrationLabel();
+      setConcentrationTitle(response.concentrationLabel);
+    } catch (err) {
+      console.error('Error loading concentration title:', err);
+      // Keep default title if loading fails
+    }
+  };
+
+  const loadCourseTypes = async () => {
+    try {
+      const response = await courseTypesApi.getAllCourseTypes();
+      setCourseTypes(response.courseTypes || []);
+      
+      // If no course types exist in database, create defaults
+      if (!response.courseTypes || response.courseTypes.length === 0) {
+        await createDefaultCourseTypes();
+      }
+    } catch (err) {
+      console.error('Error loading course types:', err);
+      // Fallback to defaults if API fails
+      setCourseTypes(defaultCourseTypes.map(type => ({
+        ...type,
+        departmentId: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })));
+    }
+  };
+
+  const createDefaultCourseTypes = async () => {
+    try {
+      const createdTypes: CourseTypeData[] = [];
+      for (const defaultType of defaultCourseTypes) {
+        const newType = await courseTypesApi.createCourseType({
+          name: defaultType.name,
+          color: defaultType.color
+        });
+        createdTypes.push(newType);
+      }
+      setCourseTypes(createdTypes);
+    } catch (err) {
+      console.error('Error creating default course types:', err);
+    }
+  };
 
   // Manual course addition states
   const [courseSearch, setCourseSearch] = useState('');
@@ -144,24 +225,9 @@ export default function InfoConfig() {
     setIsAddBlacklistModalOpen(true);
   };
 
-  const handleEditBlacklist = (blacklist: Blacklist) => {
-    setEditingBlacklist(blacklist);
-    setNewBlacklist({ name: blacklist.name, courses: blacklist.courses });
-    setIsEditBlacklistModalOpen(true);
-  };
+  // Handler functions are defined later in the component
 
-  const handleDeleteBlacklist = (blacklistId: string) => {
-    // TODO: Backend integration - Delete blacklist from database
-    // This blacklist belongs to the chairperson's department only
-    setBlacklists(blacklists.filter(b => b.id !== blacklistId));
-  };
-
-  const handleShowBlacklistInfo = (blacklist: Blacklist) => {
-    setSelectedInfoBlacklist(blacklist);
-    setIsBlacklistInfoModalOpen(true);
-  };
-
-  const handleShowConcentrationInfo = (concentration: Concentration) => {
+  const handleShowConcentrationInfo = (concentration: ConcentrationData) => {
     setSelectedInfoConcentration(concentration);
     setIsConcentrationInfoModalOpen(true);
   };
@@ -185,15 +251,157 @@ export default function InfoConfig() {
     }
   };
 
-  const handleBlacklistFileUpload = (file: File | null) => {
-    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
-      // Mock parsing of Excel file - in real implementation, parse the Excel file
-      // TODO: Backend integration - Parse Excel file and extract course data for blacklist
-      const mockUploadedCourses: Course[] = [
-        { code: 'CSX 4001', title: 'Advanced Machine Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Advanced techniques in machine learning and artificial intelligence.' },
-        { code: 'CSX 4002', title: 'Deep Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Neural networks and deep learning architectures.' },
-      ];
-      setNewBlacklist({ ...newBlacklist, courses: mockUploadedCourses });
+  const handleBlacklistFileUpload = async (file: File | null) => {
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
+      try {
+        setLoading(true);
+        let uploadedCourses: any[] = [];
+        
+        if (file.name.endsWith('.csv')) {
+          // For CSV files, read as text and parse
+          const fileContent = await file.text();
+          uploadedCourses = blacklistApi.parseCSVContent(fileContent);
+        } else {
+          // For Excel files, parse directly with the file object
+          uploadedCourses = await blacklistApi.parseExcelFile(file);
+        }
+        
+        setNewBlacklist({ ...newBlacklist, courses: uploadedCourses });
+      } catch (err) {
+        console.error('Error parsing file:', err);
+        setError('Failed to parse file. Please check the file format.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setError('Please upload a valid Excel (.xlsx, .xls) or CSV file');
+    }
+  };
+
+  const handleSaveNewBlacklist = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Validate input
+      const validationErrors = blacklistApi.validateBlacklistData({
+        name: newBlacklist.name,
+        description: newBlacklist.description
+      });
+      
+      if (validationErrors.length > 0) {
+        setError(validationErrors[0]);
+        return;
+      }
+      
+      // Check for duplicate names
+      const nameExists = await blacklistApi.checkNameExists(newBlacklist.name);
+      if (nameExists) {
+        setError('A blacklist with this name already exists');
+        return;
+      }
+      
+      // Map course codes to course IDs if we have courses from file upload
+      let courseIds: string[] = [];
+      if (newBlacklist.courses && newBlacklist.courses.length > 0) {
+        const courseCodes = newBlacklist.courses.map(course => course.code);
+        const mappingResults = await blacklistApi.mapCodesToIds(courseCodes);
+        
+        // Separate found courses from courses that need to be created
+        const foundCourses = mappingResults.filter(result => result.found);
+        const coursesToCreate = mappingResults.filter(result => !result.found && result.isNew);
+        
+        // Get course IDs for found courses
+        courseIds = foundCourses.map(result => result.id);
+        
+        // Create new courses for those that don't exist
+        if (coursesToCreate.length > 0) {
+          const coursesToCreateData = coursesToCreate.map(result => {
+            const originalCourse = newBlacklist.courses.find(c => c.code === result.code);
+            return originalCourse!;
+          });
+          
+          try {
+            const createdCourses = await blacklistApi.createCoursesFromBlacklistData(coursesToCreateData);
+            courseIds.push(...createdCourses.map(c => c.id));
+          } catch (createError) {
+            console.error('Error creating new courses:', createError);
+            setError('Failed to create some courses. Please try again.');
+            return;
+          }
+        }
+      }
+      
+      // Create the blacklist with course IDs
+      const createdBlacklist = await blacklistApi.createBlacklist({
+        name: newBlacklist.name,
+        description: newBlacklist.description || undefined,
+        courseIds: courseIds.length > 0 ? courseIds : undefined
+      });
+      
+      // Update local state
+      setBlacklists([...blacklists, createdBlacklist]);
+      setIsAddBlacklistModalOpen(false);
+      setNewBlacklist({ name: '', description: '', courses: [] });
+      
+    } catch (err) {
+      console.error('Error creating blacklist:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create blacklist');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveEditBlacklist = async () => {
+    if (!editingBlacklist) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Validate input
+      const validationErrors = blacklistApi.validateBlacklistData({
+        name: newBlacklist.name,
+        description: newBlacklist.description
+      });
+      
+      if (validationErrors.length > 0) {
+        setError(validationErrors[0]);
+        return;
+      }
+      
+      // Check for duplicate names (excluding current blacklist)
+      const nameExists = await blacklistApi.checkNameExists(newBlacklist.name, editingBlacklist.id);
+      if (nameExists) {
+        setError('A blacklist with this name already exists');
+        return;
+      }
+      
+      // Extract course IDs for API update
+      const courseIds = newBlacklist.courses.map(course => course.id).filter(id => id && !id.startsWith('temp_'));
+      console.log('Saving blacklist with course IDs:', courseIds);
+      console.log('Original courses:', newBlacklist.courses);
+
+      // Update the blacklist
+      const updatedBlacklist = await blacklistApi.updateBlacklist(editingBlacklist.id, {
+        name: newBlacklist.name,
+        description: newBlacklist.description || undefined,
+        courseIds
+      });
+      
+      // Update local state
+      setBlacklists(blacklists.map(b => 
+        b.id === editingBlacklist.id ? updatedBlacklist : b
+      ));
+      setIsEditBlacklistModalOpen(false);
+      setEditingBlacklist(null);
+      setNewBlacklist({ name: '', description: '', courses: [] });
+      
+    } catch (err) {
+      console.error('Error updating blacklist:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update blacklist');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -204,31 +412,40 @@ export default function InfoConfig() {
     }
   };
 
-  const handleSaveNewBlacklist = () => {
-    // TODO: Backend integration - Create new blacklist for the department
-    // Each blacklist will be available for assignment to curricula in info_edit
-    const newBlacklistObj: Blacklist = {
-      id: Date.now().toString(),
-      name: newBlacklist.name,
-      courses: newBlacklist.courses,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-    setBlacklists([...blacklists, newBlacklistObj]);
-    setIsAddBlacklistModalOpen(false);
-    setNewBlacklist({ name: '', courses: [] });
+  const handleEditBlacklist = (blacklist: BlacklistData) => {
+    setEditingBlacklist(blacklist);
+    setNewBlacklist({ 
+      name: blacklist.name, 
+      description: blacklist.description || '',
+      courses: blacklist.courses 
+    });
+    setIsEditBlacklistModalOpen(true);
   };
 
-  const handleSaveEditBlacklist = () => {
-    if (editingBlacklist) {
-      // TODO: Backend integration - Update blacklist in database
-      setBlacklists(blacklists.map(b => 
-        b.id === editingBlacklist.id 
-          ? { ...b, name: newBlacklist.name, courses: newBlacklist.courses }
-          : b
-      ));
-      setIsEditBlacklistModalOpen(false);
-      setEditingBlacklist(null);
-      setNewBlacklist({ name: '', courses: [] });
+  const handleShowBlacklistInfo = (blacklist: BlacklistData) => {
+    setSelectedInfoBlacklist(blacklist);
+    setIsBlacklistInfoModalOpen(true);
+  };
+
+  const handleDeleteBlacklist = async (blacklist: BlacklistData) => {
+    if (!confirm(`Are you sure you want to delete the blacklist "${blacklist.name}"?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      await blacklistApi.deleteBlacklist(blacklist.id);
+      
+      // Update local state
+      setBlacklists(blacklists.filter(b => b.id !== blacklist.id));
+      
+    } catch (err) {
+      console.error('Error deleting blacklist:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete blacklist');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -237,40 +454,70 @@ export default function InfoConfig() {
     setIsAddTypeModalOpen(true);
   };
 
-  const handleEditType = (type: CourseType) => {
+  const handleEditType = (type: CourseTypeData) => {
     setEditingType(type);
     setNewType({ name: type.name, color: type.color });
     setIsEditTypeModalOpen(true);
   };
 
-  const handleDeleteType = (typeId: string) => {
-    // TODO: Backend integration - Check if type is in use before deletion
-    setCourseTypes(courseTypes.filter(type => type.id !== typeId));
+  const handleDeleteType = async (typeId: string) => {
+    try {
+      await courseTypesApi.deleteCourseType(typeId);
+      setCourseTypes(courseTypes.filter(type => type.id !== typeId));
+    } catch (error) {
+      console.error('Error deleting course type:', error);
+      alert('Failed to delete course type. Please try again.');
+    }
   };
 
-  const handleSaveNewType = () => {
-    // TODO: Backend integration - Save new course type
-    const newTypeObj: CourseType = {
-      id: Date.now().toString(),
-      name: newType.name,
-      color: newType.color
-    };
-    setCourseTypes([...courseTypes, newTypeObj]);
-    setIsAddTypeModalOpen(false);
-    setNewType({ name: '', color: '#6366f1' });
-  };
+  const handleSaveNewType = async () => {
+    try {
+      // Validate input
+      const errors = courseTypesApi.validateCourseType(newType.name, newType.color);
+      if (errors.length > 0) {
+        alert(errors.join('\n'));
+        return;
+      }
 
-  const handleSaveEditType = () => {
-    if (editingType) {
-      // TODO: Backend integration - Update course type
-      setCourseTypes(courseTypes.map(type => 
-        type.id === editingType.id 
-          ? { ...type, name: newType.name, color: newType.color }
-          : type
-      ));
-      setIsEditTypeModalOpen(false);
-      setEditingType(null);
+      const newTypeData = await courseTypesApi.createCourseType({
+        name: newType.name.trim(),
+        color: newType.color
+      });
+
+      setCourseTypes([...courseTypes, newTypeData]);
+      setIsAddTypeModalOpen(false);
       setNewType({ name: '', color: '#6366f1' });
+    } catch (error) {
+      console.error('Error creating course type:', error);
+      alert('Failed to create course type. Please try again.');
+    }
+  };
+
+  const handleSaveEditType = async () => {
+    if (editingType) {
+      try {
+        // Validate input
+        const errors = courseTypesApi.validateCourseType(newType.name, newType.color);
+        if (errors.length > 0) {
+          alert(errors.join('\n'));
+          return;
+        }
+
+        const updatedType = await courseTypesApi.updateCourseType(editingType.id, {
+          name: newType.name.trim(),
+          color: newType.color
+        });
+
+        setCourseTypes(courseTypes.map(type => 
+          type.id === editingType.id ? updatedType : type
+        ));
+        setIsEditTypeModalOpen(false);
+        setEditingType(null);
+        setNewType({ name: '', color: '#6366f1' });
+      } catch (error) {
+        console.error('Error updating course type:', error);
+        alert('Failed to update course type. Please try again.');
+      }
     }
   };
 
@@ -279,27 +526,46 @@ export default function InfoConfig() {
     setIsEditConcentrationTitleOpen(true);
   };
 
-  const handleSaveConcentrationTitle = () => {
-    // TODO: Backend integration - Update concentration title system-wide
-    // This will affect all concentrations displayed throughout the system
-    // Update the database field that stores the concentration category name
-    setIsEditConcentrationTitleOpen(false);
+  const handleSaveConcentrationTitle = async () => {
+    try {
+      await facultyLabelApi.updateConcentrationLabel({ label: concentrationTitle });
+      setIsEditConcentrationTitleOpen(false);
+      // Optionally reload the data to ensure consistency
+      await loadConcentrationTitle();
+    } catch (error) {
+      console.error('Error updating concentration title:', error);
+      alert('Failed to update concentration title. Please try again.');
+    }
   };
 
   const handleAddConcentration = () => {
     setIsAddConcentrationModalOpen(true);
   };
 
-  const handleEditConcentration = (concentration: Concentration) => {
+  const handleEditConcentration = (concentration: ConcentrationData) => {
     setEditingConcentration(concentration);
-    setNewConcentration({ name: concentration.name, courses: concentration.courses });
+    // Convert ConcentrationCourse[] to Course[] for the edit form
+    const coursesForEdit: Course[] = concentration.courses.map(course => ({
+      code: course.code,
+      title: course.name, // API uses 'name', form uses 'title'
+      credits: course.credits,
+      creditHours: course.creditHours,
+      type: course.category, // API uses 'category', form uses 'type'
+      description: course.description
+    }));
+    setNewConcentration({ name: concentration.name, courses: coursesForEdit });
     setIsEditConcentrationModalOpen(true);
   };
 
-  const handleDeleteConcentration = (concentrationId: string) => {
-    // TODO: Backend integration - Delete concentration from database
-    // This concentration belongs to the chairperson's department only
-    setConcentrations(concentrations.filter(c => c.id !== concentrationId));
+  const handleDeleteConcentration = async (concentrationId: string) => {
+    try {
+      await concentrationApi.deleteConcentration(concentrationId);
+      // Reload concentrations from API to get the latest data
+      await loadConcentrations();
+    } catch (error) {
+      console.error('Error deleting concentration:', error);
+      alert('Failed to delete concentration. Please try again.');
+    }
   };
 
   const handleConcentrationDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -339,33 +605,140 @@ export default function InfoConfig() {
     }
   };
 
-  const handleSaveNewConcentration = () => {
+  const handleSaveNewConcentration = async () => {
     if (newConcentration.name.trim() && newConcentration.courses.length > 0) {
-      // TODO: Backend integration - Save new concentration to database
-      // This concentration will be associated with the chairperson's department only
-      const newConcentrationObj: Concentration = {
-        id: Date.now().toString(),
-        name: newConcentration.name,
-        courses: newConcentration.courses,
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      setConcentrations([...concentrations, newConcentrationObj]);
-      setIsAddConcentrationModalOpen(false);
-      setNewConcentration({ name: '', courses: [] });
+      try {
+        // Step 1: Create the concentration with basic info only
+        const newConcentrationData = await concentrationApi.createConcentration({
+          name: newConcentration.name.trim(),
+          description: `${newConcentration.name.trim()} concentration`,
+        });
+
+        // Step 2: Add courses to the concentration
+        if (newConcentration.courses.length > 0) {
+          // Convert Course[] to the format expected by the courses API
+          const coursesForAPI = newConcentration.courses.map(course => {
+            // Parse creditHours safely
+            let creditHours = 3; // default
+            if (course.creditHours && typeof course.creditHours === 'string') {
+              const parsed = parseInt(course.creditHours.split('-')[0]);
+              if (!isNaN(parsed) && parsed > 0) {
+                creditHours = parsed;
+              }
+            }
+
+            return {
+              code: course.code.trim(),
+              name: course.title.trim(),
+              credits: Number(course.credits) || 3,
+              creditHours: creditHours,
+              description: course.description?.trim() || '',
+              category: course.type?.trim() || 'Elective'
+            };
+          });
+
+          // Add courses via the dedicated course endpoint using direct fetch
+          const addCoursesResponse = await fetch(`/api/concentrations/${newConcentrationData.id}/courses`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ courses: coursesForAPI }),
+          });
+
+          if (!addCoursesResponse.ok) {
+            const error = await addCoursesResponse.json();
+            throw new Error(error.error?.message || 'Failed to add courses to concentration');
+          }
+        }
+
+        // Reload concentrations from API to get the latest data
+        await loadConcentrations();
+        setIsAddConcentrationModalOpen(false);
+        setNewConcentration({ name: '', courses: [] });
+      } catch (error) {
+        console.error('Error creating concentration:', error);
+        alert('Failed to create concentration. Please try again.');
+      }
     }
   };
 
-  const handleSaveEditConcentration = () => {
+  const handleSaveEditConcentration = async () => {
     if (editingConcentration && newConcentration.name.trim()) {
-      // TODO: Backend integration - Update concentration in database
-      setConcentrations(concentrations.map(c => 
-        c.id === editingConcentration.id 
-          ? { ...c, name: newConcentration.name, courses: newConcentration.courses }
-          : c
-      ));
-      setIsEditConcentrationModalOpen(false);
-      setEditingConcentration(null);
-      setNewConcentration({ name: '', courses: [] });
+      try {
+        // Step 1: Update basic concentration info
+        await concentrationApi.updateConcentration(editingConcentration.id, {
+          name: newConcentration.name,
+          description: editingConcentration.description || undefined,
+        });
+
+        // Step 2: Handle course changes
+        if (editingConcentration.courses && newConcentration.courses) {
+          const originalCourseIds = editingConcentration.courses.map(c => c.id);
+          const newCourseIds = newConcentration.courses.map(c => (c as any).id).filter(Boolean);
+          
+          // Find courses to remove (in original but not in new)
+          const coursesToRemove = originalCourseIds.filter(id => !newCourseIds.includes(id));
+          
+          // Find courses to add (new courses without IDs or with IDs not in original)
+          const coursesToAdd = newConcentration.courses.filter(course => 
+            !(course as any).id || !originalCourseIds.includes((course as any).id)
+          );
+
+          // Remove courses that are no longer in the list
+          if (coursesToRemove.length > 0) {
+            for (const courseId of coursesToRemove) {
+              await fetch(`/api/concentrations/${editingConcentration.id}/courses?courseId=${courseId}`, {
+                method: 'DELETE',
+              });
+            }
+          }
+
+          // Add new courses
+          if (coursesToAdd.length > 0) {
+            const coursesForAPI = coursesToAdd.map(course => {
+              let creditHours = 3; // default
+              if (course.creditHours && typeof course.creditHours === 'string') {
+                const parsed = parseInt(course.creditHours.split('-')[0]);
+                if (!isNaN(parsed) && parsed > 0) {
+                  creditHours = parsed;
+                }
+              }
+
+              return {
+                code: course.code.trim(),
+                name: course.title.trim(),
+                credits: Number(course.credits) || 3,
+                creditHours: creditHours,
+                description: course.description?.trim() || '',
+                category: course.type?.trim() || 'Elective'
+              };
+            });
+
+            const addCoursesResponse = await fetch(`/api/concentrations/${editingConcentration.id}/courses`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ courses: coursesForAPI }),
+            });
+
+            if (!addCoursesResponse.ok) {
+              const error = await addCoursesResponse.json();
+              throw new Error(error.error?.message || 'Failed to add courses to concentration');
+            }
+          }
+        }
+
+        // Reload concentrations from API to get the latest data
+        await loadConcentrations();
+        setIsEditConcentrationModalOpen(false);
+        setEditingConcentration(null);
+        setNewConcentration({ name: '', courses: [] });
+      } catch (error) {
+        console.error('Error updating concentration:', error);
+        alert('Failed to update concentration. Please try again.');
+      }
     }
   };
 
@@ -377,9 +750,18 @@ export default function InfoConfig() {
         courses: [...prev.courses, course]
       }));
     } else {
+      const blacklistCourse: BlacklistCourse = {
+        id: (course as any).id || crypto.randomUUID(), // Use course ID if available, otherwise generate one
+        code: course.code,
+        name: course.title,
+        credits: course.credits,
+        category: course.type,
+        description: course.description
+      };
+      
       setNewBlacklist(prev => ({
         ...prev,
-        courses: [...prev.courses, course]
+        courses: [...prev.courses, blacklistCourse]
       }));
     }
   };
@@ -401,9 +783,18 @@ export default function InfoConfig() {
           courses: [...prev.courses, courseToAdd]
         }));
       } else {
+        const blacklistCourse: BlacklistCourse = {
+          id: crypto.randomUUID(),
+          code: courseToAdd.code,
+          name: courseToAdd.title,
+          credits: courseToAdd.credits,
+          category: courseToAdd.type,
+          description: courseToAdd.description
+        };
+        
         setNewBlacklist(prev => ({
           ...prev,
-          courses: [...prev.courses, courseToAdd]
+          courses: [...prev.courses, blacklistCourse]
         }));
       }
       
@@ -467,7 +858,8 @@ export default function InfoConfig() {
                 </div>
                 <button
                   onClick={handleAddBlacklist}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FaPlus className="w-4 h-4" />
                   Add Blacklist
@@ -507,7 +899,7 @@ export default function InfoConfig() {
                         <FaEdit className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteBlacklist(blacklist.id)}
+                        onClick={() => handleDeleteBlacklist(blacklist)}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
                         title="Delete Blacklist"
                       >
@@ -542,7 +934,7 @@ export default function InfoConfig() {
                 </div>
                 <button
                   onClick={handleAddType}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   <FaPlus className="w-4 h-4" />
                   Add Type
@@ -619,7 +1011,8 @@ export default function InfoConfig() {
                 </div>
                 <button
                   onClick={handleAddConcentration}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FaPlus className="w-4 h-4" />
                   Add Concentration
@@ -843,7 +1236,7 @@ export default function InfoConfig() {
                         <button
                           onClick={() => handleAddNewCourse('blacklist')}
                           disabled={!newCourse.code.trim() || !newCourse.title.trim()}
-                          className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Add Course
                         </button>
@@ -871,7 +1264,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => blacklistFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primarary rounded text-sm hover:bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -890,7 +1283,7 @@ export default function InfoConfig() {
 
               {newBlacklist.courses.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-primary-foreground mb-3">
+                  <h4 className="font-semibold text-gray-900 dararymb-3">
                     Courses ({newBlacklist.courses.length})
                   </h4>
                   <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
@@ -906,8 +1299,8 @@ export default function InfoConfig() {
                       <tbody className="divide-y divide-gray-200 dark:divide-border">
                         {newBlacklist.courses.map((course, index) => (
                           <tr key={index}>
-                            <td className="px-3 py-2 text-gray-900 dark:text-primary-foreground">{course.code}</td>
-                            <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.title}</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-foreground">{course.code}</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.name}</td>
                             <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.credits}</td>
                             <td className="px-3 py-2">
                               <button
@@ -936,10 +1329,17 @@ export default function InfoConfig() {
               </button>
               <button
                 onClick={handleSaveNewBlacklist}
-                disabled={!newBlacklist.name.trim() || newBlacklist.courses.length === 0}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || !newBlacklist.name.trim() || newBlacklist.courses.length === 0}
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Add Blacklist
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"></div>
+                    Creating...
+                  </>
+                ) : (
+                  'Add Blacklist'
+                )}
               </button>
             </div>
           </div>
@@ -1101,7 +1501,7 @@ export default function InfoConfig() {
                         <button
                           onClick={() => handleAddNewCourse('blacklist')}
                           disabled={!newCourse.code.trim() || !newCourse.title.trim()}
-                          className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Add Course
                         </button>
@@ -1129,7 +1529,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => blacklistFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primarary rounded text-sm hover:bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -1158,14 +1558,24 @@ export default function InfoConfig() {
                           <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Code</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Title</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Credits</th>
+                          <th className="px-3 py-2 text-center font-medium text-gray-500 dark:text-gray-400">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-border">
                         {newBlacklist.courses.map((course, index) => (
                           <tr key={index}>
                             <td className="px-3 py-2 text-foreground">{course.code}</td>
-                            <td className="px-3 py-2 text-foreground">{course.title}</td>
+                            <td className="px-3 py-2 text-foreground">{course.name}</td>
                             <td className="px-3 py-2 text-foreground">{course.credits}</td>
+                            <td className="px-3 py-2 text-center">
+                              <button
+                                onClick={() => handleRemoveCourseFromBlacklist(index)}
+                                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors p-1"
+                                title="Remove course from blacklist"
+                              >
+                                <FaTrash className="w-3 h-3" />
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1185,7 +1595,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveEditBlacklist}
                 disabled={!newBlacklist.name.trim()}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Changes
               </button>
@@ -1252,7 +1662,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveNewType}
                 disabled={!newType.name.trim()}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add Type
               </button>
@@ -1317,7 +1727,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveEditType}
                 disabled={!newType.name.trim()}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Changes
               </button>
@@ -1482,7 +1892,7 @@ export default function InfoConfig() {
                         <button
                           onClick={() => handleAddNewCourse('concentration')}
                           disabled={!newCourse.code.trim() || !newCourse.title.trim()}
-                          className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-4 py-2 bg-primary rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Add Course
                         </button>
@@ -1510,7 +1920,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => concentrationFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primarary rounded text-sm hover:bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -1529,7 +1939,7 @@ export default function InfoConfig() {
 
               {newConcentration.courses.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-primary-foreground mb-3">
+                  <h4 className="font-semibold text-gray-900 dararymb-3">
                     Courses ({newConcentration.courses.length})
                   </h4>
                   <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
@@ -1545,7 +1955,7 @@ export default function InfoConfig() {
                       <tbody className="divide-y divide-gray-200 dark:divide-border">
                         {newConcentration.courses.map((course, index) => (
                           <tr key={index}>
-                            <td className="px-3 py-2 text-gray-900 dark:text-primary-foreground">{course.code}</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-foreground">{course.code}</td>
                             <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.title}</td>
                             <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.credits}</td>
                             <td className="px-3 py-2">
@@ -1575,10 +1985,17 @@ export default function InfoConfig() {
               </button>
               <button
                 onClick={handleSaveNewConcentration}
-                disabled={!newConcentration.name.trim() || newConcentration.courses.length === 0}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || !newConcentration.name.trim() || newConcentration.courses.length === 0}
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Add Concentration
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"></div>
+                    Creating...
+                  </>
+                ) : (
+                  'Add Concentration'
+                )}
               </button>
             </div>
           </div>
@@ -1740,7 +2157,7 @@ export default function InfoConfig() {
                         <button
                           onClick={() => handleAddNewCourse('concentration')}
                           disabled={!newCourse.code.trim() || !newCourse.title.trim()}
-                          className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-4 py-2 bg-primary rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Add Course
                         </button>
@@ -1768,7 +2185,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => concentrationFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primary rounded text-sm hover:bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -1787,7 +2204,7 @@ export default function InfoConfig() {
 
               {newConcentration.courses.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-primary-foreground mb-3">
+                  <h4 className="font-semibold text-gray-900 dararymb-3">
                     Current Courses ({newConcentration.courses.length})
                   </h4>
                   <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
@@ -1803,7 +2220,7 @@ export default function InfoConfig() {
                       <tbody className="divide-y divide-gray-200 dark:divide-border">
                         {newConcentration.courses.map((course, index) => (
                           <tr key={index}>
-                            <td className="px-3 py-2 text-gray-900 dark:text-primary-foreground">{course.code}</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-foreground">{course.code}</td>
                             <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.title}</td>
                             <td className="px-3 py-2 text-gray-900 dark:text-gray-300">{course.credits}</td>
                             <td className="px-3 py-2">
@@ -1834,7 +2251,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveEditConcentration}
                 disabled={!newConcentration.name.trim()}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Changes
               </button>
@@ -1869,24 +2286,24 @@ export default function InfoConfig() {
                 <table className="min-w-full border border-gray-200 dark:border-border rounded-lg overflow-hidden">
                   <thead className="bg-red-50 dark:bg-red-900/20">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Course Code</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Course Title</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Credits</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Credit Hours</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Type</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Description</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Course Code</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Course Title</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Credits</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Credit Hours</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Type</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Description</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-border">
                     {selectedInfoBlacklist.courses.map((course, index) => (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-primary-foreground">{course.code}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.title}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-foreground">{course.code}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.name}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.credits}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.creditHours}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.credits}</td>
                         <td className="px-4 py-3 text-sm">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                            {course.type || '-'}
+                            {course.category || '-'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300 max-w-xs">
@@ -1916,7 +2333,7 @@ export default function InfoConfig() {
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-border">
               <button
                 onClick={() => setIsBlacklistInfoModalOpen(false)}
-                className="w-full px-4 py-2 bg-gray-600 text-primary-foreground rounded-lg hover:bg-gray-700 transition-colors"
+                className="w-full px-4 py-2 bg-gray-60aryrounded-lg hover:bg-gray-700 transition-colors"
               >
                 Close
               </button>
@@ -1951,24 +2368,24 @@ export default function InfoConfig() {
                 <table className="min-w-full border border-gray-200 dark:border-border rounded-lg overflow-hidden">
                   <thead className="bg-primary/10 dark:bg-primary/20/20">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Course Code</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Course Title</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Credits</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Credit Hours</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Type</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-primary-foreground border-b border-gray-200 dark:border-border">Description</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Course Code</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Course Title</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Credits</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Credit Hours</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Type</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-foreground border-b border-gray-200 dark:border-border">Description</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-border">
                     {selectedInfoConcentration.courses.map((course, index) => (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-primary-foreground">{course.code}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.title}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-foreground">{course.code}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.name}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.credits}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{course.creditHours}</td>
                         <td className="px-4 py-3 text-sm">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary dark:bg-primary/20/30 dark:text-primary/30">
-                            {course.type || '-'}
+                            {course.category || '-'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300 max-w-xs">
@@ -1998,7 +2415,7 @@ export default function InfoConfig() {
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-border">
               <button
                 onClick={() => setIsConcentrationInfoModalOpen(false)}
-                className="w-full px-4 py-2 bg-gray-600 text-primary-foreground rounded-lg hover:bg-gray-700 transition-colors"
+                className="w-full px-4 py-2 bg-gray-600 text-foreground rounded-lg hover:bg-gray-700 transition-colors"
               >
                 Close
               </button>

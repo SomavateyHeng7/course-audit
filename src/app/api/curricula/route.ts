@@ -9,6 +9,8 @@ const createCurriculumSchema = z.object({
   year: z.string().min(1, 'Year is required'),
   version: z.string().optional().default('1.0'),
   description: z.string().optional(),
+  startId: z.string().min(1, 'Start ID is required'),
+  endId: z.string().min(1, 'End ID is required'),
   departmentId: z.string().min(1, 'Department ID is required'),
   facultyId: z.string().min(1, 'Faculty ID is required'),
   // Course data from Excel upload
@@ -18,7 +20,6 @@ const createCurriculumSchema = z.object({
     credits: z.number().min(0, 'Credits must be non-negative'),
     creditHours: z.string().min(1, 'Credit hours format required'),
     description: z.string().optional(),
-    category: z.string().min(1, 'Category is required'),
     requiresPermission: z.boolean().optional().default(false),
     summerOnly: z.boolean().optional().default(false),
     requiresSeniorStanding: z.boolean().optional().default(false),
@@ -111,16 +112,31 @@ export async function GET(request: NextRequest) {
       prisma.curriculum.count({ where }),
     ]);
 
-    // Log audit event
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user.id,
-        entityType: 'Curriculum',
-        entityId: 'LIST',
-        action: 'CREATE', // Using CREATE for list access
-        description: `Listed curricula with search: "${search}"`,
-      },
-    });
+    // Log audit event - with safety check for user existence
+    try {
+      if (session?.user?.id) {
+        // Verify user exists before creating audit log
+        const userExists = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { id: true }
+        });
+        
+        if (userExists) {
+          await prisma.auditLog.create({
+            data: {
+              userId: session.user.id,
+              entityType: 'Curriculum',
+              entityId: 'LIST',
+              action: 'CREATE', // Using CREATE for list access
+              description: `Listed curricula with search: "${search}"`,
+            },
+          });
+        }
+      }
+    } catch (auditError) {
+      // Don't fail the main request if audit logging fails
+      console.warn('Audit logging failed:', auditError instanceof Error ? auditError.message : String(auditError));
+    }
 
     return NextResponse.json({
       curricula,
@@ -133,7 +149,16 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching curricula:', error);
+    // Fix console.error TypeError by ensuring error is properly formatted
+    const errorMessage = error instanceof Error ? error.message : String(error || 'Unknown error');
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('Error fetching curricula:', {
+      message: errorMessage,
+      stack: errorStack,
+      type: typeof error
+    });
+    
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch curricula' } },
       { status: 500 }
@@ -172,24 +197,31 @@ export async function POST(request: NextRequest) {
     const validatedData = createCurriculumSchema.parse(body);
     console.log('✅ Data validation passed');
 
-    // Check if curriculum with same name/year/version already exists for this user
+    // Check if curriculum with same year/startId/endId in the same department already exists
     const existingCurriculum = await prisma.curriculum.findFirst({
       where: {
-        name: validatedData.name,
         year: validatedData.year,
-        version: validatedData.version,
+        startId: validatedData.startId,
+        endId: validatedData.endId,
         departmentId: validatedData.departmentId,
-        createdById: session.user.id,
       },
     });
 
     if (existingCurriculum) {
       console.log('❌ Duplicate curriculum found:', existingCurriculum.id);
+      
       return NextResponse.json(
         { 
           error: { 
             code: 'DUPLICATE_CURRICULUM', 
-            message: 'Curriculum with this name, year, and version already exists' 
+            message: `Curriculum for year ${validatedData.year} with ID range ${validatedData.startId}-${validatedData.endId} already exists in this department.`,
+            existingCurriculum: {
+              id: existingCurriculum.id,
+              name: existingCurriculum.name,
+              year: existingCurriculum.year,
+              startId: existingCurriculum.startId,
+              endId: existingCurriculum.endId
+            }
           } 
         },
         { status: 409 }
@@ -243,7 +275,6 @@ export async function POST(request: NextRequest) {
                 credits: courseInfo.credits,
                 creditHours: courseInfo.creditHours,
                 description: courseInfo.description,
-                category: courseInfo.category,
                 requiresPermission: courseInfo.requiresPermission,
                 summerOnly: courseInfo.summerOnly,
                 requiresSeniorStanding: courseInfo.requiresSeniorStanding,
@@ -260,7 +291,6 @@ export async function POST(request: NextRequest) {
                 credits: courseInfo.credits,
                 creditHours: courseInfo.creditHours,
                 description: courseInfo.description,
-                category: courseInfo.category,
                 requiresPermission: courseInfo.requiresPermission || false,
                 summerOnly: courseInfo.summerOnly || false,
                 requiresSeniorStanding: courseInfo.requiresSeniorStanding || false,
@@ -306,6 +336,8 @@ export async function POST(request: NextRequest) {
           year: validatedData.year,
           version: validatedData.version,
           description: validatedData.description,
+          startId: validatedData.startId,
+          endId: validatedData.endId,
           departmentId: validatedData.departmentId,
           facultyId: validatedData.facultyId,
           createdById: session.user.id,
@@ -379,22 +411,32 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 6. Create audit log
-      await tx.auditLog.create({
-        data: {
-          userId: session.user.id,
-          entityType: 'Curriculum',
-          entityId: curriculum.id,
-          action: 'CREATE',
-          description: `Created curriculum "${curriculum.name}" for year ${curriculum.year}`,
-          curriculumId: curriculum.id,
-          changes: {
-            courseCount: courseData.length,
-            constraintCount: constraints.length,
-            electiveRuleCount: electiveRules.length,
-          },
-        },
-      });
+      // 6. Create audit log - with safety check
+      if (session?.user?.id) {
+        // Verify user exists before creating audit log
+        const userExists = await tx.user.findUnique({
+          where: { id: session.user.id },
+          select: { id: true }
+        });
+        
+        if (userExists) {
+          await tx.auditLog.create({
+            data: {
+              userId: session.user.id,
+              entityType: 'Curriculum',
+              entityId: curriculum.id,
+              action: 'CREATE',
+              description: `Created curriculum "${curriculum.name}" for year ${curriculum.year}`,
+              curriculumId: curriculum.id,
+              changes: {
+                courseCount: courseData.length,
+                constraintCount: constraints.length,
+                electiveRuleCount: electiveRules.length,
+              },
+            },
+          });
+        }
+      }
 
       return {
         curriculum: {

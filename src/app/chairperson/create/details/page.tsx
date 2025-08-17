@@ -10,12 +10,12 @@ interface ParsedCourse {
   credits: number;
   description: string;
   creditHours: string;
-  category?: string;
   requirement?: 'Required' | 'Elective';
 }
 
 interface CurriculumInfo {
   name: string;
+  year: string;
   totalCredits: string;
   idStart: string;
   idEnd: string;
@@ -29,15 +29,13 @@ export default function CurriculumDetails() {
   const [courses, setCourses] = useState<ParsedCourse[]>([]);
   const [curriculumInfo, setCurriculumInfo] = useState<CurriculumInfo | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('All');
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [departments, setDepartments] = useState<any[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
+  const [courseTypes, setCourseTypes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Course categories based on your requirements
-  const categories = ['Core', 'Major', 'Major Elective', 'General Education', 'Free Elective'];
-  const allCategories = ['All', ...categories];
+  const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set());
+  const [showBatchAssignment, setShowBatchAssignment] = useState(false);
 
   useEffect(() => {
     // Load data from sessionStorage
@@ -48,10 +46,9 @@ export default function CurriculumDetails() {
       const parsedCourses = JSON.parse(storedCourses);
       const parsedInfo = JSON.parse(storedInfo);
       
-      // Auto-assign categories and requirements based on naming patterns
+      // Auto-assign requirements based on naming patterns
       const coursesWithDefaults = parsedCourses.map((course: ParsedCourse) => ({
         ...course,
-        category: autoAssignCategory(course),
         requirement: autoAssignRequirement(course)
       }));
       
@@ -68,16 +65,32 @@ export default function CurriculumDetails() {
     }
   }, [router, session]);
 
+  // Fetch course types when department changes
+  useEffect(() => {
+    if (selectedDepartmentId) {
+      fetchCourseTypes(selectedDepartmentId);
+    }
+  }, [selectedDepartmentId]);
+
   const fetchDepartments = async () => {
     try {
+      console.log('Fetching departments...');
       const response = await fetch('/api/departments');
       const result = await response.json();
       
+      console.log('Departments response:', { status: response.status, result });
+      
       if (response.ok && result.departments) {
+        console.log('Setting departments:', result.departments);
         setDepartments(result.departments);
         // Auto-select first department if only one exists
         if (result.departments.length === 1) {
+          console.log('Auto-selecting single department:', result.departments[0].id);
           setSelectedDepartmentId(result.departments[0].id);
+          // Also fetch course types for the auto-selected department
+          fetchCourseTypes(result.departments[0].id);
+        } else if (result.departments.length > 1) {
+          console.log('Multiple departments found, user needs to select one');
         }
       } else {
         console.error('Failed to fetch departments:', result.error);
@@ -87,36 +100,43 @@ export default function CurriculumDetails() {
     }
   };
 
-  // Auto-assignment logic based on course patterns
-  const autoAssignCategory = (course: ParsedCourse): string => {
-    const code = course.code.toUpperCase();
-    const title = course.title.toLowerCase();
+  const fetchCourseTypes = async (departmentId: string) => {
+    console.log('fetchCourseTypes called with departmentId:', departmentId);
     
-    if (code.startsWith('ELE') || title.includes('english') || title.includes('communication')) {
-      return 'General Education';
+    if (!departmentId) {
+      console.log('No department ID provided, clearing course types');
+      setCourseTypes([]);
+      return;
     }
-    if (code.startsWith('CSX 1') || code.startsWith('CSX 2') || title.includes('fundamental') || title.includes('introduction')) {
-      return 'Core';
+
+    try {
+      const url = `/api/course-types?departmentId=${departmentId}`;
+      console.log('Fetching course types from:', url);
+      
+      const response = await fetch(url);
+      const result = await response.json();
+      
+      console.log('Course types response:', { status: response.status, result });
+      
+      if (response.ok && result.courseTypes) {
+        console.log('Setting course types:', result.courseTypes);
+        setCourseTypes(result.courseTypes);
+      } else {
+        console.error('Failed to fetch course types:', result.error);
+        setCourseTypes([]);
+      }
+    } catch (error) {
+      console.error('Error fetching course types:', error);
+      setCourseTypes([]);
     }
-    if (code.startsWith('CSX 3') || code.startsWith('ITX')) {
-      return 'Major';
-    }
-    if (code.startsWith('CSX 4') || title.includes('elective')) {
-      return 'Major Elective';
-    }
-    if (code.startsWith('FREE') || title.includes('free')) {
-      return 'Free Elective';
-    }
-    
-    return 'Major'; // Default
   };
 
   const autoAssignRequirement = (course: ParsedCourse): 'Required' | 'Elective' => {
     const title = course.title.toLowerCase();
-    const category = autoAssignCategory(course);
+    const code = course.code.toUpperCase();
     
-    // Auto-determine based on category and title
-    if (category.includes('Elective') || title.includes('elective')) {
+    // Auto-determine based on title and code patterns
+    if (title.includes('elective') || code.startsWith('FREE') || title.includes('free')) {
       return 'Elective';
     }
     return 'Required';
@@ -128,11 +148,42 @@ export default function CurriculumDetails() {
     ));
   };
 
+  const toggleCourseSelection = (courseCode: string) => {
+    setSelectedCourses(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(courseCode)) {
+        newSet.delete(courseCode);
+      } else {
+        newSet.add(courseCode);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllFilteredCourses = () => {
+    const filteredCodes = filteredCourses.map(course => course.code);
+    setSelectedCourses(new Set(filteredCodes));
+  };
+
+  const clearSelection = () => {
+    setSelectedCourses(new Set());
+  };
+
+  const batchAssignRequirement = (requirement: 'Required' | 'Elective') => {
+    setCourses(prev => prev.map(course => {
+      if (selectedCourses.has(course.code)) {
+        return { ...course, requirement };
+      }
+      return course;
+    }));
+    setSelectedCourses(new Set());
+    setShowBatchAssignment(false);
+  };
+
   const filteredCourses = courses.filter(course => {
     const matchesSearch = course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          course.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'All' || course.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
   const handleSaveCurriculum = async () => {
@@ -156,9 +207,11 @@ export default function CurriculumDetails() {
     try {
       const payload = {
         name: curriculumInfo.name,
-        year: new Date().getFullYear().toString(), // Use current year
+        year: curriculumInfo.year, // Use year from form input
         version: '1.0',
         description: `Curriculum containing ${courses.length} courses`,
+        startId: curriculumInfo.idStart,
+        endId: curriculumInfo.idEnd,
         departmentId: selectedDepartmentId,
         facultyId: session.user.faculty.id,
         courses: courses.map((course, index) => ({
@@ -167,7 +220,6 @@ export default function CurriculumDetails() {
           credits: course.credits,
           creditHours: course.creditHours || `${course.credits}-0-${course.credits * 2}`,
           description: course.description || '',
-          category: course.category || 'Major',
           requiresPermission: false,
           summerOnly: false,
           requiresSeniorStanding: false,
@@ -212,7 +264,15 @@ export default function CurriculumDetails() {
       }
 
       if (!response.ok) {
-        throw new Error(result.error?.message || `HTTP ${response.status}: ${result.error || 'Failed to create curriculum'}`);
+        const errorData = result.error || result;
+        if (errorData.code === 'DUPLICATE_CURRICULUM') {
+          alert(
+            `${errorData.message}\n\nExisting curriculum: ${errorData.existingCurriculum?.name || 'Unknown'}\nPlease use a different year or ID range.`
+          );
+          return; // Don't throw error, just show message and return
+        } else {
+          throw new Error(errorData.message || `HTTP ${response.status}: ${errorData || 'Failed to create curriculum'}`);
+        }
       }
 
       console.log('Curriculum created successfully:', result);
@@ -226,7 +286,12 @@ export default function CurriculumDetails() {
 
     } catch (error) {
       console.error('Error creating curriculum:', error);
-      alert(`Error creating curriculum: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      if (error instanceof Error) {
+        alert(`Error creating curriculum: ${error.message}`);
+      } else {
+        alert('Error creating curriculum: Unknown error occurred');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -237,27 +302,18 @@ export default function CurriculumDetails() {
     return courses.find(course => course.code === selectedCourse);
   };
 
-  const getCategoryStats = () => {
-    return categories.map(category => {
-      const categoryC0urses = courses.filter(c => c.category === category);
-      const totalCredits = categoryC0urses.reduce((sum, c) => sum + c.credits, 0);
-      const requiredCount = categoryC0urses.filter(c => c.requirement === 'Required').length;
-      const electiveCount = categoryC0urses.filter(c => c.requirement === 'Elective').length;
+  const getRequirementStats = () => {
+    const requirements = ['Required', 'Elective'];
+    return requirements.map(requirement => {
+      const reqCourses = courses.filter(c => c.requirement === requirement);
+      const totalCredits = reqCourses.reduce((sum, c) => sum + c.credits, 0);
       
       return {
-        category,
-        courses: categoryC0urses.length,
+        requirement,
+        courses: reqCourses.length,
         credits: totalCredits,
-        required: requiredCount,
-        elective: electiveCount
       };
     });
-  };
-
-  const quickAssignByCategory = (category: string, requirement: 'Required' | 'Elective') => {
-    setCourses(prev => prev.map(course => 
-      course.category === category ? { ...course, requirement } : course
-    ));
   };
 
   if (!curriculumInfo) {
@@ -278,9 +334,10 @@ export default function CurriculumDetails() {
           <div className="bg-card rounded-xl border border-border p-6 mb-6">
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-2">
-                {curriculumInfo.name} ({curriculumInfo.idStart} - {curriculumInfo.idEnd})
+                {curriculumInfo.name} - {curriculumInfo.year} ({curriculumInfo.idStart} - {curriculumInfo.idEnd})
               </h1>
               <div className="flex gap-6 text-sm text-muted-foreground">
+                <span>Academic Year: {curriculumInfo.year}</span>
                 <span>Total Credits: {curriculumInfo.totalCredits}</span>
                 <span>Courses: {courses.length}</span>
                 <span>File: {curriculumInfo.fileName}</span>
@@ -314,6 +371,11 @@ export default function CurriculumDetails() {
                   </option>
                 ))}
               </select>
+              {selectedDepartmentId === "" && departments.length > 0 && (
+                <p className="text-sm text-amber-600 mt-2">
+                  ⚠️ Please select a department to load course types and enable course assignment.
+                </p>
+              )}
               {departments.length === 0 && (
                 <p className="text-sm text-muted-foreground mt-2">
                   Loading departments...
@@ -333,6 +395,17 @@ export default function CurriculumDetails() {
                 </span>
               </div>
 
+              {!selectedDepartmentId ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Please select a department first to view course assignment options.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Debug Info */}
+                  <div className="bg-muted/50 rounded p-2 mb-4 text-xs">
+                    <strong>Debug:</strong> Department ID: {selectedDepartmentId} | 
+                    Course Types: {courseTypes.length}
+                  </div>
               {/* Filters */}
               <div className="flex gap-4 mb-4">
                 <input
@@ -342,24 +415,66 @@ export default function CurriculumDetails() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="flex-1 border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                 />
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+              </div>
+
+              {/* Requirement Assignment Controls */}
+              <div className="flex gap-2 mb-4 p-3 bg-muted/50 rounded-lg border border-border">
+                <button
+                  onClick={selectAllFilteredCourses}
+                  disabled={filteredCourses.length === 0}
+                  className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {allCategories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>              {/* Course List */}
+                  Select All ({filteredCourses.length})
+                </button>
+                <button
+                  onClick={clearSelection}
+                  disabled={selectedCourses.size === 0}
+                  className="px-3 py-1 text-xs bg-secondary text-secondary-foreground rounded hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Clear ({selectedCourses.size})
+                </button>
+                <button
+                  onClick={() => setShowBatchAssignment(!showBatchAssignment)}
+                  disabled={selectedCourses.size === 0}
+                  className="px-3 py-1 text-xs bg-accent text-accent-foreground rounded hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Assign Requirements
+                </button>
+              </div>
+
+              {/* Requirement Assignment Panel */}
+              {showBatchAssignment && selectedCourses.size > 0 && (
+                <div className="mb-4 p-4 bg-card border border-border rounded-lg">
+                  <h3 className="font-semibold mb-3 text-sm">
+                    Assign requirements to {selectedCourses.size} selected course{selectedCourses.size !== 1 ? 's' : ''}
+                  </h3>
+                  <div>
+                    <label className="block text-xs font-medium mb-2">Requirement:</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => batchAssignRequirement('Required')}
+                        className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                      >
+                        Required
+                      </button>
+                      <button
+                        onClick={() => batchAssignRequirement('Elective')}
+                        className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                      >
+                        Elective
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}              {/* Course List */}
               <div className="border border-border rounded-lg overflow-hidden">
                 <div className="bg-muted px-4 py-2 border-b border-border">
-                  <div className="grid grid-cols-12 gap-4 text-xs font-medium text-muted-foreground">
-                    <div className="col-span-3">Course Code</div>
-                    <div className="col-span-4">Course Title</div>
-                    <div className="col-span-1">Credits</div>
-                    <div className="col-span-2">Category</div>
-                    <div className="col-span-2">Requirement</div>
+                  <div className="flex gap-4 text-xs font-medium text-muted-foreground">
+                    <div className="w-10">Select</div>
+                    <div className="flex-1">Course Code</div>
+                    <div className="flex-[2]">Course Title</div>
+                    <div className="w-16">Credits</div>
+                    <div className="flex-1">Requirement</div>
                   </div>
                 </div>
                 <div className="max-h-[480px] overflow-y-auto">
@@ -371,20 +486,33 @@ export default function CurriculumDetails() {
                       <div
                         key={course.code}
                         onClick={() => setSelectedCourse(course.code)}
-                        className={`grid grid-cols-12 gap-4 p-3 border-b border-border cursor-pointer transition-all items-center ${
+                        className={`flex gap-4 p-3 border-b border-border cursor-pointer transition-all items-center ${
                           isSelected 
                             ? 'bg-primary/5 border-l-4 border-l-primary' 
                             : 'hover:bg-muted/50'
                         }`}
                       >
+                        {/* Checkbox */}
+                        <div className="w-10 flex justify-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedCourses.has(course.code)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleCourseSelection(course.code);
+                            }}
+                            className="rounded border-border text-primary focus:ring-primary focus:ring-offset-0"
+                          />
+                        </div>
+                        
                         {/* Course Code */}
-                        <div className="col-span-3">
+                        <div className="flex-1">
                           <div className="font-semibold text-sm text-foreground">{course.code}</div>
                           <div className="text-xs text-muted-foreground">{course.creditHours}</div>
                         </div>
                         
                         {/* Course Title */}
-                        <div className="col-span-4">
+                        <div className="flex-[2]">
                           <div className="text-sm text-foreground line-clamp-2">{course.title}</div>
                           {course.description && (
                             <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
@@ -394,26 +522,12 @@ export default function CurriculumDetails() {
                         </div>
                         
                         {/* Credits */}
-                        <div className="col-span-1">
+                        <div className="w-16">
                           <div className="text-sm font-medium text-center">{course.credits}</div>
                         </div>
                         
-                        {/* Category */}
-                        <div className="col-span-2">
-                          <select
-                            value={course.category || 'Major'}
-                            onChange={(e) => updateCourse(originalIndex, 'category', e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full text-xs border border-input rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                          >
-                            {categories.map(cat => (
-                              <option key={cat} value={cat}>{cat}</option>
-                            ))}
-                          </select>
-                        </div>
-                        
                         {/* Requirement */}
-                        <div className="col-span-2">
+                        <div className="flex-1">
                           <select
                             value={course.requirement || 'Required'}
                             onChange={(e) => updateCourse(originalIndex, 'requirement', e.target.value as 'Required' | 'Elective')}
@@ -435,7 +549,11 @@ export default function CurriculumDetails() {
                   </div>
                 )}
               </div>
-            </div>            {/* Right Panel - Course Details and Statistics */}
+                </>
+              )}
+            </div>
+
+            {/* Right Panel - Course Details and Statistics */}
             <div className="w-1/3 space-y-6">              {/* Course Details */}
               {selectedCourse && getSelectedCourseData() && (
                 <div className="bg-card rounded-xl border border-border p-6">
@@ -461,22 +579,6 @@ export default function CurriculumDetails() {
                     
                     {/* Course Classification */}
                     <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Category:</span>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          getSelectedCourseData()?.category === 'Core' 
-                            ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                            : getSelectedCourseData()?.category === 'Major'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-                            : getSelectedCourseData()?.category === 'Major Elective'
-                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
-                            : getSelectedCourseData()?.category === 'General Education'
-                            ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary'
-                            : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-                        }`}>
-                          {getSelectedCourseData()?.category}
-                        </span>
-                      </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">Requirement:</span>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -525,17 +627,14 @@ export default function CurriculumDetails() {
                 </div>
               )}
 
-              {/* Category Statistics */}
+              {/* Requirement Statistics */}
               <div className="bg-card rounded-xl border border-border p-6">
-                <h3 className="text-lg font-bold text-foreground mb-4">Category Statistics</h3>
+                <h3 className="text-lg font-bold text-foreground mb-4">Requirement Statistics</h3>
                 <div className="space-y-3">
-                  {getCategoryStats().map(stat => (
-                    <div key={stat.category} className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                  {getRequirementStats().map(stat => (
+                    <div key={stat.requirement} className="flex justify-between items-center p-3 bg-muted rounded-lg">
                       <div>
-                        <div className="font-medium text-sm">{stat.category}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {stat.required}R • {stat.elective}E
-                        </div>
+                        <div className="font-medium text-sm">{stat.requirement}</div>
                       </div>
                       <div className="text-right">
                         <div className="font-medium text-sm">{stat.credits} cr</div>

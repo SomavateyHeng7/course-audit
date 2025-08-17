@@ -9,21 +9,12 @@ import { Button } from "@/components/ui/button"
 import ExcelUpload from "@/components/excel/ExcelUpload"
 import { useCourseManagement } from "@/app/contexts/CourseManagementContext"
 import { ExcelData } from "@/components/excel/ExcelUtils"
+import { ProgressProvider } from "./data-entry/page"
 
 export default function ManagementPage() {
   const router = useRouter()
-  const [selectedDepartment, setSelectedDepartment] = useState("")
-  const [selectedCurriculum, setSelectedCurriculum] = useState("")
   const [error, setError] = useState<string>("")
   const { startNewSession, updateSessionData, isSessionActive } = useCourseManagement()
-
-  const handleDepartmentChange = (value: string) => {
-    setSelectedDepartment(value)
-  }
-
-  const handleCurriculumChange = (value: string) => {
-    setSelectedCurriculum(value)
-  }
 
   const handleDataLoaded = (data: ExcelData) => {
     if (!isSessionActive) {
@@ -33,7 +24,7 @@ export default function ManagementPage() {
     setError("")
   }
 
-  const handleError = (errorMessage: string) => {
+  const handleError = (errorMessage: string) => { 
     setError(errorMessage)
   }
 
@@ -42,100 +33,35 @@ export default function ManagementPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 sm:p-6">
-      <Card>
-        <CardContent className="pt-4 sm:pt-6">
-          <h1 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">Course Management</h1>
-          
-          {/* Error Display */}
-          {error && (
-            <div className="mb-4 p-2 sm:p-4 bg-red-100 border border-red-400 text-red-700 rounded text-xs sm:text-base">
-              {error}
+    <ProgressProvider>
+      <div className="container mx-auto p-4 sm:p-6">
+        <Card>
+          <CardContent className="pt-4 sm:pt-6">
+            <h1 className="text-3xl font-bold text-foreground mb-6">Course Management</h1>
+            {error && (
+              <div className="mb-4 p-2 sm:p-4 bg-red-100 border border-red-400 text-red-700 rounded text-xs sm:text-base text-center">
+                {error}
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+              {/* Excel Upload Option */}
+              <div className="flex flex-col items-center border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 h-96 w-full transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-teal-400 dark:hover:border-teal-500 cursor-pointer">
+                <h2 className="text-xl font-semibold mb-4 text-primary">Upload Excel</h2>
+                <p className="mb-6 text-gray-600 dark:text-gray-300 text-center">Upload your previous course records using an Excel file.</p>
+                <ExcelUpload onDataLoaded={handleDataLoaded} onError={handleError} />
+              </div>
+              {/* Manual Entry Option */}
+              <div className="flex flex-col items-center border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 h-96 w-full transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-teal-400 dark:hover:border-teal-500 cursor-pointer">
+                <h2 className="text-xl font-semibold mb-4 text-primary">Enter Courses Manually</h2>
+                <p className="mb-6 text-gray-600 dark:text-gray-300 text-center">Manually input your courses to track your progress.</p>
+                <Button className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed" variant="default" onClick={handleManualEntry}>
+                  Enter Courses
+                </Button>
+              </div>
             </div>
-          )}
-
-          {/* Top row: Department and Curriculum */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
-            {/* Department Selection */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base sm:text-lg">Select Department</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 sm:space-y-4">
-                  <div className="space-y-1 sm:space-y-2">
-                    <Label htmlFor="department">Department</Label>
-                    <Select value={selectedDepartment} onValueChange={handleDepartmentChange}>
-                      <SelectTrigger id="department">
-                        <SelectValue placeholder="Select a department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cse">Computer Science</SelectItem>
-                        <SelectItem value="eee">Electrical Engineering</SelectItem>
-                        <SelectItem value="me">Mechanical Engineering</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Curriculum Selection */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base sm:text-lg">Select Curriculum</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 sm:space-y-4">
-                  <div className="space-y-1 sm:space-y-2">
-                    <Label htmlFor="curriculum">Curriculum</Label>
-                    <Select value={selectedCurriculum} onValueChange={handleCurriculumChange}>
-                      <SelectTrigger id="curriculum">
-                        <SelectValue placeholder="Select a curriculum" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="2020">2020</SelectItem>
-                        <SelectItem value="2021">2021</SelectItem>
-                        <SelectItem value="2022">2022</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Bottom row: Excel Upload and Manual Entry */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-            {/* Excel Upload */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base sm:text-xl">Excel Upload</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4 sm:space-y-6">
-                  <ExcelUpload onDataLoaded={handleDataLoaded} onError={handleError} />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Manual Entry */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base sm:text-xl">Manual Course Entry</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4 sm:space-y-6">
-                  <p className="text-xs sm:text-base text-muted-foreground">Enter your courses manually to track your academic progress.</p>
-                  <Button onClick={handleManualEntry} className="w-full md:w-auto text-xs sm:text-base">
-                    Manual Entry
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+      </div>
+    </ProgressProvider>
   )
 } 

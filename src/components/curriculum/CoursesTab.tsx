@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { FaEdit, FaTrash, FaInfoCircle } from 'react-icons/fa';
+import { useState, useEffect } from 'react';
+import { FaEdit, FaTrash, FaInfoCircle, FaTags, FaLayerGroup } from 'react-icons/fa';
 
 interface Course {
   id: string;
@@ -11,6 +11,11 @@ interface Course {
   creditHours: string; // Changed to string to support formats like "3-0-6"
   type: string;
   description?: string; // Added description field
+  courseType?: {
+    id: string;
+    name: string;
+    color: string;
+  } | null;
 }
 
 interface CoursesTabProps {
@@ -18,14 +23,109 @@ interface CoursesTabProps {
   onEditCourse: (course: Course) => void;
   onDeleteCourse: (courseId: string) => void;
   onAddCourse: () => void;
+  curriculumId?: string;
+  departmentId?: string;
+  onRefreshCurriculum?: () => void;
 }
 
-export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAddCourse }: CoursesTabProps) {
+export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAddCourse, curriculumId, departmentId, onRefreshCurriculum }: CoursesTabProps) {
   const [search, setSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
+  
+  // Course Type Management State
+  const [courseTypes, setCourseTypes] = useState<any[]>([]);
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  const [selectedCourseType, setSelectedCourseType] = useState<string>('');
+  const [isLoadingCourseTypes, setIsLoadingCourseTypes] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  // Load course types when department changes
+  useEffect(() => {
+    if (departmentId) {
+      fetchCourseTypes();
+    }
+  }, [departmentId]);
+
+  // API Functions
+  const fetchCourseTypes = async () => {
+    if (!departmentId) return;
+    
+    setIsLoadingCourseTypes(true);
+    try {
+      const response = await fetch(`/api/course-types?departmentId=${departmentId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setCourseTypes(data.courseTypes || []);
+      }
+    } catch (error) {
+      console.error('Error fetching course types:', error);
+    } finally {
+      setIsLoadingCourseTypes(false);
+    }
+  };
+
+  const assignCourseTypes = async (courseIds: string[], courseTypeId: string) => {
+    setIsAssigning(true);
+    try {
+      const response = await fetch('/api/course-types/assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          courseIds,
+          courseTypeId,
+          departmentId
+        }),
+      });
+
+      if (response.ok) {
+        // Call the refresh callback if provided
+        if (onRefreshCurriculum) {
+          onRefreshCurriculum();
+        } else {
+          // Fallback to reload if no callback provided
+          window.location.reload();
+        }
+      } else {
+        console.error('Failed to assign course types');
+      }
+    } catch (error) {
+      console.error('Error assigning course types:', error);
+    } finally {
+      setIsAssigning(false);
+      setIsBulkAssignOpen(false);
+      setSelectedCourses([]);
+      setSelectedCourseType('');
+    }
+  };
+
+  // Bulk Assignment Functions
+  const handleBulkAssign = () => {
+    if (selectedCourses.length > 0 && selectedCourseType) {
+      assignCourseTypes(selectedCourses, selectedCourseType);
+    }
+  };
+
+  const toggleCourseSelection = (courseId: string) => {
+    setSelectedCourses(prev => 
+      prev.includes(courseId) 
+        ? prev.filter(id => id !== courseId)
+        : [...prev, courseId]
+    );
+  };
+
+  const selectAllCourses = () => {
+    setSelectedCourses(filteredCourses.map(course => course.id));
+  };
+
+  const clearSelection = () => {
+    setSelectedCourses([]);
+  };
 
   const filteredCourses = courses.filter(course =>
     course.code.toLowerCase().includes(search.toLowerCase()) ||
@@ -62,21 +162,39 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
 
   return (
     <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-xl p-8">
-      <div className="mb-6 flex items-center justify-between">        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search courses by code or title..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-80 border border-gray-300 dark:border-border rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
-            suppressHydrationWarning
-          />
-          <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search courses by code or title..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-80 border border-gray-300 dark:border-border rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
+              suppressHydrationWarning
+            />
+            <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          
+          {/* Bulk Assignment Button */}
+          <button
+            onClick={() => setIsBulkAssignOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            <FaTags />
+            Bulk Assign Categories
+          </button>
         </div>
+        
         <div className="text-sm text-gray-600 dark:text-gray-400">
           Showing {filteredCourses.length} course{filteredCourses.length !== 1 ? 's' : ''}
+          {selectedCourses.length > 0 && (
+            <span className="ml-2 text-primary font-medium">
+              ({selectedCourses.length} selected)
+            </span>
+          )}
         </div>
       </div>
       
@@ -84,11 +202,19 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
         <table className="min-w-full bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg overflow-hidden shadow-sm">
           <thead className="bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10">
             <tr>
+              <th className="px-6 py-4 text-left text-sm font-semibold text-primary">
+                <input
+                  type="checkbox"
+                  checked={selectedCourses.length === filteredCourses.length && filteredCourses.length > 0}
+                  onChange={(e) => e.target.checked ? selectAllCourses() : clearSelection()}
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                />
+              </th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-primary">Course Code</th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-primary">Title</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Credits</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Credit Hours</th>
-              <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Type</th>
+              <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Category</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Description</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Actions</th>
             </tr>
@@ -98,6 +224,14 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
             {filteredCourses.length > 0 ? (
               filteredCourses.map((course, idx) => (
                 <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                  <td className="px-6 py-4 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedCourses.includes(course.id)}
+                      onChange={() => toggleCourseSelection(course.id)}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                  </td>
                   <td className="px-6 py-4 text-sm font-medium text-foreground">{course.code}</td>
                   <td className="px-6 py-4 text-sm text-foreground">{course.title}</td>
                   <td className="px-6 py-4 text-center text-sm text-foreground">
@@ -106,23 +240,20 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center text-sm text-foreground">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                      {course.creditHours}
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 whitespace-nowrap">
+                      {course.creditHours?.replace(/[\r\n]+/g, '').trim() || 'N/A'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center text-sm text-foreground">
-                    {course.type ? (
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        course.type === 'Core' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                        course.type === 'Major' ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary' :
-                        course.type === 'Major Elective' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
-                        course.type === 'General Education' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' :
-                        'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
-                      }`}>
-                        {course.type}
+                    {course.courseType ? (
+                      <span 
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
+                        style={{ backgroundColor: course.courseType.color }}
+                      >
+                        {course.courseType.name}
                       </span>
                     ) : (
-                      <span className="text-gray-400 dark:text-gray-500">-</span>
+                      <span className="text-gray-400 dark:text-gray-500">No Category Assigned</span>
                     )}
                   </td>
                   <td className="px-6 py-4 text-center">
@@ -223,7 +354,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                 </h3>
                 <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                   <span>Credits: {selectedCourse.credits}</span>
-                  <span>Credit Hours: {selectedCourse.creditHours}</span>
+                  <span>Credit Hours: {selectedCourse.creditHours?.replace(/[\r\n]+/g, '').trim() || 'N/A'}</span>
                   {selectedCourse.type && (
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                       selectedCourse.type === 'Core' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
@@ -318,6 +449,85 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
               >
                 Remove Course
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Assignment Modal */}
+      {isBulkAssignOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-card rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-border">
+              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <FaTags className="text-primary" />
+                Bulk Assign Course Categories
+              </h3>
+              <button
+                onClick={() => setIsBulkAssignOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  Selected courses: <span className="font-medium text-foreground">{selectedCourses.length}</span>
+                </p>
+                <div className="max-h-32 overflow-y-auto bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-border">
+                  {selectedCourses.map(courseId => {
+                    const course = courses.find(c => c.id === courseId);
+                    return course ? (
+                      <div key={courseId} className="text-xs text-foreground mb-1">
+                        {course.code} - {course.title}
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Select Course Category
+                </label>
+                <select
+                  value={selectedCourseType}
+                  onChange={(e) => setSelectedCourseType(e.target.value)}
+                  className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground"
+                  disabled={isLoadingCourseTypes}
+                >
+                  <option value="">Select a course category...</option>
+                  {courseTypes.map(type => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+                {isLoadingCourseTypes && (
+                  <p className="text-xs text-gray-500 mt-1">Loading course categories...</p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIsBulkAssignOpen(false)}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
+                  disabled={isAssigning}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkAssign}
+                  disabled={!selectedCourseType || selectedCourses.length === 0 || isAssigning}
+                  className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isAssigning ? 'Assigning...' : 'Assign Categories'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

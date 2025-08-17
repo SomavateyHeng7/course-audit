@@ -1,0 +1,431 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String                   @id @default(cuid())
+  email                 String                   @unique
+  password              String
+  name                  String
+  role                  Role                     @default(STUDENT)
+  facultyId             String
+  advisorId             String?
+  gpa                   Float?
+  credits               Int?
+  scholarshipHour       Int?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  auditLogs             AuditLog[]
+  blacklists            Blacklist[]              @relation("BlacklistCreator")
+  concentrations        Concentration[]          @relation("ConcentrationCreator")
+  curricula             Curriculum[]             @relation("CurriculumCreator")
+  studentCourses        StudentCourse[]
+  courseTypeAssignments DepartmentCourseType[]   @relation("CourseTypeAssignments")
+  advisor               User?                    @relation("AdvisorStudent", fields: [advisorId], references: [id])
+  students              User[]                   @relation("AdvisorStudent")
+  faculty               Faculty                  @relation(fields: [facultyId], references: [id])
+
+  @@map("users")
+}
+
+model Faculty {
+  id                 String       @id @default(cuid())
+  name               String
+  code               String       @unique
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  concentrationLabel String       @default("Concentrations")
+  curricula          Curriculum[]
+  departments        Department[]
+  users              User[]
+
+  @@map("faculties")
+}
+
+model Department {
+  id                    String                 @id @default(cuid())
+  name                  String
+  code                  String
+  facultyId             String
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  blacklists            Blacklist[]
+  concentrations        Concentration[]
+  curricula             Curriculum[]
+  courseTypes           CourseType[]
+  departmentCourseTypes DepartmentCourseType[]
+  faculty               Faculty                @relation(fields: [facultyId], references: [id])
+
+  @@unique([code, facultyId])
+  @@map("departments")
+}
+
+model Curriculum {
+  id                       String                    @id @default(cuid())
+  name                     String
+  year                     String
+  version                  String                    @default("1.0")
+  description              String?
+  startId                  String                    // Student ID range start (e.g., "63001")
+  endId                    String                    // Student ID range end (e.g., "65999")
+  isActive                 Boolean                   @default(true)
+  departmentId             String
+  facultyId                String
+  createdById              String
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  auditLogs                AuditLog[]
+  createdBy                User                      @relation("CurriculumCreator", fields: [createdById], references: [id])
+  department               Department                @relation(fields: [departmentId], references: [id])
+  faculty                  Faculty                   @relation(fields: [facultyId], references: [id])
+  curriculumBlacklists     CurriculumBlacklist[]
+  curriculumConcentrations CurriculumConcentration[]
+  curriculumConstraints    CurriculumConstraint[]
+  curriculumCourses        CurriculumCourse[]
+  electiveRules            ElectiveRule[]
+
+  @@unique([year, startId, endId, departmentId])
+  @@map("curricula")
+}
+
+model Course {
+  id                     String                 @id @default(cuid())
+  code                   String                 @unique
+  name                   String
+  credits                Int
+  creditHours            String
+  description            String?
+  requiresPermission     Boolean                @default(false)
+  summerOnly             Boolean                @default(false)
+  requiresSeniorStanding Boolean                @default(false)
+  minCreditThreshold     Int?
+  isActive               Boolean                @default(true)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  auditLogs              AuditLog[]
+  blacklistCourses       BlacklistCourse[]
+  concentrationCourses   ConcentrationCourse[]
+  dependentCorequisites  CourseCorequisite[]    @relation("DependentCorequisites")
+  corequisites           CourseCorequisite[]    @relation("CourseCorequisites")
+  prerequisites          CoursePrerequisite[]   @relation("CoursePrerequisites")
+  dependentCourses       CoursePrerequisite[]   @relation("DependentCourses")
+  curriculumCourses      CurriculumCourse[]
+  studentCourses         StudentCourse[]
+  departmentCourseTypes  DepartmentCourseType[]
+
+  @@index([code])
+  @@index([name])
+  @@map("courses")
+}
+
+model CurriculumCourse {
+  id           String     @id @default(cuid())
+  curriculumId String
+  courseId     String
+  isRequired   Boolean    @default(true)
+  semester     String?
+  year         Int?
+  position     Int?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumId, courseId])
+  @@index([curriculumId])
+  @@index([courseId])
+  @@map("curriculum_courses")
+}
+
+model CoursePrerequisite {
+  id             String   @id @default(cuid())
+  courseId       String
+  prerequisiteId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  course         Course   @relation("CoursePrerequisites", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisite   Course   @relation("DependentCourses", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, prerequisiteId])
+  @@index([courseId])
+  @@index([prerequisiteId])
+  @@map("course_prerequisites")
+}
+
+model CourseCorequisite {
+  id            String   @id @default(cuid())
+  courseId      String
+  corequisiteId String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  corequisite   Course   @relation("DependentCorequisites", fields: [corequisiteId], references: [id], onDelete: Cascade)
+  course        Course   @relation("CourseCorequisites", fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, corequisiteId])
+  @@index([courseId])
+  @@index([corequisiteId])
+  @@map("course_corequisites")
+}
+
+model CourseType {
+  id                    String                 @id @default(cuid())
+  name                  String
+  color                 String
+  departmentId          String
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  department            Department             @relation(fields: [departmentId], references: [id])
+  departmentCourseTypes DepartmentCourseType[]
+
+  @@unique([name, departmentId])
+  @@map("course_types")
+}
+
+model DepartmentCourseType {
+  id           String        @id @default(cuid())
+  courseId     String
+  departmentId String
+  courseTypeId String
+  assignedAt   DateTime      @default(now())
+  assignedById String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  assignedBy   User?         @relation("CourseTypeAssignments", fields: [assignedById], references: [id])
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseType   CourseType    @relation(fields: [courseTypeId], references: [id], onDelete: Cascade)
+  department   Department    @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  electiveRules ElectiveRule[]
+
+  @@unique([courseId, departmentId])
+  @@index([departmentId])
+  @@index([courseTypeId])
+  @@map("department_course_types")
+}
+
+model ElectiveRule {
+  id                     String               @id @default(cuid())
+  curriculumId           String
+  departmentCourseTypeId String
+  requiredCredits        Int
+  description            String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  curriculum             Curriculum           @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  departmentCourseType   DepartmentCourseType @relation(fields: [departmentCourseTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumId, departmentCourseTypeId])
+  @@index([curriculumId])
+  @@index([departmentCourseTypeId])
+  @@map("elective_rules")
+}
+
+model Concentration {
+  id                       String                    @id @default(cuid())
+  name                     String
+  description              String?
+  departmentId             String
+  createdById              String
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  auditLogs                AuditLog[]
+  courses                  ConcentrationCourse[]
+  createdBy                User                      @relation("ConcentrationCreator", fields: [createdById], references: [id])
+  department               Department                @relation(fields: [departmentId], references: [id])
+  curriculumConcentrations CurriculumConcentration[]
+
+  @@unique([name, departmentId, createdById])
+  @@index([createdById])
+  @@map("concentrations")
+}
+
+model ConcentrationCourse {
+  id              String        @id @default(cuid())
+  concentrationId String
+  courseId        String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  concentration   Concentration @relation(fields: [concentrationId], references: [id], onDelete: Cascade)
+  course          Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([concentrationId, courseId])
+  @@index([concentrationId])
+  @@index([courseId])
+  @@map("concentration_courses")
+}
+
+model CurriculumConcentration {
+  id              String        @id @default(cuid())
+  curriculumId    String
+  concentrationId String
+  requiredCourses Int
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  concentration   Concentration @relation(fields: [concentrationId], references: [id], onDelete: Cascade)
+  curriculum      Curriculum    @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumId, concentrationId])
+  @@index([curriculumId])
+  @@index([concentrationId])
+  @@map("curriculum_concentrations")
+}
+
+model Blacklist {
+  id                   String                @id @default(cuid())
+  name                 String
+  description          String?
+  departmentId         String
+  createdById          String
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  auditLogs            AuditLog[]
+  courses              BlacklistCourse[]
+  createdBy            User                  @relation("BlacklistCreator", fields: [createdById], references: [id])
+  department           Department            @relation(fields: [departmentId], references: [id])
+  curriculumBlacklists CurriculumBlacklist[]
+
+  @@unique([name, departmentId, createdById])
+  @@index([createdById])
+  @@map("blacklists")
+}
+
+model BlacklistCourse {
+  id          String    @id @default(cuid())
+  blacklistId String
+  courseId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  blacklist   Blacklist @relation(fields: [blacklistId], references: [id], onDelete: Cascade)
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([blacklistId, courseId])
+  @@index([blacklistId])
+  @@index([courseId])
+  @@map("blacklist_courses")
+}
+
+model CurriculumBlacklist {
+  id           String     @id @default(cuid())
+  curriculumId String
+  blacklistId  String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  blacklist    Blacklist  @relation(fields: [blacklistId], references: [id], onDelete: Cascade)
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumId, blacklistId])
+  @@index([curriculumId])
+  @@index([blacklistId])
+  @@map("curriculum_blacklists")
+}
+
+model CurriculumConstraint {
+  id           String                   @id @default(cuid())
+  curriculumId String
+  type         CurriculumConstraintType
+  name         String
+  description  String?
+  isRequired   Boolean                  @default(true)
+  config       Json?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  curriculum   Curriculum               @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumId, type, name])
+  @@index([curriculumId])
+  @@map("curriculum_constraints")
+}
+
+model StudentCourse {
+  id        String              @id @default(cuid())
+  studentId String
+  courseId  String
+  status    StudentCourseStatus
+  grade     String?
+  semester  String?
+  year      Int?
+  credits   Int?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  course    Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student   User                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([studentId])
+  @@index([courseId])
+  @@map("student_courses")
+}
+
+model AuditLog {
+  id              String         @id @default(cuid())
+  userId          String
+  entityType      String
+  entityId        String
+  action          AuditAction
+  changes         Json?
+  description     String?
+  curriculumId    String?
+  courseId        String?
+  concentrationId String?
+  blacklistId     String?
+  createdAt       DateTime       @default(now())
+  blacklist       Blacklist?     @relation(fields: [blacklistId], references: [id])
+  concentration   Concentration? @relation(fields: [concentrationId], references: [id])
+  course          Course?        @relation(fields: [courseId], references: [id])
+  curriculum      Curriculum?    @relation(fields: [curriculumId], references: [id])
+  user            User           @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([curriculumId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+enum Role {
+  STUDENT
+  ADVISOR
+  CHAIRPERSON
+  ADMIN
+}
+
+enum CurriculumConstraintType {
+  MINIMUM_GPA
+  SENIOR_STANDING
+  TOTAL_CREDITS
+  CATEGORY_CREDITS
+  CUSTOM
+}
+
+enum StudentCourseStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  DROPPED
+  PENDING
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  ASSIGN
+  UNASSIGN
+  IMPORT
+  EXPORT
+}

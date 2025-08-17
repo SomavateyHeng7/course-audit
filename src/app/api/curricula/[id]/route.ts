@@ -14,9 +14,10 @@ const updateCurriculumSchema = z.object({
 // GET /api/curricula/[id] - Get specific curriculum
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
     
     if (!session?.user?.id) {
@@ -35,7 +36,7 @@ export async function GET(
 
     const curriculum = await prisma.curriculum.findFirst({
       where: {
-        id: params.id,
+        id: id,
         createdById: session.user.id, // Ensure ownership
       },
       include: {
@@ -58,7 +59,7 @@ export async function GET(
           orderBy: { createdAt: 'asc' },
         },
         electiveRules: {
-          orderBy: { category: 'asc' },
+          orderBy: { createdAt: 'asc' },
         },
         curriculumConcentrations: {
           include: {
@@ -105,6 +106,41 @@ export async function GET(
       );
     }
 
+    // Get course type assignments for courses in this curriculum
+    const courseIds = curriculum.curriculumCourses.map(cc => cc.course.id);
+    
+    const courseTypeAssignments = await prisma.departmentCourseType.findMany({
+      where: {
+        courseId: { in: courseIds },
+        departmentId: curriculum.departmentId
+      },
+      include: {
+        courseType: true
+      }
+    });
+
+    // Create a map of courseId -> courseType for easy lookup
+    const courseTypeMap = new Map();
+    courseTypeAssignments.forEach(assignment => {
+      courseTypeMap.set(assignment.courseId, {
+        id: assignment.courseType.id,
+        name: assignment.courseType.name,
+        color: assignment.courseType.color
+      });
+    });
+
+    // Enhance curriculum courses with course type information
+    const enhancedCurriculum = {
+      ...curriculum,
+      curriculumCourses: curriculum.curriculumCourses.map(cc => ({
+        ...cc,
+        course: {
+          ...cc.course,
+          courseType: courseTypeMap.get(cc.course.id) || null
+        }
+      }))
+    };
+
     // Log audit event
     await prisma.auditLog.create({
       data: {
@@ -117,7 +153,7 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({ curriculum });
+    return NextResponse.json({ curriculum: enhancedCurriculum });
 
   } catch (error) {
     console.error('Error fetching curriculum:', error);
@@ -131,9 +167,10 @@ export async function GET(
 // PUT /api/curricula/[id] - Update curriculum
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
     
     if (!session?.user?.id) {
@@ -156,7 +193,7 @@ export async function PUT(
     // Check if curriculum exists and user owns it
     const existingCurriculum = await prisma.curriculum.findFirst({
       where: {
-        id: params.id,
+        id: id,
         createdById: session.user.id,
       },
     });
@@ -168,16 +205,17 @@ export async function PUT(
       );
     }
 
-    // Check for duplicate name/year/version if name or version is being updated
-    if (validatedData.name || validatedData.version) {
+    // Check for duplicate name if name is being updated
+    // Note: year, startId, endId, departmentId define uniqueness and cannot be updated
+    if (validatedData.name) {
       const duplicateCheck = await prisma.curriculum.findFirst({
         where: {
-          id: { not: params.id },
-          name: validatedData.name || existingCurriculum.name,
+          id: { not: id },
+          name: validatedData.name,
           year: existingCurriculum.year,
-          version: validatedData.version || existingCurriculum.version,
+          startId: existingCurriculum.startId,
+          endId: existingCurriculum.endId,
           departmentId: existingCurriculum.departmentId,
-          createdById: session.user.id,
         },
       });
 
@@ -186,7 +224,7 @@ export async function PUT(
           { 
             error: { 
               code: 'DUPLICATE_CURRICULUM', 
-              message: 'Curriculum with this name, year, and version already exists' 
+              message: `Curriculum with name "${validatedData.name}" already exists for this year and ID range in this department` 
             } 
           },
           { status: 409 }
@@ -205,7 +243,7 @@ export async function PUT(
 
       // Update curriculum
       const updatedCurriculum = await tx.curriculum.update({
-        where: { id: params.id },
+        where: { id: id },
         data: validatedData,
         include: {
           department: true,
@@ -235,10 +273,10 @@ export async function PUT(
         data: {
           userId: session.user.id,
           entityType: 'Curriculum',
-          entityId: params.id,
+          entityId: id,
           action: 'UPDATE',
           description: `Updated curriculum "${updatedCurriculum.name}"`,
-          curriculumId: params.id,
+          curriculumId: id,
           changes: {
             before: originalData,
             after: validatedData,
@@ -277,9 +315,10 @@ export async function PUT(
 // DELETE /api/curricula/[id] - Delete curriculum
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
     
     if (!session?.user?.id) {
@@ -299,7 +338,7 @@ export async function DELETE(
     // Check if curriculum exists and user owns it
     const curriculum = await prisma.curriculum.findFirst({
       where: {
-        id: params.id,
+        id: id,
         createdById: session.user.id,
       },
       include: {
@@ -333,7 +372,7 @@ export async function DELETE(
 
       // Delete curriculum (cascade will handle related records)
       await tx.curriculum.delete({
-        where: { id: params.id },
+        where: { id: id },
       });
 
       // Create audit log
@@ -341,7 +380,7 @@ export async function DELETE(
         data: {
           userId: session.user.id,
           entityType: 'Curriculum',
-          entityId: params.id,
+          entityId: id,
           action: 'DELETE',
           description: `Deleted curriculum "${curriculumData.name}" (${curriculumData.year})`,
           changes: {

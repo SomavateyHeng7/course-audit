@@ -1,0 +1,55 @@
+[33med3910b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mlucas[m[33m, [m[1;31morigin/lucas[m[33m)[m HEAD@{0}: commit: Feat: Blacklist - Done
+[33md396ab9[m HEAD@{1}: commit: Feat:Blacklists-info_config-Done
+[33m675c6d4[m HEAD@{2}: commit (merge): Merge branch 'main' of https://github.com/SomavateyHeng7/course-audit into lucas
+[33m5ae3953[m HEAD@{3}: commit: Elective rules: Test
+[33m37f5eb2[m HEAD@{4}: commit: Elective Rules Tab - Started
+[33m95d6534[m HEAD@{5}: commit: Feat: Constraints Tab - Done
+[33m3e3d688[m HEAD@{6}: commit: Constraints Tab: Functions finalizing-Banned Combination left
+[33m0249e7b[m HEAD@{7}: commit: Constraints Tab: Ui finalize
+[33me35f8e3[m HEAD@{8}: commit: Feat: Constraints tab
+[33me6f8737[m HEAD@{9}: commit: feat: Constraint tab
+[33m5f3ae5b[m HEAD@{10}: commit: ui mod + constraint , prerequisites tab start
+[33ma5b90f1[m HEAD@{11}: commit: feat:courses tab done
+[33m74fe3b1[m HEAD@{12}: reset: moving to 74fe3b1
+[33m231e6db[m HEAD@{13}: reset: moving to HEAD~7
+[33ma69bb0b[m HEAD@{14}: reset: moving to HEAD~4
+[33m92f416c[m HEAD@{15}: reset: moving to HEAD~5
+[33mf2ab72d[m HEAD@{16}: reset: moving to HEAD~1
+[33m86d0b9e[m HEAD@{17}: reset: moving to origin/lucas
+[33m99eb892[m HEAD@{18}: pull origin main: Fast-forward
+[33m86d0b9e[m HEAD@{19}: commit: delete
+[33mf2ab72d[m HEAD@{20}: commit: Backend implemetation for Curriculum Creation, Display, Info_edit: Courses
+[33m74fe3b1[m HEAD@{21}: commit: Feat: Backend-Chaiperson page,Curriculum creation, Info_edit:Courses
+[33ma2b87bb[m HEAD@{22}: commit: info_edit tabs improve, Ui concluded
+[33m4d4f663[m HEAD@{23}: commit: blacklist function flow mod, ui imporve info_edit tab bar
+[33m353a66d[m HEAD@{24}: commit: sidebar fix,minor ui fixes(create,info_edit-courses)
+[33m92f416c[m HEAD@{25}: commit (merge): Merge branch 'main' of https://github.com/SomavateyHeng7/course-audit into lucas
+[33md4626fd[m HEAD@{26}: commit: feats: config page(blacklist,categories,concentraions), concentrations tab(info_edit)
+[33m7c3fa98[m HEAD@{27}: commit: auth ui fix after deployment
+[33m9f9fd19[m HEAD@{28}: pull origin main: Fast-forward
+[33m21eefba[m HEAD@{29}: commit: curriculum create mod, excel drag and drop
+[33m1e9012a[m HEAD@{30}: commit: lastest ui changes for chairperson
+[33m235f580[m HEAD@{31}: commit: elective rules tab, chairperson navs
+[33m68cc498[m HEAD@{32}: commit (merge): Merge branch 'main' of https://github.com/SomavateyHeng7/course-audit into lucas
+[33m63d6ed7[m HEAD@{33}: commit: schema, auth ui, chairperson page
+[33m69e8e48[m HEAD@{34}: commit: modify chairperson page, add excel + tab in info_edit page
+[33m833cfa0[m HEAD@{35}: commit: merge
+[33me757942[m HEAD@{36}: pull origin main: Fast-forward
+[33m48efde4[m HEAD@{37}: commit: sidebar ui
+[33m7ddc408[m HEAD@{38}: commit (merge): Merge branch 'main' of https://github.com/SomavateyHeng7/course-audit into lucas
+[33m7b7c061[m HEAD@{39}: commit: side bar collapse
+[33m95dd100[m[33m ([m[1;32mmain[m[33m)[m HEAD@{40}: pull origin main: Fast-forward
+[33m4c92f50[m HEAD@{41}: checkout: moving from main to lucas
+[33m95dd100[m[33m ([m[1;32mmain[m[33m)[m HEAD@{42}: commit: sidebar modification
+[33m5406fba[m HEAD@{43}: commit (merge): Merge branch 'main' of https://github.com/SomavateyHeng7/course-audit
+[33maf1bfa4[m HEAD@{44}: commit: logout + sidebar modification
+[33m476b2df[m HEAD@{45}: checkout: moving from lucas to main
+[33m4c92f50[m HEAD@{46}: commit: modification for sidebar + theme
+[33m476b2df[m HEAD@{47}: checkout: moving from main to lucas
+[33m476b2df[m HEAD@{48}: checkout: moving from lucas to main
+[33m476b2df[m HEAD@{49}: pull origin main: Fast-forward
+[33mb789543[m HEAD@{50}: checkout: moving from main to lucas
+[33m476b2df[m HEAD@{51}: commit (merge): Merge branch 'main' of https://github.com/SomavateyHeng7/course-audit
+[33ma591c6e[m HEAD@{52}: commit (merge): conflict resolved
+[33m99b622a[m HEAD@{53}: commit: auth, database initialization, prisma
+[33mdfe7847[m HEAD@{54}: clone: from https://github.com/SomavateyHeng7/course-audit.git

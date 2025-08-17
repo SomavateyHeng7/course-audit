@@ -1,40 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/departments - Get departments for user's faculty
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await auth();
-    
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
-        { status: 401 }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const facultyId = searchParams.get('facultyId') || session.user.faculty?.id;
-
-    if (!facultyId) {
-      return NextResponse.json(
-        { error: { code: 'BAD_REQUEST', message: 'Faculty ID is required' } },
-        { status: 400 }
-      );
-    }
-
     const departments = await prisma.department.findMany({
-      where: {
-        facultyId,
-      },
       include: {
-        faculty: true,
-        _count: {
+        faculty: {
           select: {
-            curricula: true,
-            concentrations: true,
-            blacklists: true,
+            id: true,
+            name: true,
+            code: true,
           },
         },
       },
@@ -44,11 +19,83 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ departments });
-
   } catch (error) {
     console.error('Error fetching departments:', error);
     return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch departments' } },
+      { error: 'Failed to fetch departments' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const { name, code, facultyId } = await req.json();
+
+    // Validate input
+    if (!name || !code || !facultyId) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Check if faculty exists
+    const faculty = await prisma.faculty.findUnique({
+      where: { id: facultyId },
+    });
+
+    if (!faculty) {
+      return NextResponse.json(
+        { error: 'Invalid faculty' },
+        { status: 400 }
+      );
+    }
+
+    // Check if department code already exists in this faculty
+    const existingDepartment = await prisma.department.findFirst({
+      where: {
+        code,
+        facultyId,
+      },
+    });
+
+    if (existingDepartment) {
+      return NextResponse.json(
+        { error: 'Department code already exists in this faculty' },
+        { status: 400 }
+      );
+    }
+
+    // Create department
+    const department = await prisma.department.create({
+      data: {
+        name,
+        code,
+        facultyId,
+      },
+      include: {
+        faculty: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(
+      { 
+        message: 'Department created successfully', 
+        department 
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('Error creating department:', error);
+    return NextResponse.json(
+      { error: 'Error creating department' },
       { status: 500 }
     );
   }

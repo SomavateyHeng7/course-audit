@@ -125,7 +125,6 @@ export async function POST(req: Request) {
               credits: courseData.credits,
               creditHours: courseData.creditHours!,
               description: courseData.description,
-              category: courseData.category,
             },
           });
         } else {
@@ -139,7 +138,6 @@ export async function POST(req: Request) {
               credits: courseData.credits,
               creditHours: courseData.creditHours!,
               description: courseData.description,
-              category: courseData.category,
               requiresPermission: false,
               summerOnly: false,
               requiresSeniorStanding: false,

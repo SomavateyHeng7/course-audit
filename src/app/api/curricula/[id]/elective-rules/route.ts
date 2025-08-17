@@ -56,16 +56,29 @@ export async function GET(
             id: true,
             code: true,
             name: true,
-            category: true,
-            credits: true
+            credits: true,
+            departmentCourseTypes: {
+              where: {
+                departmentId: curriculum.departmentId
+              },
+              select: {
+                courseType: {
+                  select: {
+                    name: true
+                  }
+                }
+              }
+            }
           }
         }
       }
     });
 
-    // Get unique categories from courses
+    // Get unique categories from courses via their department course type assignments
     const courseCategories = [...new Set(
-      curriculumCourses.map(cc => cc.course.category).filter(Boolean)
+      curriculumCourses
+        .map(cc => cc.course.departmentCourseTypes[0]?.courseType.name)
+        .filter(Boolean)
     )];
 
     return NextResponse.json({
@@ -75,7 +88,7 @@ export async function GET(
         id: cc.course.id,
         code: cc.course.code,
         name: cc.course.name,
-        category: cc.course.category,
+        category: cc.course.departmentCourseTypes[0]?.courseType.name || 'Unassigned',
         credits: cc.course.credits,
         isRequired: cc.isRequired,
         semester: cc.semester,
