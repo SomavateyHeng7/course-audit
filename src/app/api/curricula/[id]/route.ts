@@ -59,7 +59,7 @@ export async function GET(
           orderBy: { createdAt: 'asc' },
         },
         electiveRules: {
-          orderBy: { category: 'asc' },
+          orderBy: { createdAt: 'asc' },
         },
         curriculumConcentrations: {
           include: {
@@ -205,16 +205,17 @@ export async function PUT(
       );
     }
 
-    // Check for duplicate name/year/version if name or version is being updated
-    if (validatedData.name || validatedData.version) {
+    // Check for duplicate name if name is being updated
+    // Note: year, startId, endId, departmentId define uniqueness and cannot be updated
+    if (validatedData.name) {
       const duplicateCheck = await prisma.curriculum.findFirst({
         where: {
           id: { not: id },
-          name: validatedData.name || existingCurriculum.name,
+          name: validatedData.name,
           year: existingCurriculum.year,
-          version: validatedData.version || existingCurriculum.version,
+          startId: existingCurriculum.startId,
+          endId: existingCurriculum.endId,
           departmentId: existingCurriculum.departmentId,
-          createdById: session.user.id,
         },
       });
 
@@ -223,7 +224,7 @@ export async function PUT(
           { 
             error: { 
               code: 'DUPLICATE_CURRICULUM', 
-              message: 'Curriculum with this name, year, and version already exists' 
+              message: `Curriculum with name "${validatedData.name}" already exists for this year and ID range in this department` 
             } 
           },
           { status: 409 }

@@ -53,26 +53,10 @@ export async function GET(request: NextRequest) {
         credits: true,
         creditHours: true,
         description: true,
-        category: true,
         requiresPermission: true,
         summerOnly: true,
         requiresSeniorStanding: true,
         minCreditThreshold: true,
-        // Include basic prerequisite info for display
-        prerequisites: {
-          select: {
-            prerequisite: {
-              select: { code: true, name: true },
-            },
-          },
-        },
-        corequisites: {
-          select: {
-            corequisite: {
-              select: { code: true, name: true },
-            },
-          },
-        },
       },
       orderBy: [
         { code: 'asc' },
@@ -83,8 +67,6 @@ export async function GET(request: NextRequest) {
     // Transform to simpler format for frontend consumption
     const transformedCourses = courses.map(course => ({
       ...course,
-      prerequisites: course.prerequisites.map(p => p.prerequisite),
-      corequisites: course.corequisites.map(c => c.corequisite),
       displayName: `${course.code}: ${course.name}`,
       searchableText: `${course.code} ${course.name} ${course.description || ''}`.toLowerCase(),
     }));

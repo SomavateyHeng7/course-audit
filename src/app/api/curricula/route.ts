@@ -20,7 +20,6 @@ const createCurriculumSchema = z.object({
     credits: z.number().min(0, 'Credits must be non-negative'),
     creditHours: z.string().min(1, 'Credit hours format required'),
     description: z.string().optional(),
-    category: z.string().min(1, 'Category is required'),
     requiresPermission: z.boolean().optional().default(false),
     summerOnly: z.boolean().optional().default(false),
     requiresSeniorStanding: z.boolean().optional().default(false),
@@ -198,12 +197,13 @@ export async function POST(request: NextRequest) {
     const validatedData = createCurriculumSchema.parse(body);
     console.log('✅ Data validation passed');
 
-    // Check if curriculum with same year/startId/endId already exists
+    // Check if curriculum with same year/startId/endId in the same department already exists
     const existingCurriculum = await prisma.curriculum.findFirst({
       where: {
         year: validatedData.year,
         startId: validatedData.startId,
         endId: validatedData.endId,
+        departmentId: validatedData.departmentId,
       },
     });
 
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
         { 
           error: { 
             code: 'DUPLICATE_CURRICULUM', 
-            message: `Curriculum for year ${validatedData.year} with ID range ${validatedData.startId}-${validatedData.endId} already exists.`,
+            message: `Curriculum for year ${validatedData.year} with ID range ${validatedData.startId}-${validatedData.endId} already exists in this department.`,
             existingCurriculum: {
               id: existingCurriculum.id,
               name: existingCurriculum.name,

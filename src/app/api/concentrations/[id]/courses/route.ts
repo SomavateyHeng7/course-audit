@@ -83,7 +83,6 @@ export async function GET(
       name: cc.course.name,
       credits: cc.course.credits,
       creditHours: cc.course.creditHours,
-      category: cc.course.category,
       description: cc.course.description,
     }));
 
@@ -202,7 +201,6 @@ export async function POST(
               name: name.toString().trim(),
               credits: credits ? Number(credits) : 3,
               creditHours: creditHours?.toString() || "3-0-3",
-              category: category?.toString() || "General",
               description: description?.toString() || null,
             }
           });

@@ -43,10 +43,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, year, departmentId, courses } = await req.json();
+    const { name, year, departmentId, startId, endId, courses } = await req.json();
 
     // Validate input
-    if (!name || !year || !departmentId || !courses) {
+    if (!name || !year || !departmentId || !startId || !endId || !courses) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -68,11 +68,30 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check if curriculum with same year/startId/endId in the same department already exists
+    const existingCurriculum = await prisma.curriculum.findFirst({
+      where: {
+        year: year,
+        startId: startId,
+        endId: endId,
+        departmentId: departmentId,
+      },
+    });
+
+    if (existingCurriculum) {
+      return NextResponse.json(
+        { error: `Curriculum for year ${year} with ID range ${startId}-${endId} already exists in this department.` },
+        { status: 409 }
+      );
+    }
+
     // Create curriculum with courses
     const curriculum = await prisma.curriculum.create({
       data: {
         name: name,
         year: year,
+        startId: startId,
+        endId: endId,
         departmentId: departmentId,
         facultyId: session.user.faculty.id,
         createdById: session.user.id,
@@ -84,7 +103,6 @@ export async function POST(req: Request) {
                 name: course.name,
                 credits: course.credits,
                 creditHours: `${course.credits}-0-${course.credits * 2}`,
-                category: course.category || 'General'
               }
             },
             year: course.year || 1,

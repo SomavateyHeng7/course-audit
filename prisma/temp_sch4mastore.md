@@ -8,27 +8,27 @@ datasource db {
 }
 
 model User {
-  id                    String                 @id @default(cuid())
-  email                 String                 @unique
+  id                    String                   @id @default(cuid())
+  email                 String                   @unique
   password              String
   name                  String
-  role                  Role                   @default(STUDENT)
+  role                  Role                     @default(STUDENT)
   facultyId             String
   advisorId             String?
   gpa                   Float?
   credits               Int?
   scholarshipHour       Int?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
   auditLogs             AuditLog[]
-  blacklists            Blacklist[]            @relation("BlacklistCreator")
-  concentrations        Concentration[]        @relation("ConcentrationCreator")
-  curricula             Curriculum[]           @relation("CurriculumCreator")
-  courseTypeAssignments DepartmentCourseType[] @relation("CourseTypeAssignments")
+  blacklists            Blacklist[]              @relation("BlacklistCreator")
+  concentrations        Concentration[]          @relation("ConcentrationCreator")
+  curricula             Curriculum[]             @relation("CurriculumCreator")
   studentCourses        StudentCourse[]
-  advisor               User?                  @relation("AdvisorStudent", fields: [advisorId], references: [id])
-  students              User[]                 @relation("AdvisorStudent")
-  faculty               Faculty                @relation(fields: [facultyId], references: [id])
+  courseTypeAssignments DepartmentCourseType[]   @relation("CourseTypeAssignments")
+  advisor               User?                    @relation("AdvisorStudent", fields: [advisorId], references: [id])
+  students              User[]                   @relation("AdvisorStudent")
+  faculty               Faculty                  @relation(fields: [facultyId], references: [id])
 
   @@map("users")
 }
@@ -56,8 +56,8 @@ model Department {
   updatedAt             DateTime               @updatedAt
   blacklists            Blacklist[]
   concentrations        Concentration[]
-  courseTypes           CourseType[]
   curricula             Curriculum[]
+  courseTypes           CourseType[]
   departmentCourseTypes DepartmentCourseType[]
   faculty               Faculty                @relation(fields: [facultyId], references: [id])
 
@@ -71,8 +71,8 @@ model Curriculum {
   year                     String
   version                  String                    @default("1.0")
   description              String?
-  startId                  String
-  endId                    String
+  startId                  String                    // Student ID range start (e.g., "63001")
+  endId                    String                    // Student ID range end (e.g., "65999")
   isActive                 Boolean                   @default(true)
   departmentId             String
   facultyId                String
@@ -115,8 +115,8 @@ model Course {
   prerequisites          CoursePrerequisite[]   @relation("CoursePrerequisites")
   dependentCourses       CoursePrerequisite[]   @relation("DependentCourses")
   curriculumCourses      CurriculumCourse[]
-  departmentCourseTypes  DepartmentCourseType[]
   studentCourses         StudentCourse[]
+  departmentCourseTypes  DepartmentCourseType[]
 
   @@index([code])
   @@index([name])
@@ -187,18 +187,19 @@ model CourseType {
 }
 
 model DepartmentCourseType {
-  id           String     @id @default(cuid())
+  id           String        @id @default(cuid())
   courseId     String
   departmentId String
   courseTypeId String
-  assignedAt   DateTime   @default(now())
+  assignedAt   DateTime      @default(now())
   assignedById String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  assignedBy   User?      @relation("CourseTypeAssignments", fields: [assignedById], references: [id])
-  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  courseType   CourseType @relation(fields: [courseTypeId], references: [id], onDelete: Cascade)
-  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  assignedBy   User?         @relation("CourseTypeAssignments", fields: [assignedById], references: [id])
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseType   CourseType    @relation(fields: [courseTypeId], references: [id], onDelete: Cascade)
+  department   Department    @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  electiveRules ElectiveRule[]
 
   @@unique([courseId, departmentId])
   @@index([departmentId])
@@ -207,17 +208,19 @@ model DepartmentCourseType {
 }
 
 model ElectiveRule {
-  id              String     @id @default(cuid())
-  curriculumId    String
-  category        String
-  requiredCredits Int
-  description     String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  curriculum      Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  id                     String               @id @default(cuid())
+  curriculumId           String
+  departmentCourseTypeId String
+  requiredCredits        Int
+  description            String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  curriculum             Curriculum           @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  departmentCourseType   DepartmentCourseType @relation(fields: [departmentCourseTypeId], references: [id], onDelete: Cascade)
 
-  @@unique([curriculumId, category])
+  @@unique([curriculumId, departmentCourseTypeId])
   @@index([curriculumId])
+  @@index([departmentCourseTypeId])
   @@map("elective_rules")
 }
 
