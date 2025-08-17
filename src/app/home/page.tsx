@@ -149,7 +149,7 @@ export default function HomePage() {
       <section className="space-y-4 sm:space-y-6">
         <h2 className="text-lg sm:text-2xl font-semibold">Session Controls</h2>
         <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4">
-          <button onClick={startNewSession} disabled={isSessionActive} className={`px-4 sm:px-6 py-2 rounded text-xs sm:text-base ${isSessionActive ? 'bg-gray-300 cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>Start New Session</button>
+          <button onClick={startNewSession} disabled={isSessionActive} className={`px-4 sm:px-6 py-2 rounded text-xs sm:text-base ${isSessionActive ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}>Start New Session</button>
           <button onClick={endCurrentSession} disabled={!isSessionActive} className={`px-4 sm:px-6 py-2 rounded text-xs sm:text-base ${!isSessionActive ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}>End Session</button>
         </div>
       </section>
@@ -157,7 +157,7 @@ export default function HomePage() {
       <section className="space-y-4 sm:space-y-6">
         <h2 className="text-lg sm:text-2xl font-semibold">Start with Templates</h2>
         <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4">
-          <button onClick={handleGenerateSample} className="px-4 sm:px-6 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 text-xs sm:text-base">Download Sample Excel</button>
+          <button onClick={handleGenerateSample} className="px-4 sm:px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-xs sm:text-base">Download Sample Excel</button>
           <ExcelDownload curriculumTemplate={true} fileName="curriculum-template.xlsx" className="w-full sm:w-auto" />
           <ExcelDownload className="w-full sm:w-auto" />
         </div>

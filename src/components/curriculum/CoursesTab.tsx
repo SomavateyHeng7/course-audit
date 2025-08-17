@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaInfoCircle, FaTags, FaLayerGroup } from 'react-icons/fa';
 
 interface Course {
-  id: string;
   code: string;
   title: string;
   credits: number;
@@ -21,7 +20,6 @@ interface Course {
 interface CoursesTabProps {
   courses: Course[];
   onEditCourse: (course: Course) => void;
-  onDeleteCourse: (courseId: string) => void;
   onAddCourse: () => void;
   curriculumId?: string;
   departmentId?: string;
@@ -142,24 +140,6 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
     setSelectedCourse(null);
   };
 
-  const handleDeleteClick = (course: Course) => {
-    setCourseToDelete(course);
-    setIsDeleteModalOpen(true);
-  };
-
-  const handleConfirmDelete = () => {
-    if (courseToDelete) {
-      onDeleteCourse(courseToDelete.id);
-      setIsDeleteModalOpen(false);
-      setCourseToDelete(null);
-    }
-  };
-
-  const handleCancelDelete = () => {
-    setIsDeleteModalOpen(false);
-    setCourseToDelete(null);
-  };
-
   return (
     <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-xl p-8">
       <div className="mb-6 flex items-center justify-between">
@@ -200,7 +180,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
       
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg overflow-hidden shadow-sm">
-          <thead className="bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10">
+          <thead className="bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/20">
             <tr>
               <th className="px-6 py-4 text-left text-sm font-semibold text-primary">
                 <input
@@ -272,14 +252,13 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                   <td className="px-6 py-4 text-center">                    <div className="flex items-center justify-center gap-2">
                       <button 
                         onClick={() => onEditCourse(course)}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all" 
+                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all" 
                         title="Edit Course"
                         suppressHydrationWarning
                       >
                         <FaEdit className="w-4 h-4" />
                       </button>
                       <button 
-                        onClick={() => handleDeleteClick(course)}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all" 
                         title="Delete Course"
                         suppressHydrationWarning
@@ -304,7 +283,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                     {search && (
                       <button 
                         onClick={() => setSearch('')}
-                        className="mt-3 text-primary hover:underline text-sm"
+                        className="mt-3 text-emerald-600 dark:text-emerald-400 hover:underline text-sm"
                       >
                         Clear search
                       </button>
@@ -323,7 +302,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
         </div>        <div className="flex gap-3">
           <button 
             onClick={onAddCourse}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors border border-primary shadow-sm"
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors border border-emerald-700 shadow-sm"
             suppressHydrationWarning
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -358,7 +337,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                   {selectedCourse.type && (
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                       selectedCourse.type === 'Core' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                      selectedCourse.type === 'Major' ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary' :
+                      selectedCourse.type === 'Major' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
                       selectedCourse.type === 'Major Elective' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
                       selectedCourse.type === 'General Education' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' :
                       'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'

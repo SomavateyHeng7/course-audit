@@ -18,43 +18,19 @@ import {
   Menu,
   BookOpen,
   Settings,
-  Book,
-  Users,
-  Building,
-  GraduationCap,
 } from 'lucide-react';
-import Image from 'next/image';
 
-// Default navigation for student users
+// Default navigation for non-chairperson users
 const defaultNavigationItems = [
   {
-    name: 'Course Management',
+    name: 'Management',
     href: '/management',
     icon: LayoutDashboard,
   },
   {
-    name: 'All Curricula',
-    href: '/allCurricula',
-    icon: Book,
-  },
-];
-
-// Navigation for admin users
-const adminNavigationItems = [
-  {
-    name: 'User Management',
-    href: '/admin',
-    icon: Users,
-  },
-  {
-    name: 'Faculty Management',
-    href: '/admin/faculty',
-    icon: GraduationCap,
-  },
-  {
-    name: 'Department Management',
-    href: '/admin/department',
-    icon: Building,
+    name: 'Advising',
+    href: '/advisor/advising',
+    icon: MessageSquare,
   },
   {
     name: 'Profile',
@@ -82,19 +58,43 @@ const chairpersonNavigationItems = [
   },
 ];
 
+
+
+// Navigation for super admin users
+const superAdminNavigationItems = [
+  {
+    name: 'Dashboard',
+    href: '/admin',
+    icon: LayoutDashboard,
+  },
+  {
+    name: 'Profile',
+    href: '/profile',
+    icon: User,
+  },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const { isCollapsed, toggleSidebar } = useSidebar();
-  const { data: session } = useSession();
+  // Extend the Session type to include all possible roles
+  type UserRole = "STUDENT" | "ADVISOR" | "ADMIN" | "CHAIRPERSON" | undefined;
+  interface CustomSession {
+    user?: {
+      name?: string;
+      role?: UserRole;
+    };
+  }
+  const { data: session } = useSession() as { data: CustomSession | null };
 
   // Determine navigation items based on user role
   const navigationItems = session?.user?.role === 'CHAIRPERSON' 
     ? chairpersonNavigationItems 
     : session?.user?.role === 'SUPER_ADMIN'
-    ? adminNavigationItems
+    ? superAdminNavigationItems
     : defaultNavigationItems;
 
   useEffect(() => {
@@ -131,9 +131,9 @@ export default function Sidebar() {
       initial={{ width: 224 }}
       animate={{ width: isCollapsed ? 80 : 224 }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
-      className="fixed inset-y-0 left-0 z-50 border-r border-teal-200/60 dark:border-teal-800/40 flex flex-col bg-white dark:bg-background backdrop-blur-sm"
+      className="fixed inset-y-0 left-0 z-50 border-r border-primary/20 dark:border-primary/30 flex flex-col bg-white dark:bg-background backdrop-blur-sm"
     >{/* Header with Menu Toggle */}        <div className={cn(
-          "py-5 border-b border-teal-200/60 dark:border-teal-800/40",
+          "py-5 border-b border-primary/20 dark:border-primary/30",
           isCollapsed ? "px-2" : "px-4"
         )}>
           <div className={cn(
@@ -148,15 +148,13 @@ export default function Sidebar() {
                   transition={{ duration: 0.2 }}                  className="flex items-center gap-1 mr-8"
                 >
                   {!logoError ? (
-                    // Use Next.js Image component for logo
-                    <Image
+                    <img
                       src="/image/logo.png"
                       alt="EduTrack Logo"
                       width={32}
                       height={32}
                       className="w-7 h-8 object-contain"
                       onError={handleLogoError}
-                      priority
                     />
                   ) : (
                     <div className="w-7 h-8 bg-primary rounded flex items-center justify-center">
@@ -198,7 +196,7 @@ export default function Sidebar() {
                 variant="ghost"
                 size="sm"
                 onClick={toggleSidebar}
-                className="p-2 hover:bg-teal-100/80 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:hover:text-teal-200"
+                className="p-2 hover:bg-primary/10 dark:hover:bg-primary/20 text-primary hover:text-primary/80 transition-colors"
                 title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >
                 <Menu className="h-4 w-4" />
@@ -206,11 +204,11 @@ export default function Sidebar() {
             </div>
           </div>
         </div>        {/* Profile Section */}
-        <div className="px-3 py-4 border-b border-teal-200/60 dark:border-teal-800/40">
-          <div className="bg-teal-100/50 dark:bg-teal-900/30 rounded-lg p-3 border border-teal-200/40 dark:border-teal-800/30">
+        <div className="px-3 py-4 border-b border-primary/20 dark:border-primary/30">
+          <div className="bg-primary/10 dark:bg-primary/20 rounded-lg p-3 border border-primary/20 dark:border-primary/30">
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-teal-50 dark:bg-teal-950/60 rounded-full flex items-center justify-center mb-2 ring-2 ring-teal-200/60 dark:ring-teal-800/60">
-                <User className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+              <div className="w-12 h-12 bg-primary/5 dark:bg-primary/10 rounded-full flex items-center justify-center mb-2 ring-2 ring-primary/20 dark:ring-primary/30">
+                <User className="w-6 h-6 text-primary" />
               </div>
               <AnimatePresence mode="wait">
                 {!isCollapsed && (
@@ -228,7 +226,7 @@ export default function Sidebar() {
             </div>
           </div>
         </div>{/* Theme Toggle */}
-        <div className="px-3 py-2 border-b border-teal-200/60 dark:border-teal-800/40">
+        <div className="px-3 py-2 border-b border-primary/20 dark:border-primary/30">
           <div className="flex justify-center">
             <ThemeToggle />
           </div>

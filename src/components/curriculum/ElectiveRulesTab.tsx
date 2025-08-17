@@ -289,13 +289,13 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
               placeholder="Search Courses..."
               value={electiveSearch}
               onChange={(e) => setElectiveSearch(e.target.value)}
-              className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
+              className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground text-sm"
             />
             
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
+              className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground text-sm"
             >
               {categories.map(category => (
                 <option key={category} value={category}>{category}</option>
@@ -314,7 +314,7 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
                   onClick={() => setSelectedCourse(course.code)}
                   className={`p-3 border rounded-lg cursor-pointer transition-all ${
                     isSelected 
-                      ? 'border-primary bg-primary/10 dark:bg-primary/20' 
+                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' 
                       : 'border-gray-200 dark:border-border bg-white dark:bg-card hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
@@ -322,7 +322,7 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
                     <div className="font-semibold text-sm text-foreground">{course.code}</div>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       course.requirement === 'Required' 
-                        ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                         : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
                     }`}>
                       {course.requirement}
@@ -330,7 +330,7 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
                   </div>
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">{course.name}</div>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-primary">{course.category}</span>
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400">{course.category}</span>
                     <span className="text-xs text-gray-500">{course.credits} credits</span>
                   </div>
                 </div>
@@ -370,7 +370,7 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
                       const originalIndex = electiveCourses.findIndex(c => c.code === selectedCourse);
                       updateCourseRequirement(originalIndex, e.target.value as 'Required' | 'Elective');
                     }}
-                    className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-background text-foreground"
                   >
                     <option value="Required">Required Course</option>
                     <option value="Elective">Elective Course</option>
@@ -422,9 +422,9 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
           <h3 className="text-lg font-bold mb-4 text-foreground">Curriculum Statistics</h3>
           
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-primary/10 dark:bg-primary/20 p-3 rounded-lg">
+            <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
               <div className="text-sm text-gray-600 dark:text-gray-400">Required Courses</div>
-              <div className="text-xl font-bold text-primary">
+              <div className="text-xl font-bold text-green-600 dark:text-green-400">
                 {electiveCourses.filter(c => c.requirement === 'Required').length}
               </div>
             </div>

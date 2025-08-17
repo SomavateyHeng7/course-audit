@@ -13,7 +13,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
  
-    --primary: 174 78% 34%; /* #129990 - unified teal for light mode */
+    --primary: 174 78% 34%; /* #129990 */
     --primary-foreground: 210 40% 98%;
  
     --secondary: 210 40% 96.1%;
@@ -30,22 +30,20 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 174 78% 34%; /* Unified teal focus ring */
-    --radius: 0.5rem;
+    --ring: 174 78% 34%; /* Teal focus ring */    --radius: 0.5rem;
   }
-  
   .dark {
-    --background: 217.2 32.6% 8%; /* Dimmer background - darker than before */
+    --background: 217.2 32.6% 12%; /* Brighter dark background - increased from 8% to 12% */
     --foreground: 210 40% 98%;
  
-    --card: 217.2 32.6% 10%; /* Slightly brighter cards */
+    --card: 217.2 32.6% 14%; /* Slightly brighter cards */
     --card-foreground: 210 40% 98%;
  
-    --popover: 217.2 32.6% 10%;
+    --popover: 217.2 32.6% 14%;
     --popover-foreground: 210 40% 98%;
  
-    --primary: 175 56% 55%; /* #5dc1b6 for dark mode */
-    --primary-foreground: 217.2 32.6% 8%;
+    --primary: 174 65% 65%; /* Teal for dark mode */
+    --primary-foreground: 217.2 32.6% 12%;
  
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -54,14 +52,14 @@
     --muted-foreground: 215 20.2% 65.1%;
  
     --accent: 174 30% 20%; /* Dark teal accent */
-    --accent-foreground: 175 56% 55%;
+    --accent-foreground: 174 65% 65%;
  
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
  
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 175 56% 55%; /* #5dc1b6 focus ring for dark mode */
+    --ring: 174 65% 65%; /* Teal focus ring for dark mode */
   }
 }
  
