@@ -398,7 +398,7 @@ enum Role {
   STUDENT
   ADVISOR
   CHAIRPERSON
-  ADMIN
+  SUPER_ADMIN
 }
 
 enum CurriculumConstraintType {

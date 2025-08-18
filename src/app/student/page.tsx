@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,10 +14,63 @@ import {
   Clock
 } from 'lucide-react';
 
+interface Faculty {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface Department {
+  id: string;
+  name: string;
+  code: string;
+  facultyId: string;
+}
+
 export default function StudentPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFaculty, setSelectedFaculty] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFaculties = async () => {
+      try {
+        const response = await fetch('/api/faculties');
+        if (!response.ok) throw new Error('Failed to fetch faculties');
+        const data = await response.json();
+        setFaculties(data.faculties);
+      } catch (error) {
+        console.error('Error fetching faculties:', error);
+      }
+    };
+
+    const fetchDepartments = async () => {
+      try {
+        const response = await fetch('/api/departments');
+        if (!response.ok) throw new Error('Failed to fetch departments');
+        const data = await response.json();
+        setDepartments(data.departments);
+      } catch (error) {
+        console.error('Error fetching departments:', error);
+      }
+    };
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      await Promise.all([fetchFaculties(), fetchDepartments()]);
+      setIsLoading(false);
+    };
+
+    fetchData();
+  }, []);
+
+  // Filter departments based on selected faculty
+  const filteredDepartments = selectedFaculty 
+    ? departments.filter(dept => dept.facultyId === selectedFaculty)
+    : departments;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -59,14 +112,19 @@ export default function StudentPage() {
                 <select
                   id="faculty"
                   value={selectedFaculty}
-                  onChange={(e) => setSelectedFaculty(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedFaculty(e.target.value);
+                    setSelectedDepartment(''); // Reset department when faculty changes
+                  }}
                   className="w-full p-2 border rounded-md"
+                  disabled={isLoading}
                 >
                   <option value="">All Faculties</option>
-                  <option value="ENG">Faculty of Engineering</option>
-                  <option value="BUS">Faculty of Business</option>
-                  <option value="ARTS">Faculty of Arts and Sciences</option>
-                  <option value="MED">Faculty of Medicine</option>
+                  {faculties.map((faculty) => (
+                    <option key={faculty.id} value={faculty.id}>
+                      {faculty.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -76,14 +134,14 @@ export default function StudentPage() {
                   value={selectedDepartment}
                   onChange={(e) => setSelectedDepartment(e.target.value)}
                   className="w-full p-2 border rounded-md"
+                  disabled={isLoading}
                 >
                   <option value="">All Departments</option>
-                  <option value="CS">Computer Science</option>
-                  <option value="EE">Electrical Engineering</option>
-                  <option value="MKT">Marketing</option>
-                  <option value="FIN">Finance</option>
-                  <option value="MATH">Mathematics</option>
-                  <option value="PHYS">Physics</option>
+                  {filteredDepartments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -166,9 +224,9 @@ export default function StudentPage() {
               <div className="flex items-center gap-3 p-3 border rounded-lg">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <div>
-                  <p className="font-medium">New Computer Science Curriculum 2024</p>
+                  <p className="font-medium">New Curriculum Updates Available</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Updated curriculum with new AI and Machine Learning courses
+                    Updated curricula with new courses and requirements
                   </p>
                 </div>
                 <span className="text-xs text-gray-500 ml-auto">2 days ago</span>
@@ -177,9 +235,9 @@ export default function StudentPage() {
               <div className="flex items-center gap-3 p-3 border rounded-lg">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <div>
-                  <p className="font-medium">New Course: CS 401 - Advanced Algorithms</p>
+                  <p className="font-medium">New Courses Added</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Added to Computer Science curriculum
+                    Advanced courses added to various programs
                   </p>
                 </div>
                 <span className="text-xs text-gray-500 ml-auto">1 week ago</span>
@@ -190,7 +248,7 @@ export default function StudentPage() {
                 <div>
                   <p className="font-medium">Updated Prerequisites</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Modified prerequisites for Engineering courses
+                    Modified prerequisites for various courses
                   </p>
                 </div>
                 <span className="text-xs text-gray-500 ml-auto">2 weeks ago</span>

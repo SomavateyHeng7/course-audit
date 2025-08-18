@@ -75,8 +75,9 @@ export async function PUT(
         },
         _count: {
           select: {
-            users: true,
             curricula: true,
+            blacklists: true,
+            concentrations: true,
           },
         },
       },
@@ -108,8 +109,9 @@ export async function DELETE(
       include: {
         _count: {
           select: {
-            users: true,
             curricula: true,
+            blacklists: true,
+            concentrations: true,
           },
         },
       },
@@ -123,13 +125,14 @@ export async function DELETE(
     }
 
     // Check if department has associated data
-    if (existingDepartment._count.users > 0 || existingDepartment._count.curricula > 0) {
+    if (existingDepartment._count.curricula > 0 || existingDepartment._count.blacklists > 0 || existingDepartment._count.concentrations > 0) {
       return NextResponse.json(
         { 
-          error: 'Cannot delete department with associated users or curricula',
+          error: 'Cannot delete department with associated curricula, blacklists, or concentrations',
           details: {
-            users: existingDepartment._count.users,
             curricula: existingDepartment._count.curricula,
+            blacklists: existingDepartment._count.blacklists,
+            concentrations: existingDepartment._count.concentrations,
           }
         },
         { status: 400 }

@@ -23,7 +23,7 @@ export default function AuthForm() {
         const response = await fetch('/api/faculties');
         if (!response.ok) throw new Error('Failed to fetch faculties');
         const data = await response.json();
-        setFaculties(data);
+        setFaculties(data.faculties);
       } catch (err) {
         console.error(err);
         setError('Unable to load faculties. Please try again later.');

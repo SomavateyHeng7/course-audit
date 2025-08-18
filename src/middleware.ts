@@ -7,7 +7,7 @@ export default auth((req) => {
   const isAuthenticated = !!token
 
   // Public paths that don't require authentication
-  const publicPaths = ['/', '/auth', '/auth/error']
+  const publicPaths = ['/', '/auth', '/auth/error', '/student']
   const isPublicPath = publicPaths.includes(req.nextUrl.pathname)
   
   // Redirect authenticated users away from auth pages (but allow landing page)
