@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 // GET /api/curricula/[id]/concentrations - Get concentrations for a curriculum
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
   try {
     const session = await auth();
@@ -13,7 +13,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const curriculumId = params.id;
+  const curriculumId = context.params.id;
 
     // Get curriculum concentrations
     const curriculumConcentrations = await prisma.curriculumConcentration.findMany({
@@ -75,7 +75,7 @@ export async function GET(
 // POST /api/curricula/[id]/concentrations - Add concentration to curriculum
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
   try {
     const session = await auth();
@@ -83,7 +83,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const curriculumId = params.id;
+  const curriculumId = context.params.id;
     const body = await request.json();
     const { concentrationId, requiredCourses = 1 } = body;
 

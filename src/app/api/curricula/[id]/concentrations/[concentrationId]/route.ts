@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 // PUT /api/curricula/[id]/concentrations/[concentrationId] - Update concentration requirement
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; concentrationId: string } }
+  context: any
 ) {
   try {
     const session = await auth();
@@ -13,8 +13,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const curriculumId = params.id;
-    const concentrationId = params.concentrationId;
+  const curriculumId = context.params.id;
+  const concentrationId = context.params.concentrationId;
     const body = await request.json();
     const { requiredCourses } = body;
 
@@ -91,7 +91,7 @@ export async function PUT(
 // DELETE /api/curricula/[id]/concentrations/[concentrationId] - Remove concentration from curriculum
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; concentrationId: string } }
+  context: any
 ) {
   try {
     const session = await auth();
@@ -99,8 +99,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const curriculumId = params.id;
-    const concentrationId = params.concentrationId;
+  const curriculumId = context.params.id;
+  const concentrationId = context.params.concentrationId;
 
     // Verify curriculum belongs to user's faculty
     const curriculum = await prisma.curriculum.findFirst({

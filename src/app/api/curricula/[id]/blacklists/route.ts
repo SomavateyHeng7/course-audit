@@ -372,7 +372,6 @@ export async function POST(
           error: { 
             code: 'VALIDATION_ERROR', 
             message: 'Invalid request data',
-            details: error.errors,
           } 
         },
         { status: 400 }

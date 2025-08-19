@@ -12,7 +12,7 @@ const updateConcentrationSchema = z.object({
 // GET /api/concentrations/[id] - Get specific concentration
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
   try {
     const session = await auth();
@@ -54,7 +54,7 @@ export async function GET(
 
     const concentration = await prisma.concentration.findFirst({
       where: {
-        id: params.id,
+  id: context.params.id,
         departmentId: department.id,
         createdById: session.user.id // Ensure user can only access their own concentrations
       },
@@ -111,7 +111,7 @@ export async function GET(
 // PUT /api/concentrations/[id] - Update concentration
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
   try {
     const session = await auth();
@@ -157,7 +157,7 @@ export async function PUT(
     // Check if concentration exists and belongs to user
     const existingConcentration = await prisma.concentration.findFirst({
       where: {
-        id: params.id,
+  id: context.params.id,
         departmentId: department.id,
         createdById: session.user.id
       }
@@ -172,7 +172,7 @@ export async function PUT(
 
     // Update the concentration
     const updatedConcentration = await prisma.concentration.update({
-      where: { id: params.id },
+  where: { id: context.params.id },
       data: {
         name: validatedData.name,
         description: validatedData.description,
@@ -217,7 +217,7 @@ export async function PUT(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input', details: error.errors } },
+        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input' } },
         { status: 400 }
       );
     }
@@ -232,7 +232,7 @@ export async function PUT(
 // DELETE /api/concentrations/[id] - Delete concentration
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
   try {
     const session = await auth();
@@ -275,7 +275,7 @@ export async function DELETE(
     // Check if concentration exists and belongs to user
     const existingConcentration = await prisma.concentration.findFirst({
       where: {
-        id: params.id,
+  id: context.params.id,
         departmentId: department.id,
         createdById: session.user.id
       }
@@ -290,7 +290,7 @@ export async function DELETE(
 
     // Delete the concentration (CASCADE will handle related records)
     await prisma.concentration.delete({
-      where: { id: params.id }
+      where: { id: context.params.id }
     });
 
     return NextResponse.json({

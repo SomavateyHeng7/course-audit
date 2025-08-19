@@ -3,11 +3,11 @@ import { prisma } from '@/lib/prisma';
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
   try {
     const { name, email, role, facultyId } = await req.json();
-    const userId = params.id;
+    const userId = context.params.id;
 
     // Validate input
     if (!name || !email || !role || !facultyId) {
@@ -92,10 +92,10 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
   try {
-    const userId = params.id;
+    const userId = context.params.id;
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({

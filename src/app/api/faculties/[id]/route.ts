@@ -3,11 +3,11 @@ import { prisma } from '@/lib/prisma';
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
   try {
     const { name, code } = await req.json();
-    const facultyId = params.id;
+  const facultyId = context.params.id;
 
     // Validate input
     if (!name || !code) {
@@ -77,10 +77,10 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
   try {
-    const facultyId = params.id;
+  const facultyId = context.params.id;
 
     // Check if faculty exists
     const existingFaculty = await prisma.faculty.findUnique({

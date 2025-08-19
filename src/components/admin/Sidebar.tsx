@@ -81,7 +81,7 @@ export default function Sidebar() {
   const [logoError, setLogoError] = useState(false);
   const { isCollapsed, toggleSidebar } = useSidebar();
   // Extend the Session type to include all possible roles
-  type UserRole = "STUDENT" | "ADVISOR" | "ADMIN" | "CHAIRPERSON" | undefined;
+  type UserRole = "STUDENT" | "ADVISOR" | "SUPER_ADMIN" | "CHAIRPERSON" | undefined;
   interface CustomSession {
     user?: {
       name?: string;

@@ -36,7 +36,7 @@ const createCurriculumSchema = z.object({
     name: z.string().min(1, 'Constraint name is required'),
     description: z.string().optional(),
     isRequired: z.boolean().optional().default(true),
-    config: z.record(z.any()).optional(), // JSON configuration
+    config: z.record(z.string(), z.any()).optional() // JSON configuration
   })).optional().default([]),
   // Initial elective rules
   electiveRules: z.array(z.object({
@@ -204,6 +204,13 @@ export async function POST(request: NextRequest) {
         startId: validatedData.startId,
         endId: validatedData.endId,
         departmentId: validatedData.departmentId,
+      },
+      select: {
+        id: true,
+        name: true,
+        year: true,
+        startId: true,
+        endId: true,
       },
     });
 
@@ -470,13 +477,13 @@ export async function POST(request: NextRequest) {
     }
     
     if (error instanceof z.ZodError) {
-      console.log('📝 Validation error details:', error.errors);
+  console.log('📝 Validation error details:', error.issues);
       return NextResponse.json(
         { 
           error: { 
             code: 'VALIDATION_ERROR', 
             message: 'Invalid request data',
-            details: error.errors,
+            details: error.issues,
           } 
         },
         { status: 400 }

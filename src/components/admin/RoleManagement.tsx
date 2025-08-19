@@ -50,7 +50,7 @@ export default function RoleManagement() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'STUDENT' as const,
+    role: 'ADVISOR' as 'ADVISOR' | 'CHAIRPERSON',
     facultyId: '',
   });
 
@@ -83,7 +83,7 @@ export default function RoleManagement() {
 
       if (response.ok) {
         setShowCreateModal(false);
-        setFormData({ name: '', email: '', role: 'STUDENT', facultyId: '' });
+  setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '' });
         fetchUsers();
       }
     } catch (error) {
@@ -104,7 +104,7 @@ export default function RoleManagement() {
 
       if (response.ok) {
         setEditingUser(null);
-        setFormData({ name: '', email: '', role: 'STUDENT', facultyId: '' });
+  setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '' });
         fetchUsers();
       }
     } catch (error) {
@@ -204,7 +204,7 @@ export default function RoleManagement() {
                           setFormData({
                             name: user.name,
                             email: user.email,
-                            role: user.role,
+                            role: (user.role === 'ADVISOR' || user.role === 'CHAIRPERSON') ? user.role : 'ADVISOR',
                             facultyId: '',
                           });
                         }}
@@ -264,10 +264,9 @@ export default function RoleManagement() {
                   className="w-full p-2 border rounded-md"
                   required
                 >
-                  <option value="STUDENT">Student</option>
                   <option value="ADVISOR">Advisor</option>
                   <option value="CHAIRPERSON">Chairperson</option>
-                  <option value="SUPER_ADMIN">Super Admin</option>
+                  {/* <option value="STUDENT">Student</option> */}
                 </select>
               </div>
               <div className="flex gap-2">
@@ -280,7 +279,7 @@ export default function RoleManagement() {
                   onClick={() => {
                     setShowCreateModal(false);
                     setEditingUser(null);
-                    setFormData({ name: '', email: '', role: 'STUDENT', facultyId: '' });
+                    setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '' });
                   }}
                   className="flex-1"
                 >
