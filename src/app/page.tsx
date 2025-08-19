@@ -1,10 +1,12 @@
 'use client';
 
+
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Footer from '@/components/shared/footer';
 import { ThemeProvider } from '@/components/theme-provider';
+import SEO from '@/components/SEO';
 
 export default function Home() {
   const router = useRouter();
@@ -19,6 +21,13 @@ export default function Home() {
 
   return (
     <>
+      <SEO
+        title="EduTrack | Streamline Your Academic Journey"
+        description="EduTrack helps university students manage their academic progress efficiently. Track courses, monitor requirements, and stay on top of your degree path."
+        keywords="university, course tracking, academic progress, degree management, student, education, curriculum, requirements"
+        url="https://your-domain.com/"
+        image="/public/image/logo.png"
+      />
       <div className="flex flex-col min-h-screen">        {/* Hero Section */}
         <section className="py-12 sm:py-20 px-4 sm:px-8 md:px-16">
           <div className="max-w-6xl mx-auto text-center">
@@ -34,7 +43,7 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
-                href="/student" 
+                href="/management" 
                 className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors border border-primary text-base sm:text-lg text-center"
               >
                 Browse Courses (Anonymous)
@@ -92,7 +101,7 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
-                href="/student" 
+                href="/management" 
                 className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors border border-primary text-base sm:text-lg"
               >
                 Browse Courses (Anonymous)

@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 export default function StudentProfile() {
+  const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isEditingStudent, setIsEditingStudent] = useState(false);
   const [isEditingAdvisor, setIsEditingAdvisor] = useState(false);
@@ -19,6 +21,9 @@ export default function StudentProfile() {
 
   useEffect(() => {
     async function fetchProfile() {
+  if (!session?.user?.role) return;
+  const userRole = String(session.user.role);
+  if (userRole !== "CHAIRPERSON" && userRole !== "SUPER_ADMIN") return;
       try {
         const res = await fetch("/api/student-profile");
         if (res.ok) {
@@ -29,12 +34,11 @@ export default function StudentProfile() {
         }
       } catch (error) {
         console.error("Failed to fetch profile:", error);
-        // Fallback to default values
         setAdvisors(["John Doe", "Jane Smith", "Robert Brown", "Emily Johnson"]);
       }
     }
     fetchProfile();
-  }, []);
+  }, [session]);
 
   const handleSave = async () => {
     try {
@@ -60,6 +64,12 @@ export default function StudentProfile() {
     }
   };
 
+  if (status === "loading") return <div>Loading...</div>;
+  const userRole = String(session?.user?.role);
+  if (!session?.user?.role || (userRole !== "CHAIRPERSON" && userRole !== "SUPER_ADMIN")) {
+    return <div className="text-center mt-10 text-gray-500">Profile info is only available for Chairperson and Super Admin.</div>;
+  }
+
   return (
     <div className="bg-gray-50 dark:bg-background min-h-screen p-4 sm:p-8 md:p-10">
       <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-800 dark:text-foreground text-center sm:text-left">PROFILE</h2>
@@ -71,7 +81,7 @@ export default function StudentProfile() {
       )}
 
       <div className="flex flex-col sm:flex-row border-b border-gray-300 dark:border-border mb-6">
-        {['dashboard', 'student', 'advisor'].map((tab) => (
+        {['student', 'advisor'].map((tab) => (
           <button
             key={tab}
             className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium ${
@@ -86,7 +96,7 @@ export default function StudentProfile() {
         ))}
       </div>
 
-      {activeTab === "dashboard" && <Dashboard />}
+      {/* Dashboard tab and content removed for chairperson/advisor */}
 
       {activeTab === "student" && (
         <div className="bg-white dark:bg-card rounded-xl border border-gray-200 dark:border-border p-4 sm:p-8 w-full max-w-4xl mx-auto">

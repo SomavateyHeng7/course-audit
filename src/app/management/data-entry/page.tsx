@@ -6,6 +6,8 @@ import { useState, createContext, useContext, useRef, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart2 } from 'lucide-react';
 import { FaTrash } from 'react-icons/fa';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 // Define a CourseStatus type for consistent typing
 interface CourseStatus {
@@ -88,6 +90,7 @@ export default function DataEntryPage() {
     selectedDepartment, setSelectedDepartment,
     selectedCurriculum, setSelectedCurriculum,
     selectedConcentration, setSelectedConcentration,
+    freeElectives,
   } = useProgressContext();
 
   // Mock options
@@ -205,12 +208,12 @@ export default function DataEntryPage() {
 
   return (
     <div className="container py-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Manual Course Entry</h1>
-        <Button variant="outline" onClick={handleBackToManagement}>
+      <div className="flex items-center mb-2">
+        <Button variant="outline" onClick={handleBackToManagement} className="mr-4">
           Back to Management
         </Button>
       </div>
+      <h1 className="text-3xl font-bold text-foreground mb-6 text-center">Manual Course Entry</h1>
 
       {/* Step 1: Select Faculty, Department, Curriculum, and Concentration */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -525,7 +528,43 @@ export default function DataEntryPage() {
           })}
           {/* Action Buttons */}
           <div className="flex gap-4 mt-4">
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90" variant="default">
+            <Button
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              variant="default"
+              onClick={() => {
+                // Gather all course data for export
+                const allCourses: any[] = [];
+                courseTypeOrder.forEach(category => {
+                  const courses = (curriculumCourses[selectedCurriculum]?.[category] || []);
+                  courses.forEach(course => {
+                    allCourses.push({
+                      Category: category,
+                      Code: course.code,
+                      Title: course.title,
+                      Credits: course.credits,
+                      Status: completedCourses[course.code]?.status || 'not_completed',
+                      Grade: completedCourses[course.code]?.grade || '',
+                    });
+                  });
+                });
+                // Add free electives
+                freeElectives.forEach(course => {
+                  allCourses.push({
+                    Category: 'Free Elective',
+                    Code: course.code,
+                    Title: course.title,
+                    Credits: course.credits,
+                    Status: completedCourses[course.code]?.status || 'not_completed',
+                    Grade: completedCourses[course.code]?.grade || '',
+                  });
+                });
+                const ws = XLSX.utils.json_to_sheet(allCourses);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Courses');
+                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'courses.xlsx');
+              }}
+            >
               <svg className="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
               Download as Excel
             </Button>

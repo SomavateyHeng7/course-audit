@@ -1,6 +1,9 @@
 "use client";
 import { useProgressContext } from "../data-entry/page";
 import { useRouter } from "next/navigation";
+import { useRef } from "react";
+// Only import these on client side
+
 
 const categoryOrder = [
   "General Education",
@@ -12,6 +15,7 @@ const categoryOrder = [
 
 export default function ProgressPage() {
   const router = useRouter();
+  const progressRef = useRef<HTMLDivElement>(null);
   const {
     completedCourses,
     selectedCurriculum,
@@ -194,142 +198,163 @@ export default function ProgressPage() {
           Back to Course Entry
         </button>
       </div>
-      <div className="bg-white dark:bg-card rounded-xl p-6 mb-6 border border-gray-200 dark:border-border">
-        {/* Improved progress bar layout */}
-        <div className="flex items-center relative h-24 mb-4 bg-gradient-to-r from-emerald-100 to-blue-100 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg px-6">
-          {/* Progress bar */}
-          <div className="flex-1 relative h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div
-              className="h-4 bg-emerald-500 transition-all"
-              style={{ width: `${percent}%` }}
-            ></div>
-            {/* Student icon */}
-            <div
-              className="absolute"
-              style={{ left: `calc(${percent}% - 16px)`, top: '-28px' }}
-            >
-              <span role="img" aria-label="student" style={{ fontSize: 24 }}>🧑‍🎓</span>
+      <div ref={progressRef}>
+        <div className="bg-white dark:bg-card rounded-xl p-6 mb-6 border border-gray-200 dark:border-border">
+          {/* Improved progress bar layout */}
+          <div className="flex items-center relative h-24 mb-4 bg-gradient-to-r from-emerald-100 to-blue-100 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg px-6">
+            {/* Progress bar */}
+            <div className="flex-1 relative h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-4 bg-emerald-500 transition-all"
+                style={{ width: `${percent}%` }}
+              ></div>
+              {/* Student icon */}
+              <div
+                className="absolute"
+                style={{ left: `calc(${percent}% - 16px)`, top: '-28px' }}
+              >
+                <span role="img" aria-label="student" style={{ fontSize: 24 }}>🧑‍🎓</span>
+              </div>
+              {/* Percentage label above the progress end */}
+              <div
+                className="absolute"
+                style={{
+                  left: `calc(${percent}% - 16px)`,
+                  top: '-38px',
+                  width: '40px',
+                  textAlign: 'center',
+                  pointerEvents: 'none',
+                }}
+              >
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{percent}%</span>
+              </div>
             </div>
-            {/* Percentage label above the progress end */}
-            <div
-              className="absolute"
-              style={{
-                left: `calc(${percent}% - 16px)`,
-                top: '-38px',
-                width: '40px',
-                textAlign: 'center',
-                pointerEvents: 'none',
-              }}
-            >
-              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{percent}%</span>
+            {/* Graduate label at the far right */}
+            <div className="flex items-center ml-4">
+              <span role="img" aria-label="graduate" className="mr-1" style={{ fontSize: 24 }}>🎓</span>
+              <span className="font-semibold text-lg text-emerald-700 dark:text-emerald-300">Graduate!</span>
             </div>
           </div>
-          {/* Graduate label at the far right */}
-          <div className="flex items-center ml-4">
-            <span role="img" aria-label="graduate" className="mr-1" style={{ fontSize: 24 }}>🎓</span>
-            <span className="font-semibold text-lg text-emerald-700 dark:text-emerald-300">Graduate!</span>
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+              <div className="text-xs text-gray-500">Total Credits Earned</div>
+              <div className="text-2xl font-bold text-primary">{earnedCredits} <span className="text-gray-400">/ {totalCreditsRequired}</span></div>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+              <div className="text-xs text-gray-500">GPA</div>
+              <div className="text-2xl font-bold text-primary">{gpa}</div>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+              <div className="text-xs text-gray-500">General Education Completed</div>
+              <div className="text-xl font-bold text-primary">{genEdCompleted} <span className="text-gray-400">/ {genEdTotal}</span></div>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+              <div className="text-xs text-gray-500">Core Courses Completed</div>
+              <div className="text-xl font-bold text-primary">{coreCompleted} <span className="text-gray-400">/ {coreTotal}</span></div>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+              <div className="text-xs text-gray-500">Major Completed</div>
+              <div className="text-xl font-bold text-primary">{majorCompleted} <span className="text-gray-400">/ {majorTotal}</span></div>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+              <div className="text-xs text-gray-500">Major Elective Completed</div>
+              <div className="text-xl font-bold text-primary">{majorElectiveCompleted} <span className="text-gray-400">/ {majorElectiveTotal}</span></div>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+              <div className="text-xs text-gray-500">Free Elective Completed</div>
+              <div className="text-xl font-bold text-primary">{freeElectiveCompleted} <span className="text-gray-400">/ {freeElectiveTotal}</span></div>
+            </div>
           </div>
         </div>
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">Total Credits Earned</div>
-            <div className="text-2xl font-bold text-primary">{earnedCredits} <span className="text-gray-400">/ {totalCreditsRequired}</span></div>
+        {/* Completed and Pending Courses */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[150px]">
+            <h3 className="text-lg font-bold mb-3">Currently Taking</h3>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {takingList.length === 0 ? (
+                <div className="text-gray-400 text-center py-4">No courses currently being taken.</div>
+              ) : (
+                takingList.map((c) => (
+                  <div key={c.code} className="flex justify-between items-center bg-muted rounded px-3 py-2">
+                    <span className="font-semibold text-xs">{c.code} - {c.title}</span>
+                    <span className="text-xs text-gray-500">{c.category}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">GPA</div>
-            <div className="text-2xl font-bold text-primary">{gpa}</div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">General Education Completed</div>
-            <div className="text-xl font-bold text-primary">{genEdCompleted} <span className="text-gray-400">/ {genEdTotal}</span></div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">Core Courses Completed</div>
-            <div className="text-xl font-bold text-primary">{coreCompleted} <span className="text-gray-400">/ {coreTotal}</span></div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">Major Completed</div>
-            <div className="text-xl font-bold text-primary">{majorCompleted} <span className="text-gray-400">/ {majorTotal}</span></div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">Major Elective Completed</div>
-            <div className="text-xl font-bold text-primary">{majorElectiveCompleted} <span className="text-gray-400">/ {majorElectiveTotal}</span></div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">Free Elective Completed</div>
-            <div className="text-xl font-bold text-primary">{freeElectiveCompleted} <span className="text-gray-400">/ {freeElectiveTotal}</span></div>
-          </div>
-        </div>
-      </div>
-      {/* Completed and Pending Courses */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[150px]">
-          <h3 className="text-lg font-bold mb-3">Currently Taking</h3>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {takingList.length === 0 ? (
-              <div className="text-gray-400 text-center py-4">No courses currently being taken.</div>
-            ) : (
-              takingList.map((c) => (
-                <div key={c.code} className="flex justify-between items-center bg-muted rounded px-3 py-2">
-                  <span className="font-semibold text-xs">{c.code} - {c.title}</span>
-                  <span className="text-xs text-gray-500">{c.category}</span>
-                </div>
-              ))
-            )}
+          <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[150px]">
+            <h3 className="text-lg font-bold mb-3">Planning for Next Semester</h3>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {planningList.length === 0 ? (
+                <div className="text-gray-400 text-center py-4">No courses planned for next semester.</div>
+              ) : (
+                planningList.map((c) => (
+                  <div key={c.code} className="flex justify-between items-center bg-muted rounded px-3 py-2">
+                    <span className="font-semibold text-xs">{c.code} - {c.title}</span>
+                    <span className="text-xs text-gray-500">{c.category}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[150px]">
-          <h3 className="text-lg font-bold mb-3">Planning for Next Semester</h3>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {planningList.length === 0 ? (
-              <div className="text-gray-400 text-center py-4">No courses planned for next semester.</div>
-            ) : (
-              planningList.map((c) => (
-                <div key={c.code} className="flex justify-between items-center bg-muted rounded px-3 py-2">
-                  <span className="font-semibold text-xs">{c.code} - {c.title}</span>
-                  <span className="text-xs text-gray-500">{c.category}</span>
-                </div>
-              ))
-            )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[300px]">
+            <h3 className="text-lg font-bold mb-3">Completed Courses</h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {completedList.length === 0 ? (
+                <div className="text-gray-400 text-center py-8">No completed courses yet.</div>
+              ) : (
+                completedList.map((c) => (
+                  <div key={c.code} className="flex justify-between items-center bg-muted rounded px-3 py-2">
+                    <span className="font-semibold text-xs">{c.code} - {c.title}</span>
+                    <span className="text-xs text-gray-500">{c.category}{c.grade ? ` • Grade: ${c.grade}` : ''}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[300px]">
-          <h3 className="text-lg font-bold mb-3">Completed Courses</h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {completedList.length === 0 ? (
-              <div className="text-gray-400 text-center py-8">No completed courses yet.</div>
-            ) : (
-              completedList.map((c) => (
-                <div key={c.code} className="flex justify-between items-center bg-muted rounded px-3 py-2">
-                  <span className="font-semibold text-xs">{c.code} - {c.title}</span>
-                  <span className="text-xs text-gray-500">{c.category}{c.grade ? ` • Grade: ${c.grade}` : ''}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-        <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[300px]">
-          <h3 className="text-lg font-bold mb-3">Pending Courses</h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {pendingList.length === 0 ? (
-              <div className="text-gray-400 text-center py-8">No pending courses!</div>
-            ) : (
-              pendingList.map((c) => (
-                <div key={c.code} className="flex justify-between items-center bg-muted rounded px-3 py-2">
-                  <span className="font-semibold text-xs">{c.code} - {c.title}</span>
-                  <span className="text-xs text-gray-500">{c.category}</span>
-                </div>
-              ))
-            )}
+          <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[300px]">
+            <h3 className="text-lg font-bold mb-3">Pending Courses</h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {pendingList.length === 0 ? (
+                <div className="text-gray-400 text-center py-8">No pending courses!</div>
+              ) : (
+                pendingList.map((c) => (
+                  <div key={c.code} className="flex justify-between items-center bg-muted rounded px-3 py-2">
+                    <span className="font-semibold text-xs">{c.code} - {c.title}</span>
+                    <span className="text-xs text-gray-500">{c.category}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
       <div className="flex justify-end mt-8">
         <button 
-          className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+          className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={async () => {
+            const [{ jsPDF }, html2canvas] = await Promise.all([
+              import('jspdf'),
+              import('html2canvas'),
+            ]);
+            if (progressRef.current && jsPDF && html2canvas) {
+              const canvas = await html2canvas.default(progressRef.current, { scale: 2 });
+              const imgData = canvas.toDataURL('image/png');
+              const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+              const pageWidth = pdf.internal.pageSize.getWidth();
+              // Fit image to page width
+              const imgProps = pdf.getImageProperties(imgData);
+              const pdfWidth = pageWidth;
+              const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+              pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+              pdf.save('progress.pdf');
+            }
+          }}
+        >
           Download as PDF
         </button>
       </div>

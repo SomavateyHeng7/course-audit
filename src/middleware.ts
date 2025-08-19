@@ -7,8 +7,12 @@ export default auth((req) => {
   const isAuthenticated = !!token
 
   // Public paths that don't require authentication
-  const publicPaths = ['/', '/auth', '/auth/error', '/student']
-  const isPublicPath = publicPaths.includes(req.nextUrl.pathname)
+  const publicPaths = ['/', '/auth', '/auth/error', '/student', '/management', '/allCurricula', '/management/data-entry', '/management/progress']
+  // Allow all /management and /allCurricula subpages to be public
+  const isPublicPath = publicPaths.includes(req.nextUrl.pathname) ||
+    req.nextUrl.pathname.startsWith('/management/data-entry') ||
+    req.nextUrl.pathname.startsWith('/management/progress') ||
+    req.nextUrl.pathname.startsWith('/allCurricula')
   
   // Redirect authenticated users away from auth pages (but allow landing page)
   if (isAuthenticated && req.nextUrl.pathname === '/auth') {

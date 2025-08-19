@@ -35,6 +35,34 @@ async function main() {
 
   console.log('✅ Created super admin user:', superAdmin.name);
 
+  // Create a sample chairperson user assigned to a faculty and department
+  // Use the first faculty and department created below
+  const sampleFaculty = await prisma.faculty.findFirst({ where: { code: 'ENG' } });
+  const sampleDepartment = await prisma.department.findFirst({ where: { code: 'CS', facultyId: sampleFaculty?.id } });
+
+  if (sampleFaculty && sampleDepartment) {
+    const chairpersonPassword = await bcrypt.hash('chairperson123', 10);
+    const chairperson = await prisma.user.upsert({
+      where: { email: 'chairperson@edutrack.com' },
+      update: {},
+      create: {
+        email: 'chairperson@edutrack.com',
+        password: chairpersonPassword,
+        name: 'Sample Chairperson',
+        role: 'CHAIRPERSON',
+        facultyId: sampleFaculty.id,
+        // If your schema requires departmentId on User, add it here
+        // departmentId: sampleDepartment.id,
+      },
+    });
+    console.log('✅ Created chairperson user:', chairperson.name);
+    console.log('📋 Chairperson Credentials:');
+    console.log('   Email: chairperson@edutrack.com');
+    console.log('   Password: chairperson123');
+  } else {
+    console.warn('⚠️  Could not create chairperson user: Faculty or Department not found.');
+  }
+
   // Create some sample faculties
   const faculties = [
     { name: 'Faculty of Engineering', code: 'ENG' },
