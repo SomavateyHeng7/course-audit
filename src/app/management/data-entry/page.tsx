@@ -145,11 +145,12 @@ export default function DataEntryPage() {
   const courseTypeOrder = [
     'General Education',
     'Core Courses',
-    'Major',
+    'Major Required',
     'Major Elective',
     'Free Elective',
   ];
 
+  // Digital Business Management (BBA 2022) curriculum from CSV
   const curriculumCourses: { [key: string]: { [category: string]: { code: string; title: string; credits: number }[] } } = {
     bscs2022: {
       'General Education': [
@@ -168,15 +169,63 @@ export default function DataEntryPage() {
       'Free Elective': [],
     },
     bba2022: {
-      'General Education': [],
-      'Core Courses': [],
-      'Major': [],
-      'Major Elective': [],
-      'Free Elective': [],
+      'General Education': [
+        { code: 'BBA1001', title: 'Business Exploration', credits: 3 },
+        { code: 'BBA1002', title: 'Microeconomics', credits: 3 },
+        { code: 'BBA2001', title: 'Human Behavior', credits: 3 },
+        { code: 'BBA2002', title: 'Economic and Financial Environment', credits: 3 },
+        { code: 'BG1001', title: 'English I', credits: 3 },
+        { code: 'BG1002', title: 'English II', credits: 3 },
+        { code: 'BG2000', title: 'English III', credits: 3 },
+        { code: 'BG2001', title: 'English IV', credits: 3 },
+        { code: 'GE1204', title: 'Physical Education', credits: 1 },
+        { code: 'GE1302', title: 'Ecology and Sustainability', credits: 3 },
+        { code: 'GE1403', title: 'Communication in Thai', credits: 3 },
+        { code: 'GE1405', title: 'Thai Language and Culture (Only for International students)', credits: 0 },
+        { code: 'GE1408', title: 'Thai Usage (For students who graduated from Inter Schools)', credits: 0 },
+        { code: 'GE2102', title: 'Human Heritage and Globalization', credits: 3 },
+        { code: 'GE2202', title: 'Ethics', credits: 3 },
+        { code: 'MA1200', title: 'Mathematics for Business', credits: 3 },
+      ],
+      'Core Courses': [
+        { code: 'BBA1101', title: 'Seminar in Business I', credits: 1 },
+        { code: 'BBA1102', title: 'Data and Information Literacy', credits: 3 },
+        { code: 'BBA1103', title: 'Fundamentals of Financial Accounting', credits: 3 },
+        { code: 'BBA1104', title: 'Fundamentals of Marketing', credits: 3 },
+        { code: 'BBA2101', title: 'Fundamentals of Managerial Accounting', credits: 3 },
+        { code: 'BBA2102', title: 'Organization and Management', credits: 3 },
+        { code: 'BBA2103', title: 'Corporate Finance', credits: 3 },
+        { code: 'BBA2104', title: 'Global Strategy and Communication', credits: 3 },
+        { code: 'BBA2105', title: 'Operations and Supply Chain Management', credits: 3 },
+        { code: 'BBA2106', title: 'Seminar in Business II', credits: 1 },
+        { code: 'BBA3101', title: 'Business Research', credits: 3 },
+        { code: 'BBA4101', title: 'Entrepreneurship', credits: 3 },
+        { code: 'LAW1201', title: 'Business Laws for Entrepreneurs', credits: 3 },
+        { code: 'SA1001', title: 'Business Statistics I', credits: 2 },
+        { code: 'SA2001', title: 'Business Statistics II', credits: 2 },
+      ],
+      'Major Required': [
+        { code: 'BDM3201', title: 'Digital Business', credits: 3 },
+        { code: 'BDM3202', title: 'Digital Commerce', credits: 3 },
+        { code: 'BDM3203', title: 'Cybersecurity', credits: 3 },
+        { code: 'BDM3204', title: 'Enterprise Resource Planning', credits: 3 },
+        { code: 'BDM3205', title: 'Information Systems Strategy, Management, and Acquisition', credits: 3 },
+        { code: 'BDM3301', title: 'Data Analytics Fundamentals', credits: 3 },
+        { code: 'BDM3302', title: 'Data Management', credits: 3 },
+        { code: 'BDM3303', title: 'Data Mining', credits: 3 },
+        { code: 'BDM3304', title: 'Systems Analysis and Design', credits: 3 },
+        { code: 'BDM3305', title: 'Big Data Analytics', credits: 3 },
+      ],
+      'Major Elective': [
+        // 6 more electives to be filled by student selection
+      ],
+      'Free Elective': [
+        // 4 free electives to be filled by student selection
+      ],
     },
   };
 
-  // Only keep mockConcentrations for bscs2022
+  // Add mockConcentrations for BBA 2022 > Digital Business Management
   const mockConcentrations: { [curriculum: string]: { [concentration: string]: { label: string; Major: { code: string; title: string; credits: number }[] } } } = {
     bscs2022: {
       se: {
@@ -201,7 +250,18 @@ export default function DataEntryPage() {
     bba2022: {
       dbm: {
         label: 'Digital Business Management',
-        Major: [],
+        Major: [
+          { code: 'BDM3201', title: 'Digital Business', credits: 3 },
+          { code: 'BDM3202', title: 'Digital Commerce', credits: 3 },
+          { code: 'BDM3203', title: 'Cybersecurity', credits: 3 },
+          { code: 'BDM3204', title: 'Enterprise Resourse Planning', credits: 3 },
+          { code: 'BDM3205', title: 'Information Systems Strategy, Management, and Acquisition', credits: 3 },
+          { code: 'BDM3301', title: 'Data Analytics Fundamentals', credits: 3 },
+          { code: 'BDM3302', title: 'Data Management', credits: 3 },
+          { code: 'BDM3303', title: 'Data Mining', credits: 3 },
+          { code: 'BDM3304', title: 'Systems Analysis and Design', credits: 3 },
+          { code: 'BDM3305', title: 'Big Data Analytics', credits: 3 },
+        ],
       },
     },
   };
@@ -391,36 +451,144 @@ export default function DataEntryPage() {
               );
             }
             if (category === 'Major Elective') {
+              // Major Elective: allow up to 21 credits, add UI for adding/removing electives, similar to Free Elective
               return (
                 <div key={category} className="border border-border rounded-lg mb-6 p-6">
                   <div className="text-lg font-bold mb-2 text-foreground p-4 pb-0">Major Elective</div>
+                  <div className="text-sm text-muted-foreground p-4 mb-2">
+                    Students can take up to <span className="font-bold">21 credits</span> of business electives. Check the list of allowed Business Elective Courses!
+                  </div>
                   <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
-                    {(curriculumCourses[selectedCurriculum]?.['Major Elective'] || []).length === 0 ? (
-                      <div className="text-muted-foreground text-center py-4">No courses in this category.</div>
-                    ) : (
-                      curriculumCourses[selectedCurriculum]['Major Elective'].map(course => (
-                        <div key={course.code} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-muted rounded-lg px-4 py-3 border border-border mb-2">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            <span className="font-semibold text-sm">{course.code} - {course.title}</span>
-                            <span className="text-sm text-muted-foreground">{course.credits} credits</span>
-                          </div>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                            <StatusDropdown
-                              code={course.code}
-                              status={completedCourses[course.code]?.status || 'not_completed'}
-                              setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                ...prev,
-                                [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
-                              }))}
-                            />
-                          </div>
+                    <MajorElectiveAddButton maxCredits={21} />
+                    {/* Render static major electives, if any */}
+                    {(curriculumCourses[selectedCurriculum]?.['Major Elective'] || []).map(course => (
+                      <div key={course.code} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-muted rounded-lg px-4 py-3 border border-border mb-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                          <span className="font-semibold text-sm">{course.code} - {course.title}</span>
+                          <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                         </div>
-                      ))
-                    )}
-            </div>
-            </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
+                          <StatusDropdown
+                            code={course.code}
+                            status={completedCourses[course.code]?.status || 'not_completed'}
+                            setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                              ...prev,
+                              [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
+                            }))}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               );
             }
+// Add this component at the top level of the file (outside DataEntryPage)
+function MajorElectiveAddButton({ maxCredits }: { maxCredits: number }) {
+  const { completedCourses, setCompletedCourses } = useProgressContext();
+  // Use local state for major electives
+  const [majorElectives, setMajorElectives] = useState<{ code: string; title: string; credits: number }[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ code: '', title: '', credits: '' });
+
+  // Calculate total credits
+  const totalCredits = majorElectives.reduce((sum, c) => sum + (Number(c.credits) || 0), 0);
+
+  const handleAdd = () => {
+    if (!form.code.trim() || !form.title.trim() || !form.credits) return;
+    const newCredits = Number(form.credits);
+    if (totalCredits + newCredits > maxCredits) return;
+    setMajorElectives(prev => [...prev, { code: form.code.trim(), title: form.title.trim(), credits: newCredits }]);
+    setForm({ code: '', title: '', credits: '' });
+  };
+
+  const handleRemove = (idx: number) => {
+    setMajorElectives(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div className="mb-3">
+      <button
+        type="button"
+        className="flex items-center gap-2 px-3 py-1 bg-primary text-primary-foreground rounded shadow text-sm font-medium focus:outline-none hover:bg-primary/90 transition-colors"
+        onClick={() => setShowForm((v) => !v)}
+      >
+        <span className="text-lg leading-none">+</span> Add Major Elective
+      </button>
+      {showForm && (
+        <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-end md:gap-4">
+          <input
+            type="text"
+            placeholder="Course Code"
+            className="w-full md:w-32 border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
+            value={form.code}
+            onChange={e => setForm(f => ({ ...f, code: e.target.value }))}
+          />
+          <input
+            type="text"
+            placeholder="Course Name"
+            className="w-full md:w-64 border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
+            value={form.title}
+            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+          />
+          <input
+            type="number"
+            placeholder="Credits"
+            className="w-full md:w-24 border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm"
+            value={form.credits}
+            min={0}
+            max={maxCredits - totalCredits}
+            onChange={e => {
+              let value = e.target.value;
+              if (Number(value) > maxCredits - totalCredits) value = String(maxCredits - totalCredits);
+              setForm(f => ({ ...f, credits: value }));
+            }}
+          />
+          <button
+            type="button"
+            className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded shadow text-sm font-medium focus:outline-none hover:bg-primary/90 transition-colors"
+            onClick={handleAdd}
+            disabled={totalCredits >= maxCredits}
+          >
+            Add
+          </button>
+        </div>
+      )}
+      {/* List of added major electives */}
+      {majorElectives.length > 0 && (
+        <div className="mt-4 flex flex-col gap-2">
+          {majorElectives.map((course, idx) => (
+            <div key={course.code + idx} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-muted rounded-lg px-4 py-3 border border-border mb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <span className="font-semibold text-sm">{course.code} - {course.title}</span>
+                <span className="text-sm text-muted-foreground">{course.credits} credits</span>
+              </div>
+              <div className="flex flex-row items-center gap-3 mt-2 sm:mt-0">
+                <StatusDropdown
+                  code={course.code}
+                  status={completedCourses[course.code]?.status || 'not_completed'}
+                  setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                    ...prev,
+                    [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
+                  }))}
+                />
+                <button
+                  type="button"
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                  onClick={() => handleRemove(idx)}
+                  title="Delete Course"
+                >
+                  <FaTrash className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="text-xs text-muted-foreground mt-2">Total Major Elective Credits: {totalCredits} / {maxCredits}</div>
+    </div>
+  );
+}
             if (category === 'Free Elective') {
               return (
                 <div key={category} className="border border-border rounded-lg mb-6 p-6">

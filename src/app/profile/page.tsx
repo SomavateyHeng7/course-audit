@@ -4,31 +4,25 @@ import { useSession } from "next-auth/react";
 
 export default function StudentProfile() {
   const { data: session, status } = useSession();
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [isEditingStudent, setIsEditingStudent] = useState(false);
+  const [activeTab, setActiveTab] = useState("advisor");
+  // Removed student tab and editing state
   const [isEditingAdvisor, setIsEditingAdvisor] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
-  const [studentInfo, setStudentInfo] = useState({
-    faculty: "SCIENCE AND TECHNOLOGY",
-    department: "COMPUTER SCIENCE",
-    credit: 102,
-    scholarshipHour: 0,
-  });
+  // Removed studentInfo state
 
   const [selectedAdvisor, setSelectedAdvisor] = useState("John Doe");
   const [advisors, setAdvisors] = useState<string[]>([]);
 
   useEffect(() => {
     async function fetchProfile() {
-  if (!session?.user?.role) return;
-  const userRole = String(session.user.role);
-  if (userRole !== "CHAIRPERSON" && userRole !== "SUPER_ADMIN") return;
+      if (!session?.user?.role) return;
+      const userRole = String(session.user.role);
+      if (userRole !== "CHAIRPERSON" && userRole !== "SUPER_ADMIN") return;
       try {
         const res = await fetch("/api/student-profile");
         if (res.ok) {
           const data = await res.json();
-          setStudentInfo(data.studentInfo || studentInfo);
           setSelectedAdvisor(data.advisorInfo?.name || selectedAdvisor);
           setAdvisors(["John Doe", "Jane Smith", "Robert Brown", "Emily Johnson"]); // Replace with dynamic list if needed
         }
@@ -46,13 +40,11 @@ export default function StudentProfile() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          studentInfo,
           advisorName: selectedAdvisor,
         }),
       });
 
       if (res.ok) {
-        setIsEditingStudent(false);
         setIsEditingAdvisor(false);
         setShowSuccessMessage(true);
         setTimeout(() => setShowSuccessMessage(false), 3000);
@@ -80,91 +72,50 @@ export default function StudentProfile() {
         </div>
       )}
 
+      {/* Only Advisor tab remains */}
       <div className="flex flex-col sm:flex-row border-b border-gray-300 dark:border-border mb-6">
-        {['student', 'advisor'].map((tab) => (
-          <button
-            key={tab}
-            className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium ${
-              activeTab === tab
-                ? "border-b-4 border-emerald-600 text-black dark:text-white"
-                : "text-gray-500 dark:text-gray-400"
-            }`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab.toUpperCase().replace('_', ' ')}
-          </button>
-        ))}
+        <button
+          className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-4 border-emerald-600 text-black dark:text-white`}
+          disabled
+        >
+          ADVISOR
+        </button>
       </div>
 
-      {/* Dashboard tab and content removed for chairperson/advisor */}
+      <div className="bg-white dark:bg-card rounded-xl border border-gray-200 dark:border-border p-4 sm:p-8 w-full max-w-4xl mx-auto">
+        {isEditingAdvisor ? (
+          <>
+            <div className="mb-4">
+              <label className="block text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Select Advisor</label>
+              <select
+                value={selectedAdvisor}
+                onChange={(e) => setSelectedAdvisor(e.target.value)}
+                className="w-full border border-gray-300 dark:border-border rounded-lg p-2 bg-white dark:bg-background text-gray-800 dark:text-white text-xs sm:text-sm"
+              >
+                {advisors.map((advisor) => (
+                  <option key={advisor} value={advisor}>{advisor}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        ) : (
+          <InfoRow label="Name" value={selectedAdvisor} />
+        )}
 
-      {activeTab === "student" && (
-        <div className="bg-white dark:bg-card rounded-xl border border-gray-200 dark:border-border p-4 sm:p-8 w-full max-w-4xl mx-auto">
-          {isEditingStudent ? (
-            <>
-              <EditableRow label="Faculty" value={studentInfo.faculty} onChange={(val) => setStudentInfo({ ...studentInfo, faculty: val })} />
-              <EditableRow label="Department" value={studentInfo.department} onChange={(val) => setStudentInfo({ ...studentInfo, department: val })} />
-              <EditableRow label="Credit" value={studentInfo.credit} type="number" onChange={(val) => setStudentInfo({ ...studentInfo, credit: Number(val) })} />
-              <EditableRow label="Scholarship Hour" value={studentInfo.scholarshipHour} type="number" min={0} onChange={(val) => {
-                const num = Number(val);
-                if (num >= 0) setStudentInfo({ ...studentInfo, scholarshipHour: num });
-              }} />
-            </>
-          ) : (
-            <>
-              <InfoRow label="Faculty" value={studentInfo.faculty} />
-              <InfoRow label="Department" value={studentInfo.department} />
-              <InfoRow label="Credit" value={studentInfo.credit} />
-              <InfoRow label="Scholarship Hour" value={studentInfo.scholarshipHour} />
-            </>
-          )}
-          <div className="flex justify-end mt-6">
-            <button
-              onClick={() => isEditingStudent ? handleSave() : setIsEditingStudent(true)}
-              className="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-            >
-              {isEditingStudent ? "Save" : "Edit"}
-            </button>
-          </div>
+        <InfoRow label="Faculty" value="SCIENCE AND TECHNOLOGY" />
+        <InfoRow label="Department" value="COMPUTER SCIENCE" />
+        <InfoRow label="University Email" value="ajarn@gmail.com" />
+        <InfoRow label="Office" value="102" />
+
+        <div className="flex justify-end mt-6">
+          <button
+            onClick={() => isEditingAdvisor ? handleSave() : setIsEditingAdvisor(true)}
+            className="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
+          >
+            {isEditingAdvisor ? "Save" : "Edit"}
+          </button>
         </div>
-      )}
-
-      {activeTab === "advisor" && (
-        <div className="bg-white dark:bg-card rounded-xl border border-gray-200 dark:border-border p-4 sm:p-8 w-full max-w-4xl mx-auto">
-          {isEditingAdvisor ? (
-            <>
-              <div className="mb-4">
-                <label className="block text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Select Advisor</label>
-                <select
-                  value={selectedAdvisor}
-                  onChange={(e) => setSelectedAdvisor(e.target.value)}
-                  className="w-full border border-gray-300 dark:border-border rounded-lg p-2 bg-white dark:bg-background text-gray-800 dark:text-white text-xs sm:text-sm"
-                >
-                  {advisors.map((advisor) => (
-                    <option key={advisor} value={advisor}>{advisor}</option>
-                  ))}
-                </select>
-              </div>
-            </>
-          ) : (
-            <InfoRow label="Name" value={selectedAdvisor} />
-          )}
-
-          <InfoRow label="Faculty" value="SCIENCE AND TECHNOLOGY" />
-          <InfoRow label="Department" value="COMPUTER SCIENCE" />
-          <InfoRow label="University Email" value="ajarn@gmail.com" />
-          <InfoRow label="Office" value="102" />
-
-          <div className="flex justify-end mt-6">
-            <button
-              onClick={() => isEditingAdvisor ? handleSave() : setIsEditingAdvisor(true)}
-              className="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-            >
-              {isEditingAdvisor ? "Save" : "Edit"}
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -178,27 +129,4 @@ function InfoRow({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function EditableRow({ label, value, onChange, type = "text", min }: {
-  label: string;
-  value: string | number;
-  onChange: (val: string) => void;
-  type?: string;
-  min?: number;
-}) {
-  return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-2 sm:py-3 border-b border-gray-200 dark:border-border">
-      <label className="font-medium text-gray-600 dark:text-gray-300 w-full sm:w-1/3 mb-1 sm:mb-0 text-xs sm:text-base">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        min={min}
-        className="w-full sm:w-2/3 border border-gray-300 dark:border-border rounded-md px-3 py-2 dark:bg-background dark:text-white text-xs sm:text-base"
-      />
-    </div>
-  );
-}
 
-function Dashboard() {
-  return <div className="text-gray-500 dark:text-gray-400">Dashboard content here...</div>;
-}
