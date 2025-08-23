@@ -83,11 +83,22 @@ export default function CurriculumDetails() {
       if (response.ok && result.departments) {
         console.log('Setting departments:', result.departments);
         setDepartments(result.departments);
-        // Auto-select first department if only one exists
+        
+        // 🆕 Smart default: Auto-select user's department if available
+        if (session?.user?.departmentId) {
+          const userDepartment = result.departments.find((dept: any) => dept.id === session.user.departmentId);
+          if (userDepartment) {
+            console.log('Auto-selecting user department:', userDepartment.name);
+            setSelectedDepartmentId(session.user.departmentId);
+            fetchCourseTypes(session.user.departmentId);
+            return;
+          }
+        }
+        
+        // Fallback: Auto-select first department if only one exists
         if (result.departments.length === 1) {
           console.log('Auto-selecting single department:', result.departments[0].id);
           setSelectedDepartmentId(result.departments[0].id);
-          // Also fetch course types for the auto-selected department
           fetchCourseTypes(result.departments[0].id);
         } else if (result.departments.length > 1) {
           console.log('Multiple departments found, user needs to select one');
@@ -354,6 +365,23 @@ export default function CurriculumDetails() {
           {/* Department Selection */}
           <div className="bg-card rounded-xl border border-border p-6 mb-6">
             <h2 className="text-xl font-bold text-foreground mb-4">Department Selection</h2>
+            
+            {/* Smart Default Info */}
+            {session?.user?.departmentId && (
+              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-4 h-4 text-blue-600 dark:text-blue-400">ℹ️</div>
+                  <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Default Department</span>
+                </div>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Creating curriculum for <strong>
+                    {departments.find(d => d.id === session.user.departmentId)?.name || 'Your Department'}
+                  </strong>. 
+                  You can select a different department if needed.
+                </p>
+              </div>
+            )}
+            
             <div className="max-w-md">
               <label className="block text-sm font-medium text-foreground mb-2">
                 Select Department
@@ -368,6 +396,7 @@ export default function CurriculumDetails() {
                 {departments.map(dept => (
                   <option key={dept.id} value={dept.id}>
                     {dept.name} ({dept.code})
+                    {session?.user?.departmentId === dept.id ? ' ⭐ Your Department' : ''}
                   </option>
                 ))}
               </select>

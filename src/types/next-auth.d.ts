@@ -7,6 +7,7 @@ declare module "next-auth" {
       id: string
       role: Role
       faculty: any
+      departmentId: string  // 🆕 Add departmentId to session
       advisorId: string | null
     } & DefaultSession["user"]
   }
@@ -15,6 +16,7 @@ declare module "next-auth" {
     id: string
     role: Role
     faculty: any
+    departmentId: string  // 🆕 Add departmentId to user
     advisorId: string | null
   }
 }
@@ -24,6 +26,7 @@ declare module "next-auth/jwt" {
     id: string
     role: Role
     faculty: any
+    departmentId: string  // 🆕 Add departmentId to JWT
     advisorId: string | null
   }
 } 

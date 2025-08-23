@@ -36,7 +36,7 @@ const createCurriculumSchema = z.object({
     name: z.string().min(1, 'Constraint name is required'),
     description: z.string().optional(),
     isRequired: z.boolean().optional().default(true),
-    config: z.record(z.any()).optional(), // JSON configuration
+    config: z.record(z.string(), z.any()).optional(), // JSON configuration
   })).optional().default([]),
   // Initial elective rules
   electiveRules: z.array(z.object({
@@ -65,13 +65,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get user's department for filtering
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: true,
+        faculty: { include: { departments: true } }
+      }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: { code: 'USER_NOT_FOUND', message: 'User not found' } },
+        { status: 404 }
+      );
+    }
+
+    // Get accessible department IDs (user's department + other departments in same faculty)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
 
     const where = {
-      createdById: session.user.id,
+      departmentId: { in: accessibleDepartmentIds }, // Department-based filtering
       ...(search && {
         OR: [
           { name: { contains: search, mode: 'insensitive' as const } },
@@ -196,6 +215,32 @@ export async function POST(request: NextRequest) {
     
     const validatedData = createCurriculumSchema.parse(body);
     console.log('✅ Data validation passed');
+
+    // Validate department access - user must be able to access the specified department
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: true,
+        faculty: { include: { departments: true } }
+      }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: { code: 'USER_NOT_FOUND', message: 'User not found' } },
+        { status: 404 }
+      );
+    }
+
+    // Check if user can access the target department (same faculty)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
+    if (!accessibleDepartmentIds.includes(validatedData.departmentId)) {
+      console.log('❌ Department access denied:', validatedData.departmentId);
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Access denied to this department' } },
+        { status: 403 }
+      );
+    }
 
     // Check if curriculum with same year/startId/endId in the same department already exists
     const existingCurriculum = await prisma.curriculum.findFirst({
@@ -384,7 +429,7 @@ export async function POST(request: NextRequest) {
             name: constraint.name,
             description: constraint.description,
             isRequired: constraint.isRequired ?? true,
-            config: constraint.config || {},
+            config: constraint.config as any || {},
           })),
         });
 
@@ -470,13 +515,12 @@ export async function POST(request: NextRequest) {
     }
     
     if (error instanceof z.ZodError) {
-      console.log('📝 Validation error details:', error.errors);
+      console.log('📝 Validation error details:', error.issues);
       return NextResponse.json(
         { 
           error: { 
             code: 'VALIDATION_ERROR', 
-            message: 'Invalid request data',
-            details: error.errors,
+            message: 'Invalid request data'
           } 
         },
         { status: 400 }

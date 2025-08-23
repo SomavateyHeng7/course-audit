@@ -49,14 +49,13 @@ export async function GET(
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Get user's accessible departments (faculty-wide access)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
     const concentration = await prisma.concentration.findFirst({
       where: {
         id: params.id,
-        departmentId: department.id,
-        createdById: session.user.id // Ensure user can only access their own concentrations
+        departmentId: { in: accessibleDepartmentIds } // Faculty-wide access
       },
       include: {
         courses: {
@@ -148,18 +147,17 @@ export async function PUT(
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Get user's accessible departments (faculty-wide access)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
     const body = await request.json();
     const validatedData = updateConcentrationSchema.parse(body);
 
-    // Check if concentration exists and belongs to user
+    // Check if concentration exists and user has access
     const existingConcentration = await prisma.concentration.findFirst({
       where: {
         id: params.id,
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: { in: accessibleDepartmentIds } // Faculty-wide access
       }
     });
 
@@ -217,7 +215,7 @@ export async function PUT(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input', details: error.errors } },
+        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input'} },
         { status: 400 }
       );
     }
@@ -269,15 +267,14 @@ export async function DELETE(
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Get user's accessible departments (faculty-wide access)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
-    // Check if concentration exists and belongs to user
+    // Check if concentration exists and user has access
     const existingConcentration = await prisma.concentration.findFirst({
       where: {
         id: params.id,
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: { in: accessibleDepartmentIds } // Faculty-wide access
       }
     });
 

@@ -40,14 +40,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Get user's accessible departments (their department + other departments in same faculty)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
-    // Get blacklists for the department, but only show ones created by this user
+    // Get blacklists for accessible departments
     const blacklists = await prisma.blacklist.findMany({
       where: {
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: { in: accessibleDepartmentIds }
       },
       include: {
         courses: {
@@ -129,7 +128,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, description, courseIds } = await request.json();
+    const { name, description, courseIds, departmentId } = await request.json();
 
     // Validate input
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -165,21 +164,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Validate department access if departmentId is provided, otherwise use user's department
+    const targetDepartmentId = departmentId || user.departmentId;
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
+    
+    if (!accessibleDepartmentIds.includes(targetDepartmentId)) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Access denied to this department' } },
+        { status: 403 }
+      );
+    }
 
-    // Check if blacklist with same name already exists for this user in this department
+    // Check if blacklist with same name already exists in this department
     const existingBlacklist = await prisma.blacklist.findFirst({
       where: {
         name: name.trim(),
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: targetDepartmentId
       }
     });
 
     if (existingBlacklist) {
       return NextResponse.json(
-        { error: { code: 'CONFLICT', message: 'A blacklist with this name already exists' } },
+        { error: { code: 'CONFLICT', message: 'A blacklist with this name already exists in this department' } },
         { status: 409 }
       );
     }
@@ -206,7 +212,7 @@ export async function POST(request: NextRequest) {
         data: {
           name: name.trim(),
           description: description?.trim() || null,
-          departmentId: department.id,
+          departmentId: targetDepartmentId,
           createdById: session.user.id
         }
       });

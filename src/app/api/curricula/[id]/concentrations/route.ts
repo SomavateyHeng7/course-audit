@@ -9,11 +9,65 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-    if (!session?.user?.faculty?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
+
+    if (session.user.role !== 'CHAIRPERSON') {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Chairperson access required' } },
+        { status: 403 }
+      );
     }
 
     const curriculumId = params.id;
+
+    // Get user's department for access control
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: {
+          include: {
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user?.department?.faculty) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'User department or faculty not found' } },
+        { status: 404 }
+      );
+    }
+
+    // Get all department IDs within the user's faculty for access control
+    const facultyDepartmentIds = user.department.faculty.departments.map(d => d.id);
+
+    // Verify curriculum exists and user has faculty-wide access
+    const curriculum = await prisma.curriculum.findFirst({
+      where: {
+        id: curriculumId,
+        departmentId: {
+          in: facultyDepartmentIds
+        }
+      }
+    });
+
+    if (!curriculum) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'Curriculum not found or access denied' } },
+        { status: 404 }
+      );
+    }
 
     // Get curriculum concentrations
     const curriculumConcentrations = await prisma.curriculumConcentration.findMany({

@@ -19,11 +19,37 @@ export async function GET(req: NextRequest) {
 
     const { curriculumId, courseId } = extractParamsFromUrl(req);
 
-    // Verify curriculum ownership
+    // Get user's department and faculty for access control
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: {
+          include: {
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user?.department?.faculty) {
+      return NextResponse.json(
+        { error: 'User department not found' },
+        { status: 403 }
+      );
+    }
+
+    // Get accessible department IDs (all departments in user's faculty)
+    const accessibleDepartmentIds = user.department.faculty.departments.map(dept => dept.id);
+
+    // Verify curriculum access (department-based)
     const curriculum = await prisma.curriculum.findFirst({
       where: {
         id: curriculumId,
-        createdById: session.user.id,
+        departmentId: { in: accessibleDepartmentIds }
       },
     });
 
@@ -93,11 +119,37 @@ export async function POST(req: NextRequest) {
 
     const { curriculumId, courseId } = extractParamsFromUrl(req);
 
-    // Verify curriculum ownership
+    // Get user's department and faculty for access control
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: {
+          include: {
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user?.department?.faculty) {
+      return NextResponse.json(
+        { error: 'User department not found' },
+        { status: 403 }
+      );
+    }
+
+    // Get accessible department IDs (all departments in user's faculty)
+    const accessibleDepartmentIds = user.department.faculty.departments.map(dept => dept.id);
+
+    // Verify curriculum access (department-based)
     const curriculum = await prisma.curriculum.findFirst({
       where: {
         id: curriculumId,
-        createdById: session.user.id,
+        departmentId: { in: accessibleDepartmentIds }
       },
     });
 
@@ -207,11 +259,37 @@ export async function DELETE(req: NextRequest) {
 
     const { curriculumId, courseId } = extractParamsFromUrl(req);
 
-    // Verify curriculum ownership
+    // Get user's department and faculty for access control
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: {
+          include: {
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user?.department?.faculty) {
+      return NextResponse.json(
+        { error: 'User department not found' },
+        { status: 403 }
+      );
+    }
+
+    // Get accessible department IDs (all departments in user's faculty)
+    const accessibleDepartmentIds = user.department.faculty.departments.map(dept => dept.id);
+
+    // Verify curriculum access (department-based)
     const curriculum = await prisma.curriculum.findFirst({
       where: {
         id: curriculumId,
-        createdById: session.user.id,
+        departmentId: { in: accessibleDepartmentIds }
       },
     });
 

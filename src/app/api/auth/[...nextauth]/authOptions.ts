@@ -24,6 +24,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             },
             include: {
               faculty: true,
+              department: true, // 🆕 Include department relation
               advisor: true,
             },
           });
@@ -47,6 +48,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             name: user.name,
             role: user.role,
             faculty: user.faculty,
+            departmentId: user.departmentId, // 🆕 Include departmentId
             advisorId: user.advisorId,
           };
         } catch (error) {
@@ -69,6 +71,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.role = user.role;
         token.faculty = user.faculty;
+        token.departmentId = user.departmentId; // 🆕 Include departmentId in JWT
         token.advisorId = user.advisorId;
       }
       return token;
@@ -78,6 +81,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         session.user.role = token.role as any;
         session.user.faculty = token.faculty as any;
+        session.user.departmentId = token.departmentId as string; // 🆕 Include departmentId in session
         session.user.advisorId = token.advisorId as string;
       }
       return session;

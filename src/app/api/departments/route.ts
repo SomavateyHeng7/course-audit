@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const facultyId = searchParams.get('facultyId');
+
+    // Build where clause based on facultyId filter
+    const where = facultyId ? { facultyId } : {};
+
     const departments = await prisma.department.findMany({
+      where,
       include: {
         faculty: {
           select: {

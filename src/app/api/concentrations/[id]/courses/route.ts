@@ -43,15 +43,14 @@ export async function GET(
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Use accessible department IDs (all departments in user's faculty)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
-    // Verify concentration exists and belongs to user
+    // Verify concentration exists and is accessible (department-based)
     const concentration = await prisma.concentration.findFirst({
       where: {
         id: id,
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: { in: accessibleDepartmentIds }
       }
     });
 
@@ -142,15 +141,14 @@ export async function POST(
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Use accessible department IDs (all departments in user's faculty)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
-    // Verify concentration exists and belongs to user
+    // Verify concentration exists and is accessible (department-based)
     const concentration = await prisma.concentration.findFirst({
       where: {
         id: id,
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: { in: accessibleDepartmentIds }
       }
     });
 
@@ -298,15 +296,14 @@ export async function DELETE(
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Use accessible department IDs (all departments in user's faculty)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
-    // Verify concentration exists and belongs to user
+    // Verify concentration exists and is accessible (department-based)
     const concentration = await prisma.concentration.findFirst({
       where: {
         id: id,
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: { in: accessibleDepartmentIds }
       }
     });
 

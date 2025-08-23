@@ -39,11 +39,37 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if curriculum exists and user owns it
+    // Get user's department and faculty for access control
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: {
+          include: {
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user?.department?.faculty) {
+      return NextResponse.json(
+        { error: 'User department not found' },
+        { status: 403 }
+      );
+    }
+
+    // Get accessible department IDs (all departments in user's faculty)
+    const accessibleDepartmentIds = user.department.faculty.departments.map(dept => dept.id);
+
+    // Check if curriculum exists and user has department access
     const curriculum = await prisma.curriculum.findFirst({
       where: {
         id: curriculumId,
-        createdById: session.user.id, // Ensure ownership
+        departmentId: { in: accessibleDepartmentIds }
       },
     });
 

@@ -10,11 +10,21 @@ interface Faculty {
   code: string;
 }
 
+interface Department {
+  id: string;
+  name: string;
+  code: string;
+  facultyId: string;
+}
+
 export default function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [selectedFaculty, setSelectedFaculty] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -31,6 +41,29 @@ export default function AuthForm() {
     };
     fetchFaculties();
   }, []);
+
+  // Fetch departments when faculty is selected
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      if (!selectedFaculty) {
+        setDepartments([]);
+        setSelectedDepartment('');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/departments?facultyId=${selectedFaculty}`);
+        if (!response.ok) throw new Error('Failed to fetch departments');
+        const data = await response.json();
+        setDepartments(data.departments || []);
+        setSelectedDepartment(''); // Reset department selection when faculty changes
+      } catch (err) {
+        console.error(err);
+        setError('Unable to load departments. Please try again later.');
+      }
+    };
+    fetchDepartments();
+  }, [selectedFaculty]);
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -80,7 +113,15 @@ export default function AuthForm() {
       password: formData.get('password') as string,
       name: formData.get('name') as string,
       facultyId: formData.get('facultyId') as string,
+      departmentId: formData.get('departmentId') as string, // 🆕 Add departmentId
     };
+
+    // Validate required fields
+    if (!data.departmentId) {
+      setError('Department selection is required.');
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch('/api/auth/signup', {
@@ -94,6 +135,9 @@ export default function AuthForm() {
 
       setIsLogin(true);
       setError(null);
+      // Reset form
+      setSelectedFaculty('');
+      setSelectedDepartment('');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Signup failed.');
     } finally {
@@ -180,6 +224,8 @@ export default function AuthForm() {
                   />
                   <select
                     name="facultyId"
+                    value={selectedFaculty}
+                    onChange={(e) => setSelectedFaculty(e.target.value)}
                     required
                     className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700"
                   >
@@ -187,6 +233,23 @@ export default function AuthForm() {
                     {faculties.map((faculty) => (
                       <option key={faculty.id} value={faculty.id} className="text-gray-900 dark:text-white">
                         {faculty.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    name="departmentId"
+                    value={selectedDepartment}
+                    onChange={(e) => setSelectedDepartment(e.target.value)}
+                    required
+                    disabled={!selectedFaculty}
+                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="" className="text-gray-500 dark:text-gray-400">
+                      {!selectedFaculty ? 'Select Faculty First' : 'Select Department'}
+                    </option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.id} className="text-gray-900 dark:text-white">
+                        {department.name} ({department.code})
                       </option>
                     ))}
                   </select>
@@ -323,6 +386,8 @@ export default function AuthForm() {
                 />
                 <select
                   name="facultyId"
+                  value={selectedFaculty}
+                  onChange={(e) => setSelectedFaculty(e.target.value)}
                   required
                   className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700"
                 >
@@ -330,6 +395,23 @@ export default function AuthForm() {
                   {faculties.map((faculty) => (
                     <option key={faculty.id} value={faculty.id} className="text-gray-900 dark:text-white">
                       {faculty.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  name="departmentId"
+                  value={selectedDepartment}
+                  onChange={(e) => setSelectedDepartment(e.target.value)}
+                  required
+                  disabled={!selectedFaculty}
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary transition-all text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="" className="text-gray-500 dark:text-gray-400">
+                    {!selectedFaculty ? 'Select Faculty First' : 'Select Department'}
+                  </option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id} className="text-gray-900 dark:text-white">
+                      {department.name} ({department.code})
                     </option>
                   ))}
                 </select>

@@ -26,11 +26,37 @@ export async function DELETE(
 
     const { id: curriculumId, blacklistId } = await params;
 
-    // Verify curriculum ownership
+    // Get user's department and faculty for access control
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: {
+          include: {
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user?.department?.faculty) {
+      return NextResponse.json(
+        { error: 'User department not found' },
+        { status: 403 }
+      );
+    }
+
+    // Get accessible department IDs (all departments in user's faculty)
+    const accessibleDepartmentIds = user.department.faculty.departments.map(dept => dept.id);
+
+    // Verify curriculum access (department-based)
     const curriculum = await prisma.curriculum.findFirst({
       where: {
         id: curriculumId,
-        createdById: session.user.id
+        departmentId: { in: accessibleDepartmentIds }
       }
     });
 
@@ -71,8 +97,8 @@ export async function DELETE(
       );
     }
 
-    // Verify blacklist ownership (additional security check)
-    if (assignment.blacklist.createdById !== session.user.id) {
+    // Verify blacklist access (department-based security check)
+    if (!accessibleDepartmentIds.includes(assignment.blacklist.departmentId)) {
       return NextResponse.json(
         { error: { code: 'FORBIDDEN', message: 'Access denied to this blacklist' } },
         { status: 403 }

@@ -32,33 +32,39 @@ export async function GET(
 
     const { id: curriculumId } = await params;
 
-    // Get user's faculty and department
+    // Get user's department for access control
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       include: { 
-        faculty: {
+        department: {
           include: {
-            departments: true
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
           }
         }
       }
     });
 
-    if (!user?.faculty || !user.faculty.departments.length) {
+    if (!user?.department?.faculty) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'User faculty or department not found' } },
+        { error: { code: 'NOT_FOUND', message: 'User department or faculty not found' } },
         { status: 404 }
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Get all department IDs within the user's faculty for access control
+    const facultyDepartmentIds = user.department.faculty.departments.map(d => d.id);
 
-    // Verify curriculum ownership
+    // Verify curriculum exists and user has faculty-wide access
     const curriculum = await prisma.curriculum.findFirst({
       where: {
         id: curriculumId,
-        createdById: session.user.id
+        departmentId: {
+          in: facultyDepartmentIds
+        }
       }
     });
 
@@ -69,11 +75,12 @@ export async function GET(
       );
     }
 
-    // Get all available blacklists for the department
+    // Get all available blacklists within the user's faculty departments
     const availableBlacklists = await prisma.blacklist.findMany({
       where: {
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: {
+          in: facultyDepartmentIds
+        }
       },
       include: {
         courses: {
@@ -219,30 +226,11 @@ export async function POST(
     const body = await request.json();
     const { blacklistId } = assignBlacklistSchema.parse(body);
 
-    // Verify curriculum ownership
-    const curriculum = await prisma.curriculum.findFirst({
-      where: {
-        id: curriculumId,
-        createdById: session.user.id
-      }
-    });
-
-    if (!curriculum) {
-      return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Curriculum not found or access denied' } },
-        { status: 404 }
-      );
-    }
-
-    // Get user's department
+    // Verify curriculum access (department-based, not ownership-based)
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       include: { 
-        faculty: {
-          include: {
-            departments: true
-          }
-        }
+        faculty: { include: { departments: true } }
       }
     });
 
@@ -253,14 +241,27 @@ export async function POST(
       );
     }
 
-    const department = user.faculty.departments[0];
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
-    // Verify blacklist ownership and department
+    const curriculum = await prisma.curriculum.findFirst({
+      where: {
+        id: curriculumId,
+        departmentId: { in: accessibleDepartmentIds }, // Faculty-wide access
+      }
+    });
+
+    if (!curriculum) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'Curriculum not found or access denied' } },
+        { status: 404 }
+      );
+    }
+
+    // Verify blacklist access (department-based, not ownership-based)
     const blacklist = await prisma.blacklist.findFirst({
       where: {
         id: blacklistId,
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: { in: accessibleDepartmentIds }, // Faculty-wide access
       },
       include: {
         _count: {
@@ -371,8 +372,7 @@ export async function POST(
         { 
           error: { 
             code: 'VALIDATION_ERROR', 
-            message: 'Invalid request data',
-            details: error.errors,
+            message: 'Invalid request data'
           } 
         },
         { status: 400 }

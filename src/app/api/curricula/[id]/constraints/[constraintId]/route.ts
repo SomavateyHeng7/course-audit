@@ -28,13 +28,41 @@ export async function PUT(
     const body = await request.json();
     const { name, description, isRequired, config } = body;
 
-    // Find constraint and verify ownership
+    // Get user's department for access control
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: {
+          include: {
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user?.department?.faculty) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'User department or faculty not found' } },
+        { status: 404 }
+      );
+    }
+
+    // Get all department IDs within the user's faculty for access control
+    const facultyDepartmentIds = user.department.faculty.departments.map(d => d.id);
+
+    // Find constraint and verify faculty-wide access
     const constraint = await prisma.curriculumConstraint.findFirst({
       where: {
         id: constraintId,
         curriculum: {
           id: curriculumId,
-          createdById: session.user.id
+          departmentId: {
+            in: facultyDepartmentIds
+          }
         }
       },
       include: {
@@ -136,13 +164,41 @@ export async function DELETE(
 
     const { id: curriculumId, constraintId } = await params;
 
-    // Find constraint and verify ownership
+    // Get user's department for access control
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: {
+          include: {
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user?.department?.faculty) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'User department or faculty not found' } },
+        { status: 404 }
+      );
+    }
+
+    // Get all department IDs within the user's faculty for access control
+    const facultyDepartmentIds = user.department.faculty.departments.map(d => d.id);
+
+    // Find constraint and verify faculty-wide access
     const constraint = await prisma.curriculumConstraint.findFirst({
       where: {
         id: constraintId,
         curriculum: {
           id: curriculumId,
-          createdById: session.user.id
+          departmentId: {
+            in: facultyDepartmentIds
+          }
         }
       },
       include: {

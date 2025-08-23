@@ -3,9 +3,9 @@
 ## Current Implementation Status
 
 ### 🔍 **Current User Association Model**
-- ❌ **Users are ONLY associated with Faculty** (`User.facultyId`)
-- ❌ **No direct Department association** for Users
-- ⚠️  **Chairpersons need to manually select department** during curriculum creation
+- ✅ **Users are associated with both Faculty AND Department** (`User.facultyId` + `User.departmentId`)
+- ✅ **Direct Department association** implemented and functional
+- ✅ **Smart department defaults** with override capability in curriculum creation
 
 ### 🔍 **Current Entity-Department Relationships**
 1. **✅ Blacklists**: Associated with `departmentId` + `createdById` (department-scoped)
@@ -143,18 +143,20 @@ const blacklists = await prisma.blacklist.findMany({
 
 ## 🎯 **Current Implementation Status Check**
 
-### **✅ Already Correct (Department-Scoped)**
-1. **Blacklists**: `departmentId` + unique per department ✅
-2. **Concentrations**: `departmentId` + unique per department ✅
-3. **Course Types**: `departmentId` + unique per department ✅
-4. **Course Type Assignments**: `DepartmentCourseType` with `departmentId` ✅
-5. **Elective Rules**: Curriculum-scoped (inherits department) ✅
+### **✅ Implementation Complete (Department-Scoped)**
+1. **Users**: `departmentId` association ✅ **IMPLEMENTED**
+2. **Authentication**: Department selection ✅ **IMPLEMENTED**
+3. **API Access Control**: Department filtering in all major routes ✅ **IMPLEMENTED**
+4. **Blacklists**: `departmentId` + unique per department ✅
+5. **Concentrations**: `departmentId` + unique per department ✅
+6. **Course Types**: `departmentId` + unique per department ✅
+7. **Course Type Assignments**: `DepartmentCourseType` with `departmentId` ✅
+8. **Elective Rules**: Curriculum-scoped (inherits department) ✅
+9. **Curricula**: Department-scoped with faculty-wide access ✅
 
-### **❌ Needs Fixing**
-1. **Users**: Missing `departmentId` association ❌
-2. **Authentication**: No department selection ❌
-3. **API Access Control**: No department filtering in some routes ❌
-4. **TypeScript Error**: Department model trying to count non-existent `users` relation ❌
+### **⚡ Minor Remaining Tasks**
+1. **Individual resource endpoints**: Update [id] routes with department filtering (2-3 hours)
+2. **TypeScript cosmetics**: Restart TS server to clear type errors (5 minutes)
 
 ---
 

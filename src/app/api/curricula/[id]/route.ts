@@ -34,10 +34,27 @@ export async function GET(
       );
     }
 
+    // Get user's accessible departments (faculty-wide access)
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        faculty: { include: { departments: true } }
+      }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: { code: 'USER_NOT_FOUND', message: 'User not found' } },
+        { status: 404 }
+      );
+    }
+
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
+
     const curriculum = await prisma.curriculum.findFirst({
       where: {
         id: id,
-        createdById: session.user.id, // Ensure ownership
+        departmentId: { in: accessibleDepartmentIds }, // Faculty-wide access
       },
       include: {
         department: true,
@@ -190,11 +207,28 @@ export async function PUT(
     const body = await request.json();
     const validatedData = updateCurriculumSchema.parse(body);
 
-    // Check if curriculum exists and user owns it
+    // Get user's accessible departments (faculty-wide access)
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        faculty: { include: { departments: true } }
+      }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: { code: 'USER_NOT_FOUND', message: 'User not found' } },
+        { status: 404 }
+      );
+    }
+
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
+
+    // Check if curriculum exists and user has access to it
     const existingCurriculum = await prisma.curriculum.findFirst({
       where: {
         id: id,
-        createdById: session.user.id,
+        departmentId: { in: accessibleDepartmentIds }, // Faculty-wide access
       },
     });
 
@@ -296,8 +330,7 @@ export async function PUT(
         { 
           error: { 
             code: 'VALIDATION_ERROR', 
-            message: 'Invalid request data',
-            details: error.errors,
+            message: 'Invalid request data'
           } 
         },
         { status: 400 }
@@ -335,11 +368,28 @@ export async function DELETE(
       );
     }
 
-    // Check if curriculum exists and user owns it
+    // Get user's accessible departments (faculty-wide access)
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        faculty: { include: { departments: true } }
+      }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: { code: 'USER_NOT_FOUND', message: 'User not found' } },
+        { status: 404 }
+      );
+    }
+
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
+
+    // Check if curriculum exists and user has access to it
     const curriculum = await prisma.curriculum.findFirst({
       where: {
         id: id,
-        createdById: session.user.id,
+        departmentId: { in: accessibleDepartmentIds }, // Faculty-wide access
       },
       include: {
         _count: {

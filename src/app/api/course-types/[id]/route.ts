@@ -31,32 +31,39 @@ export async function GET(
       );
     }
 
-    // Get user's faculty and department
+    // Get user's department for access control
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       include: { 
-        faculty: {
+        department: {
           include: {
-            departments: true
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
           }
         }
       }
     });
 
-    if (!user?.faculty || !user.faculty.departments.length) {
+    if (!user?.department?.faculty) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'User faculty or department not found' } },
+        { error: { code: 'NOT_FOUND', message: 'User department or faculty not found' } },
         { status: 404 }
       );
     }
 
-    const department = user.faculty.departments[0];
+    // Get all department IDs within the user's faculty for access control
+    const facultyDepartmentIds = user.department.faculty.departments.map(d => d.id);
 
-    // Find the course type
+    // Find the course type within user's faculty departments
     const courseType = await prisma.courseType.findFirst({
       where: {
         id: params.id,
-        departmentId: department.id
+        departmentId: {
+          in: facultyDepartmentIds
+        }
       }
     });
 
@@ -108,36 +115,43 @@ export async function PUT(
       );
     }
 
-    // Get user's faculty and department
+    // Get user's department for access control
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       include: { 
-        faculty: {
+        department: {
           include: {
-            departments: true
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
           }
         }
       }
     });
 
-    if (!user?.faculty || !user.faculty.departments.length) {
+    if (!user?.department?.faculty) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'User faculty or department not found' } },
+        { error: { code: 'NOT_FOUND', message: 'User department or faculty not found' } },
         { status: 404 }
       );
     }
 
-    const department = user.faculty.departments[0];
+    // Get all department IDs within the user's faculty for access control
+    const facultyDepartmentIds = user.department.faculty.departments.map(d => d.id);
 
     // Parse and validate request body
     const body = await request.json();
     const validatedData = updateCourseTypeSchema.parse(body);
 
-    // Check if course type exists and belongs to user's department
+    // Check if course type exists and belongs to user's faculty departments
     const existingCourseType = await prisma.courseType.findFirst({
       where: {
         id: params.id,
-        departmentId: department.id
+        departmentId: {
+          in: facultyDepartmentIds
+        }
       }
     });
 
@@ -153,7 +167,7 @@ export async function PUT(
       const nameConflict = await prisma.courseType.findFirst({
         where: {
           name: validatedData.name,
-          departmentId: department.id,
+          departmentId: existingCourseType.departmentId,
           NOT: {
             id: params.id
           }
@@ -192,7 +206,7 @@ export async function PUT(
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input', details: error.errors } },
+        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input', details: error.issues } },
         { status: 400 }
       );
     }
@@ -226,38 +240,45 @@ export async function DELETE(
       );
     }
 
-    // Get user's faculty and department
+    // Get user's department for access control
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       include: { 
-        faculty: {
+        department: {
           include: {
-            departments: true
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
           }
         }
       }
     });
 
-    if (!user?.faculty || !user.faculty.departments.length) {
+    if (!user?.department?.faculty) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'User faculty or department not found' } },
+        { error: { code: 'NOT_FOUND', message: 'User department or faculty not found' } },
         { status: 404 }
       );
     }
 
-    const department = user.faculty.departments[0];
+    // Get all department IDs within the user's faculty for access control
+    const facultyDepartmentIds = user.department.faculty.departments.map(d => d.id);
 
-    // Check if course type exists and belongs to user's department
+    // Check if course type exists and belongs to user's faculty departments
     const existingCourseType = await prisma.courseType.findFirst({
       where: {
         id: params.id,
-        departmentId: department.id
+        departmentId: {
+          in: facultyDepartmentIds
+        }
       }
     });
 
     if (!existingCourseType) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Course type not found' } },
+        { error: { code: 'NOT_FOUND', message: 'Course type not found or access denied' } },
         { status: 404 }
       );
     }
