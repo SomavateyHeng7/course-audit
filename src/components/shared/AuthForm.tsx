@@ -106,7 +106,11 @@ export default function AuthForm() {
                 />
                 {error && <div className="text-red-600 dark:text-red-400 text-sm">{error}</div>}
                 <div className="text-center mt-4">
-                  <button type="button" className="text-gray-500 dark:text-gray-300 text-sm hover:text-gray-700 dark:hover:text-white">
+                  <button
+                    type="button"
+                    className="text-gray-500 dark:text-gray-300 text-sm hover:text-gray-700 dark:hover:text-white"
+                    onClick={() => router.push('/auth/forgot-password')}
+                  >
                     Forget Your Password?
                   </button>
                 </div>
@@ -146,7 +150,11 @@ export default function AuthForm() {
             />
             {error && <div className="text-red-600 dark:text-red-400 text-xs">{error}</div>}
             <div className="text-center mt-3">
-              <button type="button" className="text-gray-500 dark:text-gray-300 text-xs hover:text-gray-700 dark:hover:text-white">
+              <button
+                type="button"
+                className="text-gray-500 dark:text-gray-300 text-xs hover:text-gray-700 dark:hover:text-white"
+                onClick={() => router.push('/auth/forgot-password')}
+              >
                 Forget Your Password?
               </button>
             </div>

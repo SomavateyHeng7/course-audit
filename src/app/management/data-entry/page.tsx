@@ -82,7 +82,7 @@ const statusColorClasses: Record<'not_completed' | 'completed' | 'taking' | 'pla
 // Move gradeOptions to module scope so it is accessible everywhere
 const gradeOptions: string[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'S'];
 
-export default function DataEntryPage() {
+export default function DataEntryPage({ isHomePage = false }: { isHomePage?: boolean } = {}) {
   const router = useRouter();
   // Use context for shared state
   const {
@@ -268,12 +268,16 @@ export default function DataEntryPage() {
 
   return (
     <div className="container py-6">
-      <div className="flex items-center mb-2">
-        <Button variant="outline" onClick={handleBackToManagement} className="mr-4">
-          Back to Management
-        </Button>
-      </div>
-      <h1 className="text-3xl font-bold text-foreground mb-6 text-center">Manual Course Entry</h1>
+      {!isHomePage && (
+        <div className="flex items-center mb-2">
+          <Button variant="outline" onClick={handleBackToManagement} className="mr-4">
+            Back to Management
+          </Button>
+        </div>
+      )}
+      <h1 className="text-3xl font-bold text-foreground mb-6 text-center">
+        {isHomePage ? 'Course Audit' : 'Manual Course Entry'}
+      </h1>
 
       {/* Step 1: Select Faculty, Department, Curriculum, and Concentration */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -695,18 +699,31 @@ function MajorElectiveAddButton({ maxCredits }: { maxCredits: number }) {
             );
           })}
           {/* Action Buttons */}
-          <div className="flex gap-4 mt-4">
-            <Button
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-              variant="default"
-              onClick={() => {
-                // Gather all course data for export
-                const allCourses: any[] = [];
-                courseTypeOrder.forEach(category => {
-                  const courses = (curriculumCourses[selectedCurriculum]?.[category] || []);
-                  courses.forEach(course => {
+          {!isHomePage && (
+            <div className="flex gap-4 mt-4">
+              <Button
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                variant="default"
+                onClick={() => {
+                  // Gather all course data for export
+                  const allCourses: any[] = [];
+                  courseTypeOrder.forEach(category => {
+                    const courses = (curriculumCourses[selectedCurriculum]?.[category] || []);
+                    courses.forEach(course => {
+                      allCourses.push({
+                        Category: category,
+                        Code: course.code,
+                        Title: course.title,
+                        Credits: course.credits,
+                        Status: completedCourses[course.code]?.status || 'not_completed',
+                        Grade: completedCourses[course.code]?.grade || '',
+                      });
+                    });
+                  });
+                  // Add free electives
+                  freeElectives.forEach(course => {
                     allCourses.push({
-                      Category: category,
+                      Category: 'Free Elective',
                       Code: course.code,
                       Title: course.title,
                       Credits: course.credits,
@@ -714,33 +731,22 @@ function MajorElectiveAddButton({ maxCredits }: { maxCredits: number }) {
                       Grade: completedCourses[course.code]?.grade || '',
                     });
                   });
-                });
-                // Add free electives
-                freeElectives.forEach(course => {
-                  allCourses.push({
-                    Category: 'Free Elective',
-                    Code: course.code,
-                    Title: course.title,
-                    Credits: course.credits,
-                    Status: completedCourses[course.code]?.status || 'not_completed',
-                    Grade: completedCourses[course.code]?.grade || '',
-                  });
-                });
-                const ws = XLSX.utils.json_to_sheet(allCourses);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, 'Courses');
-                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-                saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'courses.xlsx');
-              }}
-            >
-              <svg className="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
-              Download as Excel
-            </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white" variant="default" onClick={() => router.push('/management/progress')}>
-              <BarChart2 className="w-5 h-5 mr-2 inline-block" />
-              Show Progress
-            </Button>
-          </div>
+                  const ws = XLSX.utils.json_to_sheet(allCourses);
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, 'Courses');
+                  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                  saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'courses.xlsx');
+                }}
+              >
+                <svg className="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+                Download as Excel
+              </Button>
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white" variant="default" onClick={() => router.push('/management/progress')}>
+                <BarChart2 className="w-5 h-5 mr-2 inline-block" />
+                Show Progress
+              </Button>
+            </div>
+          )}
             </div>
       )}
             </div>
