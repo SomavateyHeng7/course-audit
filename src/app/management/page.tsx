@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import ExcelUpload from "@/components/excel/ExcelUpload"
 import { useCourseManagement } from "@/app/contexts/CourseManagementContext"
 import { ExcelData } from "@/components/excel/ExcelUtils"
-import { ProgressProvider } from "./data-entry/page"
+
 
 export default function ManagementPage() {
   const router = useRouter()
@@ -33,7 +33,7 @@ export default function ManagementPage() {
   }
 
   return (
-    <ProgressProvider>
+  <>
       <div className="container mx-auto p-4 sm:p-6">
         <Card>
           <CardContent className="pt-4 sm:pt-6">
@@ -62,6 +62,6 @@ export default function ManagementPage() {
           </CardContent>
         </Card>
       </div>
-    </ProgressProvider>
+  </>
   )
 } 

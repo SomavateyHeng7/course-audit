@@ -7,6 +7,7 @@ import { z } from 'zod';
 const createConcentrationSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255, 'Name too long'),
   description: z.string().optional(),
+  departmentId: z.string().optional(), // Optional - defaults to user's department
   courses: z.array(z.object({
     code: z.string().min(1, 'Course code is required'),
     name: z.string().min(1, 'Course name is required'),
@@ -54,14 +55,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Get user's accessible departments (their department + other departments in same faculty)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
-    // Get concentrations for the department, but only show ones created by this user
+    // Get concentrations for accessible departments
     const concentrations = await prisma.concentration.findMany({
       where: {
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: { in: accessibleDepartmentIds }
       },
       include: {
         courses: {
@@ -150,21 +150,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Validate department access if departmentId is provided, otherwise use user's department
+    const targetDepartmentId = validatedData.departmentId || user.departmentId;
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
+    
+    if (!accessibleDepartmentIds.includes(targetDepartmentId)) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Access denied to this department' } },
+        { status: 403 }
+      );
+    }
 
-    // Check if concentration with same name already exists for this user in this department
+    // Check if concentration with same name already exists in this department
     const existingConcentration = await prisma.concentration.findFirst({
       where: {
         name: validatedData.name.trim(),
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: targetDepartmentId
       }
     });
 
     if (existingConcentration) {
       return NextResponse.json(
-        { error: { code: 'CONFLICT', message: 'A concentration with this name already exists' } },
+        { error: { code: 'CONFLICT', message: 'A concentration with this name already exists in this department' } },
         { status: 409 }
       );
     }
@@ -177,7 +184,7 @@ export async function POST(request: NextRequest) {
           name: validatedData.name,
           description: validatedData.description,
           department: {
-            connect: { id: department.id }
+            connect: { id: targetDepartmentId }
           },
           createdBy: {
             connect: { id: session.user.id }
@@ -267,7 +274,7 @@ export async function POST(request: NextRequest) {
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-  { error: { code: 'VALIDATION_ERROR', message: 'Invalid input', details: error.issues } },
+        { error: { code: 'VALIDATION_ERROR', message: 'Invalid input'} },
         { status: 400 }
       );
     }

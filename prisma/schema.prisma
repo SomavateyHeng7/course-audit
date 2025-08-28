@@ -12,8 +12,9 @@ model User {
   email                 String                 @unique
   password              String
   name                  String
-  role                  Role                   @default(STUDENT)
+  role                  Role                   @default(CHAIRPERSON)
   facultyId             String
+  departmentId          String                 // 🆕 Required department association
   advisorId             String?
   gpa                   Float?
   credits               Int?
@@ -29,7 +30,11 @@ model User {
   advisor               User?                  @relation("AdvisorStudent", fields: [advisorId], references: [id])
   students              User[]                 @relation("AdvisorStudent")
   faculty               Faculty                @relation(fields: [facultyId], references: [id])
+  department            Department             @relation(fields: [departmentId], references: [id]) // 🆕 Department relation
 
+  @@index([departmentId]) // 🆕 Performance index for department-based queries
+  @@index([facultyId])    // 🆕 Performance index for faculty-based queries
+  @@index([role])         // 🆕 Performance index for role-based queries
   @@map("users")
 }
 
@@ -59,6 +64,7 @@ model Department {
   courseTypes           CourseType[]
   curricula             Curriculum[]
   departmentCourseTypes DepartmentCourseType[]
+  users                 User[]                 // 🆕 Reverse relation to users
   faculty               Faculty                @relation(fields: [facultyId], references: [id])
 
   @@unique([code, facultyId])

@@ -35,11 +35,39 @@ export async function PUT(
       );
     }
 
-    // Verify curriculum exists and user has access
+    // Get user's department for access control
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: {
+          include: {
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user?.department?.faculty) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'User department or faculty not found' } },
+        { status: 404 }
+      );
+    }
+
+    // Get all department IDs within the user's faculty for access control
+    const facultyDepartmentIds = user.department.faculty.departments.map(d => d.id);
+
+    // Verify curriculum exists and user has faculty-wide access
     const curriculum = await prisma.curriculum.findFirst({
       where: {
         id: curriculumId,
-        createdById: session.user.id
+        departmentId: {
+          in: facultyDepartmentIds
+        }
       }
     });
 
@@ -132,11 +160,39 @@ export async function DELETE(
 
     const { id: curriculumId, ruleId } = await params;
 
-    // Verify curriculum exists and user has access
+    // Get user's department for access control
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: {
+          include: {
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user?.department?.faculty) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'User department or faculty not found' } },
+        { status: 404 }
+      );
+    }
+
+    // Get all department IDs within the user's faculty for access control
+    const facultyDepartmentIds = user.department.faculty.departments.map(d => d.id);
+
+    // Verify curriculum exists and user has faculty-wide access
     const curriculum = await prisma.curriculum.findFirst({
       where: {
         id: curriculumId,
-        createdById: session.user.id
+        departmentId: {
+          in: facultyDepartmentIds
+        }
       }
     });
 

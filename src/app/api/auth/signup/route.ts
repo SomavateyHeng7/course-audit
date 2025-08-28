@@ -4,12 +4,12 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(req: Request) {
   try {
-    const { email, password, name, facultyId } = await req.json();
+    const { email, password, name, facultyId, departmentId } = await req.json();
 
     // Validate input
-    if (!email || !password || !name || !facultyId) {
+    if (!email || !password || !name || !facultyId || !departmentId) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields. Department selection is required.' },
         { status: 400 }
       );
     }
@@ -26,14 +26,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if faculty exists
-    const faculty = await prisma.faculty.findUnique({
-      where: { id: facultyId },
+    // Validate that department belongs to the selected faculty
+    const department = await prisma.department.findFirst({
+      where: { 
+        id: departmentId, 
+        facultyId: facultyId 
+      },
+      include: {
+        faculty: true
+      }
     });
 
-    if (!faculty) {
+    if (!department) {
       return NextResponse.json(
-        { error: 'Invalid faculty' },
+        { error: 'Invalid department for selected faculty' },
         { status: 400 }
       );
     }
@@ -41,14 +47,15 @@ export async function POST(req: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Create user with department association
     const user = await prisma.user.create({
       data: {
         email,
         name,
         password: hashedPassword,
         facultyId,
-        role: 'STUDENT', // Default role for signup
+        departmentId, // 🆕 Required department association
+        role: 'CHAIRPERSON', // 🆕 Default role is now CHAIRPERSON
       },
     });
 

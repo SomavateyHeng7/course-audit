@@ -61,12 +61,40 @@ export async function POST(
       );
     }
 
-    // Verify curriculum ownership
+    // Get user's department for access control
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        department: {
+          include: {
+            faculty: {
+              include: {
+                departments: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user?.department?.faculty) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'User department or faculty not found' } },
+        { status: 404 }
+      );
+    }
+
+    // Get all department IDs within the user's faculty for access control
+    const facultyDepartmentIds = user.department.faculty.departments.map(d => d.id);
+
+    // Verify curriculum exists and user has faculty-wide access
     const curriculum = await prisma.curriculum.findFirst({
       where: {
         id: curriculumId,
-        createdById: session.user.id,
-      },
+        departmentId: {
+          in: facultyDepartmentIds
+        }
+      }
     });
 
     if (!curriculum) {
@@ -186,11 +214,28 @@ export async function DELETE(
       );
     }
 
-    // Verify curriculum ownership
+    // Get user's accessible departments (faculty-wide access)
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { 
+        faculty: { include: { departments: true } }
+      }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: { code: 'USER_NOT_FOUND', message: 'User not found' } },
+        { status: 404 }
+      );
+    }
+
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
+
+    // Verify curriculum access (department-based, not ownership-based)
     const curriculum = await prisma.curriculum.findFirst({
       where: {
         id: curriculumId,
-        createdById: session.user.id,
+        departmentId: { in: accessibleDepartmentIds }, // Faculty-wide access
       },
     });
 

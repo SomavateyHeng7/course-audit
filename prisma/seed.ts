@@ -21,6 +21,15 @@ async function main() {
   // Create super admin user
   const hashedPassword = await bcrypt.hash('superadmin123', 10);
   
+  // Get the first department from the default faculty for super admin
+  const defaultDepartment = await prisma.department.findFirst({
+    where: { facultyId: defaultFaculty.id },
+  });
+
+  if (!defaultDepartment) {
+    throw new Error('No department found for default faculty. Departments must be created before users.');
+  }
+  
   const superAdmin = await prisma.user.upsert({
     where: { email: 'superadmin@edutrack.com' },
     update: {},
@@ -30,6 +39,7 @@ async function main() {
       name: 'Super Administrator',
       role: 'SUPER_ADMIN',
       facultyId: defaultFaculty.id,
+      departmentId: defaultDepartment.id, // 🆕 Required departmentId
     },
   });
 
@@ -51,8 +61,7 @@ async function main() {
         name: 'Sample Chairperson',
         role: 'CHAIRPERSON',
         facultyId: sampleFaculty.id,
-        // If your schema requires departmentId on User, add it here
-        // departmentId: sampleDepartment.id,
+        departmentId: sampleDepartment.id, // Required departmentId
       },
     });
     console.log('✅ Created chairperson user:', chairperson.name);

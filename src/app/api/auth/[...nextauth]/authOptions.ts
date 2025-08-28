@@ -3,7 +3,8 @@ import Credentials from 'next-auth/providers/credentials';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+
+export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
     Credentials({
@@ -24,6 +25,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             },
             include: {
               faculty: true,
+              department: true, // 🆕 Include department relation
               advisor: true,
             },
           });
@@ -47,6 +49,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             name: user.name,
             role: user.role,
             faculty: user.faculty,
+            departmentId: user.departmentId, // 🆕 Include departmentId
             advisorId: user.advisorId,
           };
         } catch (error) {
@@ -55,32 +58,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
     })
-  ],  pages: {
+  ],
+  pages: {
     signIn: '/auth',
     error: '/auth/error',
     signOut: '/', // Redirect to landing page after signout
   },
   session: {
-    strategy: 'jwt',
+    strategy: 'jwt' as const,
     maxAge: 30 * 24 * 60 * 60, // 30 days
-  },  callbacks: {
-    async jwt({ token, user }) {
+  },
+  callbacks: {
+    async jwt({ token, user }: any) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.faculty = user.faculty;
+        token.departmentId = user.departmentId; // 🆕 Include departmentId in JWT
         token.advisorId = user.advisorId;
       }
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: any) {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as any;
         session.user.faculty = token.faculty as any;
+        session.user.departmentId = token.departmentId as string; // 🆕 Include departmentId in session
         session.user.advisorId = token.advisorId as string;
       }
       return session;
     },
   },
-});
+};
+
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);

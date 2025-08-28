@@ -45,15 +45,14 @@ export async function GET(
       );
     }
 
-    // Use the first department of the faculty (or you might want to allow user to select)
-    const department = user.faculty.departments[0];
+    // Get user's accessible departments (faculty-wide access)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
     // Find blacklist with access control
     const blacklist = await prisma.blacklist.findFirst({
       where: {
         id,
-        departmentId: department.id,
-        createdById: session.user.id // Only show blacklists created by this user
+        departmentId: { in: accessibleDepartmentIds } // Faculty-wide access
       },
       include: {
         courses: {
@@ -166,15 +165,14 @@ export async function PUT(
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Get user's accessible departments (faculty-wide access)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
-    // Find and verify ownership of blacklist
+    // Find and verify access to blacklist
     const existingBlacklist = await prisma.blacklist.findFirst({
       where: {
         id,
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: { in: accessibleDepartmentIds } // Faculty-wide access
       },
       include: {
         courses: {
@@ -211,14 +209,14 @@ export async function PUT(
 
     // Check for name conflicts if name is being changed
     if (name && name.trim() !== existingBlacklist.name) {
-        const nameConflict = await prisma.blacklist.findFirst({
-          where: {
-            name: name.trim(),
-            departmentId: department.id,
-            createdById: session.user.id,
-            NOT: { id }
-          }
-        });      if (nameConflict) {
+      const nameConflict = await prisma.blacklist.findFirst({
+        where: {
+          name: name.trim(),
+          departmentId: existingBlacklist.departmentId,
+          createdById: session.user.id,
+          NOT: { id }
+        }
+      });      if (nameConflict) {
         return NextResponse.json(
           { error: { code: 'CONFLICT', message: 'A blacklist with this name already exists' } },
           { status: 409 }
@@ -410,15 +408,14 @@ export async function DELETE(
       );
     }
 
-    // Use the first department of the faculty
-    const department = user.faculty.departments[0];
+    // Get user's accessible departments (faculty-wide access)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
-    // Find and verify ownership of blacklist
+    // Find and verify access to blacklist
     const blacklist = await prisma.blacklist.findFirst({
       where: {
         id,
-        departmentId: department.id,
-        createdById: session.user.id
+        departmentId: { in: accessibleDepartmentIds } // Faculty-wide access
       },
       include: {
         _count: {

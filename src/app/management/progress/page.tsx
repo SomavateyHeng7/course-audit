@@ -1,5 +1,5 @@
 "use client";
-import { useProgressContext } from "../data-entry/page";
+
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
 // Only import these on client side
@@ -16,12 +16,14 @@ const categoryOrder = [
 export default function ProgressPage() {
   const router = useRouter();
   const progressRef = useRef<HTMLDivElement>(null);
-  const {
-    completedCourses,
-    selectedCurriculum,
-    selectedConcentration,
-    freeElectives,
-  } = useProgressContext();
+  // TODO: Replace with real context or props
+  type Status = 'not_completed' | 'completed' | 'taking' | 'planning';
+  interface CourseStatus { status: Status; grade?: string; }
+  interface Course { code: string; title: string; credits: number; }
+  const completedCourses: Record<string, CourseStatus> = {};
+  const selectedCurriculum: string = "";
+  const selectedConcentration: string = "";
+  const freeElectives: Course[] = [];
 
   // Mock curriculumCourses and mockConcentrations (should match data-entry page)
   // In real app, import or share this data
@@ -360,4 +362,4 @@ export default function ProgressPage() {
       </div>
     </div>
   );
-} 
+}

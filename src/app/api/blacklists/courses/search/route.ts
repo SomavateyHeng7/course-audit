@@ -50,9 +50,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const department = user.faculty.departments[0];
+    // Use accessible department IDs (all departments in user's faculty)
+    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
 
-    // Search for course in blacklists created by this user in this department
+    // Search for course in blacklists accessible by this user (department-based)
     const blacklistCourse = await prisma.blacklistCourse.findFirst({
       where: {
         course: {
@@ -62,8 +63,7 @@ export async function GET(request: NextRequest) {
           }
         },
         blacklist: {
-          departmentId: department.id,
-          createdById: session.user.id
+          departmentId: { in: accessibleDepartmentIds }
         }
       },
       include: {
