@@ -18,7 +18,7 @@ export const authOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        const email = credentials?.email?.trim().toLowerCase();
+        const email = typeof credentials?.email === 'string' ? credentials.email.trim().toLowerCase() : '';
         const password = credentials?.password ?? '';
 
         if (!email || !password) throw new Error('Email and password are required');

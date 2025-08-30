@@ -160,7 +160,9 @@ export default function DataEntryPage() {
   ];
 
   // Dynamic curriculum courses state
-  const [curriculumCourses, setCurriculumCourses] = useState<{ [category: string]: { code: string; title: string; credits: number }[] }>({});
+  // curriculumCourses: { [curriculumKey: string]: { [category: string]: { code: string; title: string; credits: number }[] } }
+  // curriculumCourses: { [curriculumKey: string]: { [category: string]: { code: string; title: string; credits: number }[] } }
+  const [curriculumCourses, setCurriculumCourses] = useState<Record<string, { [category: string]: { code: string; title: string; credits: number }[] }>>({});
 
   // Fetch real curriculum data when BSCS 2022 is selected
   useEffect(() => {
@@ -182,7 +184,7 @@ export default function DataEntryPage() {
             if (!grouped[cat]) grouped[cat] = [];
             grouped[cat].push({ code: course.code, title: course.name, credits: course.credits });
           });
-          setCurriculumCourses(grouped);
+          setCurriculumCourses(prev => ({ ...prev, [selectedCurriculum]: grouped }));
         } catch (err) {
           setCurriculumCourses({});
         }
@@ -415,7 +417,7 @@ export default function DataEntryPage() {
                     {(curriculumCourses[selectedCurriculum]?.['Major Elective'] || []).length === 0 ? (
                       <div className="text-muted-foreground text-center py-4">No courses in this category.</div>
                     ) : (
-                      curriculumCourses[selectedCurriculum]['Major Elective'].map(course => (
+                      (curriculumCourses[selectedCurriculum]?.['Major Elective'] || []).map(course => (
                         <div key={course.code} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-muted rounded-lg px-4 py-3 border border-border mb-2">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                             <span className="font-semibold text-sm">{course.code} - {course.title}</span>
