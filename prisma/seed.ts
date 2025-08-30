@@ -1,83 +1,55 @@
+// prisma/seed.ts
+/* eslint-disable no-console */
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Starting database seeding...');
 
-  // Create default faculty
+  // --- Default Faculty ---
   const defaultFaculty = await prisma.faculty.upsert({
-    where: { code: 'DEFAULT' },
+    where: { code: 'DEFAULT' }, // Faculty.code must be @unique
     update: {},
-    create: {
-      name: 'Default Faculty',
-      code: 'DEFAULT',
-    },
+    create: { name: 'Default Faculty', code: 'DEFAULT' },
   });
-
   console.log('✅ Created default faculty:', defaultFaculty.name);
 
-  // Create super admin user
-  const hashedPassword = await bcrypt.hash('superadmin123', 10);
-  
-  // Get the first department from the default faculty for super admin
-  const defaultDepartment = await prisma.department.findFirst({
-    where: { facultyId: defaultFaculty.id },
-  });
-
-  if (!defaultDepartment) {
-    throw new Error('No department found for default faculty. Departments must be created before users.');
-  }
-  
-  const superAdmin = await prisma.user.upsert({
-    where: { email: 'superadmin@edutrack.com' },
+  // --- Default Department (under Default Faculty) ---
+  // Requires @@unique([code, facultyId], name: "code_facultyId") on Department
+  const defaultDepartment = await prisma.department.upsert({
+    where: { code_facultyId: { code: 'DEFAULT_DEPT', facultyId: defaultFaculty.id } },
     update: {},
-    create: {
-      email: 'superadmin@edutrack.com',
-      password: hashedPassword,
+    create: { name: 'Default Department', code: 'DEFAULT_DEPT', facultyId: defaultFaculty.id },
+  });
+  console.log('✅ Created default department:', defaultDepartment.name);
+
+  // --- Super Admin (PLAINTEXT password) ---
+  const superAdmin = await prisma.user.upsert({
+    where: { email: 'superadmin@edutrack.com' }, // User.email must be @unique
+    update: {
+      password: 'superadmin123', // overwrite any old hashed value
       name: 'Super Administrator',
       role: 'SUPER_ADMIN',
       facultyId: defaultFaculty.id,
-      departmentId: defaultDepartment.id, // 🆕 Required departmentId
+      departmentId: defaultDepartment.id,
+    },
+    create: {
+      email: 'superadmin@edutrack.com',
+      password: 'superadmin123', // ⚠ plaintext for testing
+      name: 'Super Administrator',
+      role: 'SUPER_ADMIN',
+      facultyId: defaultFaculty.id,
+      departmentId: defaultDepartment.id,
     },
   });
-
   console.log('✅ Created super admin user:', superAdmin.name);
 
-  // Create a sample chairperson user assigned to a faculty and department
-  // Use the first faculty and department created below
-  const sampleFaculty = await prisma.faculty.findFirst({ where: { code: 'ENG' } });
-  const sampleDepartment = await prisma.department.findFirst({ where: { code: 'CS', facultyId: sampleFaculty?.id } });
-
-  if (sampleFaculty && sampleDepartment) {
-    const chairpersonPassword = await bcrypt.hash('chairperson123', 10);
-    const chairperson = await prisma.user.upsert({
-      where: { email: 'chairperson@edutrack.com' },
-      update: {},
-      create: {
-        email: 'chairperson@edutrack.com',
-        password: chairpersonPassword,
-        name: 'Sample Chairperson',
-        role: 'CHAIRPERSON',
-        facultyId: sampleFaculty.id,
-        departmentId: sampleDepartment.id, // Required departmentId
-      },
-    });
-    console.log('✅ Created chairperson user:', chairperson.name);
-    console.log('📋 Chairperson Credentials:');
-    console.log('   Email: chairperson@edutrack.com');
-    console.log('   Password: chairperson123');
-  } else {
-    console.warn('⚠️  Could not create chairperson user: Faculty or Department not found.');
-  }
-
-  // Create some sample faculties
+  // --- Sample Faculties ---
   const faculties = [
-    { name: 'Faculty of Engineering', code: 'ENG' },
-    { name: 'Faculty of Business', code: 'BUS' },
-    { name: 'Faculty of Arts and Sciences', code: 'ARTS' },
-    { name: 'Faculty of Medicine', code: 'MED' },
+    { name: 'Vincent Mary School of Science and Engineering', code: 'VMES' },
+    { name: 'Martin de Tours School of Management and Economics', code: 'MSME' },
+    // add more if needed, e.g. { name: 'Faculty of Arts and Sciences', code: 'ARTS' },
   ];
 
   for (const facultyData of faculties) {
@@ -89,47 +61,32 @@ async function main() {
     console.log('✅ Created faculty:', faculty.name);
   }
 
-  // Create some sample departments
+  // --- Sample Departments ---
   const departments = [
-    { name: 'Computer Science', code: 'CS', facultyCode: 'ENG' },
-    { name: 'Electrical Engineering', code: 'EE', facultyCode: 'ENG' },
-    { name: 'Marketing', code: 'MKT', facultyCode: 'BUS' },
-    { name: 'Finance', code: 'FIN', facultyCode: 'BUS' },
-    { name: 'Mathematics', code: 'MATH', facultyCode: 'ARTS' },
-    { name: 'Physics', code: 'PHYS', facultyCode: 'ARTS' },
+    { name: 'Computer Science', code: 'CS', facultyCode: 'VMES' },
+    { name: 'Business Administration', code: 'BBA', facultyCode: 'MSME' }, // <-- fixed from 'BBA' to 'BUS'
   ];
 
   for (const deptData of departments) {
-    const faculty = await prisma.faculty.findUnique({
-      where: { code: deptData.facultyCode },
-    });
-
-    if (faculty) {
-      const department = await prisma.department.upsert({
-        where: { 
-          code_facultyId: {
-            code: deptData.code,
-            facultyId: faculty.id,
-          }
-        },
-        update: {},
-        create: {
-          name: deptData.name,
-          code: deptData.code,
-          facultyId: faculty.id,
-        },
-      });
-      console.log('✅ Created department:', department.name);
+    const faculty = await prisma.faculty.findUnique({ where: { code: deptData.facultyCode } });
+    if (!faculty) {
+      console.warn(`⚠️  Skipping department ${deptData.name}: faculty ${deptData.facultyCode} not found`);
+      continue;
     }
+
+    const department = await prisma.department.upsert({
+      where: { code_facultyId: { code: deptData.code, facultyId: faculty.id } },
+      update: {},
+      create: { name: deptData.name, code: deptData.code, facultyId: faculty.id },
+    });
+    console.log('✅ Created department:', department.name);
   }
 
-  console.log('🎉 Database seeding completed successfully!');
-  console.log('');
+  console.log('🎉 Database seeding completed successfully!\n');
   console.log('📋 Super Admin Credentials:');
   console.log('   Email: superadmin@edutrack.com');
   console.log('   Password: superadmin123');
-  console.log('');
-  console.log('⚠️  Please change the password after first login!');
+  console.log('\n⚠️  Please change the password after first login!');
 }
 
 main()
@@ -139,4 +96,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-  }); 
+  });
