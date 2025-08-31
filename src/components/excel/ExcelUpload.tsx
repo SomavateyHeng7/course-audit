@@ -14,6 +14,8 @@ interface ExcelUploadProps {
 export default function ExcelUpload({ onDataLoaded, onError }: ExcelUploadProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -21,18 +23,27 @@ export default function ExcelUpload({ onDataLoaded, onError }: ExcelUploadProps)
 
     setIsLoading(true);
     setError(null);
+    setFileName(null);
+    setSuccess(false);
 
     try {
-      const data = await readExcelFile(file);      const errors = validateExcelData(data);
+      const data = await readExcelFile(file);
+      const errors = validateExcelData(data);
 
       if (errors.length > 0) {
         onError(errors.join('\n'));
+        setFileName(file.name);
+        setSuccess(false);
         return;
       }
 
       onDataLoaded(data);
+      setFileName(file.name);
+      setSuccess(true);
     } catch (error) {
       onError('Failed to process Excel file');
+      setFileName(file.name);
+      setSuccess(false);
     } finally {
       setIsLoading(false);
     }
@@ -40,7 +51,7 @@ export default function ExcelUpload({ onDataLoaded, onError }: ExcelUploadProps)
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
+  <div className="flex flex-col items-center gap-2">
         <Button
           variant="outline"
           className="flex items-center gap-2"
@@ -50,10 +61,16 @@ export default function ExcelUpload({ onDataLoaded, onError }: ExcelUploadProps)
           <Upload className="h-4 w-4" />
           {isLoading ? 'Uploading...' : 'Upload Excel'}
         </Button>
+        {fileName && (
+          <span className="text-xs text-gray-600 dark:text-gray-300 mt-1">{fileName}</span>
+        )}
+        {success && (
+          <span className="text-xs text-green-600 dark:text-green-400 mt-1">File uploaded successfully!</span>
+        )}
         <input
           id="excel-upload"
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx,.xls,.csv"
           className="hidden"
           onChange={handleFileChange}
         />

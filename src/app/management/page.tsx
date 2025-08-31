@@ -22,6 +22,8 @@ export default function ManagementPage() {
     }
     updateSessionData(data)
     setError("")
+    // Redirect to progress page after successful upload
+    router.push("/management/progress")
   }
 
   const handleError = (errorMessage: string) => { 

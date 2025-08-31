@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
-import * as XLSX from 'xlsx';
+import { parse } from 'csv-parse/sync';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -60,29 +60,35 @@ async function ensureSuperAdmin(facultyId: string, departmentId: string) {
   return prisma.user.create({ data });
 }
 
-function parseXlsx(filePath: string) {
+function parseCsv(filePath: string) {
   const abs = path.resolve(filePath);
-  if (!fs.existsSync(abs)) throw new Error(`XLSX not found at ${abs}`);
-  const wb = XLSX.readFile(abs);
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<XlsxRow>(sheet, { defval: '' });
+  if (!fs.existsSync(abs)) throw new Error(`CSV not found at ${abs}`);
+  const csvRaw = fs.readFileSync(abs, 'utf-8');
+  const records = parse(csvRaw, { skip_empty_lines: false });
 
-  return rows
-    .map((r) => {
-      const code = String(r['Course Code']).trim();
-      const name = String(r['Course Title']).trim();
-      const creditsRaw = r['Credits'];
-      const credits = typeof creditsRaw === 'number' ? creditsRaw : parseInt(String(creditsRaw).trim() || '0', 10);
-      const description = String(r['Course Description'] || '').trim() || null;
-      let creditHours = String(r['Crd Hour'] || '').trim();
-      if (!creditHours) {
-        const c = Number.isFinite(credits) && credits > 0 ? credits : 3;
-        creditHours = `${c}-0-${c * 2}`;
-      }
-      if (!code || !name || !Number.isFinite(credits)) return null;
-      return { code, name, credits, creditHours, description };
-    })
-    .filter(Boolean) as Array<{ code: string; name: string; credits: number; creditHours: string; description: string | null }>;
+  // Find the header row for courses
+  const headerIdx = records.findIndex((row: any) => String(row[1]).toUpperCase() === 'COURSE NO.');
+  if (headerIdx === -1) throw new Error('Header row not found');
+
+  // Extract course rows (skip header and any empty/summary rows)
+  const courseRows: any[] = [];
+  for (let i = headerIdx + 1; i < records.length; i++) {
+    const row = records[i];
+    // Stop if we hit a section header or empty row
+    if (!row[1] || String(row[1]).toUpperCase().includes('FREE ELECTIVE')) break;
+    // Only push rows with a course number and title
+    if (row[1] && row[2] && row[3]) {
+      courseRows.push(row);
+    }
+  }
+
+  return courseRows.map((row: any) => {
+    const code = String(row[1]).trim();
+    const name = String(row[2]).trim();
+    const credits = Number(row[3]);
+    const creditHours = `${credits}-0-${credits * 2}`;
+    return { code, name, credits, creditHours, description: null };
+  });
 }
 
 async function upsertCourses(courses: Array<{ code: string; name: string; credits: number; creditHours: string; description: string | null }>) {
@@ -143,8 +149,8 @@ async function main() {
   const { faculty, department } = await ensureFacultyAndDepartment();
   const admin = await ensureSuperAdmin(faculty.id, department.id);
 
-  // Read from the XLSX file (even though extension is .csv)
-  const rows = parseXlsx('public/bscs2022.csv');
+  // Read from the new CSV file
+  const rows = parseCsv('public/BSCS_2022(653).csv');
   console.log(`📄 Parsed ${rows.length} rows`);
 
   const upserted = await upsertCourses(rows);
