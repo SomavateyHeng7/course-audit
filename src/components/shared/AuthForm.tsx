@@ -49,7 +49,7 @@ export default function AuthForm() {
       if (session?.user?.role === 'CHAIRPERSON') {
         router.push('/chairperson');
       } else {
-        router.push('/home');
+        router.push('/admin');
       }
       router.refresh();
     } catch {
