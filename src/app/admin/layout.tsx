@@ -1,6 +1,6 @@
 import { SidebarProvider } from '@/contexts/SidebarContext';
 import { ThemeProvider } from '@/components/theme-provider';
-import Sidebar from '@/components/admin/Sidebar';
+import Sidebar from '@/components/layout/Sidebar';
 
 export default function AdminLayout({
   children,

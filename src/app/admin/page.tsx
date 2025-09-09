@@ -1,128 +1,416 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  Building2, 
-  GraduationCap, 
-  Plus,
-  Edit,
-  Trash2,
-  Eye
-} from 'lucide-react';
+import { Users, Building2, GraduationCap, TrendingUp, BookOpen, Award } from 'lucide-react';
 import RoleManagement from '@/components/admin/RoleManagement';
 import DepartmentManagement from '@/components/admin/DepartmentManagement';
 import FacultyManagement from '@/components/admin/FacultyManagement';
 
+interface DashboardStats {
+  overview: {
+    totalUsers: number;
+    userGrowth: number;
+    totalFaculties: number;
+    totalDepartments: number;
+    totalCourses: number;
+    newCourses: number;
+  };
+  monthlyEnrollment: Array<{
+    month: string;
+    students: number;
+    courses: number;
+  }>;
+  facultyDistribution: Array<{
+    name: string;
+    value: number;
+    count: number;
+    color: string;
+  }>;
+  programCompletion: Array<{
+    program: string;
+    completed: number;
+    inProgress: number;
+  }>;
+}
+
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('roles');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [dashboardData, setDashboardData] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/admin/dashboard/stats');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch dashboard data');
+        }
+        
+        const data = await response.json();
+        setDashboardData(data);
+        setError(null);
+      } catch (err) {
+        console.error('Dashboard data fetch error:', err);
+        setError('Failed to load dashboard data');
+        // Fallback to mock data
+        setDashboardData({
+          overview: {
+            totalUsers: 1234,
+            userGrowth: 12,
+            totalFaculties: 8,
+            totalDepartments: 45,
+            totalCourses: 342,
+            newCourses: 8,
+          },
+          monthlyEnrollment: [
+            { month: 'Jan', students: 850, courses: 45 },
+            { month: 'Feb', students: 920, courses: 48 },
+            { month: 'Mar', students: 1100, courses: 52 },
+            { month: 'Apr', students: 1050, courses: 50 },
+            { month: 'May', students: 1200, courses: 55 },
+            { month: 'Jun', students: 1150, courses: 53 }
+          ],
+          facultyDistribution: [
+            { name: 'Engineering', value: 35, count: 432, color: '#8884d8' },
+            { name: 'Business', value: 25, count: 308, color: '#82ca9d' },
+            { name: 'Arts & Sciences', value: 20, count: 247, color: '#ffc658' },
+            { name: 'Medicine', value: 12, count: 148, color: '#ff7300' },
+            { name: 'Law', value: 8, count: 99, color: '#00ff00' }
+          ],
+          programCompletion: [
+            { program: 'BSCS', completed: 87, inProgress: 13 },
+            { program: 'BSIT', completed: 92, inProgress: 8 },
+            { program: 'BBA', completed: 89, inProgress: 11 },
+            { program: 'MBA', completed: 94, inProgress: 6 }
+          ],
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (activeTab === 'overview') {
+      fetchDashboardData();
+    }
+  }, [activeTab]);
 
   return (
-    <div className="w-full">
-      <div className="container mx-auto">
+    <div className="w-full py-8">
+      <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+        <div className="mb-10">
+          <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">
             Super Admin Dashboard
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage system roles, departments, and faculties across the entire system
+          <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
+            Manage roles, departments, and faculties across the system
           </p>
+          {error && (
+            <div className="mt-2 p-2 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
+              {error} - Using fallback data
+            </div>
+          )}
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="border-l-4 border-l-[#1F3A93]">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Total Users
-              </CardTitle>
-              <Users className="h-4 w-4 text-[#1F3A93]" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">1,234</div>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                +12% from last month
-              </p>
-            </CardContent>
-          </Card>
+        {/* Tabs Navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-8">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="roles" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Roles
+            </TabsTrigger>
+            <TabsTrigger value="departments" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Departments
+            </TabsTrigger>
+            <TabsTrigger value="faculties" className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4" />
+              Faculties
+            </TabsTrigger>
+          </TabsList>
 
-          <Card className="border-l-4 border-l-[#2ECC71]">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Departments
-              </CardTitle>
-              <Building2 className="h-4 w-4 text-[#2ECC71]" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">45</div>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                Across all faculties
-              </p>
-            </CardContent>
-          </Card>
+          {/* Overview Tab - Dashboard with Charts */}
+          <TabsContent value="overview" className="mt-6">
+            {loading ? (
+              <div className="text-center py-8">Loading dashboard data...</div>
+            ) : dashboardData ? (
+              <>
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+                  {/* Users Card */}
+                  <Card className="rounded-2xl shadow-md border-l-8 border-l-blue-600">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        Total Users
+                      </CardTitle>
+                      <Users className="h-5 w-5 text-blue-600" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                        {dashboardData.overview.totalUsers.toLocaleString()}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        +{dashboardData.overview.userGrowth}% from last month
+                      </p>
+                    </CardContent>
+                  </Card>
 
-          <Card className="border-l-4 border-l-[#F39C12]">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Faculties
-              </CardTitle>
-              <GraduationCap className="h-4 w-4 text-[#F39C12]" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">8</div>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                Active faculties
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+                  {/* Departments Card */}
+                  <Card className="rounded-2xl shadow-md border-l-8 border-l-green-600">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        Departments
+                      </CardTitle>
+                      <Building2 className="h-5 w-5 text-green-600" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                        {dashboardData.overview.totalDepartments}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Across all faculties
+                      </p>
+                    </CardContent>
+                  </Card>
 
-        {/* Main Content */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-gray-900 dark:text-white">
-              System Management
-            </CardTitle>
-            <CardDescription>
-              Manage roles, departments, and faculties across the entire system
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="roles" className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Roles
-                </TabsTrigger>
-                <TabsTrigger value="departments" className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  Departments
-                </TabsTrigger>
-                <TabsTrigger value="faculties" className="flex items-center gap-2">
-                  <GraduationCap className="h-4 w-4" />
-                  Faculties
-                </TabsTrigger>
-              </TabsList>
+                  {/* Faculties Card */}
+                  <Card className="rounded-2xl shadow-md border-l-8 border-l-amber-500">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        Faculties
+                      </CardTitle>
+                      <GraduationCap className="h-5 w-5 text-amber-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                        {dashboardData.overview.totalFaculties}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Active faculties
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <TabsContent value="roles" className="mt-6">
-                <RoleManagement />
-              </TabsContent>
+                  {/* Active Courses Card */}
+                  <Card className="rounded-2xl shadow-md border-l-8 border-l-purple-600">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        Active Courses
+                      </CardTitle>
+                      <BookOpen className="h-5 w-5 text-purple-600" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                        {dashboardData.overview.totalCourses}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        +{dashboardData.overview.newCourses} new this semester
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
 
-              <TabsContent value="departments" className="mt-6">
-                <DepartmentManagement />
-              </TabsContent>
+                {/* Charts Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+                  {/* Monthly Enrollment Trend */}
+                  <Card className="rounded-2xl shadow-lg">
+                    <CardHeader>
+                      <CardTitle className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <TrendingUp className="h-6 w-6 text-blue-600" />
+                        Monthly Enrollment Trends
+                      </CardTitle>
+                      <p className="text-gray-600 dark:text-gray-400">Student enrollment and course offerings over time</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {dashboardData.monthlyEnrollment.map((item) => (
+                          <div key={item.month} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 min-w-[80px]">
+                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                {item.month}
+                              </span>
+                            </div>
+                            <div className="flex-1 mx-4">
+                              <div className="flex gap-2">
+                                {/* Students Bar */}
+                                <div className="flex-1">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className="text-blue-600">Students</span>
+                                    <span className="font-medium">{item.students}</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                    <div 
+                                      className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                                      style={{ width: `${(item.students / 1200) * 100}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                                {/* Courses Bar */}
+                                <div className="flex-1">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className="text-green-600">Courses</span>
+                                    <span className="font-medium">{item.courses}</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                    <div 
+                                      className="bg-green-600 h-2 rounded-full transition-all duration-300" 
+                                      style={{ width: `${(item.courses / 55) * 100}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
 
-              <TabsContent value="faculties" className="mt-6">
-                <FacultyManagement />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                  {/* Faculty Distribution */}
+                  <Card className="rounded-2xl shadow-lg">
+                    <CardHeader>
+                      <CardTitle className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Building2 className="h-6 w-6 text-green-600" />
+                        Faculty Distribution
+                      </CardTitle>
+                      <p className="text-gray-600 dark:text-gray-400">Student distribution across different faculties</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {dashboardData.facultyDistribution.map((faculty) => (
+                          <div key={faculty.name} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="w-4 h-4 rounded-full" 
+                                style={{ backgroundColor: faculty.color }}
+                              ></div>
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">
+                                {faculty.name}
+                              </span>
+                              <span className="text-xs text-gray-500">({faculty.count} users)</span>
+                            </div>
+                            <div className="flex items-center gap-3 flex-1 max-w-[200px]">
+                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                                <div 
+                                  className="h-3 rounded-full transition-all duration-500" 
+                                  style={{ 
+                                    width: `${faculty.value}%`, 
+                                    backgroundColor: faculty.color 
+                                  }}
+                                ></div>
+                              </div>
+                              <span className="text-sm font-bold text-gray-900 dark:text-white min-w-[35px]">
+                                {faculty.value}%
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Course Completion Rates */}
+                <Card className="rounded-2xl shadow-lg mb-10">
+                  <CardHeader>
+                    <CardTitle className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                      <Award className="h-6 w-6 text-amber-500" />
+                      Course Completion Rates by Program
+                    </CardTitle>
+                    <p className="text-gray-600 dark:text-gray-400">Completion rates across different academic programs</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {dashboardData.programCompletion.map((program) => (
+                        <div key={program.program} className="text-center">
+                          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                            {program.program}
+                          </h3>
+                          
+                          {/* Circular Progress */}
+                          <div className="relative w-24 h-24 mx-auto mb-4">
+                            <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 36 36">
+                              {/* Background Circle */}
+                              <circle
+                                cx="18"
+                                cy="18"
+                                r="16"
+                                fill="none"
+                                className="stroke-gray-200 dark:stroke-gray-700"
+                                strokeWidth="3"
+                              />
+                              {/* Progress Circle */}
+                              <circle
+                                cx="18"
+                                cy="18"
+                                r="16"
+                                fill="none"
+                                className="stroke-green-500"
+                                strokeWidth="3"
+                                strokeDasharray={`${program.completed} ${100 - program.completed}`}
+                                strokeDashoffset="0"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-xl font-bold text-gray-900 dark:text-white">
+                                {program.completed}%
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-green-600 flex items-center gap-1">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                Completed
+                              </span>
+                              <span className="font-medium">{program.completed}%</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-yellow-600 flex items-center gap-1">
+                                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                In Progress
+                              </span>
+                              <span className="font-medium">{program.inProgress}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <div className="text-center py-8">No data available</div>
+            )}
+          </TabsContent>
+
+          {/* Roles Management Tab */}
+          <TabsContent value="roles" className="mt-6">
+            <RoleManagement />
+          </TabsContent>
+
+          {/* Departments Management Tab */}
+          <TabsContent value="departments" className="mt-6">
+            <DepartmentManagement />
+          </TabsContent>
+
+          {/* Faculties Management Tab */}
+          <TabsContent value="faculties" className="mt-6">
+            <FacultyManagement />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

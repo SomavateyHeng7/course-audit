@@ -169,20 +169,12 @@ export default function DataEntryPage() {
     const fetchCourses = async () => {
       if (selectedCurriculum === 'bscs2022') {
         try {
-          // Fetch curricula with credentials
-          const curriculaRes = await fetch('/api/curricula', { credentials: 'include' });
-          const curriculaData = await curriculaRes.json();
-          const bscs = curriculaData?.curricula?.find((c: any) => c.name?.toLowerCase().includes('bscs') && c.year === '2022');
-          if (!bscs) return;
-          const curriculumId = bscs.id;
-          const res = await fetch(`/api/curricula/${curriculumId}/courses`, { credentials: 'include' });
-          const coursesData = await res.json();
-          // Group by category
-          const grouped: { [category: string]: { code: string; title: string; credits: number }[] } = {};
-          (coursesData?.courses || []).forEach((course: any) => {
-            const cat = course.category || 'Uncategorized';
-            if (!grouped[cat]) grouped[cat] = [];
-            grouped[cat].push({ code: course.code, title: course.name, credits: course.credits });
+          const res = await fetch('/api/curriculum/bscs2022');
+          const data = await res.json();
+          // Group all courses under 'Major' (or adjust as needed)
+          const grouped: { [category: string]: { code: string; title: string; credits: number }[] } = { Major: [] };
+          (data?.curriculum?.courses || []).forEach((course: any) => {
+            grouped.Major.push({ code: course.code, title: course.name, credits: course.credits });
           });
           setCurriculumCourses(prev => ({ ...prev, [selectedCurriculum]: grouped }));
         } catch (err) {
