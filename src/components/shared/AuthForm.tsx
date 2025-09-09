@@ -62,11 +62,8 @@ export default function AuthForm() {
   return (
     <div className="h-screen flex items-center justify-center bg-white dark:bg-background p-4">
       <div className="w-full max-w-lg bg-white dark:bg-card rounded-xl border border-gray-200 dark:border-border overflow-hidden">
-        <div
-          className="w-full h-32 flex items-center justify-center"
-          style={{ background: 'linear-gradient(135deg, #129990 0%, #0d9488 100%)' }}
-        >
-          <div className="text-center text-white">
+        <div className="w-full h-32 flex items-center justify-center bg-primary">
+          <div className="text-center text-primary-foreground">
             <h2 className="text-2xl font-bold mb-2">Welcome Back!</h2>
           </div>
         </div>

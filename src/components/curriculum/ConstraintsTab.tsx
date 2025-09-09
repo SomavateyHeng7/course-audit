@@ -107,23 +107,36 @@ export default function ConstraintsTab({ courses, curriculumId }: ConstraintsTab
         try {
           const curriculumResponse = await fetch(`/api/curricula/${curriculumId}/constraints`);
           if (curriculumResponse.ok) {
-            const curriculumConstraints = await curriculumResponse.json();
-            console.log('Loaded curriculum constraints:', curriculumConstraints);
+            const curriculumData = await curriculumResponse.json();
+            console.log('Loaded curriculum constraints:', curriculumData);
+            
+            // Access the constraints array from the response
+            const curriculumConstraints = curriculumData.constraints || [];
             
             // Filter for banned combinations that involve this course
             const curriculumBannedCombinations = curriculumConstraints
-              .filter((constraint: any) => 
-                constraint.type === 'CUSTOM' && 
-                constraint.config?.type === 'banned_combination' &&
-                constraint.config?.courses?.some((course: any) => course.id === selectedCourseData.id)
-              )
-              .map((constraint: any) => ({
-                id: constraint.id,
-                type: 'curriculumConstraint',
-                otherCourse: constraint.config.courses.find((course: any) => course.id !== selectedCourseData.id),
-                constraintName: constraint.name,
-                description: constraint.description
-              }));
+              .filter((constraint: any) => {
+                console.log('Checking constraint:', constraint);
+                return constraint.type === 'CUSTOM' && 
+                       constraint.config?.type === 'banned_combination' &&
+                       constraint.config?.courses?.some((course: any) => course.id === selectedCourseData.id);
+              })
+              .map((constraint: any) => {
+                const otherCourse = constraint.config.courses.find((course: any) => course.id !== selectedCourseData.id);
+                console.log('Mapping banned combination:', { constraint, otherCourse });
+                return {
+                  id: constraint.id,
+                  type: 'curriculumConstraint',
+                  otherCourse: otherCourse,
+                  constraintName: constraint.name,
+                  description: constraint.description,
+                  // Add these for display compatibility
+                  code: otherCourse?.code || 'Unknown',
+                  name: otherCourse?.name || 'Unknown Course'
+                };
+              });
+            
+            console.log('Filtered curriculum banned combinations:', curriculumBannedCombinations);
             
             // Combine course-level and curriculum-level banned combinations
             bannedCombinations = [...bannedCombinations, ...curriculumBannedCombinations];

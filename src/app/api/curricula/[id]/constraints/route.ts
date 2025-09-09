@@ -2,6 +2,51 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Cache for faculty department lists to improve performance
+const facultyDepartmentCache = new Map<string, { departments: string[], timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+// Helper function to get cached faculty departments
+async function getFacultyDepartments(userId: string): Promise<string[]> {
+  const cached = facultyDepartmentCache.get(userId);
+  
+  if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+    return cached.departments;
+  }
+  
+  // Optimized query - only fetch what we need
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      department: {
+        select: {
+          faculty: {
+            select: {
+              departments: {
+                select: { id: true }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!user?.department?.faculty) {
+    throw new Error('User department or faculty not found');
+  }
+
+  const departmentIds = user.department.faculty.departments.map(d => d.id);
+  
+  // Cache the result
+  facultyDepartmentCache.set(userId, {
+    departments: departmentIds,
+    timestamp: Date.now()
+  });
+  
+  return departmentIds;
+}
+
 // GET /api/curricula/[id]/constraints - Get curriculum constraints
 export async function GET(
   request: NextRequest,
@@ -26,31 +71,8 @@ export async function GET(
 
     const { id: curriculumId } = await params;
 
-    // Get user's department for access control
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { 
-        department: {
-          include: {
-            faculty: {
-              include: {
-                departments: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    if (!user?.department?.faculty) {
-      return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'User department or faculty not found' } },
-        { status: 404 }
-      );
-    }
-
-    // Get all department IDs within the user's faculty for access control
-    const facultyDepartmentIds = user.department.faculty.departments.map(d => d.id);
+    // Use optimized cached faculty department lookup
+    const facultyDepartmentIds = await getFacultyDepartments(session.user.id);
 
     // Verify curriculum exists and user has faculty-wide access
     const curriculum = await prisma.curriculum.findFirst({
@@ -59,7 +81,8 @@ export async function GET(
         departmentId: {
           in: facultyDepartmentIds
         }
-      }
+      },
+      select: { id: true } // Only select what we need
     });
 
     if (!curriculum) {
@@ -69,9 +92,19 @@ export async function GET(
       );
     }
 
-    // Get curriculum constraints
+    // Get curriculum constraints with optimized query
     const constraints = await prisma.curriculumConstraint.findMany({
       where: { curriculumId },
+      select: {
+        id: true,
+        type: true,
+        name: true,
+        description: true,
+        isRequired: true,
+        config: true,
+        createdAt: true,
+        updatedAt: true
+      },
       orderBy: { name: 'asc' }
     });
 
@@ -131,31 +164,8 @@ export async function POST(
       );
     }
 
-    // Get user's department for access control
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { 
-        department: {
-          include: {
-            faculty: {
-              include: {
-                departments: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    if (!user?.department?.faculty) {
-      return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'User department or faculty not found' } },
-        { status: 404 }
-      );
-    }
-
-    // Get all department IDs within the user's faculty for access control
-    const facultyDepartmentIds = user.department.faculty.departments.map(d => d.id);
+    // Use optimized cached faculty department lookup
+    const facultyDepartmentIds = await getFacultyDepartments(session.user.id);
 
     // Verify curriculum exists and user has faculty-wide access
     const curriculum = await prisma.curriculum.findFirst({
@@ -164,7 +174,8 @@ export async function POST(
         departmentId: {
           in: facultyDepartmentIds
         }
-      }
+      },
+      select: { id: true, name: true } // Only select what we need
     });
 
     if (!curriculum) {
