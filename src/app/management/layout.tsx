@@ -1,7 +1,9 @@
-
+import { ProgressProvider } from "./data-entry/page";
 
 export default function ManagementLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>{children}</>
+    <ProgressProvider>
+      {children}
+    </ProgressProvider>
   );
-}
+} 

@@ -8,6 +8,8 @@ datasource db {
 }
 
 model User {
+  resetToken            String?                // For password reset
+  resetTokenExpiry      DateTime?              // For password reset
   id                    String                 @id @default(cuid())
   email                 String                 @unique
   password              String

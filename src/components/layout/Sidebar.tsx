@@ -42,8 +42,13 @@ const defaultNavigationItems = [
 // Navigation for admin users
 const adminNavigationItems = [
   {
-    name: 'User Management',
+    name: 'Dashboard',
     href: '/admin',
+    icon: LayoutDashboard,
+  },
+  {
+    name: 'User Management',
+    href: '/admin/user',
     icon: Users,
   },
   {

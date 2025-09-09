@@ -5,6 +5,15 @@ import bcrypt from 'bcryptjs';
 
 export async function GET() {
   try {
+    // Check authentication and authorization
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: 'Unauthorized - Super Admin access required' },
+        { status: 401 }
+      );
+    }
+
     const users = await prisma.user.findMany({
       include: {
         faculty: {
@@ -30,6 +39,15 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    // Check authentication and authorization
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: 'Unauthorized - Super Admin access required' },
+        { status: 401 }
+      );
+    }
+
     const { name, email, role, facultyId, departmentId } = await req.json();
 
     // Validate input

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function PUT(
@@ -6,6 +7,15 @@ export async function PUT(
   context: any
 ) {
   try {
+    // Check authentication and authorization
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: 'Unauthorized - Super Admin access required' },
+        { status: 401 }
+      );
+    }
+
     const { name, code } = await req.json();
   const facultyId = context.params.id;
 
@@ -80,6 +90,15 @@ export async function DELETE(
   context: any
 ) {
   try {
+    // Check authentication and authorization
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: 'Unauthorized - Super Admin access required' },
+        { status: 401 }
+      );
+    }
+
   const facultyId = context.params.id;
 
     // Check if faculty exists

@@ -21,9 +21,11 @@ EduTrack is a modern web application for university students and administrators 
 - Constraint management (prerequisites, corequisites, banned combinations)
 - Elective rules and credit requirements configuration
 - Blacklist management (department-scoped, curriculum assignment)
-- Bulk course creation via Excel/CSV upload
+- Bulk course and curriculum creation via Excel/CSV upload (supports BSCS, BBA, BSIT, and more)
+- Automated curriculum seeding from CSV/XLSX files (see below)
 - Role-based access control (Student, Advisor, Chairperson, Super Admin)
 - Audit logging for all changes
+
 
 ## Getting Started
 
@@ -36,11 +38,22 @@ EduTrack is a modern web application for university students and administrators 
 	npx prisma migrate dev --name init
 	npx prisma db seed
 	```
-3. **Run the development server:**
+3. **Seed curricula and courses from CSV/XLSX:**
+	- Example scripts are provided in `prisma/` for BSCS, BBA, and BSIT curricula:
+	  ```bash
+	  npx ts-node prisma/bscs_seed.ts
+	  npx ts-node prisma/bscs_651_652_seed.ts
+	  npx ts-node prisma/bba_seed.ts
+	  npx ts-node prisma/bba66x_seed.ts
+	  npx ts-node prisma/bsit_653_seed.ts
+	  ```
+	- These scripts automatically parse the relevant CSV/XLSX files in `public/` and upsert all curriculum and course data, including correct foreign key references.
+	- All seed scripts are ES module compatible (Node 18+ recommended).
+4. **Run the development server:**
 	```bash
 	pnpm run dev
 	```
-4. **Access the app:**
+5. **Access the app:**
 	Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 

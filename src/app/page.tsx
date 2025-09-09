@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Footer from '@/components/shared/footer';
 import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import SEO from '@/components/SEO';
 
 export default function Home() {
@@ -20,10 +21,15 @@ export default function Home() {
         image="/public/image/logo.png"
       />
       <div className="flex flex-col min-h-screen">
+        {/* Theme Toggle Button */}
+        <div className="fixed top-4 right-4 z-50">
+          <ThemeToggle />
+        </div>
+        
         {/* Hero Section */}
         <section className="py-10 sm:py-16 px-4 sm:px-8 md:px-16 bg-gray-100 dark:bg-gray-950">
           <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-2xl sm:text-4xl font-semibold mb-2 sm:mb-4 text-emerald-700 dark:text-emerald-400">EduTrack</h1>
+            <h1 className="text-2xl sm:text-4xl font-semibold mb-2 sm:mb-4 text-primary">EduTrack</h1>
             <h2 className="text-xl sm:text-2xl font-medium mb-4 sm:mb-6 text-gray-700 dark:text-gray-200">Streamline Your Academic Journey</h2>
             <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 max-w-2xl mx-auto">
               EduTrack helps university students manage their academic progress efficiently. Track courses, monitor requirements, and stay on top of your degree path.
@@ -31,13 +37,13 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link 
                 href="/management" 
-                className="px-6 sm:px-8 py-2 sm:py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors border border-emerald-600 text-base sm:text-lg text-center"
+                className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors border border-primary text-base sm:text-lg text-center"
               >
                 Browse Courses (Anonymous)
               </Link>
               <Link 
                 href="/auth" 
-                className="px-6 sm:px-8 py-2 sm:py-3 border border-emerald-600 text-emerald-700 dark:text-emerald-400 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900 transition-colors text-base sm:text-lg text-center"
+                className="px-6 sm:px-8 py-2 sm:py-3 border border-primary text-primary rounded-lg hover:bg-accent transition-colors text-base sm:text-lg text-center"
               >
                 Login for Full Access
               </Link>
@@ -71,8 +77,8 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
               {/* Calendar */}
               <div className="flex flex-col items-center text-center">
-                <div className="w-28 h-28 rounded-full bg-emerald-500 flex items-center justify-center mb-6">
-                  <svg className="w-14 h-14 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <div className="w-28 h-28 rounded-full bg-primary flex items-center justify-center mb-6">
+                  <svg className="w-14 h-14 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <rect x="3" y="7" width="18" height="14" rx="2" stroke="currentColor"/>
                     <path d="M16 3v4M8 3v4M3 11h18" stroke="currentColor"/>
                     <circle cx="8" cy="15" r="1" fill="currentColor"/>
@@ -86,8 +92,8 @@ export default function Home() {
               </div>
               {/* FAQ */}
               <div className="flex flex-col items-center text-center">
-                <div className="w-28 h-28 rounded-full bg-emerald-500 flex items-center justify-center mb-6">
-                  <svg className="w-14 h-14 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <div className="w-28 h-28 rounded-full bg-primary flex items-center justify-center mb-6">
+                  <svg className="w-14 h-14 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <rect x="6" y="4" width="12" height="16" rx="2" stroke="currentColor"/>
                     <path d="M9 8h6M9 12h6M9 16h2" stroke="currentColor"/>
                   </svg>
@@ -98,8 +104,8 @@ export default function Home() {
               </div>
               {/* Contact Us */}
               <div className="flex flex-col items-center text-center">
-                <div className="w-28 h-28 rounded-full bg-emerald-500 flex items-center justify-center mb-6">
-                  <svg className="w-14 h-14 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <div className="w-28 h-28 rounded-full bg-primary flex items-center justify-center mb-6">
+                  <svg className="w-14 h-14 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <rect x="7" y="4" width="10" height="16" rx="2" stroke="currentColor"/>
                     <path d="M11 18h2" stroke="currentColor"/>
                   </svg>
