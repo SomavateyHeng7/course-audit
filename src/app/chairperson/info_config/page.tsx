@@ -186,13 +186,24 @@ export default function InfoConfig() {
     try {
       const createdTypes: CourseTypeData[] = [];
       for (const defaultType of defaultCourseTypes) {
-        const newType = await courseTypesApi.createCourseType({
-          name: defaultType.name,
-          color: defaultType.color
-        });
-        createdTypes.push(newType);
+        try {
+          const newType = await courseTypesApi.createCourseType({
+            name: defaultType.name,
+            color: defaultType.color
+          });
+          createdTypes.push(newType);
+          console.log(`✅ Created default course type: ${defaultType.name}`);
+        } catch (err) {
+          // If it already exists, skip it silently
+          console.log(`⚠️ Course type '${defaultType.name}' already exists, skipping...`);
+        }
       }
-      setCourseTypes(createdTypes);
+      if (createdTypes.length > 0) {
+        setCourseTypes(prevTypes => [...prevTypes, ...createdTypes]);
+        console.log(`✅ Successfully created ${createdTypes.length} new default course types`);
+      } else {
+        console.log('📋 All default course types already exist');
+      }
     } catch (err) {
       console.error('Error creating default course types:', err);
     }
