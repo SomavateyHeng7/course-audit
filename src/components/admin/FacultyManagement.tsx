@@ -130,13 +130,7 @@ export default function FacultyManagement() {
             Manage faculties and their organizational structure across the entire system
           </p>
         </div>
-        <Button 
-          onClick={() => setShowCreateModal(true)}
-          className="bg-[#F39C12] hover:bg-[#F39C12]/90"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Faculty
-        </Button>
+       
       </div>
 
       {/* Faculties List */}
@@ -244,23 +238,7 @@ export default function FacultyManagement() {
                   required
                 />
               </div>
-              <div className="flex gap-2">
-                <Button type="submit" className="flex-1 bg-[#F39C12] hover:bg-[#F39C12]/90">
-                  {editingFaculty ? 'Update' : 'Create'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setEditingFaculty(null);
-                    setFormData({ name: '', code: '' });
-                  }}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-              </div>
+              
             </form>
           </div>
         </div>

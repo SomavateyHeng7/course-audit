@@ -6,16 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye,
-  Shield,
-  UserCheck,
-  GraduationCap
-} from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Shield, UserCheck, GraduationCap } from 'lucide-react';
 
 interface User {
   id: string;
@@ -43,8 +34,18 @@ const roleIcons = {
 };
 
 export default function RoleManagement() {
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createSuccess, setCreateSuccess] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ✅ faculties state
+  const [faculties, setFaculties] = useState<{ id: string; name: string }[]>([]);
+  const [facultiesLoading, setFacultiesLoading] = useState(true);
+
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [facultyLoading, setFacultyLoading] = useState(false);
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
@@ -52,7 +53,32 @@ export default function RoleManagement() {
     email: '',
     role: 'ADVISOR' as 'ADVISOR' | 'CHAIRPERSON',
     facultyId: '',
+    departmentId: '',
   });
+
+  // ✅ fetch faculties once
+  useEffect(() => {
+    setFacultiesLoading(true);
+    fetch('/api/faculties')
+      .then((res) => res.json())
+      .then((data) => setFaculties(data.faculties || []))
+      .catch(() => setFaculties([]))
+      .finally(() => setFacultiesLoading(false));
+  }, []);
+
+  // fetch departments when faculty changes
+  useEffect(() => {
+    if (formData.facultyId) {
+      setFacultyLoading(true);
+      fetch(`/api/departments?facultyId=${formData.facultyId}`)
+        .then((res) => res.json())
+        .then((data) => setDepartments(data.departments || []))
+        .catch(() => setDepartments([]))
+        .finally(() => setFacultyLoading(false));
+    } else {
+      setDepartments([]);
+    }
+  }, [formData.facultyId]);
 
   useEffect(() => {
     fetchUsers();
@@ -74,20 +100,27 @@ export default function RoleManagement() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCreateLoading(true);
+    setCreateSuccess('');
     try {
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
       if (response.ok) {
-        setShowCreateModal(false);
-  setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '' });
+        setCreateSuccess('User created successfully!');
+        setTimeout(() => {
+          setShowCreateModal(false);
+          setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+          setCreateSuccess('');
+        }, 1200);
         fetchUsers();
       }
     } catch (error) {
       console.error('Error creating user:', error);
+    } finally {
+      setCreateLoading(false);
     }
   };
 
@@ -101,10 +134,9 @@ export default function RoleManagement() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
       if (response.ok) {
         setEditingUser(null);
-  setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '' });
+        setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
         fetchUsers();
       }
     } catch (error) {
@@ -114,15 +146,9 @@ export default function RoleManagement() {
 
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
-
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchUsers();
-      }
+      const response = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+      if (response.ok) fetchUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
     }
@@ -162,9 +188,7 @@ export default function RoleManagement() {
             <Users className="h-5 w-5" />
             Users ({users.length})
           </CardTitle>
-          <CardDescription>
-            All registered users in the system
-          </CardDescription>
+          <CardDescription>All registered users in the system</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -180,21 +204,13 @@ export default function RoleManagement() {
                       <RoleIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-900 dark:text-white">
-                        {user.name}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {user.email}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500">
-                        {user.faculty.name}
-                      </p>
+                      <h3 className="font-medium text-gray-900 dark:text-white">{user.name}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{user.email}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500">{user.faculty.name}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className={roleColors[user.role]}>
-                      {user.role}
-                    </Badge>
+                    <Badge className={roleColors[user.role]}>{user.role}</Badge>
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
@@ -206,6 +222,7 @@ export default function RoleManagement() {
                             email: user.email,
                             role: (user.role === 'ADVISOR' || user.role === 'CHAIRPERSON') ? user.role : 'ADVISOR',
                             facultyId: '',
+                            departmentId: '',
                           });
                         }}
                       >
@@ -266,20 +283,58 @@ export default function RoleManagement() {
                 >
                   <option value="ADVISOR">Advisor</option>
                   <option value="CHAIRPERSON">Chairperson</option>
-                  {/* <option value="STUDENT">Student</option> */}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="faculty">Faculty</Label>
+                <select
+                  id="faculty"
+                  value={formData.facultyId}
+                  onChange={(e) => setFormData({ ...formData, facultyId: e.target.value, departmentId: '' })}
+                  className="w-full p-2 border rounded-md"
+                  required
+                  disabled={facultiesLoading}
+                >
+                  <option value="">{facultiesLoading ? 'Loading...' : 'Select Faculty'}</option>
+                  {faculties.map((fac) => (
+                    <option key={fac.id} value={fac.id}>
+                      {fac.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="department">Department</Label>
+                <select
+                  id="department"
+                  value={formData.departmentId}
+                  onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
+                  className="w-full p-2 border rounded-md"
+                  required
+                  disabled={!formData.facultyId || facultyLoading}
+                >
+                  <option value="">{facultyLoading ? 'Loading...' : 'Select Department'}</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1 bg-[#1F3A93] hover:bg-[#1F3A93]/90">
-                  {editingUser ? 'Update' : 'Create'}
+                <Button type="submit" className="flex-1 bg-[#1F3A93] hover:bg-[#1F3A93]/90" disabled={createLoading}>
+                  {createLoading ? 'Creating...' : (editingUser ? 'Update' : 'Create')}
                 </Button>
+                {createSuccess && (
+                  <div className="w-full text-green-600 text-center text-sm mt-2">{createSuccess}</div>
+                )}
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => {
                     setShowCreateModal(false);
                     setEditingUser(null);
-                    setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '' });
+                    setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
                   }}
                   className="flex-1"
                 >
@@ -292,4 +347,4 @@ export default function RoleManagement() {
       )}
     </div>
   );
-} 
+}
