@@ -49,11 +49,12 @@ export default function RoleManagement() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    role: 'ADVISOR' as 'ADVISOR' | 'CHAIRPERSON',
-    facultyId: '',
-    departmentId: '',
+  name: '',
+  email: '',
+  password: '',
+  role: 'ADVISOR' as 'ADVISOR' | 'CHAIRPERSON',
+  facultyId: '',
+  departmentId: '',
   });
 
   // ✅ fetch faculties once
@@ -112,7 +113,7 @@ export default function RoleManagement() {
         setCreateSuccess('User created successfully!');
         setTimeout(() => {
           setShowCreateModal(false);
-          setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+          setFormData({ name: '', email: '', password: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
           setCreateSuccess('');
         }, 1200);
         fetchUsers();
@@ -135,9 +136,9 @@ export default function RoleManagement() {
         body: JSON.stringify(formData),
       });
       if (response.ok) {
-        setEditingUser(null);
-        setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
-        fetchUsers();
+  setEditingUser(null);
+  setFormData({ name: '', email: '', password: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+  fetchUsers();
       }
     } catch (error) {
       console.error('Error updating user:', error);
@@ -220,6 +221,7 @@ export default function RoleManagement() {
                           setFormData({
                             name: user.name,
                             email: user.email,
+                            password: '',
                             role: (user.role === 'ADVISOR' || user.role === 'CHAIRPERSON') ? user.role : 'ADVISOR',
                             facultyId: '',
                             departmentId: '',
@@ -269,6 +271,16 @@ export default function RoleManagement() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
                 />
               </div>
@@ -334,7 +346,7 @@ export default function RoleManagement() {
                   onClick={() => {
                     setShowCreateModal(false);
                     setEditingUser(null);
-                    setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+                    setFormData({ name: '', email: '', password: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
                   }}
                   className="flex-1"
                 >
