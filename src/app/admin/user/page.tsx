@@ -34,10 +34,13 @@ const roleIcons = {
 };
 
 export default function RoleManagement() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
   const [createSuccess, setCreateSuccess] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,12 +55,13 @@ export default function RoleManagement() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
-  name: '',
-  email: '',
-  password: '',
-  role: 'ADVISOR' as 'ADVISOR' | 'CHAIRPERSON',
-  facultyId: '',
-  departmentId: '',
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: 'ADVISOR' as 'ADVISOR' | 'CHAIRPERSON',
+    facultyId: '',
+    departmentId: '',
   });
 
   // ✅ fetch faculties once
@@ -104,54 +108,88 @@ export default function RoleManagement() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.preventDefault();
+    if (formData.password !== formData.confirmPassword) {
+      setToast({ message: 'Passwords do not match.', type: 'error' });
+      setTimeout(() => setToast(null), 4000);
+      return;
+    }
     setCreateLoading(true);
     setCreateSuccess('');
     try {
+      const { confirmPassword, ...submitData } = formData;
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
       });
       if (response.ok) {
         setToast({ message: 'User created successfully!', type: 'success' });
         setShowCreateModal(false);
-        setFormData({ name: '', email: '', password: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+        setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
         fetchUsers();
       } else {
-        setToast({ message: 'Failed to create user.', type: 'error' });
+        const data = await response.json();
+        if (data?.error && data?.details) {
+          setToast({
+            message: `Cannot create user: ${data.error}. Details: ${JSON.stringify(data.details)}`,
+            type: 'error',
+          });
+        } else if (data?.error) {
+          setToast({ message: `Failed to create user: ${data.error}`, type: 'error' });
+        } else {
+          setToast({ message: 'Failed to create user.', type: 'error' });
+        }
       }
     } catch (error) {
       setToast({ message: 'Error creating user.', type: 'error' });
       console.error('Error creating user:', error);
     } finally {
       setCreateLoading(false);
-      setTimeout(() => setToast(null), 2000);
+      setTimeout(() => setToast(null), 4000);
     }
   };
 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
-
+    if (formData.password !== formData.confirmPassword) {
+      setToast({ message: 'Passwords do not match.', type: 'error' });
+      setTimeout(() => setToast(null), 4000);
+      return;
+    }
+    setUpdateLoading(true);
     try {
+      const { confirmPassword, ...submitData } = formData;
       const response = await fetch(`/api/admin/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
       });
       if (response.ok) {
         setToast({ message: 'User updated successfully!', type: 'success' });
         setEditingUser(null);
-        setFormData({ name: '', email: '', password: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+        setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
         fetchUsers();
       } else {
-        setToast({ message: 'Failed to update user.', type: 'error' });
+        const data = await response.json();
+        if (data?.error && data?.details) {
+          setToast({
+            message: `Cannot update user: ${data.error}. Details: ${JSON.stringify(data.details)}`,
+            type: 'error',
+          });
+        } else if (data?.error) {
+          setToast({ message: `Failed to update user: ${data.error}`, type: 'error' });
+        } else {
+          setToast({ message: 'Failed to update user.', type: 'error' });
+        }
       }
     } catch (error) {
       setToast({ message: 'Error updating user.', type: 'error' });
       console.error('Error updating user:', error);
     } finally {
-      setTimeout(() => setToast(null), 2000);
+      setUpdateLoading(false);
+      setTimeout(() => setToast(null), 4000);
     }
   };
 
@@ -210,24 +248,36 @@ export default function RoleManagement() {
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                 onClick={async () => {
                   if (!deleteUserId) return;
+                  setCreateLoading(true);
                   try {
                     const response = await fetch(`/api/admin/users/${deleteUserId}`, { method: 'DELETE' });
                     if (response.ok) {
                       setToast({ message: 'User deleted successfully!', type: 'success' });
                       fetchUsers();
                     } else {
-                      setToast({ message: 'Failed to delete user.', type: 'error' });
+                      const data = await response.json();
+                      if (data?.error && data?.details) {
+                        setToast({
+                          message: `Cannot delete user: ${data.error}. Details: ${JSON.stringify(data.details)}`,
+                          type: 'error',
+                        });
+                      } else if (data?.error) {
+                        setToast({ message: `Failed to delete user: ${data.error}`, type: 'error' });
+                      } else {
+                        setToast({ message: 'Failed to delete user.', type: 'error' });
+                      }
                     }
                   } catch (error) {
                     setToast({ message: 'Error deleting user.', type: 'error' });
                   } finally {
+                    setCreateLoading(false);
                     setShowDeleteModal(false);
                     setDeleteUserId(null);
-                    setTimeout(() => setToast(null), 2000);
+                    setTimeout(() => setToast(null), 4000);
                   }
                 }}
               >
-                Delete
+                {createLoading ? 'Deleting...' : 'Delete'}
               </Button>
             </div>
           </div>
@@ -290,6 +340,7 @@ export default function RoleManagement() {
                             name: user.name,
                             email: user.email,
                             password: '',
+                            confirmPassword: '',
                             role: (user.role === 'ADVISOR' || user.role === 'CHAIRPERSON') ? user.role : 'ADVISOR',
                             facultyId: '',
                             departmentId: '',
@@ -325,7 +376,7 @@ export default function RoleManagement() {
               onClick={() => {
                 setShowCreateModal(false);
                 setEditingUser(null);
-                setFormData({ name: '', email: '', password: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+                setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
               }}
               className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white text-xl"
             >
@@ -354,15 +405,49 @@ export default function RoleManagement() {
                   required
                 />
               </div>
-              <div>
+              <div className="relative">
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
                 />
+                <button
+                  type="button"
+                  className="absolute right-2 top-8 text-gray-400 hover:text-gray-700"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword((v) => !v)}
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-.274.816-.63 1.582-1.07 2.276M15.362 17.362A9.042 9.042 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.042 9.042 0 012.638-3.362" /></svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.042 9.042 0 012.638-3.362m3.362-3.362A9.042 9.042 0 0112 5c4.477 0 8.268 2.943 9.542 7a8.978 8.978 0 01-4.304 5.255M3 3l18 18" /></svg>
+                  )}
+                </button>
+              </div>
+              <div className="relative">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-8 text-gray-400 hover:text-gray-700"
+                  tabIndex={-1}
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                >
+                  {showConfirmPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-.274.816-.63 1.582-1.07 2.276M15.362 17.362A9.042 9.042 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.042 9.042 0 012.638-3.362" /></svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.042 9.042 0 012.638-3.362m3.362-3.362A9.042 9.042 0 0112 5c4.477 0 8.268-2.943 9.542 7a8.978 8.978 0 01-4.304 5.255M3 3l18 18" /></svg>
+                  )}
+                </button>
               </div>
               <div>
                 <Label htmlFor="role">Role</Label>
@@ -415,7 +500,7 @@ export default function RoleManagement() {
               </div>
               <div className="flex gap-2">
                 <Button type="submit" className="flex-1 bg-[#1F3A93] hover:bg-[#1F3A93]/90" disabled={createLoading}>
-                  {createLoading ? 'Creating...' : (editingUser ? 'Update' : 'Create')}
+                  {editingUser ? (updateLoading ? 'Updating...' : 'Update') : (createLoading ? 'Creating...' : 'Create')}
                 </Button>
                 {createSuccess && (
                   <div className="w-full text-green-600 text-center text-sm mt-2">{createSuccess}</div>
@@ -426,7 +511,7 @@ export default function RoleManagement() {
                   onClick={() => {
                     setShowCreateModal(false);
                     setEditingUser(null);
-                    setFormData({ name: '', email: '', password: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+                    setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
                   }}
                   className="flex-1"
                 >

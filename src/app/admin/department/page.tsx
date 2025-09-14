@@ -37,18 +37,26 @@ interface Faculty {
 }
 
 export default function DepartmentManagement() {
+  // For delete modal and toast
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);
+
+  // Main data
   const [departments, setDepartments] = useState<Department[]>([]);
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
+
   const [formData, setFormData] = useState({
     name: '',
     code: '',
     facultyId: '',
   });
 
-  // New states
+  // New states for form submit
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -137,32 +145,93 @@ export default function DepartmentManagement() {
     }
   };
 
-  const handleDeleteDepartment = async (departmentId: string) => {
-    if (!confirm('Are you sure you want to delete this department?')) return;
-
-    try {
-      const response = await fetch(`/api/departments/${departmentId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchDepartments();
-      }
-    } catch (error) {
-      console.error('Error deleting department:', error);
-    }
+  const handleDeleteDepartment = (departmentId: string) => {
+    setShowDeleteModal(true);
+    setDeleteDepartmentId(departmentId);
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2ECC71]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2ECC71]" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed top-6 right-6 z-[100] transition-all ${
+            toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+          } text-white px-4 py-2 rounded shadow-lg`}
+        >
+          {toast.message}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative">
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setDeleteDepartmentId(null);
+              }}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white text-xl"
+            >
+              &times;
+            </button>
+            <h3 className="text-lg font-semibold mb-4">Delete Department</h3>
+            <p className="mb-6">Are you sure you want to delete this department?</p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteDepartmentId(null);
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                disabled={deleteLoading}
+                onClick={async () => {
+                  if (!deleteDepartmentId) return;
+                  setDeleteLoading(true);
+                  try {
+                    const response = await fetch(`/api/departments/${deleteDepartmentId}`, { method: 'DELETE' });
+                    if (response.ok) {
+                      setToast({ message: 'Department deleted successfully!', type: 'success' });
+                      fetchDepartments();
+                    } else {
+                      setToast({ message: 'Failed to delete department.', type: 'error' });
+                    }
+                  } catch (error) {
+                    setToast({ message: 'Error deleting department.', type: 'error' });
+                  } finally {
+                    setShowDeleteModal(false);
+                    setDeleteDepartmentId(null);
+                    setDeleteLoading(false);
+                    setTimeout(() => setToast(null), 2000);
+                  }
+                }}
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

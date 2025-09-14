@@ -99,7 +99,7 @@ export async function DELETE(
       );
     }
 
-  const facultyId = context.params.id;
+  const { id: facultyId } = await context.params;
 
     // Check if faculty exists
     const existingFaculty = await prisma.faculty.findUnique({

@@ -17,7 +17,7 @@ export async function PUT(
     }
 
     const { name, email, role, facultyId } = await req.json();
-    const userId = context.params.id;
+  const { id: userId } = await context.params;
 
     // Validate input
     if (!name || !email || !role || !facultyId) {
@@ -114,7 +114,7 @@ export async function DELETE(
       );
     }
 
-    const userId = context.params.id;
+  const { id: userId } = await context.params;
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
