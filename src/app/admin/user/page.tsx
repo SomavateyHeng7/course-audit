@@ -34,6 +34,9 @@ const roleIcons = {
 };
 
 export default function RoleManagement() {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
   const [createSuccess, setCreateSuccess] = useState('');
   const [users, setUsers] = useState<User[]>([]);
@@ -110,18 +113,19 @@ export default function RoleManagement() {
         body: JSON.stringify(formData),
       });
       if (response.ok) {
-        setCreateSuccess('User created successfully!');
-        setTimeout(() => {
-          setShowCreateModal(false);
-          setFormData({ name: '', email: '', password: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
-          setCreateSuccess('');
-        }, 1200);
+        setToast({ message: 'User created successfully!', type: 'success' });
+        setShowCreateModal(false);
+        setFormData({ name: '', email: '', password: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
         fetchUsers();
+      } else {
+        setToast({ message: 'Failed to create user.', type: 'error' });
       }
     } catch (error) {
+      setToast({ message: 'Error creating user.', type: 'error' });
       console.error('Error creating user:', error);
     } finally {
       setCreateLoading(false);
+      setTimeout(() => setToast(null), 2000);
     }
   };
 
@@ -136,35 +140,99 @@ export default function RoleManagement() {
         body: JSON.stringify(formData),
       });
       if (response.ok) {
-  setEditingUser(null);
-  setFormData({ name: '', email: '', password: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
-  fetchUsers();
+        setToast({ message: 'User updated successfully!', type: 'success' });
+        setEditingUser(null);
+        setFormData({ name: '', email: '', password: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+        fetchUsers();
+      } else {
+        setToast({ message: 'Failed to update user.', type: 'error' });
       }
     } catch (error) {
+      setToast({ message: 'Error updating user.', type: 'error' });
       console.error('Error updating user:', error);
+    } finally {
+      setTimeout(() => setToast(null), 2000);
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
-    try {
-      const response = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
-      if (response.ok) fetchUsers();
-    } catch (error) {
-      console.error('Error deleting user:', error);
-    }
+    setShowDeleteModal(true);
+    setDeleteUserId(userId);
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1F3A93]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1F3A93]" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-6 right-6 z-[100] transition-all ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-4 py-2 rounded shadow-lg`}>
+          {toast.message}
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative">
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setDeleteUserId(null);
+              }}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white text-xl"
+            >
+              &times;
+            </button>
+            <h3 className="text-lg font-semibold mb-4">Delete User</h3>
+            <p className="mb-6">Are you sure you want to delete this user?</p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteUserId(null);
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                onClick={async () => {
+                  if (!deleteUserId) return;
+                  try {
+                    const response = await fetch(`/api/admin/users/${deleteUserId}`, { method: 'DELETE' });
+                    if (response.ok) {
+                      setToast({ message: 'User deleted successfully!', type: 'success' });
+                      fetchUsers();
+                    } else {
+                      setToast({ message: 'Failed to delete user.', type: 'error' });
+                    }
+                  } catch (error) {
+                    setToast({ message: 'Error deleting user.', type: 'error' });
+                  } finally {
+                    setShowDeleteModal(false);
+                    setDeleteUserId(null);
+                    setTimeout(() => setToast(null), 2000);
+                  }
+                }}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -250,7 +318,19 @@ export default function RoleManagement() {
       {/* Create/Edit Modal */}
       {(showCreateModal || editingUser) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative">
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => {
+                setShowCreateModal(false);
+                setEditingUser(null);
+                setFormData({ name: '', email: '', password: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+              }}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white text-xl"
+            >
+              &times;
+            </button>
             <h3 className="text-lg font-semibold mb-4">
               {editingUser ? 'Edit User' : 'Create New User'}
             </h3>

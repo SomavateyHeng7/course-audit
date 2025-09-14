@@ -29,6 +29,8 @@ interface Faculty {
 }
 
 export default function FacultyManagement() {
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -78,21 +80,27 @@ export default function FacultyManagement() {
   const handleUpdateFaculty = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingFaculty) return;
-
+    setUpdateLoading(true);
     try {
       const response = await fetch(`/api/faculties/${editingFaculty.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
       if (response.ok) {
+        setToast({ message: 'Faculty updated successfully!', type: 'success' });
         setEditingFaculty(null);
         setFormData({ name: '', code: '' });
         fetchFaculties();
+      } else {
+        setToast({ message: 'Failed to update faculty.', type: 'error' });
       }
     } catch (error) {
+      setToast({ message: 'Error updating faculty.', type: 'error' });
       console.error('Error updating faculty:', error);
+    } finally {
+      setUpdateLoading(false);
+      setTimeout(() => setToast(null), 2000);
     }
   };
 
@@ -122,6 +130,12 @@ export default function FacultyManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-6 right-6 z-[100] transition-all ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-4 py-2 rounded shadow-lg`}>
+          {toast.message}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -221,7 +235,19 @@ export default function FacultyManagement() {
       {/* Create/Edit Modal */}
       {(showCreateModal || editingFaculty) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative">
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => {
+                setShowCreateModal(false);
+                setEditingFaculty(null);
+                setFormData({ name: '', code: '' });
+              }}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white text-xl"
+            >
+              &times;
+            </button>
             <h3 className="text-lg font-semibold mb-4">
               {editingFaculty ? 'Edit Faculty' : 'Create New Faculty'}
             </h3>
@@ -245,8 +271,8 @@ export default function FacultyManagement() {
                 />
               </div>
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1 bg-[#F39C12] hover:bg-[#F39C12]/90">
-                  {editingFaculty ? 'Update' : 'Create'}
+                <Button type="submit" className="flex-1 bg-[#F39C12] hover:bg-[#F39C12]/90" disabled={updateLoading}>
+                  {updateLoading ? 'Updating...' : (editingFaculty ? 'Update' : 'Create')}
                 </Button>
                 <Button
                   type="button"

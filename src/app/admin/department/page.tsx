@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { 
   Building2, 
   Plus, 
@@ -49,6 +48,10 @@ export default function DepartmentManagement() {
     facultyId: '',
   });
 
+  // New states
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
   useEffect(() => {
     fetchDepartments();
     fetchFaculties();
@@ -82,6 +85,9 @@ export default function DepartmentManagement() {
 
   const handleCreateDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setSuccessMessage("");
+
     try {
       const response = await fetch('/api/departments', {
         method: 'POST',
@@ -93,15 +99,22 @@ export default function DepartmentManagement() {
         setShowCreateModal(false);
         setFormData({ name: '', code: '', facultyId: '' });
         fetchDepartments();
+        setSuccessMessage("Department created successfully ✅");
+        setTimeout(() => setSuccessMessage(""), 3000);
       }
     } catch (error) {
       console.error('Error creating department:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleUpdateDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingDepartment) return;
+
+    setIsSubmitting(true);
+    setSuccessMessage("");
 
     try {
       const response = await fetch(`/api/departments/${editingDepartment.id}`, {
@@ -114,9 +127,13 @@ export default function DepartmentManagement() {
         setEditingDepartment(null);
         setFormData({ name: '', code: '', facultyId: '' });
         fetchDepartments();
+        setSuccessMessage("Department updated successfully ✅");
+        setTimeout(() => setSuccessMessage(""), 3000);
       }
     } catch (error) {
       console.error('Error updating department:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -162,6 +179,13 @@ export default function DepartmentManagement() {
           Add Department
         </Button>
       </div>
+
+      {/* Success Message */}
+      {successMessage && (
+        <div className="p-3 bg-green-100 text-green-700 rounded-md text-sm">
+          {successMessage}
+        </div>
+      )}
 
       {/* Departments List */}
       <Card>
@@ -242,7 +266,19 @@ export default function DepartmentManagement() {
       {/* Create/Edit Modal */}
       {(showCreateModal || editingDepartment) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative">
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => {
+                setShowCreateModal(false);
+                setEditingDepartment(null);
+                setFormData({ name: '', code: '', facultyId: '' });
+              }}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white text-xl"
+            >
+              &times;
+            </button>
             <h3 className="text-lg font-semibold mb-4">
               {editingDepartment ? 'Edit Department' : 'Create New Department'}
             </h3>
@@ -283,8 +319,14 @@ export default function DepartmentManagement() {
                 </select>
               </div>
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1 bg-[#2ECC71] hover:bg-[#2ECC71]/90">
-                  {editingDepartment ? 'Update' : 'Create'}
+                <Button 
+                  type="submit" 
+                  className="flex-1 bg-[#2ECC71] hover:bg-[#2ECC71]/90"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting 
+                    ? (editingDepartment ? "Updating..." : "Creating...") 
+                    : (editingDepartment ? "Update" : "Create")}
                 </Button>
                 <Button
                   type="button"
@@ -305,4 +347,4 @@ export default function DepartmentManagement() {
       )}
     </div>
   );
-} 
+}
