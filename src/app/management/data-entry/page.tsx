@@ -6,12 +6,16 @@ import { useState, createContext, useContext, useRef, useEffect } from 'react';
 
 import * as XLSX from 'xlsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2 } from 'lucide-react';
+import { BarChart2, Calendar } from 'lucide-react';
 import { FaTrash } from 'react-icons/fa';
+import StudentTranscriptImport from '@/components/student/StudentTranscriptImport';
+import UnmatchedCoursesSection, { UnmatchedCourse } from '@/components/student/UnmatchedCoursesSection';
+import FreeElectiveManager, { FreeElectiveCourse } from '@/components/student/FreeElectiveManager';
+import { type CourseData } from '@/components/excel/ExcelUtils';
 
-// Define a CourseStatus type for consistent typing
+// Define CourseStatus for data entry page - simplified to completion tracking only
 interface CourseStatus {
-  status: 'not_completed' | 'completed' | 'taking' | 'planning';
+  status: 'not_completed' | 'completed' | 'failed' | 'withdrawn';
   grade?: string;
 }
 
@@ -57,26 +61,26 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Move these to module scope so StatusDropdown can use them
-const statusLabels: Record<'not_completed' | 'completed' | 'taking' | 'planning', string> = {
+// Move these to module scope so StatusDropdown can use them - simplified for data entry
+const statusLabels: Record<'not_completed' | 'completed' | 'failed' | 'withdrawn', string> = {
   not_completed: 'Not Completed',
   completed: 'Completed',
-  taking: 'Currently Taking',
-  planning: 'Planning for Next Semester',
+  failed: 'Failed',
+  withdrawn: 'Withdrawn',
 };
-const statusOptions: { value: 'not_completed' | 'completed' | 'taking' | 'planning'; label: string }[] = [
+const statusOptions: { value: 'not_completed' | 'completed' | 'failed' | 'withdrawn'; label: string }[] = [
   { value: 'completed', label: 'Completed' },
-  { value: 'taking', label: 'Currently Taking' },
-  { value: 'planning', label: 'Planning for Next Semester' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'withdrawn', label: 'Withdrawn' },
   { value: 'not_completed', label: 'Not Completed' },
 ];
 
-// Add a helper for status color classes
-const statusColorClasses: Record<'not_completed' | 'completed' | 'taking' | 'planning', string> = {
+// Add a helper for status color classes - simplified
+const statusColorClasses: Record<'not_completed' | 'completed' | 'failed' | 'withdrawn', string> = {
   not_completed: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
   completed: 'bg-green-200 text-green-800 dark:bg-green-700 dark:text-green-200',
-  taking: 'bg-blue-200 text-blue-800 dark:bg-blue-700 dark:text-blue-200',
-  planning: 'bg-yellow-200 text-yellow-800 dark:bg-yellow-600 dark:text-yellow-100',
+  failed: 'bg-red-200 text-red-800 dark:bg-red-700 dark:text-red-200',
+  withdrawn: 'bg-yellow-200 text-yellow-800 dark:bg-yellow-600 dark:text-yellow-100',
 };
 
 // Move gradeOptions to module scope so it is accessible everywhere
@@ -93,12 +97,30 @@ export default function DataEntryPage() {
     freeElectives, // <-- add this line
   } = useProgressContext();
 
-  // Mock options
+  // State for dynamic options from API
+  const [curricula, setCurricula] = useState<Array<{ 
+    id: string; 
+    name: string; 
+    departmentId: string; 
+    department: any; 
+    faculty: any;
+    curriculumCourses?: any[];
+  }>>([]);
+  const [concentrations, setConcentrations] = useState<Array<{
+    id: string;
+    name: string;
+    curriculumId: string;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Hardcoded faculty and department options (working approach)
   const facultyOptions = [
     { value: 'vmes', label: 'VMES' },
     { value: 'msme', label: 'MSME' },
   ];
   const [selectedFaculty, setSelectedFaculty] = useState('');
+
+  // Hardcoded department options mapped by faculty
   const departmentOptions: { [faculty: string]: { value: string; label: string }[] } = {
     vmes: [
       { value: 'cs', label: 'Computer Science' },
@@ -108,32 +130,88 @@ export default function DataEntryPage() {
       { value: 'bba', label: 'BBA' },
     ],
   };
+
+  // New state for enhanced transcript import
+  const [unmatchedCourses, setUnmatchedCourses] = useState<UnmatchedCourse[]>([]);
+  const [curriculumFreeElectives, setCurriculumFreeElectives] = useState<FreeElectiveCourse[]>([]);
+  const [assignedFreeElectives, setAssignedFreeElectives] = useState<FreeElectiveCourse[]>([]);
+  const [electiveRules, setElectiveRules] = useState<any[]>([]);
+  const [assignedFreeElectiveCodes, setAssignedFreeElectiveCodes] = useState<Set<string>>(new Set());
+
+  // Fetch data on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch all curricula (public endpoint)
+        const currResponse = await fetch('/api/public-curricula');
+        const currData = await currResponse.json();
+        const fetchedCurricula = currData.curricula || [];
+        setCurricula(fetchedCurricula);
+
+        // Fetch all concentrations (public endpoint)
+        const concResponse = await fetch('/api/public-concentrations');
+        const concData = await concResponse.json();
+        const fetchedConcentrations = concData.concentrations || [];
+        setConcentrations(fetchedConcentrations);
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Save data to localStorage whenever context changes
+  useEffect(() => {
+    try {
+      const dataToSave = {
+        completedCourses,
+        selectedDepartment,
+        selectedCurriculum,
+        selectedConcentration,
+        freeElectives
+      };
+      localStorage.setItem('studentAuditData', JSON.stringify(dataToSave));
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+    }
+  }, [completedCourses, selectedDepartment, selectedCurriculum, selectedConcentration, freeElectives]);
+
+  // Computed options based on curricula data and hardcoded departments
   const curriculumOptions: { [key: string]: { value: string; label: string }[] } = {
-    cs: [
-      { value: 'bscs2022', label: 'BSCS 2022' },
-    ],
-    it: [
-      { value: 'bsit2022', label: 'BSIT 2022' },
-    ],
-    bba: [
-      { value: 'bba2022', label: 'BBA 2022' },
-    ],
+    cs: curricula
+      .filter(curr => curr.department?.name?.toLowerCase().includes('computer science') || 
+                     curr.department?.name?.toLowerCase().includes('cs'))
+      .map(curr => ({ value: curr.id, label: curr.name })),
+    it: curricula
+      .filter(curr => curr.department?.name?.toLowerCase().includes('information technology') || 
+                     curr.department?.name?.toLowerCase().includes('it'))
+      .map(curr => ({ value: curr.id, label: curr.name })),
+    bba: curricula
+      .filter(curr => curr.department?.name?.toLowerCase().includes('bba') || 
+                     curr.department?.name?.toLowerCase().includes('business'))
+      .map(curr => ({ value: curr.id, label: curr.name })),
   };
-  const concentrationOptions: { [key: string]: { value: string; label: string }[] } = {
-    bscs2022: [
-      { value: 'se', label: 'Software Engineering' },
-      { value: 'ds', label: 'Data Science' },
-      { value: 'none', label: 'No Concentration' },
-    ],
-    bsit2022: [
-      { value: 'se', label: 'Software Engineering' },
-      { value: 'ds', label: 'Data Science' },
-      { value: 'none', label: 'No Concentration' },
-    ],
-    bba2022: [
-      { value: 'dbm', label: 'Digital Business Management' },
-    ],
-  };
+
+  // Dynamic concentration options based on fetched data
+  const concentrationOptions: { [key: string]: { value: string; label: string }[] } = {};
+  curricula.forEach(curriculum => {
+    // Always include 'general' as default
+    const curriculumConcentrations = [{ value: 'general', label: 'General' }];
+    
+    // Add curriculum-specific concentrations
+    const curriculumSpecificConcentrations = concentrations
+      .filter(conc => conc.curriculumId === curriculum.id)
+      .map(conc => ({ value: conc.id, label: conc.name }));
+    
+    concentrationOptions[curriculum.id] = [
+      ...curriculumConcentrations,
+      ...curriculumSpecificConcentrations
+    ];
+  });
 
   // Reset lower selections when a higher one changes
   const handleDepartmentChange = (value: string) => {
@@ -143,49 +221,192 @@ export default function DataEntryPage() {
   };
   const handleCurriculumChange = (value: string) => {
     setSelectedCurriculum(value);
-    setSelectedConcentration('');
+    // Set default concentration to 'general' when curriculum changes
+    setSelectedConcentration('general');
+  };
+
+  // Handle imported courses from transcript
+  const handleCoursesImported = (courses: CourseData[]) => {
+    const newCompletedCourses: { [code: string]: CourseStatus } = {};
+    
+    courses.forEach(course => {
+      let status: CourseStatus['status'];
+      
+      // Map StudentCourseStatus to local CourseStatus - simplified for data entry
+      switch (course.status) {
+        case 'COMPLETED':
+          status = 'completed';
+          break;
+        case 'IN_PROGRESS':
+          status = 'completed'; // Map in-progress to completed for data entry
+          break;
+        case 'FAILED':
+          status = 'failed';
+          break;
+        case 'DROPPED':
+          status = 'withdrawn';
+          break;
+        case 'PENDING':
+          status = 'not_completed'; // Map pending to not completed
+          break;
+        default:
+          status = 'not_completed';
+      }
+
+      newCompletedCourses[course.courseCode] = {
+        status,
+        grade: course.grade
+      };
+    });
+
+    setCompletedCourses(prev => ({ ...prev, ...newCompletedCourses }));
+  };
+
+  // Handle categorized courses from enhanced transcript import
+  const handleCategorizedCoursesImported = (data: any) => {
+    console.log('Received import data:', data);
+    
+    const { categorizedCourses, unmatchedCourses, freeElectives, electiveRules } = data;
+    
+    // Update state for unmatched courses and free electives
+    setUnmatchedCourses(unmatchedCourses || []);
+    setCurriculumFreeElectives(freeElectives || []);
+    setElectiveRules(electiveRules || []);
+    
+    const newCompletedCourses: { [code: string]: CourseStatus } = {};
+    
+    // Process each category
+    Object.entries(categorizedCourses || {}).forEach(([categoryName, courses]: [string, any]) => {
+      console.log(`Processing category: ${categoryName}`);
+      if (Array.isArray(courses)) {
+        courses.forEach((course: any) => {
+          console.log('Processing course:', {
+            code: course.code,
+            title: course.title,
+            found: course.found,
+            status: course.status,
+            grade: course.grade
+          });
+          
+          if (course.found) { // Only import courses that were found in transcript
+            console.log('Adding course to completed:', course.code, course.status, course.grade);
+            newCompletedCourses[course.code] = {
+              status: course.status,
+              grade: course.grade
+            };
+          }
+        });
+      } else {
+        console.warn(`Category ${categoryName} is not an array:`, courses);
+      }
+    });
+
+    console.log('New completed courses object:', newCompletedCourses);
+    setCompletedCourses(prev => {
+      const updated = { ...prev, ...newCompletedCourses };
+      console.log('Updated completed courses state:', updated);
+      console.log('All course codes in state:', Object.keys(updated));
+      return updated;
+    });
   };
 
   const handleBackToManagement = () => {
     router.push('/management');
   };
 
-  // Use the default course types/categories in this order
-  const courseTypeOrder = [
-    'General Education',
-    'Core Courses',
-    'Major',
-    'Major Elective',
-    'Free Elective',
-  ];
-
   // Dynamic curriculum courses state
-  // curriculumCourses: { [curriculumKey: string]: { [category: string]: { code: string; title: string; credits: number }[] } }
-  // curriculumCourses: { [curriculumKey: string]: { [category: string]: { code: string; title: string; credits: number }[] } }
   const [curriculumCourses, setCurriculumCourses] = useState<Record<string, { [category: string]: { code: string; title: string; credits: number }[] }>>({});
 
-  // Fetch real curriculum data when BSCS 2022 is selected
+  // Get dynamic course type order based on available categories
+  const getCourseTypeOrder = () => {
+    if (!selectedCurriculum || !curriculumCourses[selectedCurriculum]) {
+      return []; // Return empty if no curriculum selected or no courses loaded
+    }
+    
+    const availableCategories = Object.keys(curriculumCourses[selectedCurriculum]);
+    console.log('Available categories:', availableCategories);
+    
+    // Define preferred order, but include all available categories
+    const preferredOrder = [
+      'General Education',
+      'Core Courses', 
+      'Major',
+      'Major Elective',
+      'Free Elective',
+      'Unassigned'
+    ];
+    
+    // Start with preferred order categories that exist
+    const orderedCategories = preferredOrder.filter(cat => availableCategories.includes(cat));
+    
+    // Add any additional categories not in preferred order
+    const additionalCategories = availableCategories.filter(cat => !preferredOrder.includes(cat));
+    
+    return [...orderedCategories, ...additionalCategories];
+  };
+
+  const courseTypeOrder = getCourseTypeOrder();
+
+  // Debug logging for curriculumCourses changes
+  useEffect(() => {
+    console.log('curriculumCourses state updated:', curriculumCourses);
+    console.log('selectedCurriculum:', selectedCurriculum);
+    console.log('courses for selected curriculum:', curriculumCourses[selectedCurriculum]);
+  }, [curriculumCourses, selectedCurriculum]);
+
+  // Fetch real curriculum data when curriculum is selected
   useEffect(() => {
     const fetchCourses = async () => {
-      if (selectedCurriculum === 'bscs2022') {
+      if (selectedCurriculum && curricula.length > 0) {
         try {
-          const res = await fetch('/api/curriculum/bscs2022');
-          const data = await res.json();
-          // Group all courses under 'Major' (or adjust as needed)
-          const grouped: { [category: string]: { code: string; title: string; credits: number }[] } = { Major: [] };
-          (data?.curriculum?.courses || []).forEach((course: any) => {
-            grouped.Major.push({ code: course.code, title: course.name, credits: course.credits });
-          });
-          setCurriculumCourses(prev => ({ ...prev, [selectedCurriculum]: grouped }));
-        } catch (err) {
-          setCurriculumCourses({});
+          // Find the selected curriculum from our curricula data
+          const selectedCurriculumData = curricula.find(c => c.id === selectedCurriculum);
+          console.log('Selected curriculum data:', selectedCurriculumData);
+          
+          if (selectedCurriculumData && selectedCurriculumData.curriculumCourses) {
+            // Group courses by category
+            const grouped: { [category: string]: { code: string; title: string; credits: number }[] } = {};
+            
+            selectedCurriculumData.curriculumCourses.forEach((currCourse: any) => {
+              const course = currCourse.course;
+              
+              console.log('Course debug:', {
+                code: course.code,
+                name: course.name,
+                departmentCourseTypes: course.departmentCourseTypes,
+              });
+              
+              // Find the course type for this curriculum's department
+              const departmentCourseType = course.departmentCourseTypes?.find(
+                (dct: any) => dct.departmentId === selectedCurriculumData.departmentId
+              );
+              
+              const category = departmentCourseType?.courseType?.name || 'Unassigned';
+              
+              if (!grouped[category]) {
+                grouped[category] = [];
+              }
+              
+              grouped[category].push({
+                code: course.code,
+                title: course.name,
+                credits: course.credits
+              });
+            });
+            
+            console.log('Grouped curriculum courses:', grouped);
+            setCurriculumCourses({ [selectedCurriculum]: grouped });
+          } else {
+            console.log('No curriculumCourses found in selected curriculum data');
+          }
+        } catch (error) {
+          console.error('Error processing curriculum data:', error);
         }
-      } else {
-        setCurriculumCourses({});
       }
     };
+
     fetchCourses();
-  }, [selectedCurriculum]);
+  }, [selectedCurriculum, curricula]);
 
   // Only keep mockConcentrations for bscs2022
   const mockConcentrations: { [curriculum: string]: { [concentration: string]: { label: string; Major: { code: string; title: string; credits: number }[] } } } = {
@@ -217,13 +438,21 @@ export default function DataEntryPage() {
     },
   };
 
+  const handleCoursePlanning = () => {
+    // Data is automatically stored in localStorage via useEffect
+    // Navigate to course planning
+    router.push('/management/course-planning');
+  };
+
   return (
     <div className="container py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-foreground mb-2">Manual Course Entry</h1>
-        <Button variant="outline" onClick={handleBackToManagement}>
-          Back to Management
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={handleBackToManagement}>
+            Back to Management
+          </Button>
+        </div>
       </div>
 
       {/* Step 1: Select Faculty, Department, Curriculum, and Concentration */}
@@ -284,8 +513,86 @@ export default function DataEntryPage() {
               ))}
             </SelectContent>
           </Select>
+          <p className="text-sm text-gray-500 mt-1">
+            <strong>Note:</strong> Concentration options are currently mock data. Full concentration and blacklist features 
+            are planned for future implementation. Currently focusing on constraints, elective rules, and course categories with grades.
+          </p>
             </div>
             </div>
+
+      {/* Transcript Import Section */}
+      {selectedDepartment && selectedCurriculum && selectedConcentration && (
+        <StudentTranscriptImport 
+          curriculumId={selectedCurriculum}
+          departmentId={selectedDepartment}
+          onCoursesImported={handleCategorizedCoursesImported}
+          onError={(error) => console.error('Import error:', error)}
+        />
+      )}
+
+      {/* Unmatched Courses Section */}
+      {unmatchedCourses.length > 0 && (
+        <UnmatchedCoursesSection
+          unmatchedCourses={unmatchedCourses}
+          assignedFreeElectives={assignedFreeElectiveCodes}
+          onAssignToFreeElective={(courseCode: string) => {
+            // Find the course details
+            const course = unmatchedCourses.find(c => c.courseCode === courseCode);
+            if (course) {
+              // Convert to FreeElectiveCourse format
+              const freeElectiveCourse: FreeElectiveCourse = {
+                courseCode: course.courseCode,
+                courseName: course.courseName,
+                credits: course.credits,
+                grade: course.grade,
+                source: 'transcript',
+                isRequired: false
+              };
+              setAssignedFreeElectives(prev => [...prev, freeElectiveCourse]);
+              // Update assigned codes set
+              const newCodes = new Set(assignedFreeElectiveCodes);
+              newCodes.add(courseCode);
+              setAssignedFreeElectiveCodes(newCodes);
+              // Remove from unmatched
+              setUnmatchedCourses(prev => 
+                prev.filter(course => course.courseCode !== courseCode)
+              );
+            }
+          }}
+          onRemoveFromFreeElective={(courseCode: string) => {
+            // Remove from assigned free electives
+            setAssignedFreeElectives(prev => 
+              prev.filter(course => course.courseCode !== courseCode)
+            );
+            // Update assigned codes set
+            const newCodes = new Set(assignedFreeElectiveCodes);
+            newCodes.delete(courseCode);
+            setAssignedFreeElectiveCodes(newCodes);
+          }}
+        />
+      )}
+
+      {/* Free Elective Manager Section */}
+      {(curriculumFreeElectives.length > 0 || assignedFreeElectives.length > 0) && (
+        <FreeElectiveManager
+          curriculumId={selectedCurriculum}
+          departmentId={selectedDepartment}
+          curriculumFreeElectives={curriculumFreeElectives}
+          assignedFreeElectives={assignedFreeElectives}
+          electiveRules={electiveRules}
+          onRemoveAssignedCourse={(courseCode: string) => {
+            setAssignedFreeElectives(prev => 
+              prev.filter(course => course.courseCode !== courseCode)
+            );
+            // Update assigned codes set
+            const newCodes = new Set(assignedFreeElectiveCodes);
+            newCodes.delete(courseCode);
+            setAssignedFreeElectiveCodes(newCodes);
+            // Add back to unmatched if it was originally unmatched
+            // (This is a simplified approach - in practice you might want to track original source)
+          }}
+        />
+      )}
 
       {/* Only show curriculum course list if all three are selected (concentration can be 'none') */}
       {selectedDepartment && selectedCurriculum && selectedConcentration && (
@@ -537,6 +844,79 @@ export default function DataEntryPage() {
               </div>
             );
           })}
+
+          {/* Free Electives Section - Show assigned free electives */}
+          {assignedFreeElectives.length > 0 && (
+            <div className="border border-border rounded-lg mb-6 p-6">
+              <div className="text-lg font-bold mb-2 text-foreground p-4 pb-0 flex items-center justify-between">
+                <span>Free Electives</span>
+                <div className="text-sm text-muted-foreground">
+                  {(() => {
+                    const assignedCredits = assignedFreeElectives.reduce((total, course) => total + course.credits, 0);
+                    const freeElectiveRule = electiveRules.find(rule => rule.category === 'Free Elective');
+                    const requiredCredits = freeElectiveRule?.requiredCredits || 0;
+                    
+                    if (requiredCredits > 0) {
+                      const isComplete = assignedCredits >= requiredCredits;
+                      return (
+                        <span className={`font-semibold ${isComplete ? 'text-green-600' : assignedCredits > requiredCredits ? 'text-orange-600' : 'text-blue-600'}`}>
+                          {assignedCredits} / {requiredCredits} credits 
+                          {isComplete && assignedCredits === requiredCredits && ' ✓'}
+                          {assignedCredits > requiredCredits && ` (+${assignedCredits - requiredCredits} extra)`}
+                        </span>
+                      );
+                    } else {
+                      return <span className="font-semibold text-blue-600">{assignedCredits} credits assigned</span>;
+                    }
+                  })()}
+                </div>
+              </div>
+              <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
+                {assignedFreeElectives.map(course => (
+                  <div key={course.courseCode} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-muted rounded-lg px-4 py-3 border border-border mb-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <span className="font-semibold text-sm">{course.courseCode} - {course.courseName}</span>
+                      <span className="text-sm text-muted-foreground">{course.credits} credits</span>
+                      {course.grade && (
+                        <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
+                          Grade: {course.grade}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Remove from assigned free electives
+                          setAssignedFreeElectives(prev => 
+                            prev.filter(c => c.courseCode !== course.courseCode)
+                          );
+                          // Update assigned codes set
+                          const newCodes = new Set(assignedFreeElectiveCodes);
+                          newCodes.delete(course.courseCode);
+                          setAssignedFreeElectiveCodes(newCodes);
+                          // Add back to unmatched courses
+                          const unmatchedCourse: UnmatchedCourse = {
+                            courseCode: course.courseCode,
+                            courseName: course.courseName,
+                            credits: course.credits,
+                            grade: course.grade,
+                            status: 'completed'
+                          };
+                          setUnmatchedCourses(prev => [...prev, unmatchedCourse]);
+                        }}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        Remove from Free Electives
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex gap-4 mt-4">
             <Button
@@ -557,6 +937,20 @@ export default function DataEntryPage() {
                     });
                   });
                 });
+                
+                // Add assigned free electives
+                assignedFreeElectives.forEach(course => {
+                  rows.push({
+                    Category: 'Free Elective',
+                    Code: course.courseCode,
+                    Title: course.courseName,
+                    Credits: course.credits,
+                    Status: 'completed', // Assigned free electives are typically completed
+                    Grade: course.grade || '',
+                  });
+                });
+                
+                // Legacy free electives support (if any)
                 (Array.isArray(freeElectives) ? freeElectives : []).forEach((course: { code: string; title: string; credits: number }) => {
                   rows.push({
                     Category: 'Free Elective',
@@ -583,6 +977,26 @@ export default function DataEntryPage() {
           </div>
             </div>
       )}
+      
+      {/* Course Planning Button at Bottom */}
+      <div className="mt-8 border-t pt-6">
+        <div className="flex justify-center">
+          <Button 
+            onClick={handleCoursePlanning}
+            className="flex items-center gap-2 px-8 py-3 text-lg"
+            disabled={!selectedCurriculum || !selectedDepartment}
+            size="lg"
+          >
+            <Calendar className="w-5 h-5" />
+            Continue to Course Planning
+          </Button>
+        </div>
+        {(!selectedCurriculum || !selectedDepartment) && (
+          <p className="text-center text-sm text-muted-foreground mt-2">
+            Please select a curriculum and department first
+          </p>
+        )}
+      </div>
             </div>
   );
 }
@@ -710,7 +1124,7 @@ function FreeElectiveAddButton() {
   );
 }
 
-function StatusDropdown({ code, status, setStatus }: { code: string; status: 'not_completed' | 'completed' | 'taking' | 'planning'; setStatus: (status: 'not_completed' | 'completed' | 'taking' | 'planning') => void }) {
+function StatusDropdown({ code, status, setStatus }: { code: string; status: 'not_completed' | 'completed' | 'failed' | 'withdrawn'; setStatus: (status: 'not_completed' | 'completed' | 'failed' | 'withdrawn') => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   // Close dropdown on outside click
@@ -733,7 +1147,7 @@ function StatusDropdown({ code, status, setStatus }: { code: string; status: 'no
       </button>
       {open && (
         <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded shadow-lg">
-          {statusOptions.map((opt: { value: 'not_completed' | 'completed' | 'taking' | 'planning'; label: string }) => (
+          {statusOptions.map((opt: { value: 'not_completed' | 'completed' | 'failed' | 'withdrawn'; label: string }) => (
             <button
               key={opt.value}
               className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 ${status === opt.value ? `font-bold ${statusColorClasses[opt.value]}` : ''}`}

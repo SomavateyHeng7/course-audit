@@ -45,7 +45,7 @@ export default function ManagementPage() {
                 {error}
               </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
               {/* Excel Upload Option */}
               <div className="flex flex-col items-center border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 h-96 w-full transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-teal-400 dark:hover:border-teal-500 cursor-pointer">
                 <h2 className="text-xl font-semibold mb-4 text-primary">Upload Excel</h2>
@@ -55,9 +55,21 @@ export default function ManagementPage() {
               {/* Manual Entry Option */}
               <div className="flex flex-col items-center border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 h-96 w-full transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-teal-400 dark:hover:border-teal-500 cursor-pointer">
                 <h2 className="text-xl font-semibold mb-4 text-primary">Enter Courses Manually</h2>
-                <p className="mb-6 text-gray-600 dark:text-gray-300 text-center">Manually input your courses to track your progress.</p>
+                <p className="mb-6 text-gray-600 dark:text-gray-300 text-center">Manually input your completed courses to track your progress.</p>
                 <Button className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed" variant="default" onClick={handleManualEntry}>
                   Enter Courses
+                </Button>
+              </div>
+              {/* Course Planning Option */}
+              <div className="flex flex-col items-center border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-6 h-96 w-full transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-teal-400 dark:hover:border-teal-500 cursor-pointer">
+                <h2 className="text-xl font-semibold mb-4 text-primary">Plan Future Courses</h2>
+                <p className="mb-6 text-gray-600 dark:text-gray-300 text-center">Plan and validate future course selections with prerequisite checking.</p>
+                <Button 
+                  className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed" 
+                  variant="default" 
+                  onClick={() => router.push('/management/course-planning')}
+                >
+                  Plan Courses
                 </Button>
               </div>
             </div>

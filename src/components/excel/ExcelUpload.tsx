@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload } from 'lucide-react';
-import { readExcelFile, validateExcelData } from './ExcelUtils';
+import { parseExcelFile, validateCourseData } from './ExcelUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ExcelUploadProps {
@@ -27,14 +27,19 @@ export default function ExcelUpload({ onDataLoaded, onError }: ExcelUploadProps)
     setSuccess(false);
 
     try {
-      const data = await readExcelFile(file);
-      const errors = validateExcelData(data);
+      const data = await parseExcelFile(file);
+      const validation = validateCourseData(data.courses);
 
-      if (errors.length > 0) {
-        onError(errors.join('\n'));
+      if (!validation.isValid) {
+        onError(validation.errors.join('\n'));
         setFileName(file.name);
         setSuccess(false);
         return;
+      }
+
+      // Show warnings if any
+      if (validation.warnings.length > 0) {
+        console.warn('Validation warnings:', validation.warnings);
       }
 
       onDataLoaded(data);

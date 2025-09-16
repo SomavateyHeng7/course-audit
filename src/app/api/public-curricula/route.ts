@@ -22,7 +22,17 @@ export async function GET(request: NextRequest) {
         department: true,
         faculty: true,
         curriculumCourses: {
-          include: { course: true },
+          include: { 
+            course: {
+              include: {
+                departmentCourseTypes: {
+                  include: {
+                    courseType: true,
+                  },
+                },
+              },
+            },
+          },
         },
         curriculumConstraints: true,
         electiveRules: true,
