@@ -1,0 +1,24 @@
+Concentration Name,Course Code,Course Title,Credits,Category,Description
+Data Science and Analytics,CSX2003,Principles of Statistics,3,Core,Statistical methods and data analysis
+Data Science and Analytics,CSX2006,Mathematics and Statistics for Data Science,3,Core,Mathematical foundations for data science applications
+Data Science and Analytics,ITX2007,Data Science,3,Core,Data analysis mining and visualization techniques
+Data Science and Analytics,CSX4002,Machine Learning,3,Major Elective,Statistical learning and neural networks
+Data Science and Analytics,CSX4003,Artificial Intelligence,3,Major Elective,AI algorithms and intelligent systems
+Software Engineering,CSX3001,Fundamentals of Computer Programming,3,Major,Basic programming concepts and logic structures
+Software Engineering,CSX3002,Object-Oriented Concept and Programming,3,Major,OOP principles and design patterns
+Software Engineering,CSX3003,Data Structure and Algorithm,3,Major,Data structures implementation and algorithm analysis
+Software Engineering,ITX3007,Software Engineering,3,Core,Software development lifecycle and project management
+Software Engineering,CSX4005,Web Development,3,Major Elective,Full-stack web application development
+Software Engineering,CSX4006,Mobile App Development,3,Major Elective,iOS and Android application development
+Software Engineering,ITX4001,Project Management,3,Major Elective,IT project planning and management methodologies
+Software Engineering,ITX4002,Systems Analysis and Design,3,Major Elective,Information systems analysis and design
+Network and Security,CSX3005,Computer Network,3,Major,Network protocols and distributed systems
+Network and Security,CSX2009,Cloud Computing,3,Major,Cloud platforms and distributed computing services
+Network and Security,CSX4004,Cybersecurity,3,Major Elective,Information security and cryptography principles
+Network and Security,ITX4004,Network Security,3,Major Elective,Network security protocols and implementation
+Research and Development,CSX3010,Senior Project I,3,Major,First part of capstone project development
+Research and Development,CSX3011,Senior Project II,3,Major,Completion and presentation of capstone project
+Research and Development,CSX3009,Algorithm Design,3,Major,Advanced algorithm design and analysis techniques
+Research and Development,ELE3002,Research Methodology,3,General Education,Research design and academic writing
+Research and Development,CSX4007,Computer Graphics,3,Major Elective,2D and 3D graphics programming and rendering
+Research and Development,CSX4008,Human-Computer Interaction,3,Major Elective,User interface design and usability testing

@@ -66,39 +66,165 @@ export default function ProgressPage() {
     selectedConcentration: '',
     freeElectives: []
   });
+  const [curriculumData, setCurriculumData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   
-  // Load all data from localStorage
+  // Load all data from localStorage and fetch curriculum data
   useEffect(() => {
-    try {
-      // Load completed courses data from data-entry page
-      const savedCompletedData = localStorage.getItem('studentAuditData');
-      if (savedCompletedData) {
-        setCompletedData(JSON.parse(savedCompletedData));
+    const loadData = async () => {
+      try {
+        console.log('=== PROGRESS PAGE DEBUGGING ===');
+        console.log('Step 1: Loading data from localStorage');
+        
+        // Check all localStorage keys
+        const allKeys = Object.keys(localStorage);
+        console.log('All localStorage keys:', allKeys);
+        
+        // Load completed courses data from data-entry page
+        const savedCompletedData = localStorage.getItem('studentAuditData');
+        console.log('Step 2: Raw studentAuditData:', savedCompletedData);
+        
+        if (savedCompletedData) {
+          const parsedData = JSON.parse(savedCompletedData);
+          console.log('Step 3: Parsed studentAuditData:', parsedData);
+          setCompletedData(parsedData);
+          
+          // Fetch curriculum data if we have a curriculum ID
+          if (parsedData.selectedCurriculum) {
+            console.log('Step 4: Fetching curriculum for ID:', parsedData.selectedCurriculum);
+            try {
+              const response = await fetch('/api/public-curricula');
+              const data = await response.json();
+              console.log('Step 5: API response:', data);
+              const curriculum = data.curricula?.find((c: any) => c.id === parsedData.selectedCurriculum);
+              if (curriculum) {
+                console.log('Step 6: Found curriculum data:', curriculum);
+                setCurriculumData(curriculum);
+              } else {
+                console.log('Step 6: No curriculum found with ID:', parsedData.selectedCurriculum);
+                console.log('Available curricula:', data.curricula?.map((c: any) => ({ id: c.id, name: c.name })));
+              }
+            } catch (error) {
+              console.error('Step 6: Error fetching curriculum data:', error);
+            }
+          } else {
+            console.log('Step 4: No curriculum ID found in saved data');
+          }
+        } else {
+          console.log('Step 3: No studentAuditData found in localStorage');
+        }
+        
+        // Load planned courses from course planner
+        const savedCoursePlan = localStorage.getItem('coursePlan');
+        console.log('Step 7: Raw coursePlan:', savedCoursePlan);
+        
+        if (savedCoursePlan) {
+          const planData = JSON.parse(savedCoursePlan);
+          console.log('Step 8: Parsed coursePlan:', planData);
+          setPlannedCourses(planData.plannedCourses || []);
+        } else {
+          console.log('Step 8: No coursePlan found in localStorage');
+        }
+        
+        // Load concentration analysis
+        const savedConcentrationAnalysis = localStorage.getItem('concentrationAnalysis');
+        console.log('Step 9: Raw concentrationAnalysis:', savedConcentrationAnalysis);
+        
+        if (savedConcentrationAnalysis) {
+          const analysisData = JSON.parse(savedConcentrationAnalysis);
+          console.log('Step 10: Parsed concentrationAnalysis:', analysisData);
+          setConcentrationAnalysis(analysisData);
+        } else {
+          console.log('Step 10: No concentrationAnalysis found in localStorage');
+        }
+        
+        console.log('=== END PROGRESS PAGE DEBUGGING ===');
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      // Load planned courses from course planner
-      const savedCoursePlan = localStorage.getItem('coursePlan');
-      if (savedCoursePlan) {
-        const planData = JSON.parse(savedCoursePlan);
-        setPlannedCourses(planData.plannedCourses || []);
-      }
-      
-      // Load concentration analysis
-      const savedConcentrationAnalysis = localStorage.getItem('concentrationAnalysis');
-      if (savedConcentrationAnalysis) {
-        setConcentrationAnalysis(JSON.parse(savedConcentrationAnalysis));
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-    }
+    };
+
+    loadData();
   }, []);
 
   const { completedCourses, selectedCurriculum, selectedConcentration, freeElectives } = completedData;
 
-  // Mock curriculumCourses and mockConcentrations (should match data-entry page)
-  // In real app, import or share this data
-  const curriculumCourses: { [key: string]: { [category: string]: { code: string; title: string; credits: number }[] } } = {
-    bscs2022: {
+  console.log('Progress Page - Current state:', {
+    selectedCurriculum,
+    selectedConcentration,
+    completedCoursesCount: Object.keys(completedCourses).length,
+    freeElectivesCount: freeElectives.length,
+    plannedCoursesCount: plannedCourses.length
+  });
+
+  // Use real curriculum data if available, otherwise fall back to mock data
+  const curriculumCourses: { [key: string]: { [category: string]: { code: string; title: string; credits: number }[] } } = {};
+  
+  console.log('🔍 DEBUG: Processing curriculum data:', {
+    curriculumData,
+    hasCurriculumData: !!curriculumData,
+    hasCurriculumCourses: !!curriculumData?.curriculumCourses,
+    curriculumCoursesLength: curriculumData?.curriculumCourses?.length,
+    selectedCurriculum,
+    firstCourse: curriculumData?.curriculumCourses?.[0],
+    sampleCourseStructure: {
+      course: curriculumData?.curriculumCourses?.[0]?.course,
+      departmentCourseType: curriculumData?.curriculumCourses?.[0]?.departmentCourseType,
+      nestedTypes: curriculumData?.curriculumCourses?.[0]?.course?.departmentCourseTypes
+    }
+  });
+  
+  if (curriculumData && curriculumData.curriculumCourses) {
+    console.log('🔍 DEBUG: Found curriculum courses, processing...');
+    // Transform real curriculum data into the format we need
+    const coursesByCategory: { [category: string]: { code: string; title: string; credits: number }[] } = {};
+    
+    curriculumData.curriculumCourses.forEach((course: any, index: number) => {
+      console.log(`🔍 DEBUG: Processing course ${index}:`, {
+        fullCourse: course,
+        courseObj: course.course,
+        departmentCourseTypes: course.course?.departmentCourseTypes,
+        directDepartmentCourseType: course.departmentCourseType,
+        hasDirectType: !!course.departmentCourseType,
+        hasNestedTypes: !!course.course?.departmentCourseTypes,
+        nestedTypesLength: course.course?.departmentCourseTypes?.length || 0
+      });
+      
+      // Try multiple ways to get the category
+      let category = 'Other';
+      
+      // Method 1: Direct departmentCourseType
+      if (course.departmentCourseType?.name) {
+        category = course.departmentCourseType.name;
+        console.log(`🔍 Method 1 - Direct type: ${category}`);
+      }
+      // Method 2: From nested departmentCourseTypes array  
+      else if (course.course?.departmentCourseTypes?.length > 0) {
+        const firstType = course.course.departmentCourseTypes[0];
+        category = firstType.courseType?.name || firstType.name || 'Other';
+        console.log(`🔍 Method 2 - Nested type: ${category}`, firstType);
+      }
+      
+      console.log(`🔍 Final category for ${course.course.code}: ${category}`);
+      
+      if (!coursesByCategory[category]) {
+        coursesByCategory[category] = [];
+      }
+      coursesByCategory[category].push({
+        code: course.course.code,
+        title: course.course.name,
+        credits: course.course.credits
+      });
+    });
+    
+    console.log('🔍 DEBUG: Built coursesByCategory:', coursesByCategory);
+    curriculumCourses[selectedCurriculum] = coursesByCategory;
+  } else {
+    console.log('🔍 DEBUG: No curriculum data found, using mock data');
+    // Fall back to mock data for development
+    curriculumCourses.bscs2022 = {
       "General Education": [
         { code: "ELE1001", title: "Communication English I", credits: 3 },
         { code: "ELE1002", title: "Communication English II", credits: 3 },
@@ -121,9 +247,8 @@ export default function ProgressPage() {
       "Free Elective": [
         { code: "ART1001", title: "Art Appreciation", credits: 3 },
       ],
-    },
-    // ...other curricula
-  };
+    };
+  }
   const mockConcentrations: { [curriculum: string]: { [concentration: string]: { label: string; Major: { code: string; title: string; credits: number }[] } } } = {
     bscs2022: {
       ai: {
@@ -152,18 +277,27 @@ export default function ProgressPage() {
 
   // Gather all courses for the selected curriculum (and concentration for Major)
   let allCoursesByCategory: { [category: string]: { code: string; title: string; credits: number }[] } = {};
-  if (selectedCurriculum === "bscs2022") {
+  
+  console.log('Building course categories for curriculum:', selectedCurriculum);
+  console.log('Available curricula in curriculumCourses:', Object.keys(curriculumCourses));
+  
+  if (selectedCurriculum && curriculumCourses[selectedCurriculum]) {
     allCoursesByCategory = { ...curriculumCourses[selectedCurriculum] };
-    // Major: use concentration logic
-    if (selectedConcentration && selectedConcentration !== "none") {
-      allCoursesByCategory["Major"] =
-        mockConcentrations[selectedCurriculum]?.[selectedConcentration]?.Major || [];
-    } else {
-      // If no concentration, flatten all concentration majors
-      allCoursesByCategory["Major"] = Object.values(
-        mockConcentrations[selectedCurriculum] || {}
-      ).flatMap((c) => c.Major);
+    console.log('Loaded courses for curriculum:', selectedCurriculum, allCoursesByCategory);
+    
+    // Handle concentration-specific Major courses for bscs2022
+    if (selectedCurriculum === "bscs2022") {
+      if (selectedConcentration && selectedConcentration !== "none" && selectedConcentration !== "general") {
+        allCoursesByCategory["Major"] =
+          mockConcentrations[selectedCurriculum]?.[selectedConcentration]?.Major || [];
+      } else {
+        // If no specific concentration, flatten all concentration majors
+        allCoursesByCategory["Major"] = Object.values(
+          mockConcentrations[selectedCurriculum] || {}
+        ).flatMap((c) => c.Major);
+      }
     }
+    
     // Merge free electives from context
     allCoursesByCategory["Free Elective"] = [
       ...(allCoursesByCategory["Free Elective"] || []),
@@ -171,15 +305,14 @@ export default function ProgressPage() {
         (fe) => !(allCoursesByCategory["Free Elective"] || []).some((c) => c.code === fe.code)
       ),
     ];
-  } else if (selectedCurriculum && curriculumCourses[selectedCurriculum]) {
-    allCoursesByCategory = { ...curriculumCourses[selectedCurriculum] };
-    // Merge free electives from context
-    allCoursesByCategory["Free Elective"] = [
-      ...(allCoursesByCategory["Free Elective"] || []),
-      ...freeElectives.filter(
-        (fe) => !(allCoursesByCategory["Free Elective"] || []).some((c) => c.code === fe.code)
-      ),
-    ];
+  } else {
+    console.warn('No curriculum data found for:', selectedCurriculum);
+    // Create empty categories to avoid errors
+    categoryOrder.forEach(category => {
+      allCoursesByCategory[category] = [];
+    });
+    // At least add free electives
+    allCoursesByCategory["Free Elective"] = freeElectives;
   }
 
   // GPA mapping
@@ -322,57 +455,73 @@ export default function ProgressPage() {
           </button>
         </div>
       </div>
-  <div ref={pdfRef} className="bg-white dark:bg-card rounded-xl p-6 mb-6 border border-gray-200 dark:border-border">
-        {/* Improved progress bar layout */}
+
+      {/* Show loading state */}
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="text-lg">Loading progress data...</div>
+        </div>
+      )}
+
+      {/* Show message if no data and not loading */}
+      {!loading && !selectedCurriculum && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 mb-6">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+              No Student Data Found
+            </h3>
+            <p className="text-yellow-700 dark:text-yellow-300 mb-4">
+              Please go to the Course Entry page first to set up your curriculum and add completed courses.
+            </p>
+            <button
+              onClick={() => router.push('/management/data-entry')}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium transition"
+            >
+              Go to Course Entry
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Show progress data if available */}
+      {!loading && selectedCurriculum && (
+        <>
+          <div ref={pdfRef} className="bg-white dark:bg-card rounded-xl p-6 mb-6 border border-gray-200 dark:border-border">
+        {/* Custom Academic Progress Bar */}
         <div className="flex items-center relative h-24 mb-4 bg-gradient-to-r from-emerald-100 to-blue-100 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg px-6">
           {/* Progress bar */}
-          <div className="flex-1 relative h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            {/* Completed progress */}
-            <div
-              className="h-4 bg-emerald-500 transition-all"
+          <div className="flex-1 relative h-4 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+            {/* Completed section */}
+            <div 
+              className={`absolute left-0 top-0 h-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-700 ease-out shadow-sm ${
+                percent >= 100 ? 'rounded-lg' : 'rounded-l-lg'
+              }`}
               style={{ width: `${percent}%` }}
             ></div>
-            {/* Planned progress overlay */}
-            <div
-              className="h-4 bg-blue-300 opacity-60 absolute top-0 transition-all"
-              style={{ width: `${projectedPercent}%` }}
-            ></div>
-            {/* Student icon */}
-            <div
-              className="absolute"
-              style={{ left: `calc(${percent}% - 16px)`, top: '-28px' }}
-            >
-              <span role="img" aria-label="student" style={{ fontSize: 24 }}>🧑‍🎓</span>
-            </div>
-            {/* Percentage label above the progress end */}
-            <div
-              className="absolute"
-              style={{
-                left: `calc(${percent}% - 16px)`,
-                top: '-38px',
-                width: '40px',
-                textAlign: 'center',
-                pointerEvents: 'none',
-              }}
-            >
-              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{percent}%</span>
-            </div>
-            {/* Projected percentage */}
+            
+            {/* Planned section */}
             {projectedPercent > percent && (
-              <div
-                className="absolute"
-                style={{
-                  left: `calc(${projectedPercent}% - 20px)`,
-                  top: '-50px',
-                  width: '40px',
-                  textAlign: 'center',
-                  pointerEvents: 'none',
+              <div 
+                className="absolute top-0 h-full bg-sky-300 dark:bg-sky-400 transition-all duration-700 ease-out rounded-r-lg"
+                style={{ 
+                  left: `${percent}%`, 
+                  width: `${projectedPercent - percent}%` 
                 }}
-              >
-                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">↑{projectedPercent}%</span>
-              </div>
+              ></div>
             )}
+            
+            {/* Progress milestones */}
+            <div className="absolute inset-0 flex items-center justify-between px-2">
+              {[25, 50, 75].map((milestone) => (
+                <div 
+                  key={milestone}
+                  className="w-0.5 h-2 bg-white/40 dark:bg-gray-900/40 rounded-full"
+                  style={{ marginLeft: `${milestone}%` }}
+                ></div>
+              ))}
+            </div>
           </div>
+          
           {/* Graduate label at the far right */}
           <div className="flex items-center ml-4">
             <span role="img" aria-label="graduate" className="mr-1" style={{ fontSize: 24 }}>🎓</span>
@@ -380,15 +529,27 @@ export default function ProgressPage() {
           </div>
         </div>
         
-        {/* Legend for progress bar */}
-        <div className="flex justify-center gap-6 mb-4 text-sm">
+        {/* Progress segments breakdown */}
+        <div className="flex items-center justify-center gap-6 text-sm mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-2 bg-emerald-500 rounded"></div>
-            <span>Completed ({earnedCredits} credits)</span>
+            <div className="w-3 h-3 bg-emerald-500 dark:bg-emerald-400 rounded-full"></div>
+            <span className="font-medium text-emerald-700 dark:text-emerald-400">
+              Completed: {earnedCredits} credits
+            </span>
           </div>
+          {projectedPercent > percent && (
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-sky-300 dark:bg-sky-400 rounded-full"></div>
+              <span className="font-medium text-sky-700 dark:text-sky-400">
+                Planned: {plannedCredits} credits
+              </span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
-            <div className="w-4 h-2 bg-blue-300 rounded"></div>
-            <span>Planned ({plannedCredits} credits)</span>
+            <div className="w-3 h-3 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full"></div>
+            <span className="text-muted-foreground">
+              Remaining: {totalCreditsRequired - earnedCredits - plannedCredits} credits
+            </span>
           </div>
         </div>
         {/* Stat cards */}
@@ -568,6 +729,8 @@ export default function ProgressPage() {
           Download as PDF
         </button>
       </div>
+        </>
+      )}
     </div>
   );
-} 
+}

@@ -276,12 +276,23 @@ export default function CoursePlanningPage() {
   const fetchConcentrations = async () => {
     if (!dataEntryContext) return;
     
+    console.log('🔍 DEBUG: Course Planning - fetchConcentrations called with:', {
+      selectedCurriculum: dataEntryContext.selectedCurriculum,
+      selectedDepartment: dataEntryContext.selectedDepartment,
+      hasValidIds: !!(dataEntryContext.selectedCurriculum && dataEntryContext.selectedDepartment)
+    });
+    
     try {
       const response = await fetch(`/api/public-concentrations?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${dataEntryContext.selectedDepartment}`);
+      console.log('🔍 DEBUG: Course Planning - API response status:', response.status);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🔍 DEBUG: Course Planning - API error:', errorText);
         throw new Error('Failed to fetch concentrations');
       }
       const data = await response.json();
+      console.log('🔍 DEBUG: Course Planning - API data:', data);
       setConcentrations(data.concentrations || []);
     } catch (error) {
       console.error('Error fetching concentrations:', error);

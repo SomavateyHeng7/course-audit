@@ -148,11 +148,7 @@ export default function DataEntryPage() {
         const fetchedCurricula = currData.curricula || [];
         setCurricula(fetchedCurricula);
 
-        // Fetch all concentrations (public endpoint)
-        const concResponse = await fetch('/api/public-concentrations');
-        const concData = await concResponse.json();
-        const fetchedConcentrations = concData.concentrations || [];
-        setConcentrations(fetchedConcentrations);
+        // Don't fetch concentrations here - wait until curriculum is selected
 
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -163,6 +159,58 @@ export default function DataEntryPage() {
 
     fetchData();
   }, []);
+
+  // Fetch concentrations when curriculum and department are selected
+  useEffect(() => {
+    const fetchConcentrations = async () => {
+      if (!selectedCurriculum || !selectedDepartment) {
+        setConcentrations([]);
+        return;
+      }
+
+      try {
+        // Find the department ID
+        const selectedCurriculumData = curricula.find(c => c.id === selectedCurriculum);
+        if (!selectedCurriculumData?.department?.id) {
+          console.error('Department ID not found for selected curriculum');
+          return;
+        }
+
+        const departmentId = selectedCurriculumData.department.id;
+        
+        console.log('🔍 DEBUG: Fetching concentrations for:', {
+          curriculumId: selectedCurriculum,
+          departmentId: departmentId
+        });
+
+        const concResponse = await fetch(`/api/public-concentrations?curriculumId=${selectedCurriculum}&departmentId=${departmentId}`);
+        const concData = await concResponse.json();
+        
+        console.log('🔍 DEBUG: Concentration API response:', concData);
+        
+        if (concResponse.ok) {
+          const fetchedConcentrations = concData.concentrations || [];
+          console.log('🔍 DEBUG: Fetched concentrations:', fetchedConcentrations);
+          setConcentrations(fetchedConcentrations);
+          
+          // Auto-select "general" concentration if not already selected
+          if (!selectedConcentration) {
+            console.log('🔍 DEBUG: Auto-selecting general concentration');
+            setSelectedConcentration('general');
+          }
+        } else {
+          console.error('Failed to fetch concentrations:', concData.error);
+          setConcentrations([]);
+        }
+
+      } catch (error) {
+        console.error('Error fetching concentrations:', error);
+        setConcentrations([]);
+      }
+    };
+
+    fetchConcentrations();
+  }, [selectedCurriculum, selectedDepartment, curricula]);
 
   // Save data to localStorage whenever context changes
   useEffect(() => {
@@ -198,20 +246,28 @@ export default function DataEntryPage() {
 
   // Dynamic concentration options based on fetched data
   const concentrationOptions: { [key: string]: { value: string; label: string }[] } = {};
-  curricula.forEach(curriculum => {
+  
+  if (selectedCurriculum) {
     // Always include 'general' as default
     const curriculumConcentrations = [{ value: 'general', label: 'General' }];
     
-    // Add curriculum-specific concentrations
-    const curriculumSpecificConcentrations = concentrations
-      .filter(conc => conc.curriculumId === curriculum.id)
-      .map(conc => ({ value: conc.id, label: conc.name }));
+    // Add fetched concentrations for the selected curriculum
+    const curriculumSpecificConcentrations = concentrations.map(conc => ({ 
+      value: conc.id, 
+      label: conc.name 
+    }));
     
-    concentrationOptions[curriculum.id] = [
+    console.log(`🔍 DEBUG: Curriculum ${selectedCurriculum} concentrations:`, {
+      allConcentrations: concentrations,
+      mappedConcentrations: curriculumSpecificConcentrations,
+      finalOptions: [...curriculumConcentrations, ...curriculumSpecificConcentrations]
+    });
+    
+    concentrationOptions[selectedCurriculum] = [
       ...curriculumConcentrations,
       ...curriculumSpecificConcentrations
     ];
-  });
+  }
 
   // Reset lower selections when a higher one changes
   const handleDepartmentChange = (value: string) => {
@@ -357,13 +413,21 @@ export default function DataEntryPage() {
   // Fetch real curriculum data when curriculum is selected
   useEffect(() => {
     const fetchCourses = async () => {
+      console.log('🔍 DEBUG: fetchCourses called with:', {
+        selectedCurriculum,
+        curriculaLength: curricula.length,
+        hasSelectedCurriculum: !!selectedCurriculum,
+        hasCurricula: curricula.length > 0
+      });
+      
       if (selectedCurriculum && curricula.length > 0) {
         try {
           // Find the selected curriculum from our curricula data
           const selectedCurriculumData = curricula.find(c => c.id === selectedCurriculum);
-          console.log('Selected curriculum data:', selectedCurriculumData);
+          console.log('🔍 DEBUG: Selected curriculum data:', selectedCurriculumData);
           
           if (selectedCurriculumData && selectedCurriculumData.curriculumCourses) {
+            console.log('🔍 DEBUG: Found curriculum courses, processing...');
             // Group courses by category
             const grouped: { [category: string]: { code: string; title: string; credits: number }[] } = {};
             
@@ -595,7 +659,17 @@ export default function DataEntryPage() {
       )}
 
       {/* Only show curriculum course list if all three are selected (concentration can be 'none') */}
-      {selectedDepartment && selectedCurriculum && selectedConcentration && (
+      {(() => {
+        const shouldShow = selectedDepartment && selectedCurriculum && selectedConcentration;
+        console.log('🔍 DEBUG: Course display condition:', {
+          selectedDepartment,
+          selectedCurriculum,
+          selectedConcentration,
+          shouldShow,
+          curriculumCoursesAvailable: !!curriculumCourses[selectedCurriculum]
+        });
+        return shouldShow;
+      })() && (
         <div className="flex flex-col gap-8">
           {/* Render all categories in the new order, with special logic for Major (concentration) if needed */}
           {courseTypeOrder.map(category => {
