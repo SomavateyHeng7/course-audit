@@ -73,9 +73,9 @@ async function main() {
     }
   }
 
-  // Upsert courses
+  // Upsert courses and link to curriculum
   for (const course of courses) {
-    await prisma.course.upsert({
+    const courseRecord = await prisma.course.upsert({
       where: { code: course.code },
       update: {},
       create: {
@@ -84,6 +84,16 @@ async function main() {
         credits: course.credits,
         creditHours: String(course.credits),
         // Optionally add description, isActive, etc.
+      },
+    });
+    await prisma.curriculumCourse.upsert({
+      where: { curriculumId_courseId: { curriculumId: curriculum.id, courseId: courseRecord.id } },
+      update: {},
+      create: {
+        curriculumId: curriculum.id,
+        courseId: courseRecord.id,
+        isRequired: true,
+        position: 0,
       },
     });
   }

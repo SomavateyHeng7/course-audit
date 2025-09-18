@@ -1,6 +1,5 @@
 {
   "name": "course-audit",
-  "type": "module",
   "version": "0.1.0",
   "private": true,
   "scripts": {

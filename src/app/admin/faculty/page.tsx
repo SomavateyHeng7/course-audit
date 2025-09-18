@@ -32,6 +32,7 @@ export default function FacultyManagement() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteFacultyId, setDeleteFacultyId] = useState<string | null>(null);
   const [updateLoading, setUpdateLoading] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +63,7 @@ export default function FacultyManagement() {
 
   const handleCreateFaculty = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCreateLoading(true);
     try {
       const response = await fetch('/api/faculties', {
         method: 'POST',
@@ -73,9 +75,16 @@ export default function FacultyManagement() {
         setShowCreateModal(false);
         setFormData({ name: '', code: '' });
         fetchFaculties();
+        setToast({ message: 'Faculty created successfully!', type: 'success' });
+      } else {
+        setToast({ message: 'Failed to create faculty.', type: 'error' });
       }
     } catch (error) {
       console.error('Error creating faculty:', error);
+      setToast({ message: 'Error creating faculty.', type: 'error' });
+    } finally {
+      setCreateLoading(false);
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -102,7 +111,7 @@ export default function FacultyManagement() {
       console.error('Error updating faculty:', error);
     } finally {
       setUpdateLoading(false);
-      setTimeout(() => setToast(null), 2000);
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -339,9 +348,12 @@ export default function FacultyManagement() {
                 <Button
                   type="submit"
                   className="flex-1 bg-[#F39C12] hover:bg-[#F39C12]/90"
-                  disabled={updateLoading}
+                  disabled={editingFaculty ? updateLoading : createLoading}
                 >
-                  {updateLoading ? 'Updating...' : (editingFaculty ? 'Update' : 'Create')}
+                  {editingFaculty 
+                    ? (updateLoading ? 'Updating...' : 'Update')
+                    : (createLoading ? 'Creating...' : 'Create')
+                  }
                 </Button>
                 <Button
                   type="button"

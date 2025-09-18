@@ -210,7 +210,11 @@ export default function RoleManagement() {
     <div className="space-y-6">
       {/* Toast Notification */}
       {toast && (
-        <div className={`fixed top-6 right-6 z-[100] transition-all ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-4 py-2 rounded shadow-lg`}>
+        <div
+          className={`fixed top-6 right-6 z-[100] transition-all ${
+            toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+          } text-white px-4 py-2 rounded shadow-lg`}
+        >
           {toast.message}
         </div>
       )}

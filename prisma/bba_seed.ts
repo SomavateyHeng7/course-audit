@@ -28,7 +28,10 @@ async function main() {
     update: {},
     create: { name: 'Business Administration', code: 'BBA', facultyId: faculty.id },
   });
-  // You may need to update this compound unique constraint to match your schema
+  // Get actual superadmin user
+  const superAdmin = await prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' } });
+  if (!superAdmin) throw new Error('No SUPER_ADMIN user found. Please seed a superadmin first.');
+
   const curriculum = await prisma.curriculum.upsert({
     where: {
       year_startId_endId_departmentId: {
@@ -49,17 +52,19 @@ async function main() {
       departmentId: department.id,
       facultyId: faculty.id,
       isActive: true,
-      createdById: 'SUPERADMIN_ID', // <-- Replace with actual superadmin id
+      createdById: superAdmin.id,
     },
   });
 
+  let position = 0;
   for (const row of courseRows) {
     const [code, title, credits, , , type] = row;
-    if (!code || !title || !credits) continue;
+    const parsedCredits = parseInt(credits, 10);
+    if (!code || !title || isNaN(parsedCredits)) continue;
     const course = await prisma.course.upsert({
       where: { code },
-      update: { name: title, credits: Number(credits), isActive: true, creditHours: `${credits}-0-${Number(credits)*2}` },
-      create: { code, name: title, credits: Number(credits), isActive: true, creditHours: `${credits}-0-${Number(credits)*2}` },
+      update: { name: title, credits: parsedCredits, isActive: true, creditHours: `${parsedCredits}-0-${parsedCredits*2}` },
+      create: { code, name: title, credits: parsedCredits, isActive: true, creditHours: `${parsedCredits}-0-${parsedCredits*2}` },
     });
     await prisma.curriculumCourse.upsert({
       where: { curriculumId_courseId: { curriculumId: curriculum.id, courseId: course.id } },
@@ -68,10 +73,11 @@ async function main() {
         curriculumId: curriculum.id,
         courseId: course.id,
         isRequired: true,
-        position: 0,
+        position,
         // Optionally, you can map type to a category field if your schema supports it
       },
     });
+    position++;
   }
 
   console.log('✅ BBA 63x-65x seeding completed');

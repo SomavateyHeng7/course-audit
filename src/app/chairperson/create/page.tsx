@@ -21,9 +21,11 @@ export default function CreateCurriculum() {
   const [idStart, setIdStart] = useState('');
   const [idEnd, setIdEnd] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [parsedCourses, setParsedCourses] = useState<ParsedCourse[]>([]);
-  const [isDragOver, setIsDragOver] = useState(false);  const parseCSVLine = (line: string): string[] => {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);  const parseCSVLine = (line: string): string[] => {
     const result: string[] = [];
     let current = '';
     let inQuotes = false;
@@ -271,29 +273,45 @@ export default function CreateCurriculum() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!curriculumName || !year || !totalCredits || !idStart || !idEnd) {
-      alert('Please fill in all required fields: curriculum name, year, total credits, ID start, and ID end');
-      return;
-    }
-    if (!uploadedFile || parsedCourses.length === 0) {
-      alert('Please upload and successfully parse a course file');
-      return;
-    }
+    setIsSubmitting(true);
     
-    // Store data in sessionStorage for the details page
-    sessionStorage.setItem('uploadedCourses', JSON.stringify(parsedCourses));
-    sessionStorage.setItem('curriculumInfo', JSON.stringify({
-      name: curriculumName,
-      year: year,
-      totalCredits: totalCredits,
-      idStart: idStart,
-      idEnd: idEnd,
-      fileName: uploadedFile.name,
-      courseCount: parsedCourses.length
-    }));
+    try {
+      if (!curriculumName || !year || !totalCredits || !idStart || !idEnd) {
+        setToast({ message: 'Please fill in all required fields: curriculum name, year, total credits, ID start, and ID end', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
+        return;
+      }
+      if (!uploadedFile || parsedCourses.length === 0) {
+        setToast({ message: 'Please upload and successfully parse a course file', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
+        return;
+      }
+      
+      // Store data in sessionStorage for the details page
+      sessionStorage.setItem('uploadedCourses', JSON.stringify(parsedCourses));
+      sessionStorage.setItem('curriculumInfo', JSON.stringify({
+        name: curriculumName,
+        year: year,
+        totalCredits: totalCredits,
+        idStart: idStart,
+        idEnd: idEnd,
+        fileName: uploadedFile.name,
+        courseCount: parsedCourses.length
+      }));
 
-    // Navigate to details page
-    router.push('/chairperson/create/details');
+      setToast({ message: 'Curriculum data prepared successfully! Redirecting...', type: 'success' });
+      setTimeout(() => {
+        setToast(null);
+        // Navigate to details page
+        router.push('/chairperson/create/details');
+      }, 1500);
+      
+    } catch (error) {
+      setToast({ message: 'Error preparing curriculum data. Please try again.', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setTimeout(() => setIsSubmitting(false), 1500);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -320,12 +338,24 @@ export default function CreateCurriculum() {
     if (file) {
       await handleFileUploadFromFile(file);
     } else {
-      alert('Please drop a CSV or Excel file (.csv, .xlsx, .xls)');
+      setToast({ message: 'Please drop a CSV or Excel file (.csv, .xlsx, .xls)', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed top-6 right-6 z-[100] transition-all ${
+            toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+          } text-white px-4 py-2 rounded shadow-lg`}
+        >
+          {toast.message}
+        </div>
+      )}
+      
       <div className="container mx-auto">
         <div className="w-full max-w-5xl mx-auto bg-card rounded-2xl border border-border p-12">
           <div className="flex gap-12">
@@ -397,10 +427,10 @@ export default function CreateCurriculum() {
                 </div>
                 <button
                   type="submit"
-                  disabled={isUploading || !uploadedFile}
+                  disabled={isUploading || isSubmitting || !uploadedFile}
                   className="bg-primary text-primary-foreground py-2 rounded-lg font-semibold hover:bg-primary/90 transition mt-4 w-32 self-start disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isUploading ? 'Processing...' : 'Continue'}
+                  {isSubmitting ? 'Processing...' : (isUploading ? 'Uploading...' : 'Continue')}
                 </button>
               </form>
             </div>
@@ -410,6 +440,18 @@ export default function CreateCurriculum() {
                     <strong>Excel Format Preferred:</strong> Include columns for Course Code, Course Title, Credits, Course Description, and Crd Hour. 
                     Excel files (.xlsx, .xls) are preferred over CSV. Course categories and constraints will be set in the next step.
                   </p>
+                  <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-700">
+                    <a 
+                      href="/api/download/sample-csv" 
+                      download="sample_curriculum_courses.csv"
+                      className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Download Sample CSV Template
+                    </a>
+                  </div>
                 </div>
                 
                 {uploadedFile && (

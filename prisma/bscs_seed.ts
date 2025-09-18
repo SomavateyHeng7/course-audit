@@ -67,28 +67,31 @@ function parseCsv(filePath: string) {
   const records = parse(csvRaw, { skip_empty_lines: false });
 
   // Find the header row for courses
-  const headerIdx = records.findIndex((row: any) => String(row[1]).toUpperCase() === 'COURSE NO.');
+  const headerIdx = records.findIndex((row: any) => String(row[1]).toUpperCase().includes('COURSE NO.'));
   if (headerIdx === -1) throw new Error('Header row not found');
 
   // Extract course rows (skip header and any empty/summary rows)
   const courseRows: any[] = [];
   for (let i = headerIdx + 1; i < records.length; i++) {
     const row = records[i];
-    // Stop if we hit a section header or empty row
-    if (!row[1] || String(row[1]).toUpperCase().includes('FREE ELECTIVE')) break;
+    // Skip section headers and empty rows
+    if (!row[1] || row[1].match(/^[A-Za-z ]+$/)) continue;
     // Only push rows with a course number and title
     if (row[1] && row[2] && row[3]) {
       courseRows.push(row);
     }
   }
 
-  return courseRows.map((row: any) => {
-    const code = String(row[1]).trim();
-    const name = String(row[2]).trim();
-    const credits = Number(row[3]);
-    const creditHours = `${credits}-0-${credits * 2}`;
-    return { code, name, credits, creditHours, description: null };
-  });
+  return courseRows
+    .map((row: any) => {
+      const code = String(row[1]).trim();
+      const name = String(row[2]).trim();
+      const credits = Number(row[3]);
+      if (!code || !name || isNaN(credits) || credits <= 0) return null;
+      const creditHours = `${credits}-0-${credits * 2}`;
+      return { code, name, credits, creditHours, description: null };
+    })
+    .filter(Boolean);
 }
 
 async function upsertCourses(courses: Array<{ code: string; name: string; credits: number; creditHours: string; description: string | null }>) {
@@ -153,26 +156,24 @@ async function main() {
   const rows = parseCsv('public/BSCS_2022(653).csv');
   console.log(`📄 Parsed ${rows.length} rows`);
 
-  const upserted = await upsertCourses(rows);
+  const validRows = rows.filter((r) => r !== null);
+  const upserted = await upsertCourses(validRows);
   console.log(`📚 Upserted ${upserted.length} courses`);
 
   const curriculum = await getOrCreateCurriculum(faculty.id, department.id, admin.id);
   console.log(`🎓 Curriculum ready: ${curriculum.name} ${curriculum.year}`);
 
-  let position = 1;
-  for (const c of upserted) {
-    await prisma.curriculumCourse.upsert({
-      where: {
-        curriculumId_courseId: { curriculumId: curriculum.id, courseId: c.id },
-      },
-      update: {},
-      create: {
+  let position = 0;
+  for (const course of upserted) {
+    await prisma.curriculumCourse.create({
+      data: {
         curriculumId: curriculum.id,
-        courseId: c.id,
+        courseId: course.id,
         isRequired: true,
-        position: position++,
+        position,
       },
     });
+    position++;
   }
   console.log(`🔗 Assigned ${position - 1} courses to curriculum`);
 

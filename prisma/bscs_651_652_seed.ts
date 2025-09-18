@@ -19,12 +19,12 @@ async function main() {
   const headerIdx = records.findIndex((row: any) => String(row[1]).toUpperCase() === 'COURSE NO.');
   if (headerIdx === -1) throw new Error('Header row not found');
 
-  // Extract course rows (skip header and any empty/summary rows)
+  // Extract course rows (skip section headers and empty rows)
   const courseRows: any[] = [];
   for (let i = headerIdx + 1; i < records.length; i++) {
     const row = records[i];
-    // Stop if we hit a section header or empty row
-    if (!row[1] || String(row[1]).toUpperCase().includes('FREE ELECTIVE')) break;
+    // Skip section headers and empty rows
+    if (!row[1] || row[1].match(/^[A-Za-z ]+$/)) continue;
     // Only push rows with a course number and title
     if (row[1] && row[2] && row[3]) {
       courseRows.push(row);
@@ -72,26 +72,26 @@ async function main() {
     },
   });
 
+  let position = 0;
   for (const row of courseRows) {
     const code = String(row[1]).trim();
     const title = String(row[2]).trim();
     const credits = Number(row[3]);
-    if (!code || !title || !credits) continue;
+    if (!code || !title || isNaN(credits) || credits <= 0) continue;
     const course = await prisma.course.upsert({
       where: { code },
       update: { name: title, credits, isActive: true, creditHours: `${credits}-0-${credits*2}` },
       create: { code, name: title, credits, isActive: true, creditHours: `${credits}-0-${credits*2}` },
     });
-    await prisma.curriculumCourse.upsert({
-      where: { curriculumId_courseId: { curriculumId: curriculum.id, courseId: course.id } },
-      update: {},
-      create: {
+    await prisma.curriculumCourse.create({
+      data: {
         curriculumId: curriculum.id,
         courseId: course.id,
         isRequired: true,
-        position: 0,
+        position,
       },
     });
+    position++;
   }
 
   console.log('✅ BSCS 2021 (651-652) seeding completed');

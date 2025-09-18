@@ -1,3 +1,44 @@
+export async function DELETE(req: NextRequest) {
+  try {
+    // Check authentication and authorization
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: 'Unauthorized - Super Admin access required' },
+        { status: 401 }
+      );
+    }
+
+    const { userId } = await req.json();
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Missing required field: userId' },
+        { status: 400 }
+      );
+    }
+
+    // Delete all audit logs for the user first
+    await prisma.auditLog.deleteMany({
+      where: { userId },
+    });
+
+    // Delete the user
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return NextResponse.json(
+      { message: 'User and related audit logs deleted successfully' },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('Error deleting user and audit logs:', error);
+    return NextResponse.json(
+      { error: 'Error deleting user and audit logs' },
+      { status: 500 }
+    );
+  }
+}
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -48,7 +89,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { name, email, role, facultyId, departmentId } = await req.json();
+  const { name, email, role, facultyId, departmentId, password } = await req.json();
 
     // Validate input
     if (!name || !email || !role || !facultyId || !departmentId) {
@@ -94,16 +135,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate a temporary password
-    const tempPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    // Use provided password or generate a temporary one
+    const plainPassword = password || Math.random().toString(36).slice(-8);
 
-    // Create user
+    // Create user with plaintext password
     const user = await prisma.user.create({
       data: {
         name,
         email,
-        password: hashedPassword,
+        password: plainPassword, // Store as plaintext
         role,
         facultyId,
         departmentId, // Now required field
@@ -129,7 +169,7 @@ export async function POST(req: NextRequest) {
       { 
         message: 'User created successfully', 
         user: userWithoutPassword,
-        tempPassword // In production, this should be sent via email
+  plainPassword // In production, this should be sent via email
       },
       { status: 201 }
     );

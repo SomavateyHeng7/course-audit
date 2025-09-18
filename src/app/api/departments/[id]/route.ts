@@ -7,7 +7,7 @@ export async function PUT(
 ) {
   try {
     const { name, code, facultyId } = await req.json();
-  const departmentId = context.params.id;
+  const { id: departmentId } = await context.params;
 
     // Validate input
     if (!name || !code || !facultyId) {
@@ -101,7 +101,7 @@ export async function DELETE(
   context: any
 ) {
   try {
-  const departmentId = context.params.id;
+  const { id: departmentId } = await context.params;
 
     // Check if department exists
     const existingDepartment = await prisma.department.findUnique({

@@ -21,7 +21,9 @@ export const authOptions = {
         const email = typeof credentials?.email === 'string' ? credentials.email.trim().toLowerCase() : '';
         const password = credentials?.password ?? '';
 
-        if (!email || !password) throw new Error('Email and password are required');
+        if (!email || !password) {
+          throw new Error('Email and password are required');
+        }
 
         // Pull only what you need to keep tokens small
         const user = await prisma.user.findUnique({
@@ -40,11 +42,23 @@ export const authOptions = {
           },
         });
 
-        if (!user) throw new Error('No user found with this email');
+        if (!user) {
+          throw new Error('No user found with this email');
+        }
 
-        // PLAINTEXT compare (matches your seed)
-        const isPasswordValid = user.password === password;
-        if (!isPasswordValid) throw new Error('Invalid password');
+        // Support both plaintext and bcrypt-hashed passwords
+        let isPasswordValid = false;
+        if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$') || user.password.startsWith('$2y$')) {
+          // bcrypt hash
+          const bcrypt = require('bcryptjs');
+          isPasswordValid = await bcrypt.compare(password, user.password);
+        } else {
+          // plaintext
+          isPasswordValid = user.password === password;
+        }
+        if (!isPasswordValid) {
+          throw new Error('Invalid password');
+        }
 
         return {
           id: user.id,

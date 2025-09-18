@@ -58,7 +58,6 @@ export default function DepartmentManagement() {
 
   // New states for form submit
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     fetchDepartments();
@@ -94,7 +93,6 @@ export default function DepartmentManagement() {
   const handleCreateDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setSuccessMessage("");
 
     try {
       const response = await fetch('/api/departments', {
@@ -107,11 +105,16 @@ export default function DepartmentManagement() {
         setShowCreateModal(false);
         setFormData({ name: '', code: '', facultyId: '' });
         fetchDepartments();
-        setSuccessMessage("Department created successfully ✅");
-        setTimeout(() => setSuccessMessage(""), 3000);
+        setToast({ message: 'Department created successfully!', type: 'success' });
+        setTimeout(() => setToast(null), 3000);
+      } else {
+        setToast({ message: 'Failed to create department.', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
       }
     } catch (error) {
       console.error('Error creating department:', error);
+      setToast({ message: 'Error creating department.', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
     } finally {
       setIsSubmitting(false);
     }
@@ -122,7 +125,6 @@ export default function DepartmentManagement() {
     if (!editingDepartment) return;
 
     setIsSubmitting(true);
-    setSuccessMessage("");
 
     try {
       const response = await fetch(`/api/departments/${editingDepartment.id}`, {
@@ -135,11 +137,16 @@ export default function DepartmentManagement() {
         setEditingDepartment(null);
         setFormData({ name: '', code: '', facultyId: '' });
         fetchDepartments();
-        setSuccessMessage("Department updated successfully ✅");
-        setTimeout(() => setSuccessMessage(""), 3000);
+        setToast({ message: 'Department updated successfully!', type: 'success' });
+        setTimeout(() => setToast(null), 3000);
+      } else {
+        setToast({ message: 'Failed to update department.', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
       }
     } catch (error) {
       console.error('Error updating department:', error);
+      setToast({ message: 'Error updating department.', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
     } finally {
       setIsSubmitting(false);
     }
@@ -221,7 +228,7 @@ export default function DepartmentManagement() {
                     setShowDeleteModal(false);
                     setDeleteDepartmentId(null);
                     setDeleteLoading(false);
-                    setTimeout(() => setToast(null), 2000);
+                    setTimeout(() => setToast(null), 3000);
                   }
                 }}
               >
@@ -250,11 +257,6 @@ export default function DepartmentManagement() {
       </div>
 
       {/* Success Message */}
-      {successMessage && (
-        <div className="p-3 bg-green-100 text-green-700 rounded-md text-sm">
-          {successMessage}
-        </div>
-      )}
 
       {/* Departments List */}
       <Card>

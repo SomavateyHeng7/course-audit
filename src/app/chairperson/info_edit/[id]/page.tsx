@@ -61,6 +61,8 @@ export default function EditCurriculum() {
   
   // Add Course Loading State
   const [isAddingCourse, setIsAddingCourse] = useState(false);
+  const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -247,6 +249,7 @@ export default function EditCurriculum() {
 
   const handleSaveEditCourse = async () => {
     if (!editingCourse) return;
+    setIsUpdatingCourse(true);
 
     try {
       // First, update the course basic information
@@ -315,10 +318,15 @@ export default function EditCurriculum() {
         };
       });
 
+      setToast({ message: 'Course updated successfully!', type: 'success' });
+      setTimeout(() => setToast(null), 3000);
       handleCloseEditModal();
     } catch (error) {
       console.error('Error updating course:', error);
-      alert('Failed to update course. Please try again.');
+      setToast({ message: 'Failed to update course. Please try again.', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setIsUpdatingCourse(false);
     }
   };
 
@@ -343,9 +351,13 @@ export default function EditCurriculum() {
           curriculumCourses: prev.curriculumCourses.filter((cc: any) => cc.course.id !== courseId)
         };
       });
+
+      setToast({ message: 'Course removed from curriculum successfully!', type: 'success' });
+      setTimeout(() => setToast(null), 3000);
     } catch (error) {
       console.error('Error removing course from curriculum:', error);
-      alert('Failed to remove course from curriculum. Please try again.');
+      setToast({ message: 'Failed to remove course from curriculum. Please try again.', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -479,16 +491,30 @@ export default function EditCurriculum() {
         };
       });
 
+      setToast({ message: 'Course added to curriculum successfully!', type: 'success' });
+      setTimeout(() => setToast(null), 3000);
       handleCloseAddModal();
     } catch (error) {
       console.error('Error adding course:', error);
-      alert('Failed to add course. Please try again.');
+      setToast({ message: 'Failed to add course. Please try again.', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
     } finally {
       setIsAddingCourse(false);
     }
   };
   return (
     <div className="flex min-h-screen bg-white dark:bg-background">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed top-6 right-6 z-[100] transition-all ${
+            toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+          } text-white px-4 py-2 rounded shadow-lg`}
+        >
+          {toast.message}
+        </div>
+      )}
+      
       {/* Sidebar is assumed to be rendered by layout */}
       <div className="flex-1 flex flex-col items-center py-10">
         <div className="w-full max-w-6xl bg-white dark:bg-card rounded-2xl border border-gray-200 dark:border-border p-10">
@@ -835,16 +861,28 @@ export default function EditCurriculum() {
               <button
                 suppressHydrationWarning
                 onClick={handleCloseEditModal}
-                className="flex-1 px-6 py-3 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
+                disabled={isUpdatingCourse}
+                className="flex-1 px-6 py-3 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 suppressHydrationWarning
                 onClick={handleSaveEditCourse}
-                className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary transition-colors border border-primary font-semibold shadow-sm"
+                disabled={isUpdatingCourse}
+                className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary transition-colors border border-primary font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
-                Save Changes
+                {isUpdatingCourse ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Updating...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
               </button>
             </div>
           </div>
