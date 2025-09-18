@@ -73,72 +73,115 @@ export default function ProgressPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log('=== PROGRESS PAGE DEBUGGING ===');
-        console.log('Step 1: Loading data from localStorage');
+        // Only run debugging during client-side execution, not during build
+        if (typeof window !== 'undefined') {
+          console.log('=== PROGRESS PAGE DEBUGGING ===');
+          console.log('Step 1: Loading data from localStorage');
+        }
+        
+        // Only access localStorage on client side
+        if (typeof window === 'undefined') {
+          setLoading(false);
+          return;
+        }
         
         // Check all localStorage keys
         const allKeys = Object.keys(localStorage);
-        console.log('All localStorage keys:', allKeys);
+        if (typeof window !== 'undefined') {
+          console.log('All localStorage keys:', allKeys);
+        }
         
         // Load completed courses data from data-entry page
         const savedCompletedData = localStorage.getItem('studentAuditData');
-        console.log('Step 2: Raw studentAuditData:', savedCompletedData);
+        if (typeof window !== 'undefined') {
+          console.log('Step 2: Raw studentAuditData:', savedCompletedData);
+        }
         
         if (savedCompletedData) {
           const parsedData = JSON.parse(savedCompletedData);
-          console.log('Step 3: Parsed studentAuditData:', parsedData);
+          if (typeof window !== 'undefined') {
+            console.log('Step 3: Parsed studentAuditData:', parsedData);
+          }
           setCompletedData(parsedData);
           
           // Fetch curriculum data if we have a curriculum ID
           if (parsedData.selectedCurriculum) {
-            console.log('Step 4: Fetching curriculum for ID:', parsedData.selectedCurriculum);
+            if (typeof window !== 'undefined') {
+              console.log('Step 4: Fetching curriculum for ID:', parsedData.selectedCurriculum);
+            }
             try {
               const response = await fetch('/api/public-curricula');
               const data = await response.json();
-              console.log('Step 5: API response:', data);
+              if (typeof window !== 'undefined') {
+                console.log('Step 5: API response:', data);
+              }
               const curriculum = data.curricula?.find((c: any) => c.id === parsedData.selectedCurriculum);
               if (curriculum) {
-                console.log('Step 6: Found curriculum data:', curriculum);
+                if (typeof window !== 'undefined') {
+                  console.log('Step 6: Found curriculum data:', curriculum);
+                }
                 setCurriculumData(curriculum);
               } else {
-                console.log('Step 6: No curriculum found with ID:', parsedData.selectedCurriculum);
-                console.log('Available curricula:', data.curricula?.map((c: any) => ({ id: c.id, name: c.name })));
+                if (typeof window !== 'undefined') {
+                  console.log('Step 6: No curriculum found with ID:', parsedData.selectedCurriculum);
+                  console.log('Available curricula:', data.curricula?.map((c: any) => ({ id: c.id, name: c.name })));
+                }
               }
             } catch (error) {
-              console.error('Step 6: Error fetching curriculum data:', error);
+              if (typeof window !== 'undefined') {
+                console.error('Step 6: Error fetching curriculum data:', error);
+              }
             }
           } else {
-            console.log('Step 4: No curriculum ID found in saved data');
+            if (typeof window !== 'undefined') {
+              console.log('Step 4: No curriculum ID found in saved data');
+            }
           }
         } else {
-          console.log('Step 3: No studentAuditData found in localStorage');
+          if (typeof window !== 'undefined') {
+            console.log('Step 3: No studentAuditData found in localStorage');
+          }
         }
         
         // Load planned courses from course planner
         const savedCoursePlan = localStorage.getItem('coursePlan');
-        console.log('Step 7: Raw coursePlan:', savedCoursePlan);
+        if (typeof window !== 'undefined') {
+          console.log('Step 7: Raw coursePlan:', savedCoursePlan);
+        }
         
         if (savedCoursePlan) {
           const planData = JSON.parse(savedCoursePlan);
-          console.log('Step 8: Parsed coursePlan:', planData);
+          if (typeof window !== 'undefined') {
+            console.log('Step 8: Parsed coursePlan:', planData);
+          }
           setPlannedCourses(planData.plannedCourses || []);
         } else {
-          console.log('Step 8: No coursePlan found in localStorage');
+          if (typeof window !== 'undefined') {
+            console.log('Step 8: No coursePlan found in localStorage');
+          }
         }
         
         // Load concentration analysis
         const savedConcentrationAnalysis = localStorage.getItem('concentrationAnalysis');
-        console.log('Step 9: Raw concentrationAnalysis:', savedConcentrationAnalysis);
+        if (typeof window !== 'undefined') {
+          console.log('Step 9: Raw concentrationAnalysis:', savedConcentrationAnalysis);
+        }
         
         if (savedConcentrationAnalysis) {
           const analysisData = JSON.parse(savedConcentrationAnalysis);
-          console.log('Step 10: Parsed concentrationAnalysis:', analysisData);
+          if (typeof window !== 'undefined') {
+            console.log('Step 10: Parsed concentrationAnalysis:', analysisData);
+          }
           setConcentrationAnalysis(analysisData);
         } else {
-          console.log('Step 10: No concentrationAnalysis found in localStorage');
+          if (typeof window !== 'undefined') {
+            console.log('Step 10: No concentrationAnalysis found in localStorage');
+          }
         }
         
-        console.log('=== END PROGRESS PAGE DEBUGGING ===');
+        if (typeof window !== 'undefined') {
+          console.log('=== END PROGRESS PAGE DEBUGGING ===');
+        }
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -151,46 +194,55 @@ export default function ProgressPage() {
 
   const { completedCourses, selectedCurriculum, selectedConcentration, freeElectives } = completedData;
 
-  console.log('Progress Page - Current state:', {
-    selectedCurriculum,
-    selectedConcentration,
-    completedCoursesCount: Object.keys(completedCourses).length,
-    freeElectivesCount: freeElectives.length,
-    plannedCoursesCount: plannedCourses.length
-  });
+  // Only log during client-side execution
+  if (typeof window !== 'undefined') {
+    console.log('Progress Page - Current state:', {
+      selectedCurriculum,
+      selectedConcentration,
+      completedCoursesCount: Object.keys(completedCourses).length,
+      freeElectivesCount: freeElectives.length,
+      plannedCoursesCount: plannedCourses.length
+    });
+  }
 
   // Use real curriculum data if available, otherwise fall back to mock data
   const curriculumCourses: { [key: string]: { [category: string]: { code: string; title: string; credits: number }[] } } = {};
   
-  console.log('🔍 DEBUG: Processing curriculum data:', {
-    curriculumData,
-    hasCurriculumData: !!curriculumData,
-    hasCurriculumCourses: !!curriculumData?.curriculumCourses,
-    curriculumCoursesLength: curriculumData?.curriculumCourses?.length,
-    selectedCurriculum,
-    firstCourse: curriculumData?.curriculumCourses?.[0],
-    sampleCourseStructure: {
-      course: curriculumData?.curriculumCourses?.[0]?.course,
-      departmentCourseType: curriculumData?.curriculumCourses?.[0]?.departmentCourseType,
-      nestedTypes: curriculumData?.curriculumCourses?.[0]?.course?.departmentCourseTypes
-    }
-  });
+  if (typeof window !== 'undefined') {
+    console.log('🔍 DEBUG: Processing curriculum data:', {
+      curriculumData,
+      hasCurriculumData: !!curriculumData,
+      hasCurriculumCourses: !!curriculumData?.curriculumCourses,
+      curriculumCoursesLength: curriculumData?.curriculumCourses?.length,
+      selectedCurriculum,
+      firstCourse: curriculumData?.curriculumCourses?.[0],
+      sampleCourseStructure: {
+        course: curriculumData?.curriculumCourses?.[0]?.course,
+        departmentCourseType: curriculumData?.curriculumCourses?.[0]?.departmentCourseType,
+        nestedTypes: curriculumData?.curriculumCourses?.[0]?.course?.departmentCourseTypes
+      }
+    });
+  }
   
   if (curriculumData && curriculumData.curriculumCourses) {
-    console.log('🔍 DEBUG: Found curriculum courses, processing...');
+    if (typeof window !== 'undefined') {
+      console.log('🔍 DEBUG: Found curriculum courses, processing...');
+    }
     // Transform real curriculum data into the format we need
     const coursesByCategory: { [category: string]: { code: string; title: string; credits: number }[] } = {};
     
     curriculumData.curriculumCourses.forEach((course: any, index: number) => {
-      console.log(`🔍 DEBUG: Processing course ${index}:`, {
-        fullCourse: course,
-        courseObj: course.course,
-        departmentCourseTypes: course.course?.departmentCourseTypes,
-        directDepartmentCourseType: course.departmentCourseType,
-        hasDirectType: !!course.departmentCourseType,
-        hasNestedTypes: !!course.course?.departmentCourseTypes,
-        nestedTypesLength: course.course?.departmentCourseTypes?.length || 0
-      });
+      if (typeof window !== 'undefined') {
+        console.log(`🔍 DEBUG: Processing course ${index}:`, {
+          fullCourse: course,
+          courseObj: course.course,
+          departmentCourseTypes: course.course?.departmentCourseTypes,
+          directDepartmentCourseType: course.departmentCourseType,
+          hasDirectType: !!course.departmentCourseType,
+          hasNestedTypes: !!course.course?.departmentCourseTypes,
+          nestedTypesLength: course.course?.departmentCourseTypes?.length || 0
+        });
+      }
       
       // Try multiple ways to get the category
       let category = 'Other';
@@ -198,16 +250,22 @@ export default function ProgressPage() {
       // Method 1: Direct departmentCourseType
       if (course.departmentCourseType?.name) {
         category = course.departmentCourseType.name;
-        console.log(`🔍 Method 1 - Direct type: ${category}`);
+        if (typeof window !== 'undefined') {
+          console.log(`🔍 Method 1 - Direct type: ${category}`);
+        }
       }
       // Method 2: From nested departmentCourseTypes array  
       else if (course.course?.departmentCourseTypes?.length > 0) {
         const firstType = course.course.departmentCourseTypes[0];
         category = firstType.courseType?.name || firstType.name || 'Other';
-        console.log(`🔍 Method 2 - Nested type: ${category}`, firstType);
+        if (typeof window !== 'undefined') {
+          console.log(`🔍 Method 2 - Nested type: ${category}`, firstType);
+        }
       }
       
-      console.log(`🔍 Final category for ${course.course.code}: ${category}`);
+      if (typeof window !== 'undefined') {
+        console.log(`🔍 Final category for ${course.course.code}: ${category}`);
+      }
       
       if (!coursesByCategory[category]) {
         coursesByCategory[category] = [];
@@ -219,10 +277,14 @@ export default function ProgressPage() {
       });
     });
     
-    console.log('🔍 DEBUG: Built coursesByCategory:', coursesByCategory);
+    if (typeof window !== 'undefined') {
+      console.log('🔍 DEBUG: Built coursesByCategory:', coursesByCategory);
+    }
     curriculumCourses[selectedCurriculum] = coursesByCategory;
   } else {
-    console.log('🔍 DEBUG: No curriculum data found, using mock data');
+    if (typeof window !== 'undefined') {
+      console.log('🔍 DEBUG: No curriculum data found, using mock data');
+    }
     // Fall back to mock data for development
     curriculumCourses.bscs2022 = {
       "General Education": [
@@ -278,12 +340,16 @@ export default function ProgressPage() {
   // Gather all courses for the selected curriculum (and concentration for Major)
   let allCoursesByCategory: { [category: string]: { code: string; title: string; credits: number }[] } = {};
   
-  console.log('Building course categories for curriculum:', selectedCurriculum);
-  console.log('Available curricula in curriculumCourses:', Object.keys(curriculumCourses));
+  if (typeof window !== 'undefined') {
+    console.log('Building course categories for curriculum:', selectedCurriculum);
+    console.log('Available curricula in curriculumCourses:', Object.keys(curriculumCourses));
+  }
   
   if (selectedCurriculum && curriculumCourses[selectedCurriculum]) {
     allCoursesByCategory = { ...curriculumCourses[selectedCurriculum] };
-    console.log('Loaded courses for curriculum:', selectedCurriculum, allCoursesByCategory);
+    if (typeof window !== 'undefined') {
+      console.log('Loaded courses for curriculum:', selectedCurriculum, allCoursesByCategory);
+    }
     
     // Handle concentration-specific Major courses for bscs2022
     if (selectedCurriculum === "bscs2022") {
@@ -306,7 +372,9 @@ export default function ProgressPage() {
       ),
     ];
   } else {
-    console.warn('No curriculum data found for:', selectedCurriculum);
+    if (typeof window !== 'undefined') {
+      console.warn('No curriculum data found for:', selectedCurriculum);
+    }
     // Create empty categories to avoid errors
     categoryOrder.forEach(category => {
       allCoursesByCategory[category] = [];
