@@ -154,13 +154,7 @@ export default function DepartmentManagement() {
             Manage departments and their faculty associations across the entire system
           </p>
         </div>
-        <Button 
-          onClick={() => setShowCreateModal(true)}
-          className="bg-[#2ECC71] hover:bg-[#2ECC71]/90"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Department
-        </Button>
+  
       </div>
 
       {/* Departments List */}
@@ -282,23 +276,7 @@ export default function DepartmentManagement() {
                   ))}
                 </select>
               </div>
-              <div className="flex gap-2">
-                <Button type="submit" className="flex-1 bg-[#2ECC71] hover:bg-[#2ECC71]/90">
-                  {editingDepartment ? 'Update' : 'Create'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setEditingDepartment(null);
-                    setFormData({ name: '', code: '', facultyId: '' });
-                  }}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-              </div>
+           
             </form>
           </div>
         </div>

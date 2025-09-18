@@ -60,12 +60,7 @@ const adminNavigationItems = [
     name: 'Department Management',
     href: '/admin/department',
     icon: Building,
-  },
-  {
-    name: 'Profile',
-    href: '/profile',
-    icon: User,
-  },
+  }
 ];
 
 // Navigation for chairperson users
@@ -79,12 +74,7 @@ const chairpersonNavigationItems = [
     name: 'Config',
     href: '/chairperson/info_config',
     icon: Settings,
-  },
-  {
-    name: 'Profile',
-    href: '/profile',
-    icon: User,
-  },
+  }
 ];
 
 export default function Sidebar() {

@@ -100,6 +100,10 @@ export default function AdminDashboard() {
     }
   }, [activeTab]);
 
+  // Calculate max values for scaling bars
+  const maxStudents = dashboardData?.monthlyEnrollment ? Math.max(...dashboardData.monthlyEnrollment.map(item => item.students), 1) : 1;
+  const maxCourses = dashboardData?.monthlyEnrollment ? Math.max(...dashboardData.monthlyEnrollment.map(item => item.courses), 1) : 1;
+
   return (
     <div className="w-full py-8">
       <div className="container mx-auto px-4">
@@ -251,7 +255,7 @@ export default function AdminDashboard() {
                                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                     <div 
                                       className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                                      style={{ width: `${(item.students / 1200) * 100}%` }}
+                                      style={{ width: `${(item.students / maxStudents) * 100}%` }}
                                     ></div>
                                   </div>
                                 </div>
@@ -264,7 +268,7 @@ export default function AdminDashboard() {
                                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                     <div 
                                       className="bg-green-600 h-2 rounded-full transition-all duration-300" 
-                                      style={{ width: `${(item.courses / 55) * 100}%` }}
+                                      style={{ width: `${(item.courses / maxCourses) * 100}%` }}
                                     ></div>
                                   </div>
                                 </div>

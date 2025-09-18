@@ -146,13 +146,7 @@ export default function RoleManagement() {
             Manage user roles and permissions across the entire system
           </p>
         </div>
-        <Button 
-          onClick={() => setShowCreateModal(true)}
-          className="bg-[#1F3A93] hover:bg-[#1F3A93]/90"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add User
-        </Button>
+       
       </div>
 
       {/* Users List */}
@@ -269,23 +263,7 @@ export default function RoleManagement() {
                   {/* <option value="STUDENT">Student</option> */}
                 </select>
               </div>
-              <div className="flex gap-2">
-                <Button type="submit" className="flex-1 bg-[#1F3A93] hover:bg-[#1F3A93]/90">
-                  {editingUser ? 'Update' : 'Create'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setEditingUser(null);
-                    setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '' });
-                  }}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-              </div>
+              
             </form>
           </div>
         </div>

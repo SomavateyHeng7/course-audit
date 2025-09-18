@@ -15,14 +15,11 @@ export default function AdminLayout({
       disableTransitionOnChange
     >
       <SidebarProvider>
-        <div className="h-screen flex">
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto">
-            <div className="p-8">
-              {children}
-            </div>
-          </main>
-        </div>
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-8">
+            {children}
+          </div>
+        </main>
       </SidebarProvider>
     </ThemeProvider>
   );
