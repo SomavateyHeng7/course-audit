@@ -1,0 +1,14 @@
+Combination Name,Course Code 1,Course Title 1,Course Code 2,Course Title 2,Reason,Description
+Duplicate Programming Foundations,CSX3001,Fundamentals of Computer Programming,CSX3002,Object-Oriented Concept and Programming,Content Overlap,These courses have overlapping programming concepts and cannot be taken together
+Statistics Conflict,CSX2003,Principles of Statistics,CSX2006,Mathematics and Statistics for Data Science,Prerequisite Issue,CSX2003 is a prerequisite for CSX2006 - cannot be taken simultaneously
+Project Timeline Conflict,CSX3010,Senior Project I,CSX3011,Senior Project II,Sequential Requirement,Senior Project II must be taken after Senior Project I completion
+Advanced Prerequisites,CSX4002,Machine Learning,CSX4003,Artificial Intelligence,Scheduling Conflict,Both courses require extensive mathematical background - recommended to take separately
+Network Fundamentals,CSX3005,Computer Network,CSX2009,Cloud Computing,Knowledge Dependency,Network fundamentals should be completed before advanced cloud concepts
+Database Management Overlap,ITX4003,Database Management Systems,CSX4001,Advanced Database Systems,Content Duplication,These courses cover similar advanced database topics
+Language Study Conflict,CSX3004,Programming Language,CSX4005,Web Development,Focus Conflict,Programming language theory conflicts with practical web development focus
+Security Specialization,CSX4004,Cybersecurity,ITX4004,Network Security,Specialization Overlap,Both courses cover similar security concepts - choose one specialization path
+Design Methodology Clash,ITX2005,Design Thinking,CSX4008,Human-Computer Interaction,Methodology Conflict,Different design approaches that may confuse fundamental concepts
+Research Overlap,ELE3002,Research Methodology,CSX3010,Senior Project I,Time Management,Research methodology should be completed before starting senior project
+English Proficiency Levels,ELE1001,Communicative English I,ELE2001,Advanced Academic English,Level Mismatch,Cannot skip intermediate level English courses
+Mathematics Foundation,GE1001,Mathematics I,CSX2008,Mathematics Foundation for Computer Science,Content Overlap,Similar mathematical foundations - choose appropriate level
+Project Management Conflict,ITX4001,Project Management,ITX4002,Systems Analysis and Design,Methodology Overlap,Both courses teach overlapping project methodologies
