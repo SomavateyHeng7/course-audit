@@ -346,16 +346,6 @@ export default function FacultyManagement() {
               </div>
               <div className="flex gap-2">
                 <Button
-                  type="submit"
-                  className="flex-1 bg-[#F39C12] hover:bg-[#F39C12]/90"
-                  disabled={editingFaculty ? updateLoading : createLoading}
-                >
-                  {editingFaculty 
-                    ? (updateLoading ? 'Updating...' : 'Update')
-                    : (createLoading ? 'Creating...' : 'Create')
-                  }
-                </Button>
-                <Button
                   type="button"
                   variant="outline"
                   onClick={() => {
@@ -366,6 +356,16 @@ export default function FacultyManagement() {
                   className="flex-1"
                 >
                   Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 bg-[#F39C12] hover:bg-[#F39C12]/90"
+                  disabled={editingFaculty ? updateLoading : createLoading}
+                >
+                  {editingFaculty 
+                    ? (updateLoading ? 'Updating...' : 'Update')
+                    : (createLoading ? 'Creating...' : 'Create')
+                  }
                 </Button>
               </div>
             </form>

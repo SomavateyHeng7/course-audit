@@ -390,15 +390,6 @@ export default function DepartmentManagement() {
                 </select>
               </div>
               <div className="flex gap-2">
-                <Button 
-                  type="submit" 
-                  className="flex-1 bg-[#2ECC71] hover:bg-[#2ECC71]/90"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting 
-                    ? (editingDepartment ? "Updating..." : "Creating...") 
-                    : (editingDepartment ? "Update" : "Create")}
-                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -410,6 +401,15 @@ export default function DepartmentManagement() {
                   className="flex-1"
                 >
                   Cancel
+                </Button>
+                 <Button 
+                  type="submit" 
+                  className="flex-1 bg-[#2ECC71] hover:bg-[#2ECC71]/90"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting 
+                    ? (editingDepartment ? "Updating..." : "Creating...") 
+                    : (editingDepartment ? "Update" : "Create")}
                 </Button>
               </div>
             </form>

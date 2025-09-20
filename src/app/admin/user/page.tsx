@@ -503,12 +503,6 @@ export default function RoleManagement() {
                 </select>
               </div>
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1 bg-[#1F3A93] hover:bg-[#1F3A93]/90" disabled={createLoading}>
-                  {editingUser ? (updateLoading ? 'Updating...' : 'Update') : (createLoading ? 'Creating...' : 'Create')}
-                </Button>
-                {createSuccess && (
-                  <div className="w-full text-green-600 text-center text-sm mt-2">{createSuccess}</div>
-                )}
                 <Button
                   type="button"
                   variant="outline"
@@ -521,6 +515,12 @@ export default function RoleManagement() {
                 >
                   Cancel
                 </Button>
+                <Button type="submit" className="flex-1 bg-[#1F3A93] hover:bg-[#1F3A93]/90" disabled={createLoading}>
+                  {editingUser ? (updateLoading ? 'Updating...' : 'Update') : (createLoading ? 'Creating...' : 'Create')}
+                </Button>
+                {createSuccess && (
+                  <div className="w-full text-green-600 text-center text-sm mt-2">{createSuccess}</div>
+                )}
               </div>
             </form>
           </div>

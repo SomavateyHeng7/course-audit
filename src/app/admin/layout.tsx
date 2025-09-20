@@ -1,6 +1,5 @@
 import { SidebarProvider } from '@/contexts/SidebarContext';
 import { ThemeProvider } from '@/components/theme-provider';
-import Sidebar from '@/components/layout/Sidebar';
 
 export default function AdminLayout({
   children,
@@ -8,19 +7,8 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="dark"
-      enableSystem={false}
-      disableTransitionOnChange
-    >
-      <SidebarProvider>
-        <main className="flex-1 overflow-y-auto">
-          <div className="p-8">
-            {children}
-          </div>
-        </main>
-      </SidebarProvider>
-    </ThemeProvider>
+    <>
+      {children}
+    </>
   );
 } 
