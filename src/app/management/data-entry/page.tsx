@@ -77,7 +77,7 @@ const statusOptions: { value: 'not_completed' | 'completed' | 'failed' | 'withdr
 
 // Add a helper for status color classes - simplified
 const statusColorClasses: Record<'not_completed' | 'completed' | 'failed' | 'withdrawn', string> = {
-  not_completed: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
+  not_completed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
   completed: 'bg-green-200 text-green-800 dark:bg-green-700 dark:text-green-200',
   failed: 'bg-red-200 text-red-800 dark:bg-red-700 dark:text-red-200',
   withdrawn: 'bg-yellow-200 text-yellow-800 dark:bg-yellow-600 dark:text-yellow-100',
@@ -215,18 +215,25 @@ export default function DataEntryPage() {
   // Save data to localStorage whenever context changes
   useEffect(() => {
     try {
+      // Get the actual department ID from curriculum data
+      const selectedCurriculumData = curricula.find(c => c.id === selectedCurriculum);
+      const actualDeptId = selectedCurriculumData?.department?.id || selectedDepartment;
+      
       const dataToSave = {
         completedCourses,
         selectedDepartment,
         selectedCurriculum,
         selectedConcentration,
-        freeElectives
+        freeElectives,
+        actualDepartmentId: actualDeptId // Add the real department ID
       };
       localStorage.setItem('studentAuditData', JSON.stringify(dataToSave));
+      
+      console.log('🔍 DEBUG: Saving to localStorage with actualDepartmentId:', actualDeptId);
     } catch (error) {
       console.error('Error saving to localStorage:', error);
     }
-  }, [completedCourses, selectedDepartment, selectedCurriculum, selectedConcentration, freeElectives]);
+  }, [completedCourses, selectedDepartment, selectedCurriculum, selectedConcentration, freeElectives, curricula]);
 
   // Computed options based on curricula data and hardcoded departments
   const curriculumOptions: { [key: string]: { value: string; label: string }[] } = {
@@ -577,10 +584,6 @@ export default function DataEntryPage() {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-sm text-gray-500 mt-1">
-            <strong>Note:</strong> Concentration options are currently mock data. Full concentration and blacklist features 
-            are planned for future implementation. Currently focusing on constraints, elective rules, and course categories with grades.
-          </p>
             </div>
             </div>
 
@@ -992,9 +995,10 @@ export default function DataEntryPage() {
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-4 mt-4">
+          <div className="flex gap-3 mt-6 flex-wrap">
             <Button
-              className="bg-primary text-primary-foreground hover:bg-primary/90" variant="default"
+              variant="default"
+              className="bg-purple-600 hover:bg-purple-600/90 text-white min-w-[180px] shadow-sm" 
               onClick={() => {
                 // Gather all course data for export
                 const rows: any[] = [];
@@ -1041,11 +1045,15 @@ export default function DataEntryPage() {
                 XLSX.writeFile(wb, 'course-data.xlsx');
               }}
             >
-              <svg className="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
               Download as Excel
             </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white" variant="default" onClick={() => router.push('/management/progress')}>
-              <BarChart2 className="w-5 h-5 mr-2 inline-block" />
+            <Button 
+              variant="default"
+              className="bg-sky-500 hover:bg-sky-500/90 text-white min-w-[180px] shadow-sm"
+              onClick={() => router.push('/management/progress')}
+            >
+              <BarChart2 className="w-4 h-4 mr-2" />
               Show Progress
             </Button>
           </div>
@@ -1053,11 +1061,11 @@ export default function DataEntryPage() {
       )}
       
       {/* Course Planning Button at Bottom */}
-      <div className="mt-8 border-t pt-6">
+      <div className="mt-8 border-t border-border pt-8">
         <div className="flex justify-center">
           <Button 
             onClick={handleCoursePlanning}
-            className="flex items-center gap-2 px-8 py-3 text-lg"
+            className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 text-primary-foreground flex items-center gap-2 px-8 py-3 text-lg shadow-md transform transition-all duration-200 hover:scale-[1.01] border-0"
             disabled={!selectedCurriculum || !selectedDepartment}
             size="lg"
           >
@@ -1213,18 +1221,18 @@ function StatusDropdown({ code, status, setStatus }: { code: string; status: 'no
     <div className="relative" ref={ref}>
       <button
         type="button"
-        className={`flex items-center gap-2 px-3 py-1 border border-gray-400 rounded text-sm font-medium focus:outline-none hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${statusColorClasses[status]}`}
+        className={`flex items-center gap-2 px-3 py-1 border border-border rounded-md text-sm font-medium focus:outline-none hover:opacity-80 transition-all duration-200 ${statusColorClasses[status]}`}
         onClick={() => setOpen(v => !v)}
       >
         {statusLabels[status]}
         <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
       </button>
       {open && (
-        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded shadow-lg">
+        <div className="absolute z-10 mt-1 w-48 bg-background border border-border rounded-md shadow-lg">
           {statusOptions.map((opt: { value: 'not_completed' | 'completed' | 'failed' | 'withdrawn'; label: string }) => (
             <button
               key={opt.value}
-              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 ${status === opt.value ? `font-bold ${statusColorClasses[opt.value]}` : ''}`}
+              className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors ${status === opt.value ? `font-bold ${statusColorClasses[opt.value]}` : 'text-foreground'}`}
               onClick={() => { setStatus(opt.value); setOpen(false); }}
               type="button"
             >

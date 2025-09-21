@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Upload, FileText, AlertCircle, CheckCircle, Search } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle, Search, Lightbulb } from 'lucide-react';
 import { 
   parseTranscriptCSV, 
   parseExcelFile, 
@@ -59,6 +59,70 @@ interface CategorizedCourses {
   }[];
 }
 
+// Tips Carousel Component
+function TipsCarousel() {
+  const [currentTip, setCurrentTip] = useState(0);
+  
+  const tips = [
+    {
+      icon: <Lightbulb className="w-4 h-4" />,
+      title: "Data Entry Tips",
+      content: "Upload your transcript CSV/Excel file to automatically import completed courses. Review and categorize unmatched courses before proceeding.",
+      color: "bg-blue-50 border-blue-200 text-blue-700"
+    },
+    {
+      icon: <CheckCircle className="w-4 h-4" />,
+      title: "Course Planning",
+      content: "Use the Course Planning page to select future courses and plan your academic path. View concentration progress and requirements.",
+      color: "bg-green-50 border-green-200 text-green-700"
+    },
+    {
+      icon: <Search className="w-4 h-4" />,
+      title: "Progress Tracking",
+      content: "Monitor your degree progress with detailed breakdowns by category. Track completed, current, and planned courses.",
+      color: "bg-purple-50 border-purple-200 text-purple-700"
+    },
+    {
+      icon: <FileText className="w-4 h-4" />,
+      title: "Export Features",
+      content: "Download your course plan as Excel to share with advisors or save for records. All data syncs across pages automatically.",
+      color: "bg-amber-50 border-amber-200 text-amber-700"
+    }
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTip((prev) => (prev + 1) % tips.length);
+    }, 4000); // Change tip every 4 seconds
+
+    return () => clearInterval(interval);
+  }, [tips.length]);
+
+  const currentTipData = tips[currentTip];
+
+  return (
+    <div className={`${currentTipData.color} border rounded-md p-3 mt-2 transition-all duration-500`}>
+      <div className="flex items-start gap-2">
+        {currentTipData.icon}
+        <div className="flex-1">
+          <p className="text-xs font-medium">{currentTipData.title}</p>
+          <p className="text-xs mt-1">{currentTipData.content}</p>
+        </div>
+        <div className="flex gap-1">
+          {tips.map((_, index) => (
+            <div
+              key={index}
+              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                index === currentTip ? 'bg-current' : 'bg-current opacity-30'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StudentTranscriptImport({ 
   curriculumId, 
   departmentId, 
@@ -68,6 +132,7 @@ export default function StudentTranscriptImport({
   const [importResult, setImportResult] = useState<TranscriptParseResult | null>(null);
   const [importStatus, setImportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [importError, setImportError] = useState<string>('');
+  const [isApplying, setIsApplying] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{
     categorizedCourses: CategorizedCourses;
     matchedCount: number;
@@ -396,6 +461,7 @@ export default function StudentTranscriptImport({
   const applyImportedCourses = async () => {
     if (!analysisResult) return;
 
+    setIsApplying(true);
     try {
       // Fetch elective rules and curriculum structure
       const [electiveRules, curriculumCourses] = await Promise.all([
@@ -423,6 +489,8 @@ export default function StudentTranscriptImport({
     } catch (error) {
       console.error('Error applying imported courses:', error);
       onError?.('Failed to apply imported courses');
+    } finally {
+      setIsApplying(false);
     }
   };
 
@@ -449,18 +517,9 @@ export default function StudentTranscriptImport({
           <p className="text-xs text-muted-foreground">
             Supported formats: CSV (transcript format), Excel (.xlsx, .xls)
           </p>
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-2">
-            <p className="text-xs text-blue-700">
-              <strong>Current Focus:</strong> This tool analyzes constraints, elective rules, and course categories with grades. 
-              Concentration-specific and blacklist features will be added in future updates.
-            </p>
-          </div>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mt-2">
-            <p className="text-xs text-yellow-700">
-              <strong>Known Issue:</strong> Parser currently reads only the first ~9 courses. 
-              This may be due to course category titles interrupting the parsing flow between course groups.
-            </p>
-          </div>
+          
+          {/* Tips and Tricks Carousel */}
+          <TipsCarousel />
         </div>
 
         {/* File Upload */}
@@ -574,11 +633,15 @@ export default function StudentTranscriptImport({
             )}
 
             <div className="flex gap-3">
-              <Button onClick={applyImportedCourses} size="sm">
+              <Button 
+                onClick={applyImportedCourses} 
+                size="sm" 
+                disabled={isApplying}
+              >
                 <Search className="w-4 h-4 mr-1" />
-                Apply Categorized Courses
+                {isApplying ? 'Applying...' : 'Apply Categorized Courses'}
               </Button>
-              <Button variant="outline" onClick={clearImport} size="sm">
+              <Button variant="outline" onClick={clearImport} size="sm" disabled={isApplying}>
                 Cancel
               </Button>
             </div>
