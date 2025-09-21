@@ -97,15 +97,21 @@ export default function ProgressPage() {
           console.log('Step 2: Raw studentAuditData:', savedCompletedData);
         }
         
+        let parsedData: CompletedCourseData | null = null;
+        
         if (savedCompletedData) {
-          const parsedData = JSON.parse(savedCompletedData);
+          parsedData = JSON.parse(savedCompletedData);
           if (typeof window !== 'undefined') {
             console.log('Step 3: Parsed studentAuditData:', parsedData);
           }
-          setCompletedData(parsedData);
+          
+          // Only set data if parsedData is not null
+          if (parsedData) {
+            setCompletedData(parsedData);
+          }
           
           // Fetch curriculum data if we have a curriculum ID
-          if (parsedData.selectedCurriculum) {
+          if (parsedData && parsedData.selectedCurriculum) {
             if (typeof window !== 'undefined') {
               console.log('Step 4: Fetching curriculum for ID:', parsedData.selectedCurriculum);
             }
@@ -115,7 +121,7 @@ export default function ProgressPage() {
               if (typeof window !== 'undefined') {
                 console.log('Step 5: API response:', data);
               }
-              const curriculum = data.curricula?.find((c: any) => c.id === parsedData.selectedCurriculum);
+              const curriculum = data.curricula?.find((c: any) => c.id === parsedData!.selectedCurriculum);
               if (curriculum) {
                 if (typeof window !== 'undefined') {
                   console.log('Step 6: Found curriculum data:', curriculum);
@@ -123,7 +129,7 @@ export default function ProgressPage() {
                 setCurriculumData(curriculum);
               } else {
                 if (typeof window !== 'undefined') {
-                  console.log('Step 6: No curriculum found with ID:', parsedData.selectedCurriculum);
+                  console.log('Step 6: No curriculum found with ID:', parsedData!.selectedCurriculum);
                   console.log('Available curricula:', data.curricula?.map((c: any) => ({ id: c.id, name: c.name })));
                 }
               }
@@ -182,6 +188,11 @@ export default function ProgressPage() {
         if (typeof window !== 'undefined') {
           console.log('=== END PROGRESS PAGE DEBUGGING ===');
         }
+        
+        // If no concentration analysis found, try to generate it
+        if (!savedConcentrationAnalysis && parsedData && parsedData.selectedCurriculum) {
+          await generateConcentrationAnalysis(parsedData);
+        }
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -191,6 +202,75 @@ export default function ProgressPage() {
 
     loadData();
   }, []);
+
+  // Generate concentration analysis if missing
+  const generateConcentrationAnalysis = async (data: CompletedCourseData) => {
+    try {
+      if (typeof window !== 'undefined') {
+        console.log('🔍 DEBUG: Generating concentration analysis...');
+      }
+      
+      // Find the department ID from curriculum data
+      const response = await fetch('/api/public-curricula');
+      const curriculaData = await response.json();
+      const currentCurriculum = curriculaData.curricula?.find((c: any) => c.id === data.selectedCurriculum);
+      
+      if (!currentCurriculum?.department?.id) {
+        if (typeof window !== 'undefined') {
+          console.log('🔍 DEBUG: No department ID found for concentration analysis');
+        }
+        return;
+      }
+
+      // Fetch concentrations
+      const concResponse = await fetch(`/api/public-concentrations?curriculumId=${data.selectedCurriculum}&departmentId=${currentCurriculum.department.id}`);
+      const concData = await concResponse.json();
+      
+      if (concResponse.ok && concData.concentrations) {
+        const concentrations = concData.concentrations;
+        const completedCoursesCodes = Object.keys(data.completedCourses).filter(
+          code => data.completedCourses[code]?.status === 'completed'
+        );
+        const plannedCoursesData = JSON.parse(localStorage.getItem('coursePlan') || '{}');
+        const plannedCoursesCodes = plannedCoursesData.plannedCourses?.map((c: any) => c.code) || [];
+
+        const analysis = concentrations.map((concentration: any) => {
+          const concentrationCourseCodes = concentration.courses.map((c: any) => c.code);
+          const completedInConcentration = completedCoursesCodes.filter((code: string) => 
+            concentrationCourseCodes.includes(code)
+          );
+          const plannedInConcentration = plannedCoursesCodes.filter((code: string) => 
+            concentrationCourseCodes.includes(code)
+          );
+          
+          const totalProgress = completedInConcentration.length + plannedInConcentration.length;
+          const progress = (totalProgress / concentration.requiredCourses) * 100;
+          const isEligible = totalProgress >= concentration.requiredCourses;
+          const remainingCourses = Math.max(0, concentration.requiredCourses - totalProgress);
+
+          return {
+            concentration,
+            completedCourses: completedInConcentration,
+            plannedCourses: plannedInConcentration,
+            progress: Math.min(100, progress),
+            isEligible,
+            remainingCourses
+          };
+        });
+
+        setConcentrationAnalysis(analysis);
+        localStorage.setItem('concentrationAnalysis', JSON.stringify(analysis));
+        
+        if (typeof window !== 'undefined') {
+          console.log('🔍 DEBUG: Generated concentration analysis:', analysis);
+        }
+      }
+    } catch (error) {
+      if (typeof window !== 'undefined') {
+        console.error('Error generating concentration analysis:', error);
+      }
+    }
+  };
 
   const { completedCourses, selectedCurriculum, selectedConcentration, freeElectives } = completedData;
 

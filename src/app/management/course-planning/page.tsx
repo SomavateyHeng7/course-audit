@@ -276,14 +276,32 @@ export default function CoursePlanningPage() {
   const fetchConcentrations = async () => {
     if (!dataEntryContext) return;
     
+    // Try to get the actual department ID from localStorage
+    const storedData = localStorage.getItem('studentAuditData');
+    let actualDepartmentId = dataEntryContext.selectedDepartment;
+    
+    console.log('🔍 DEBUG: Course Planning - localStorage raw data:', storedData);
+    
+    if (storedData) {
+      try {
+        const parsedData = JSON.parse(storedData);
+        console.log('🔍 DEBUG: Course Planning - parsed localStorage data:', parsedData);
+        actualDepartmentId = parsedData.actualDepartmentId || dataEntryContext.selectedDepartment;
+        console.log('🔍 DEBUG: Course Planning - actualDepartmentId from localStorage:', parsedData.actualDepartmentId);
+      } catch (error) {
+        console.error('Error parsing localStorage data:', error);
+      }
+    }
+    
     console.log('🔍 DEBUG: Course Planning - fetchConcentrations called with:', {
       selectedCurriculum: dataEntryContext.selectedCurriculum,
       selectedDepartment: dataEntryContext.selectedDepartment,
-      hasValidIds: !!(dataEntryContext.selectedCurriculum && dataEntryContext.selectedDepartment)
+      actualDepartmentId: actualDepartmentId,
+      hasValidIds: !!(dataEntryContext.selectedCurriculum && actualDepartmentId)
     });
     
     try {
-      const response = await fetch(`/api/public-concentrations?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${dataEntryContext.selectedDepartment}`);
+      const response = await fetch(`/api/public-concentrations?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${actualDepartmentId}`);
       console.log('🔍 DEBUG: Course Planning - API response status:', response.status);
       
       if (!response.ok) {
@@ -550,11 +568,24 @@ export default function CoursePlanningPage() {
 
   // Analyze concentration progress
   const analyzeConcentrations = (): ConcentrationProgress[] => {
-    if (concentrations.length === 0) return [];
+    if (concentrations.length === 0) {
+      console.log('🔍 DEBUG: No concentrations available for analysis');
+      return [];
+    }
 
-    const allCompletedCodes = Array.from(completedCourses);
+    // Get completed course codes from context (courses marked as 'completed')
+    const allCompletedCodes = Object.keys(dataEntryContext?.completedCourses || {}).filter(
+      code => dataEntryContext?.completedCourses[code]?.status === 'completed'
+    );
     const allPlannedCodes = plannedCourses.map(course => course.code);
     const allTakenOrPlannedCodes = [...allCompletedCodes, ...allPlannedCodes];
+
+    console.log('🔍 DEBUG: Analyzing concentrations with:', {
+      concentrationsCount: concentrations.length,
+      completedCodes: allCompletedCodes,
+      plannedCodes: allPlannedCodes,
+      totalConcentrations: concentrations.length
+    });
 
     return concentrations.map(concentration => {
       const concentrationCourseCodes = concentration.courses.map(c => c.code);
@@ -569,6 +600,17 @@ export default function CoursePlanningPage() {
       const progress = (totalProgress / concentration.requiredCourses) * 100;
       const isEligible = totalProgress >= concentration.requiredCourses;
       const remainingCourses = Math.max(0, concentration.requiredCourses - totalProgress);
+
+      console.log(`🔍 DEBUG: Concentration '${concentration.name}':`, {
+        requiredCourses: concentration.requiredCourses,
+        concentrationCourses: concentrationCourseCodes,
+        completedInConcentration,
+        plannedInConcentration,
+        totalProgress,
+        progress: Math.min(100, progress),
+        isEligible,
+        remainingCourses
+      });
 
       return {
         concentration,
@@ -595,7 +637,10 @@ export default function CoursePlanningPage() {
       localStorage.setItem('coursePlan', JSON.stringify(coursePlanData));
       
       // Analyze concentrations and show modal
+      console.log('🔍 DEBUG: Starting concentration analysis...');
       const analysis = analyzeConcentrations();
+      console.log('🔍 DEBUG: Analysis result:', analysis);
+      
       setConcentrationAnalysis(analysis);
       setShowConcentrationModal(true);
       
