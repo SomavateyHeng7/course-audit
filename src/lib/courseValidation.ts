@@ -275,7 +275,7 @@ async function generateRecommendations(
 
   try {
     // Fetch available courses for the department
-    const availableCourses: CourseInfo[] = await fetchCourses(departmentId);
+    const availableCourses: CourseInfo[] = await fetchCourses(departmentId, curriculum.id);
 
     // Recommend missing core courses
     for (const constraint of constraints) {
@@ -344,30 +344,47 @@ async function generateRecommendations(
 
 // Helper functions for API calls
 async function fetchCurriculum(curriculumId: string): Promise<CurriculumData> {
-  const response = await fetch(`/api/curricula/${curriculumId}`);
+  const response = await fetch(`/api/public-curricula/${curriculumId}`);
   if (!response.ok) throw new Error('Failed to fetch curriculum');
-  return response.json();
+  const data = await response.json();
+  return data.curriculum;
 }
 
 async function fetchConstraints(curriculumId: string): Promise<ConstraintData[]> {
-  const response = await fetch(`/api/curricula/${curriculumId}/constraints`);
+  const response = await fetch(`/api/public-curricula/${curriculumId}/constraints`);
   if (!response.ok) throw new Error('Failed to fetch constraints');
-  return response.json();
+  const data = await response.json();
+  return data.constraints;
 }
 
 async function fetchElectiveRules(curriculumId: string): Promise<ElectiveRuleData[]> {
-  const response = await fetch(`/api/curricula/${curriculumId}/elective-rules`);
+  const response = await fetch(`/api/public-curricula/${curriculumId}/elective-rules`);
   if (!response.ok) throw new Error('Failed to fetch elective rules');
-  return response.json();
+  const data = await response.json();
+  return data.electiveRules;
 }
 
 async function fetchBlacklists(curriculumId: string): Promise<BlacklistData[]> {
-  const response = await fetch(`/api/curricula/${curriculumId}/blacklists`);
+  const response = await fetch(`/api/public-curricula/${curriculumId}/blacklists`);
   if (!response.ok) throw new Error('Failed to fetch blacklists');
-  return response.json();
+  const data = await response.json();
+  return data.blacklists;
 }
 
-async function fetchCourses(departmentId: string): Promise<CourseInfo[]> {
+async function fetchCourses(departmentId: string, curriculumId?: string): Promise<CourseInfo[]> {
+  console.log('🔍 DEBUG: fetchCourses called with:', { departmentId, curriculumId });
+  
+  // If we have both IDs, use the available-courses endpoint which includes departmentCourseTypes
+  if (curriculumId && departmentId) {
+    const url = `/api/available-courses?curriculumId=${curriculumId}&departmentId=${departmentId}`;
+    console.log('🔍 DEBUG: Calling available-courses API with URL:', url);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to fetch available courses');
+    const data = await response.json();
+    return data.courses || [];
+  }
+  
+  // Fallback to the general courses endpoint (legacy support)
   const response = await fetch(`/api/courses?departmentId=${departmentId}`);
   if (!response.ok) throw new Error('Failed to fetch courses');
   return response.json();

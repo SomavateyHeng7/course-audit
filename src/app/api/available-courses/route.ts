@@ -33,9 +33,6 @@ export async function GET(request: NextRequest) {
                   }
                 },
                 departmentCourseTypes: {
-                  where: {
-                    departmentId: departmentId
-                  },
                   include: {
                     courseType: true
                   }
@@ -72,10 +69,41 @@ export async function GET(request: NextRequest) {
     const availableCourses = curriculum.curriculumCourses.map(currCourse => {
       const course = currCourse.course;
       
-      // Get course category from departmentCourseTypes
+      // Get course category from departmentCourseTypes with fallback logic
       let category = 'General';
+      
+      // Debug: Check all departmentCourseTypes for this course (without filter)
+      console.log(`🔍 Course ${course.code} departmentCourseTypes (filtered by departmentId=${departmentId}):`, course.departmentCourseTypes?.map(dct => ({
+        departmentId: dct.departmentId,
+        courseType: dct.courseType?.name
+      })));
+      
       if (course.departmentCourseTypes && course.departmentCourseTypes.length > 0) {
         category = course.departmentCourseTypes[0].courseType?.name || 'General';
+        console.log(`✅ Course ${course.code}: Found departmentCourseType - ${category}`);
+      } else {
+        console.log(`⚠️ Course ${course.code}: No departmentCourseTypes found, using fallback`);
+        // Fallback categorization for courses not in the curriculum catalog
+        const courseCode = course.code.toUpperCase();
+        if (courseCode.startsWith('CS') || courseCode.startsWith('CSX')) {
+          category = 'Major';
+        } else if (courseCode.startsWith('IT') || courseCode.startsWith('ITX')) {
+          category = 'Major';
+        } else if (courseCode.startsWith('GE') || courseCode.includes('GEN ED')) {
+          category = 'General Education';
+        } else if (courseCode.startsWith('ELE') || courseCode.includes('ELECTIVE')) {
+          category = 'Free Elective';
+        } else if (courseCode.startsWith('MAT') || courseCode.startsWith('MATH')) {
+          category = 'Foundation';
+        } else if (courseCode.startsWith('PHY') || courseCode.startsWith('PHYSICS')) {
+          category = 'Foundation';
+        } else if (courseCode.startsWith('ENG') || courseCode.includes('ENGLISH')) {
+          category = 'General Education';
+        } else {
+          // Keep as General if no pattern matches
+          category = 'General';
+        }
+        console.log(`🔄 Course ${course.code}: Applied fallback category - ${category}`);
       }
 
       // Extract prerequisites
