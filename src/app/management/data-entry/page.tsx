@@ -1052,7 +1052,7 @@ export default function DataEntryPage() {
               <DropdownMenuContent align="start" className="w-48">
                 <DropdownMenuItem
                   onClick={() => {
-                    // Gather course data for export - include completed and planning courses
+                    // Gather course data for export - exclude not_completed courses
                     const rows: any[] = [];
                     courseTypeOrder.forEach(category => {
                       const courses = curriculumCourses[selectedCurriculum]?.[category] || [];
@@ -1060,29 +1060,33 @@ export default function DataEntryPage() {
                         const courseStatus = completedCourses[course.code]?.status;
                         const courseGrade = completedCourses[course.code]?.grade || '';
                         
-                        // Include courses that are completed or in progress (planning status)
-                        if (courseStatus === 'planning' || courseStatus === 'completed') {
+                        // Include courses except not_completed status
+                        if (courseStatus && courseStatus !== 'not_completed') {
                           rows.push({
+                            Category: category,
                             Code: course.code,
                             Title: course.title,
+                            Credits: course.credits,
+                            Status: courseStatus,
                             Grade: courseGrade,
-                            'Currently Taking': courseStatus === 'planning' ? 'Yes' : '',
                           });
                         }
                       });
                     });
                     
-                    // Add assigned free electives that are completed or in progress
+                    // Add assigned free electives with all statuses
                     assignedFreeElectives.forEach(course => {
                       const courseStatus = completedCourses[course.courseCode]?.status;
                       const courseGrade = completedCourses[course.courseCode]?.grade || course.grade || '';
                       
-                      if (courseStatus === 'planning' || courseStatus === 'completed') {
+                      if (courseStatus && courseStatus !== 'not_completed') {
                         rows.push({
+                          Category: 'Free Elective',
                           Code: course.courseCode,
                           Title: course.courseName,
+                          Credits: course.credits,
+                          Status: courseStatus,
                           Grade: courseGrade,
-                          'Currently Taking': courseStatus === 'planning' ? 'Yes' : '',
                         });
                       }
                     });
@@ -1092,20 +1096,55 @@ export default function DataEntryPage() {
                       const courseStatus = completedCourses[course.code]?.status;
                       const courseGrade = completedCourses[course.code]?.grade || '';
                       
-                      if (courseStatus === 'planning' || courseStatus === 'completed') {
+                      if (courseStatus && courseStatus !== 'not_completed') {
                         rows.push({
+                          Category: 'Free Elective',
                           Code: course.code,
                           Title: course.title,
+                          Credits: course.credits,
+                          Status: courseStatus,
                           Grade: courseGrade,
-                          'Currently Taking': courseStatus === 'planning' ? 'Yes' : '',
                         });
                       }
                     });
                     
-                    const ws = XLSX.utils.json_to_sheet(rows);
+                    // Create curriculum transcript format for XLSX
+                    const worksheetData: any[][] = [];
+                    worksheetData.push(['course data']); // Title
+                    worksheetData.push([]); // Empty row
+                    
+                    // Group courses by category
+                    const groupedCourses: { [key: string]: any[] } = {};
+                    rows.forEach(row => {
+                      if (!groupedCourses[row.Category]) {
+                        groupedCourses[row.Category] = [];
+                      }
+                      groupedCourses[row.Category].push(row);
+                    });
+                    
+                    // Add each category section
+                    Object.entries(groupedCourses).forEach(([category, courses]) => {
+                      const totalCredits = courses.reduce((sum, course) => sum + course.Credits, 0);
+                      worksheetData.push([`${category} (${totalCredits} Credits)`]);
+                      
+                      courses.forEach(course => {
+                        const status = course.Status === 'completed' ? '' : course.Status;
+                        worksheetData.push([
+                          course.Title,
+                          course.Code,
+                          course.Credits,
+                          course.Grade,
+                          status
+                        ]);
+                      });
+                      
+                      worksheetData.push([]); // Empty row after each category
+                    });
+                    
+                    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
                     const wb = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb, ws, 'Courses');
-                    XLSX.writeFile(wb, 'course-data.xlsx');
+                    XLSX.utils.book_append_sheet(wb, ws, 'Transcript');
+                    XLSX.writeFile(wb, 'course data.xlsx');
                   }}
                   className="cursor-pointer"
                 >
@@ -1114,7 +1153,7 @@ export default function DataEntryPage() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
-                    // Gather course data for CSV export - include completed and planning courses
+                    // Gather course data for CSV export - exclude not_completed courses
                     const rows: any[] = [];
                     courseTypeOrder.forEach(category => {
                       const courses = curriculumCourses[selectedCurriculum]?.[category] || [];
@@ -1122,29 +1161,33 @@ export default function DataEntryPage() {
                         const courseStatus = completedCourses[course.code]?.status;
                         const courseGrade = completedCourses[course.code]?.grade || '';
                         
-                        // Include courses that are completed or in progress (planning status)
-                        if (courseStatus === 'planning' || courseStatus === 'completed') {
+                        // Include courses except not_completed status
+                        if (courseStatus && courseStatus !== 'not_completed') {
                           rows.push({
+                            Category: category,
                             Code: course.code,
                             Title: course.title,
+                            Credits: course.credits,
+                            Status: courseStatus,
                             Grade: courseGrade,
-                            'Currently Taking': courseStatus === 'planning' ? 'Yes' : '',
                           });
                         }
                       });
                     });
                     
-                    // Add assigned free electives that are completed or in progress
+                    // Add assigned free electives excluding not_completed
                     assignedFreeElectives.forEach(course => {
                       const courseStatus = completedCourses[course.courseCode]?.status;
                       const courseGrade = completedCourses[course.courseCode]?.grade || course.grade || '';
                       
-                      if (courseStatus === 'planning' || courseStatus === 'completed') {
+                      if (courseStatus && courseStatus !== 'not_completed') {
                         rows.push({
+                          Category: 'Free Elective',
                           Code: course.courseCode,
                           Title: course.courseName,
+                          Credits: course.credits,
+                          Status: courseStatus,
                           Grade: courseGrade,
-                          'Currently Taking': courseStatus === 'planning' ? 'Yes' : '',
                         });
                       }
                     });
@@ -1154,35 +1197,53 @@ export default function DataEntryPage() {
                       const courseStatus = completedCourses[course.code]?.status;
                       const courseGrade = completedCourses[course.code]?.grade || '';
                       
-                      if (courseStatus === 'planning' || courseStatus === 'completed') {
+                      if (courseStatus && courseStatus !== 'not_completed') {
                         rows.push({
+                          Category: 'Free Elective',
                           Code: course.code,
                           Title: course.title,
+                          Credits: course.credits,
+                          Status: courseStatus,
                           Grade: courseGrade,
-                          'Currently Taking': courseStatus === 'planning' ? 'Yes' : '',
                         });
                       }
                     });
 
-                    // Convert to CSV format
-                    const csvContent = [
-                      // Header
-                      ['Code', 'Title', 'Grade', 'Currently Taking'].join(','),
-                      // Data rows
-                      ...rows.map(row => [
-                        `"${row.Code}"`,
-                        `"${row.Title}"`,
-                        `"${row.Grade}"`,
-                        `"${row['Currently Taking']}"`
-                      ].join(','))
-                    ].join('\n');
+                    // Convert to curriculum transcript CSV format
+                    const csvLines: string[] = [];
+                    csvLines.push('course data'); // Title
+                    csvLines.push(''); // Empty line
+                    
+                    // Group courses by category
+                    const groupedCourses: { [key: string]: any[] } = {};
+                    rows.forEach(row => {
+                      if (!groupedCourses[row.Category]) {
+                        groupedCourses[row.Category] = [];
+                      }
+                      groupedCourses[row.Category].push(row);
+                    });
+                    
+                    // Add each category section
+                    Object.entries(groupedCourses).forEach(([category, courses]) => {
+                      const totalCredits = courses.reduce((sum, course) => sum + course.Credits, 0);
+                      csvLines.push(`"${category} (${totalCredits} Credits)"`);
+                      
+                      courses.forEach(course => {
+                        const status = course.Status === 'completed' ? '' : course.Status;
+                        csvLines.push(`"${course.Title}","${course.Code}",${course.Credits},"${course.Grade}","${status}"`);
+                      });
+                      
+                      csvLines.push(''); // Empty line after each category
+                    });
+                    
+                    const csvContent = csvLines.join('\n');
 
                     // Create and download CSV file
                     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                     const link = document.createElement('a');
                     const url = URL.createObjectURL(blob);
                     link.setAttribute('href', url);
-                    link.setAttribute('download', 'course-data.csv');
+                    link.setAttribute('download', 'course data.csv');
                     link.style.visibility = 'hidden';
                     document.body.appendChild(link);
                     link.click();
