@@ -86,6 +86,7 @@ interface DataEntryContext {
   selectedConcentration: string;
   completedCourses: { [code: string]: { status: string; grade?: string } };
   freeElectives: { code: string; title: string; credits: number }[];
+  actualDepartmentId?: string;
 }
 
 export default function CoursePlanningPage() {
@@ -215,7 +216,9 @@ export default function CoursePlanningPage() {
     
     try {
       setLoading(true);
-      const response = await fetch(`/api/available-courses?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${dataEntryContext.selectedDepartment}`);
+      // Use actualDepartmentId if available, fall back to selectedDepartment
+      const departmentId = dataEntryContext.actualDepartmentId || dataEntryContext.selectedDepartment;
+      const response = await fetch(`/api/available-courses?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${departmentId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch available courses');
       }

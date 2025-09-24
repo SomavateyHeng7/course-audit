@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
                   }
                 },
                 departmentCourseTypes: {
+                  where: {
+                    departmentId: departmentId
+                  },
                   include: {
                     courseType: true
                   }
@@ -70,16 +73,9 @@ export async function GET(request: NextRequest) {
       const course = currCourse.course;
       
       // Get course category from departmentCourseTypes with fallback logic
-      let category = 'General';
-      
-      // Debug: Check all departmentCourseTypes for this course (without filter)
-      console.log(`🔍 Course ${course.code} departmentCourseTypes (filtered by departmentId=${departmentId}):`, course.departmentCourseTypes?.map(dct => ({
-        departmentId: dct.departmentId,
-        courseType: dct.courseType?.name
-      })));
-      
+      let category = 'Unassigned';
       if (course.departmentCourseTypes && course.departmentCourseTypes.length > 0) {
-        category = course.departmentCourseTypes[0].courseType?.name || 'General';
+        category = course.departmentCourseTypes[0].courseType?.name || 'Unassigned';
         console.log(`✅ Course ${course.code}: Found departmentCourseType - ${category}`);
       } else {
         console.log(`⚠️ Course ${course.code}: No departmentCourseTypes found, using fallback`);
@@ -100,8 +96,8 @@ export async function GET(request: NextRequest) {
         } else if (courseCode.startsWith('ENG') || courseCode.includes('ENGLISH')) {
           category = 'General Education';
         } else {
-          // Keep as General if no pattern matches
-          category = 'General';
+          // Default to Unassigned if no pattern matches
+          category = 'Unassigned';
         }
         console.log(`🔄 Course ${course.code}: Applied fallback category - ${category}`);
       }

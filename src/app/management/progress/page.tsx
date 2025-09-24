@@ -33,6 +33,7 @@ interface CompletedCourseData {
   selectedCurriculum: string;
   selectedConcentration: string;
   freeElectives: { code: string; title: string; credits: number }[];
+  actualDepartmentId?: string; // Real department ID from curriculum data
 }
 
 interface PlannedCourse {
@@ -449,16 +450,14 @@ export default function ProgressPage() {
         console.log('🔍 DEBUG: Student courses for validation:', studentCourses);
       }
       
-      // Get curriculum and department IDs from the actual selected curriculum
+      // Get curriculum and department IDs - use actualDepartmentId from data-entry page
       const curriculumId = selectedCurriculum;
-      const currentCurriculum = curriculaData.curricula?.find((c: any) => c.id === selectedCurriculum);
-      const departmentId = currentCurriculum?.department?.id || completedData.selectedDepartment || 'default-dept';
+      const departmentId = completedData.actualDepartmentId || completedData.selectedDepartment || 'default-dept';
       
       if (typeof window !== 'undefined') {
         console.log('🔍 DEBUG: Department ID resolution:', {
-          selectedCurriculum,
-          currentCurriculum: currentCurriculum?.id,
-          departmentName: currentCurriculum?.department?.name,
+          selectedCurriculum: curriculumId,
+          actualDepartmentId: completedData.actualDepartmentId,
           departmentId,
           fallbackDepartment: completedData.selectedDepartment
         });
@@ -802,7 +801,7 @@ export default function ProgressPage() {
     const courseStatus = completedCourses[courseCode];
     if (courseStatus.status === 'completed' && !coursesInCategories.has(courseCode)) {
       // Try to categorize based on course code pattern
-      let category = 'General';
+      let category = 'Unassigned';
       
       // Simple categorization logic based on course code patterns
       if (courseCode.startsWith('CSX') || courseCode.startsWith('CS')) {

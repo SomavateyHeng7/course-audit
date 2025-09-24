@@ -372,13 +372,9 @@ async function fetchBlacklists(curriculumId: string): Promise<BlacklistData[]> {
 }
 
 async function fetchCourses(departmentId: string, curriculumId?: string): Promise<CourseInfo[]> {
-  console.log('🔍 DEBUG: fetchCourses called with:', { departmentId, curriculumId });
-  
   // If we have both IDs, use the available-courses endpoint which includes departmentCourseTypes
   if (curriculumId && departmentId) {
-    const url = `/api/available-courses?curriculumId=${curriculumId}&departmentId=${departmentId}`;
-    console.log('🔍 DEBUG: Calling available-courses API with URL:', url);
-    const response = await fetch(url);
+    const response = await fetch(`/api/available-courses?curriculumId=${curriculumId}&departmentId=${departmentId}`);
     if (!response.ok) throw new Error('Failed to fetch available courses');
     const data = await response.json();
     return data.courses || [];

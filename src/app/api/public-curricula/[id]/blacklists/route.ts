@@ -4,10 +4,10 @@ import { prisma } from '@/lib/prisma';
 // GET /api/public-curricula/[id]/blacklists - Get curriculum blacklists (public/student access)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     // First verify curriculum exists and is active
     const curriculum = await prisma.curriculum.findUnique({
