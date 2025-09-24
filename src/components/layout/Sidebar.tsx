@@ -104,6 +104,18 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try {
+      // For anonymous users (no session), just clear storage and redirect
+      if (!session?.user) {
+        // Clear any local/session storage for anonymous users
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Redirect to landing page
+        window.location.href = '/';
+        return;
+      }
+      
+      // For authenticated users, use the full signOut process
       // Clear any local/session storage
       localStorage.clear();
       sessionStorage.clear();
@@ -275,13 +287,13 @@ export default function Sidebar() {
               );
             })}
           </div>
-        </nav>        {/* Logout Button */}        <div className="p-4 border-t mt-auto">
+        </nav>        {/* Logout/Clear Data Button */}        <div className="p-4 border-t mt-auto">
           {isCollapsed ? (
             <Button
               onClick={handleLogout}
               variant="ghost"
               className="w-full justify-center px-3 py-2 text-muted-foreground hover:bg-red-100/60 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300 transition-all duration-200"
-              title="Log Out"
+              title={session?.user ? "Log Out" : "Clear Data"}
             >
               <LogOut className="h-5 w-5 flex-shrink-0" />
             </Button>
@@ -295,7 +307,7 @@ export default function Sidebar() {
               <motion.span
                 initial={{ opacity: 1, x: 0 }}
               >
-                Log Out
+                {session?.user ? "Log Out" : "Clear Data"}
               </motion.span>
             </Button>          )}
         </div>
