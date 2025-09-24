@@ -4,7 +4,7 @@ import html2canvas from "html2canvas";
 import { useRef, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { curriculumBlacklistApi, type CurriculumBlacklistsResponse } from '@/services/curriculumBlacklistApi';
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { 
   validateStudentProgress, 
   calculateCurriculumProgress,
@@ -901,13 +901,13 @@ export default function ProgressPage() {
 
   return (
     <div className="container py-8">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">Academic Progress Overview</h2>
-        <div className="flex gap-2">
+      <div className="mb-4">
+        <div className="flex gap-2 mb-4">
           <button
-            className="border border-input bg-background text-foreground px-4 py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="border border-input bg-background text-foreground px-4 py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground transition text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             onClick={() => router.push('/management/course-planning')}
           >
+            <ArrowLeft size={16} />
             Back to Course Planner
           </button>
           <button
@@ -917,6 +917,7 @@ export default function ProgressPage() {
             Course Entry
           </button>
         </div>
+        <h2 className="text-xl font-bold">Academic Progress Overview</h2>
       </div>
 
       {/* Show loading state */}

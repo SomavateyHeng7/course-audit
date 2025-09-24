@@ -6,8 +6,14 @@ import { useState, createContext, useContext, useRef, useEffect } from 'react';
 
 import * as XLSX from 'xlsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2, Calendar } from 'lucide-react';
+import { BarChart2, Calendar, ChevronDown, ArrowLeft } from 'lucide-react';
 import { FaTrash } from 'react-icons/fa';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import StudentTranscriptImport from '@/components/student/StudentTranscriptImport';
 import UnmatchedCoursesSection, { UnmatchedCourse } from '@/components/student/UnmatchedCoursesSection';
 import FreeElectiveManager, { FreeElectiveCourse } from '@/components/student/FreeElectiveManager';
@@ -528,13 +534,12 @@ export default function DataEntryPage() {
 
   return (
     <div className="container py-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6">
+        <Button variant="outline" onClick={handleBackToManagement} className="mb-4">
+          <ArrowLeft size={16} />
+          Back to Management
+        </Button>
         <h1 className="text-3xl font-bold text-foreground mb-2">Manual Course Entry</h1>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={handleBackToManagement}>
-            Back to Management
-          </Button>
-        </div>
       </div>
 
       {/* Step 1: Select Faculty, Department, Curriculum, and Concentration */}
@@ -711,6 +716,14 @@ export default function DataEntryPage() {
                                     <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                                   </div>
                                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
+                                    <StatusDropdown
+                                      code={course.code}
+                                      status={completedCourses[course.code]?.status || 'not_completed'}
+                                      setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                                        ...prev,
+                                        [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
+                                      }))}
+                                    />
                                     {completedCourses[course.code]?.status === 'completed' && (
                                       <Select
                                         value={completedCourses[course.code]?.grade || ''}
@@ -732,14 +745,6 @@ export default function DataEntryPage() {
                                         </SelectContent>
                                       </Select>
                                     )}
-                                    <StatusDropdown
-                                      code={course.code}
-                                      status={completedCourses[course.code]?.status || 'not_completed'}
-                                      setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                        ...prev,
-                                        [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
-                                      }))}
-                                    />
                                   </div>
                                 </div>
                               ))
@@ -758,6 +763,14 @@ export default function DataEntryPage() {
                               <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                             </div>
                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
+                              <StatusDropdown
+                                code={course.code}
+                                status={completedCourses[course.code]?.status || 'not_completed'}
+                                setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                                  ...prev,
+                                  [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
+                                }))}
+                              />
                               {completedCourses[course.code]?.status === 'completed' && (
                                 <Select
                                   value={completedCourses[course.code]?.grade || ''}
@@ -779,14 +792,6 @@ export default function DataEntryPage() {
                                   </SelectContent>
                                 </Select>
                               )}
-                              <StatusDropdown
-                                code={course.code}
-                                status={completedCourses[course.code]?.status || 'not_completed'}
-                                setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                  ...prev,
-                                  [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
-                                }))}
-                              />
                             </div>
                           </div>
                         ))
@@ -819,6 +824,27 @@ export default function DataEntryPage() {
                                 [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
                               }))}
                             />
+                            {completedCourses[course.code]?.status === 'completed' && (
+                              <Select
+                                value={completedCourses[course.code]?.grade || ''}
+                                onValueChange={value => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                                  ...prev,
+                                  [course.code]: {
+                                    ...prev[course.code],
+                                    grade: value
+                                  }
+                                }))}
+                              >
+                                <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
+                                  <SelectValue placeholder="Grade" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {gradeOptions.map((g: string) => (
+                                    <SelectItem key={g} value={g}>{g}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
                           </div>
                         </div>
                       ))
@@ -844,6 +870,14 @@ export default function DataEntryPage() {
                           <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
+                          <StatusDropdown
+                            code={course.code}
+                            status={completedCourses[course.code]?.status || 'not_completed'}
+                            setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                              ...prev,
+                              [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
+                            }))}
+                          />
                           {completedCourses[course.code]?.status === 'completed' && (
                             <Select
                               value={completedCourses[course.code]?.grade || ''}
@@ -865,14 +899,6 @@ export default function DataEntryPage() {
                               </SelectContent>
                             </Select>
                           )}
-                          <StatusDropdown
-                            code={course.code}
-                            status={completedCourses[course.code]?.status || 'not_completed'}
-                            setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                              ...prev,
-                              [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
-                            }))}
-                          />
                         </div>
                       </div>
                     ))}
@@ -895,6 +921,14 @@ export default function DataEntryPage() {
                           <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
+                          <StatusDropdown
+                            code={course.code}
+                            status={completedCourses[course.code]?.status || 'not_completed'}
+                            setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                              ...prev,
+                              [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
+                            }))}
+                          />
                           {completedCourses[course.code]?.status === 'completed' && (
                             <Select
                               value={completedCourses[course.code]?.grade || ''}
@@ -916,14 +950,6 @@ export default function DataEntryPage() {
                               </SelectContent>
                             </Select>
                           )}
-                          <StatusDropdown
-                            code={course.code}
-                            status={completedCourses[course.code]?.status || 'not_completed'}
-                            setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                              ...prev,
-                              [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
-                            }))}
-                          />
                         </div>
                       </div>
                     ))
@@ -1007,58 +1033,156 @@ export default function DataEntryPage() {
 
           {/* Action Buttons */}
           <div className="flex gap-3 mt-6 flex-wrap">
-            <Button
-              variant="default"
-              className="bg-purple-600 hover:bg-purple-600/90 text-white min-w-[180px] shadow-sm" 
-              onClick={() => {
-                // Gather all course data for export
-                const rows: any[] = [];
-                courseTypeOrder.forEach(category => {
-                  const courses = curriculumCourses[selectedCurriculum]?.[category] || [];
-                  courses.forEach(course => {
-                    rows.push({
-                      Category: category,
-                      Code: course.code,
-                      Title: course.title,
-                      Credits: course.credits,
-                      Status: completedCourses[course.code]?.status || 'not_completed',
-                      Grade: completedCourses[course.code]?.grade || '',
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="default"
+                  className="bg-purple-600 hover:bg-purple-600/90 text-white min-w-[180px] shadow-sm" 
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+                  Download Data
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => {
+                    // Gather course data for export - only courses that are in progress (not_completed)
+                    const rows: any[] = [];
+                    courseTypeOrder.forEach(category => {
+                      const courses = curriculumCourses[selectedCurriculum]?.[category] || [];
+                      courses.forEach(course => {
+                        const courseStatus = completedCourses[course.code]?.status;
+                        const courseGrade = completedCourses[course.code]?.grade || '';
+                        
+                        // Only include courses that are in progress (not_completed status)
+                        if (courseStatus === 'not_completed') {
+                          rows.push({
+                            Code: course.code,
+                            Title: course.title,
+                            Grade: courseGrade,
+                            'Currently Taking': 'Yes',
+                          });
+                        }
+                      });
                     });
-                  });
-                });
-                
-                // Add assigned free electives
-                assignedFreeElectives.forEach(course => {
-                  rows.push({
-                    Category: 'Free Elective',
-                    Code: course.courseCode,
-                    Title: course.courseName,
-                    Credits: course.credits,
-                    Status: 'completed', // Assigned free electives are typically completed
-                    Grade: course.grade || '',
-                  });
-                });
-                
-                // Legacy free electives support (if any)
-                (Array.isArray(freeElectives) ? freeElectives : []).forEach((course: { code: string; title: string; credits: number }) => {
-                  rows.push({
-                    Category: 'Free Elective',
-                    Code: course.code,
-                    Title: course.title,
-                    Credits: course.credits,
-                    Status: completedCourses[course.code]?.status || 'not_completed',
-                    Grade: completedCourses[course.code]?.grade || '',
-                  });
-                });
-                const ws = XLSX.utils.json_to_sheet(rows);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, 'Courses');
-                XLSX.writeFile(wb, 'course-data.xlsx');
-              }}
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
-              Download as Excel
-            </Button>
+                    
+                    // Add assigned free electives that are in progress
+                    assignedFreeElectives.forEach(course => {
+                      // Check if this free elective has not_completed status
+                      const courseStatus = completedCourses[course.courseCode]?.status;
+                      const courseGrade = completedCourses[course.courseCode]?.grade || course.grade || '';
+                      
+                      if (courseStatus === 'not_completed') {
+                        rows.push({
+                          Code: course.courseCode,
+                          Title: course.courseName,
+                          Grade: courseGrade,
+                          'Currently Taking': 'Yes',
+                        });
+                      }
+                    });
+                    
+                    // Legacy free electives support (if any)
+                    (Array.isArray(freeElectives) ? freeElectives : []).forEach((course: { code: string; title: string; credits: number }) => {
+                      const courseStatus = completedCourses[course.code]?.status;
+                      const courseGrade = completedCourses[course.code]?.grade || '';
+                      
+                      if (courseStatus === 'not_completed') {
+                        rows.push({
+                          Code: course.code,
+                          Title: course.title,
+                          Grade: courseGrade,
+                          'Currently Taking': 'Yes',
+                        });
+                      }
+                    });
+                    
+                    const ws = XLSX.utils.json_to_sheet(rows);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, 'Courses');
+                    XLSX.writeFile(wb, 'course-data.xlsx');
+                  }}
+                  className="cursor-pointer"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+                  Download as XLSX
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    // Gather all course data for CSV export
+                    const rows: any[] = [];
+                    courseTypeOrder.forEach(category => {
+                      const courses = curriculumCourses[selectedCurriculum]?.[category] || [];
+                      courses.forEach(course => {
+                        rows.push({
+                          Category: category,
+                          Code: course.code,
+                          Title: course.title,
+                          Credits: course.credits,
+                          Status: completedCourses[course.code]?.status || 'not_completed',
+                          Grade: completedCourses[course.code]?.grade || '',
+                        });
+                      });
+                    });
+                    
+                    // Add assigned free electives
+                    assignedFreeElectives.forEach(course => {
+                      rows.push({
+                        Category: 'Free Elective',
+                        Code: course.courseCode,
+                        Title: course.courseName,
+                        Credits: course.credits,
+                        Status: 'completed', // Assigned free electives are typically completed
+                        Grade: course.grade || '',
+                      });
+                    });
+                    
+                    // Legacy free electives support (if any)
+                    (Array.isArray(freeElectives) ? freeElectives : []).forEach((course: { code: string; title: string; credits: number }) => {
+                      rows.push({
+                        Category: 'Free Elective',
+                        Code: course.code,
+                        Title: course.title,
+                        Credits: course.credits,
+                        Status: completedCourses[course.code]?.status || 'not_completed',
+                        Grade: completedCourses[course.code]?.grade || '',
+                      });
+                    });
+
+                    // Convert to CSV format
+                    const csvContent = [
+                      // Header
+                      ['Category', 'Code', 'Title', 'Credits', 'Status', 'Grade'].join(','),
+                      // Data rows
+                      ...rows.map(row => [
+                        `"${row.Category}"`,
+                        `"${row.Code}"`,
+                        `"${row.Title}"`,
+                        row.Credits,
+                        `"${row.Status}"`,
+                        `"${row.Grade}"`
+                      ].join(','))
+                    ].join('\n');
+
+                    // Create and download CSV file
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', 'course-data.csv');
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  className="cursor-pointer"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+                  Download as CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button 
               variant="default"
               className="bg-sky-500 hover:bg-sky-500/90 text-white min-w-[180px] shadow-sm"
@@ -1171,6 +1295,14 @@ function FreeElectiveAddButton() {
                 <span className="text-sm text-muted-foreground">{course.credits} credits</span>
               </div>
               <div className="flex flex-row items-center gap-3 mt-2 sm:mt-0">
+                <StatusDropdown
+                  code={course.code}
+                  status={completedCourses[course.code]?.status || 'not_completed'}
+                  setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                    ...prev,
+                    [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
+                  }))}
+                />
                 {completedCourses[course.code]?.status === 'completed' && (
                   <Select
                     value={completedCourses[course.code]?.grade || ''}
@@ -1192,14 +1324,6 @@ function FreeElectiveAddButton() {
                     </SelectContent>
                   </Select>
                 )}
-                <StatusDropdown
-                  code={course.code}
-                  status={completedCourses[course.code]?.status || 'not_completed'}
-                  setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                    ...prev,
-                    [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
-                  }))}
-                />
                 <button
                   type="button"
                   className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"

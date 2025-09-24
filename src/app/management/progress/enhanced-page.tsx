@@ -217,21 +217,21 @@ export default function EnhancedProgressPage() {
 
   return (
     <div className="container py-6" ref={pdfRef}>
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6">
+        <div className="flex gap-3 mb-4">
+          <Button variant="outline" onClick={handleBackToDataEntry}>
+            Back to Data Entry
+          </Button>
+          <Button variant="outline" onClick={downloadPDF}>
+            <FileDown className="w-4 h-4 mr-2" />
+            Download PDF
+          </Button>
+        </div>
         <div>
           <h1 className="text-3xl font-bold text-foreground">Progress Report</h1>
           <p className="text-muted-foreground">
             {selectedCurriculum.toUpperCase()} - {selectedConcentration || 'No Concentration'}
           </p>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={downloadPDF}>
-            <FileDown className="w-4 h-4 mr-2" />
-            Download PDF
-          </Button>
-          <Button variant="outline" onClick={handleBackToDataEntry}>
-            Back to Data Entry
-          </Button>
         </div>
       </div>
 
