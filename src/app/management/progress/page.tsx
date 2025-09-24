@@ -23,7 +23,7 @@ const categoryOrder = [
 ];
 
 interface CourseStatus {
-  status: 'not_completed' | 'completed' | 'failed' | 'withdrawn';
+  status: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning';
   grade?: string;
 }
 
@@ -43,7 +43,7 @@ interface PlannedCourse {
   credits: number;
   semester: string;
   year: number;
-  status: 'planning' | 'will-take' | 'considering';
+  status: 'planning'; // Now only supports 'planning' status
 }
 
 interface ConcentrationProgress {
@@ -260,18 +260,29 @@ export default function ProgressPage() {
       
       if (concResponse.ok && concData.concentrations) {
         const concentrations = concData.concentrations;
+        // Get completed courses from data-entry
         const completedCoursesCodes = Object.keys(data.completedCourses).filter(
           code => data.completedCourses[code]?.status === 'completed'
         );
+        
+        // Get planning courses from data-entry (courses marked as 'planning')
+        const planningCoursesFromDataEntry = Object.keys(data.completedCourses).filter(
+          code => data.completedCourses[code]?.status === 'planning'
+        );
+        
+        // Get planned courses from course planner
         const plannedCoursesData = JSON.parse(localStorage.getItem('coursePlan') || '{}');
-        const plannedCoursesCodes = plannedCoursesData.plannedCourses?.map((c: any) => c.code) || [];
+        const plannedCoursesFromPlanner = plannedCoursesData.plannedCourses?.map((c: any) => c.code) || [];
+        
+        // Combine all planned courses (from data-entry and course planner)
+        const allPlannedCourses = [...new Set([...planningCoursesFromDataEntry, ...plannedCoursesFromPlanner])];
 
         const analysis = concentrations.map((concentration: any) => {
           const concentrationCourseCodes = concentration.courses.map((c: any) => c.code);
           const completedInConcentration = completedCoursesCodes.filter((code: string) => 
             concentrationCourseCodes.includes(code)
           );
-          const plannedInConcentration = plannedCoursesCodes.filter((code: string) => 
+          const plannedInConcentration = allPlannedCourses.filter((code: string) => 
             concentrationCourseCodes.includes(code)
           );
           
@@ -396,40 +407,109 @@ export default function ProgressPage() {
   };
 
   // Convert completed courses to StudentCourseData format for validation
-  const convertToStudentCourseData = (): StudentCourseData[] => {
+
+
+  // Cache for course data to avoid multiple API calls
+  const [courseDataCache, setCourseDataCache] = useState<{ [courseCode: string]: { credits: number; title: string } }>({});
+
+  // Function to fetch all course data at once
+  const fetchAllCourseData = async (): Promise<{ [courseCode: string]: { credits: number; title: string } }> => {
+    try {
+      if (!completedData.actualDepartmentId && !completedData.selectedDepartment) {
+        return {};
+      }
+      
+      const departmentId = completedData.actualDepartmentId || completedData.selectedDepartment;
+      const response = await fetch(`/api/available-courses?curriculumId=${selectedCurriculum}&departmentId=${departmentId}`);
+      const data = await response.json();
+      
+      if (response.ok && data.courses) {
+        const courseMap: { [courseCode: string]: { credits: number; title: string } } = {};
+        data.courses.forEach((course: any) => {
+          courseMap[course.code] = {
+            credits: course.credits || 3,
+            title: course.title || course.code
+          };
+        });
+        setCourseDataCache(courseMap);
+        return courseMap;
+      }
+      
+      return {};
+    } catch (error) {
+      console.warn('Could not fetch course data:', error);
+      return {};
+    }
+  };
+
+  // Enhanced course data conversion with proper credit lookup
+  const convertToStudentCourseDataWithCredits = async (): Promise<StudentCourseData[]> => {
     const courses: StudentCourseData[] = [];
     
-    // Add completed courses
+    // Fetch all course data at once for efficiency
+    const allCourseData = Object.keys(courseDataCache).length > 0 ? courseDataCache : await fetchAllCourseData();
+    
+    // Add courses from data-entry page with proper status mapping and credit lookup
     Object.entries(completedCourses).forEach(([courseCode, courseInfo]) => {
-      if (courseInfo.status === 'completed') {
+      let status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING' | 'FAILED' | 'DROPPED';
+      
+      switch (courseInfo.status) {
+        case 'completed':
+          status = 'COMPLETED';
+          break;
+        case 'planning':
+          status = 'IN_PROGRESS'; // Planning courses are considered in progress
+          break;
+        case 'failed':
+          status = 'FAILED';
+          break;
+        case 'withdrawn':
+          status = 'DROPPED';
+          break;
+        case 'not_completed':
+        default:
+          status = 'PENDING';
+          break;
+      }
+      
+      const courseData = allCourseData[courseCode];
+      const credits = courseData?.credits || 3; // Use actual credits or default to 3
+      const courseName = courseData?.title || courseCode; // Use actual title or fallback to code
+      
+      courses.push({
+        courseCode,
+        courseName,
+        credits,
+        status,
+        grade: courseInfo.grade
+      });
+    });
+    
+    // Add planned courses (only if not already included from data-entry)
+    let existingCourseCodes = new Set(courses.map(c => c.courseCode));
+    plannedCourses.forEach(course => {
+      if (!existingCourseCodes.has(course.code)) {
         courses.push({
-          courseCode,
-          courseName: courseCode, // We might not have full name, using code as fallback
-          credits: 3, // Default credits, will be replaced by real data when available
-          status: 'COMPLETED',
-          grade: courseInfo.grade
+          courseCode: course.code,
+          courseName: course.title,
+          credits: course.credits,
+          status: 'IN_PROGRESS' // Planned courses are considered in progress
         });
+        existingCourseCodes.add(course.code);
       }
     });
     
-    // Add planned courses
-    plannedCourses.forEach(course => {
-      courses.push({
-        courseCode: course.code,
-        courseName: course.title,
-        credits: course.credits,
-        status: 'IN_PROGRESS' // Planned courses are considered in progress
-      });
-    });
-    
-    // Add free electives
+    // Add free electives (only if not already included)
     freeElectives.forEach(elective => {
-      courses.push({
-        courseCode: elective.code,
-        courseName: elective.title,
-        credits: elective.credits,
-        status: 'COMPLETED'
-      });
+      if (!existingCourseCodes.has(elective.code)) {
+        courses.push({
+          courseCode: elective.code,
+          courseName: elective.title,
+          credits: elective.credits,
+          status: 'COMPLETED'
+        });
+        existingCourseCodes.add(elective.code);
+      }
     });
 
     return courses;
@@ -444,10 +524,14 @@ export default function ProgressPage() {
         console.log('🔍 DEBUG: Running enhanced validation...');
       }
       
-      const studentCourses = convertToStudentCourseData();
+      const studentCourses = await convertToStudentCourseDataWithCredits();
       
       if (typeof window !== 'undefined') {
         console.log('🔍 DEBUG: Student courses for validation:', studentCourses);
+        console.log('🔍 DEBUG: Completed courses:', studentCourses.filter(c => c.status === 'COMPLETED'));
+        console.log('🔍 DEBUG: In-progress courses (planning):', studentCourses.filter(c => c.status === 'IN_PROGRESS'));
+        console.log('🔍 DEBUG: Total credits - Completed:', studentCourses.filter(c => c.status === 'COMPLETED').reduce((sum, c) => sum + c.credits, 0));
+        console.log('🔍 DEBUG: Total credits - In Progress:', studentCourses.filter(c => c.status === 'IN_PROGRESS').reduce((sum, c) => sum + c.credits, 0));
       }
       
       // Get curriculum and department IDs - use actualDepartmentId from data-entry page
