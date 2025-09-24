@@ -6,6 +6,11 @@ export default auth((req) => {
   const token = req.auth
   const isAuthenticated = !!token
 
+  // Skip authentication for static files (PDF, images, etc.)
+  if (req.nextUrl.pathname.match(/\.(pdf|jpg|jpeg|png|gif|svg|ico|css|js)$/i)) {
+    return NextResponse.next()
+  }
+
   // Public paths that don't require authentication
   const publicPaths = ['/', '/auth', '/auth/error', '/student', '/management', '/allCurricula', '/management/data-entry', '/management/progress', '/management/course-planning']
   // Allow all /management and /allCurricula subpages to be public
@@ -99,7 +104,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - PDF files
+     * - static assets
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.pdf$|.*\\.jpg$|.*\\.jpeg$|.*\\.png$|.*\\.gif$|.*\\.svg$|.*\\.ico$|.*\\.css$|.*\\.js$).*)',
   ],
 } 

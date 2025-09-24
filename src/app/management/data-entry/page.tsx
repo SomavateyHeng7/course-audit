@@ -1052,7 +1052,7 @@ export default function DataEntryPage() {
               <DropdownMenuContent align="start" className="w-48">
                 <DropdownMenuItem
                   onClick={() => {
-                    // Gather course data for export - only courses that are in progress (not_completed)
+                    // Gather course data for export - only courses that are in progress (planning status)
                     const rows: any[] = [];
                     courseTypeOrder.forEach(category => {
                       const courses = curriculumCourses[selectedCurriculum]?.[category] || [];
@@ -1060,8 +1060,8 @@ export default function DataEntryPage() {
                         const courseStatus = completedCourses[course.code]?.status;
                         const courseGrade = completedCourses[course.code]?.grade || '';
                         
-                        // Only include courses that are in progress (not_completed status)
-                        if (courseStatus === 'not_completed') {
+                        // Only include courses that are in progress (planning status)
+                        if (courseStatus === 'planning') {
                           rows.push({
                             Code: course.code,
                             Title: course.title,
@@ -1074,11 +1074,11 @@ export default function DataEntryPage() {
                     
                     // Add assigned free electives that are in progress
                     assignedFreeElectives.forEach(course => {
-                      // Check if this free elective has not_completed status
+                      // Check if this free elective has planning status
                       const courseStatus = completedCourses[course.courseCode]?.status;
                       const courseGrade = completedCourses[course.courseCode]?.grade || course.grade || '';
                       
-                      if (courseStatus === 'not_completed') {
+                      if (courseStatus === 'planning') {
                         rows.push({
                           Code: course.courseCode,
                           Title: course.courseName,
@@ -1093,7 +1093,7 @@ export default function DataEntryPage() {
                       const courseStatus = completedCourses[course.code]?.status;
                       const courseGrade = completedCourses[course.code]?.grade || '';
                       
-                      if (courseStatus === 'not_completed') {
+                      if (courseStatus === 'planning') {
                         rows.push({
                           Code: course.code,
                           Title: course.title,
@@ -1115,58 +1115,67 @@ export default function DataEntryPage() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
-                    // Gather all course data for CSV export
+                    // Gather course data for CSV export - only courses that are in progress (planning status)
                     const rows: any[] = [];
                     courseTypeOrder.forEach(category => {
                       const courses = curriculumCourses[selectedCurriculum]?.[category] || [];
                       courses.forEach(course => {
-                        rows.push({
-                          Category: category,
-                          Code: course.code,
-                          Title: course.title,
-                          Credits: course.credits,
-                          Status: completedCourses[course.code]?.status || 'not_completed',
-                          Grade: completedCourses[course.code]?.grade || '',
-                        });
+                        const courseStatus = completedCourses[course.code]?.status;
+                        const courseGrade = completedCourses[course.code]?.grade || '';
+                        
+                        // Only include courses that are in progress (planning status)
+                        if (courseStatus === 'planning') {
+                          rows.push({
+                            Code: course.code,
+                            Title: course.title,
+                            Grade: courseGrade,
+                            'Currently Taking': 'Yes',
+                          });
+                        }
                       });
                     });
                     
-                    // Add assigned free electives
+                    // Add assigned free electives that are in progress
                     assignedFreeElectives.forEach(course => {
-                      rows.push({
-                        Category: 'Free Elective',
-                        Code: course.courseCode,
-                        Title: course.courseName,
-                        Credits: course.credits,
-                        Status: 'completed', // Assigned free electives are typically completed
-                        Grade: course.grade || '',
-                      });
+                      // Check if this free elective has planning status
+                      const courseStatus = completedCourses[course.courseCode]?.status;
+                      const courseGrade = completedCourses[course.courseCode]?.grade || course.grade || '';
+                      
+                      if (courseStatus === 'planning') {
+                        rows.push({
+                          Code: course.courseCode,
+                          Title: course.courseName,
+                          Grade: courseGrade,
+                          'Currently Taking': 'Yes',
+                        });
+                      }
                     });
                     
                     // Legacy free electives support (if any)
                     (Array.isArray(freeElectives) ? freeElectives : []).forEach((course: { code: string; title: string; credits: number }) => {
-                      rows.push({
-                        Category: 'Free Elective',
-                        Code: course.code,
-                        Title: course.title,
-                        Credits: course.credits,
-                        Status: completedCourses[course.code]?.status || 'not_completed',
-                        Grade: completedCourses[course.code]?.grade || '',
-                      });
+                      const courseStatus = completedCourses[course.code]?.status;
+                      const courseGrade = completedCourses[course.code]?.grade || '';
+                      
+                      if (courseStatus === 'planning') {
+                        rows.push({
+                          Code: course.code,
+                          Title: course.title,
+                          Grade: courseGrade,
+                          'Currently Taking': 'Yes',
+                        });
+                      }
                     });
 
                     // Convert to CSV format
                     const csvContent = [
                       // Header
-                      ['Category', 'Code', 'Title', 'Credits', 'Status', 'Grade'].join(','),
+                      ['Code', 'Title', 'Grade', 'Currently Taking'].join(','),
                       // Data rows
                       ...rows.map(row => [
-                        `"${row.Category}"`,
                         `"${row.Code}"`,
                         `"${row.Title}"`,
-                        row.Credits,
-                        `"${row.Status}"`,
-                        `"${row.Grade}"`
+                        `"${row.Grade}"`,
+                        `"${row['Currently Taking']}"`
                       ].join(','))
                     ].join('\n');
 
@@ -1215,7 +1224,7 @@ export default function DataEntryPage() {
         </div>
         {(!selectedCurriculum || !selectedDepartment) && (
           <p className="text-center text-sm text-muted-foreground mt-2">
-            Please select a curriculum and department first
+            Please select a faculty and department first
           </p>
         )}
       </div>
