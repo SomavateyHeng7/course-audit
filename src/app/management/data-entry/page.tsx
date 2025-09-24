@@ -113,23 +113,17 @@ export default function DataEntryPage() {
   }>>([]);
   const [loading, setLoading] = useState(true);
 
-  // Hardcoded faculty and department options (working approach)
-  const facultyOptions = [
-    { value: 'vmes', label: 'VMES' },
-    { value: 'msme', label: 'MSME' },
-  ];
+  // Dynamic faculty and department options from API
+  const [facultyOptions, setFacultyOptions] = useState<{ value: string; label: string }[]>([]);
+  const [allDepartments, setAllDepartments] = useState<{ id: string; name: string; code: string; facultyId: string }[]>([]);
   const [selectedFaculty, setSelectedFaculty] = useState('');
 
-  // Hardcoded department options mapped by faculty
-  const departmentOptions: { [faculty: string]: { value: string; label: string }[] } = {
-    vmes: [
-      { value: 'cs', label: 'Computer Science' },
-      { value: 'it', label: 'Information Technology' },
-    ],
-    msme: [
-      { value: 'bba', label: 'BBA' },
-    ],
-  };
+  // Computed department options based on selected faculty
+  const departmentOptions = selectedFaculty 
+    ? allDepartments
+        .filter(dept => dept.facultyId === selectedFaculty)
+        .map(dept => ({ value: dept.id, label: dept.name }))
+    : [];
 
   // New state for enhanced transcript import
   const [unmatchedCourses, setUnmatchedCourses] = useState<UnmatchedCourse[]>([]);
@@ -147,6 +141,21 @@ export default function DataEntryPage() {
         const currData = await currResponse.json();
         const fetchedCurricula = currData.curricula || [];
         setCurricula(fetchedCurricula);
+
+        // Fetch faculties (public endpoint)
+        const facultyResponse = await fetch('/api/public-faculties');
+        const facultyData = await facultyResponse.json();
+        const fetchedFaculties = facultyData.faculties || [];
+        setFacultyOptions(fetchedFaculties.map((f: any) => ({ 
+          value: f.id, 
+          label: f.name 
+        })));
+
+        // Fetch departments (public endpoint)
+        const deptResponse = await fetch('/api/public-departments');
+        const deptData = await deptResponse.json();
+        const fetchedDepartments = deptData.departments || [];
+        setAllDepartments(fetchedDepartments);
 
         // Don't fetch concentrations here - wait until curriculum is selected
 
@@ -235,21 +244,23 @@ export default function DataEntryPage() {
     }
   }, [completedCourses, selectedDepartment, selectedCurriculum, selectedConcentration, freeElectives, curricula]);
 
-  // Computed options based on curricula data and hardcoded departments
-  const curriculumOptions: { [key: string]: { value: string; label: string }[] } = {
-    cs: curricula
-      .filter(curr => curr.department?.name?.toLowerCase().includes('computer science') || 
-                     curr.department?.name?.toLowerCase().includes('cs'))
-      .map(curr => ({ value: curr.id, label: curr.name })),
-    it: curricula
-      .filter(curr => curr.department?.name?.toLowerCase().includes('information technology') || 
-                     curr.department?.name?.toLowerCase().includes('it'))
-      .map(curr => ({ value: curr.id, label: curr.name })),
-    bba: curricula
-      .filter(curr => curr.department?.name?.toLowerCase().includes('bba') || 
-                     curr.department?.name?.toLowerCase().includes('business'))
-      .map(curr => ({ value: curr.id, label: curr.name })),
-  };
+  // Computed curriculum options based on selected department ID
+  const curriculumOptions = selectedDepartment
+    ? curricula
+        .filter(curr => {
+          const match = curr.department?.id === selectedDepartment;
+          if (typeof window !== 'undefined') {
+            console.log('🔍 DEBUG: Curriculum filtering:', {
+              curriculumName: curr.name,
+              curriculumDeptId: curr.department?.id,
+              selectedDeptId: selectedDepartment,
+              match: match
+            });
+          }
+          return match;
+        })
+        .map(curr => ({ value: curr.id, label: curr.name }))
+    : [];
 
   // Dynamic concentration options based on fetched data
   const concentrationOptions: { [key: string]: { value: string; label: string }[] } = {};
@@ -553,7 +564,7 @@ export default function DataEntryPage() {
               <SelectValue placeholder="Choose department" />
             </SelectTrigger>
             <SelectContent>
-              {(departmentOptions[selectedFaculty] || []).map((opt: { value: string; label: string }) => (
+              {departmentOptions.map((opt: { value: string; label: string }) => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
@@ -566,7 +577,7 @@ export default function DataEntryPage() {
               <SelectValue placeholder={!selectedDepartment ? 'Select department first' : 'Choose curriculum'} />
             </SelectTrigger>
             <SelectContent>
-              {(curriculumOptions[selectedDepartment] || []).map((opt: { value: string; label: string }) => (
+              {curriculumOptions.map((opt: { value: string; label: string }) => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>

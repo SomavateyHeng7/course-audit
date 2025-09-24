@@ -72,10 +72,34 @@ export async function GET(request: NextRequest) {
     const availableCourses = curriculum.curriculumCourses.map(currCourse => {
       const course = currCourse.course;
       
-      // Get course category from departmentCourseTypes
-      let category = 'General';
+      // Get course category from departmentCourseTypes with fallback logic
+      let category = 'Unassigned';
       if (course.departmentCourseTypes && course.departmentCourseTypes.length > 0) {
-        category = course.departmentCourseTypes[0].courseType?.name || 'General';
+        category = course.departmentCourseTypes[0].courseType?.name || 'Unassigned';
+        console.log(`✅ Course ${course.code}: Found departmentCourseType - ${category}`);
+      } else {
+        console.log(`⚠️ Course ${course.code}: No departmentCourseTypes found, using fallback`);
+        // Fallback categorization for courses not in the curriculum catalog
+        const courseCode = course.code.toUpperCase();
+        if (courseCode.startsWith('CS') || courseCode.startsWith('CSX')) {
+          category = 'Major';
+        } else if (courseCode.startsWith('IT') || courseCode.startsWith('ITX')) {
+          category = 'Major';
+        } else if (courseCode.startsWith('GE') || courseCode.includes('GEN ED')) {
+          category = 'General Education';
+        } else if (courseCode.startsWith('ELE') || courseCode.includes('ELECTIVE')) {
+          category = 'Free Elective';
+        } else if (courseCode.startsWith('MAT') || courseCode.startsWith('MATH')) {
+          category = 'Foundation';
+        } else if (courseCode.startsWith('PHY') || courseCode.startsWith('PHYSICS')) {
+          category = 'Foundation';
+        } else if (courseCode.startsWith('ENG') || courseCode.includes('ENGLISH')) {
+          category = 'General Education';
+        } else {
+          // Default to Unassigned if no pattern matches
+          category = 'Unassigned';
+        }
+        console.log(`🔄 Course ${course.code}: Applied fallback category - ${category}`);
       }
 
       // Extract prerequisites

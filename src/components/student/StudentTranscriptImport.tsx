@@ -171,9 +171,9 @@ export default function StudentTranscriptImport({
         const course = currCourse.course;
         if (course) {
           // Use the first departmentCourseType name as the category
-          let category = 'General';
+          let category = 'Unassigned';
           if (course.departmentCourseTypes && course.departmentCourseTypes.length > 0) {
-            category = course.departmentCourseTypes[0].courseType?.name || 'General';
+            category = course.departmentCourseTypes[0].courseType?.name || 'Unassigned';
           }
           
           console.log(`Course ${course.code}: departmentCourseTypes = ${JSON.stringify(course.departmentCourseTypes)}, category = ${category}`);

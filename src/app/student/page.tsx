@@ -38,7 +38,7 @@ export default function StudentPage() {
   useEffect(() => {
     const fetchFaculties = async () => {
       try {
-        const response = await fetch('/api/faculties');
+        const response = await fetch('/api/public-faculties');
         if (!response.ok) throw new Error('Failed to fetch faculties');
         const data = await response.json();
         setFaculties(data.faculties);
@@ -49,7 +49,7 @@ export default function StudentPage() {
 
     const fetchDepartments = async () => {
       try {
-        const response = await fetch('/api/departments');
+        const response = await fetch('/api/public-departments');
         if (!response.ok) throw new Error('Failed to fetch departments');
         const data = await response.json();
         setDepartments(data.departments);

@@ -86,6 +86,7 @@ interface DataEntryContext {
   selectedConcentration: string;
   completedCourses: { [code: string]: { status: string; grade?: string } };
   freeElectives: { code: string; title: string; credits: number }[];
+  actualDepartmentId?: string;
 }
 
 export default function CoursePlanningPage() {
@@ -107,6 +108,20 @@ export default function CoursePlanningPage() {
   const [selectedSemester, setSelectedSemester] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
+
+  // Helper function to parse credit hours from formats like "2-0-4" -> 2
+  const parseCredits = (creditsStr: string | number): number => {
+    if (typeof creditsStr === 'number') {
+      return creditsStr;
+    }
+    if (typeof creditsStr === 'string') {
+      // Extract first number from formats like "2-0-4" or "3"
+      const firstNumber = creditsStr.split('-')[0];
+      const parsed = parseInt(firstNumber, 10);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  };
 
   // Semester options
   const semesterOptions = [
@@ -201,7 +216,9 @@ export default function CoursePlanningPage() {
     
     try {
       setLoading(true);
-      const response = await fetch(`/api/available-courses?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${dataEntryContext.selectedDepartment}`);
+      // Use actualDepartmentId if available, fall back to selectedDepartment
+      const departmentId = dataEntryContext.actualDepartmentId || dataEntryContext.selectedDepartment;
+      const response = await fetch(`/api/available-courses?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${departmentId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch available courses');
       }
@@ -495,7 +512,7 @@ export default function CoursePlanningPage() {
       id: `${course.code}-${selectedSemester}-${selectedYear}`,
       code: course.code,
       title: course.title,
-      credits: course.credits,
+      credits: parseCredits(course.credits),
       semester: selectedSemester,
       year: selectedYear,
       status,
@@ -512,7 +529,7 @@ export default function CoursePlanningPage() {
       id: `${coreqCourse.code}-${selectedSemester}-${selectedYear}`,
       code: coreqCourse.code,
       title: coreqCourse.title,
-      credits: coreqCourse.credits,
+      credits: parseCredits(coreqCourse.credits),
       semester: selectedSemester,
       year: selectedYear,
       status,
@@ -580,14 +597,38 @@ export default function CoursePlanningPage() {
     const allPlannedCodes = plannedCourses.map(course => course.code);
     const allTakenOrPlannedCodes = [...allCompletedCodes, ...allPlannedCodes];
 
+    // Get the selected concentration from data entry context
+    const selectedConcentration = dataEntryContext?.selectedConcentration;
+    
     console.log('🔍 DEBUG: Analyzing concentrations with:', {
+      selectedConcentration,
       concentrationsCount: concentrations.length,
       completedCodes: allCompletedCodes,
       plannedCodes: allPlannedCodes,
       totalConcentrations: concentrations.length
     });
 
-    return concentrations.map(concentration => {
+    // Filter concentrations based on selection
+    let concentrationsToAnalyze = concentrations;
+    
+    if (selectedConcentration && selectedConcentration !== 'general' && selectedConcentration !== '') {
+      // Find the specific concentration by ID or name
+      const specificConcentration = concentrations.find(c => 
+        c.id === selectedConcentration || 
+        c.name.toLowerCase() === selectedConcentration.toLowerCase()
+      );
+      
+      if (specificConcentration) {
+        concentrationsToAnalyze = [specificConcentration];
+        console.log(`🔍 DEBUG: Analyzing only selected concentration: ${specificConcentration.name}`);
+      } else {
+        console.log(`🔍 DEBUG: Selected concentration '${selectedConcentration}' not found, analyzing all`);
+      }
+    } else {
+      console.log('🔍 DEBUG: No specific concentration selected or "general" selected, analyzing all');
+    }
+
+    return concentrationsToAnalyze.map(concentration => {
       const concentrationCourseCodes = concentration.courses.map(c => c.code);
       const completedInConcentration = allCompletedCodes.filter(code => 
         concentrationCourseCodes.includes(code)
@@ -806,7 +847,7 @@ export default function CoursePlanningPage() {
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-semibold">{course.code}</h3>
                             <Badge variant="outline">{course.category}</Badge>
-                            <Badge variant="secondary">{course.credits} credits</Badge>
+                            <Badge variant="secondary">{parseCredits(course.credits)} credits</Badge>
                             {!bannedValidation.valid && (
                               <Badge variant="destructive" className="text-xs">
                                 🚫 Blocked

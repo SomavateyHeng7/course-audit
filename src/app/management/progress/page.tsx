@@ -3,6 +3,15 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { useRef, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { curriculumBlacklistApi, type CurriculumBlacklistsResponse } from '@/services/curriculumBlacklistApi';
+import { AlertTriangle } from "lucide-react";
+import { 
+  validateStudentProgress, 
+  calculateCurriculumProgress,
+  type StudentCourseData,
+  type ValidationResult,
+  type CurriculumProgress
+} from "@/lib/courseValidation";
 
 const categoryOrder = [
   "General Education",
@@ -10,6 +19,7 @@ const categoryOrder = [
   "Major",
   "Major Elective",
   "Free Elective",
+  "General",
 ];
 
 interface CourseStatus {
@@ -23,6 +33,7 @@ interface CompletedCourseData {
   selectedCurriculum: string;
   selectedConcentration: string;
   freeElectives: { code: string; title: string; credits: number }[];
+  actualDepartmentId?: string; // Real department ID from curriculum data
 }
 
 interface PlannedCourse {
@@ -68,6 +79,12 @@ export default function ProgressPage() {
   });
   const [curriculumData, setCurriculumData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [blacklistData, setBlacklistData] = useState<CurriculumBlacklistsResponse | null>(null);
+  const [blacklistWarnings, setBlacklistWarnings] = useState<string[]>([]);
+  
+  // Enhanced validation states
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [curriculumProgress, setCurriculumProgress] = useState<CurriculumProgress | null>(null);
   
   // Load all data from localStorage and fetch curriculum data
   useEffect(() => {
@@ -193,6 +210,14 @@ export default function ProgressPage() {
         if (!savedConcentrationAnalysis && parsedData && parsedData.selectedCurriculum) {
           await generateConcentrationAnalysis(parsedData);
         }
+        
+        // Load blacklist data for the curriculum
+        if (parsedData && parsedData.selectedCurriculum) {
+          await loadBlacklistData(parsedData.selectedCurriculum);
+        }
+        
+        // Run enhanced validation
+        await runEnhancedValidation();
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -202,6 +227,13 @@ export default function ProgressPage() {
 
     loadData();
   }, []);
+
+  // Re-run enhanced validation when key data changes
+  useEffect(() => {
+    if (!loading && completedData.selectedCurriculum) {
+      runEnhancedValidation();
+    }
+  }, [completedData, plannedCourses, loading]);
 
   // Generate concentration analysis if missing
   const generateConcentrationAnalysis = async (data: CompletedCourseData) => {
@@ -272,6 +304,190 @@ export default function ProgressPage() {
     }
   };
 
+  // Load blacklist data for the curriculum
+  const loadBlacklistData = async (curriculumId: string) => {
+    try {
+      if (typeof window !== 'undefined') {
+        console.log('🔍 DEBUG: Loading blacklist data for curriculum:', curriculumId);
+      }
+      
+      // Use public API endpoint instead of protected one
+      const response = await fetch(`/api/public-curricula/${curriculumId}/blacklists`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch blacklists: ${response.status}`);
+      }
+      const { blacklists } = await response.json();
+      
+      // Transform to match expected format
+      const transformedBlacklists: CurriculumBlacklistsResponse = {
+        availableBlacklists: [],
+        assignedBlacklists: blacklists.map((blacklist: any) => ({
+          assignedAt: blacklist.createdAt || new Date().toISOString(),
+          blacklist: {
+            id: blacklist.id,
+            name: blacklist.name,
+            description: blacklist.description,
+            courses: blacklist.courses.map((courseItem: any) => ({
+              code: courseItem.course.code,
+              name: courseItem.course.name
+            }))
+          }
+        })),
+        stats: {
+          totalAvailable: 0,
+          totalAssigned: blacklists.length,
+          totalBlacklistedCourses: blacklists.reduce((total: number, blacklist: any) => 
+            total + blacklist.courses.length, 0
+          )
+        }
+      };
+      
+      setBlacklistData(transformedBlacklists);
+      
+      // Validate completed courses against blacklists
+      const warnings = validateBlacklistConflicts(transformedBlacklists);
+      setBlacklistWarnings(warnings);
+      
+      if (typeof window !== 'undefined') {
+        console.log('🔍 DEBUG: Loaded blacklist data:', transformedBlacklists);
+        console.log('🔍 DEBUG: Blacklist warnings:', warnings);
+      }
+    } catch (error) {
+      if (typeof window !== 'undefined') {
+        console.warn('Blacklist data temporarily unavailable:', error instanceof Error ? error.message : 'Unknown error');
+        console.log('Continuing without blacklist validation...');
+      }
+      // Continue without blacklist data - don't block the page
+      setBlacklistData({
+        availableBlacklists: [],
+        assignedBlacklists: [],
+        stats: {
+          totalAvailable: 0,
+          totalAssigned: 0,
+          totalBlacklistedCourses: 0
+        }
+      });
+      setBlacklistWarnings([]);
+    }
+  };
+
+  // Validate completed courses against blacklist rules
+  const validateBlacklistConflicts = (blacklists: CurriculumBlacklistsResponse): string[] => {
+    const warnings: string[] = [];
+    const completedCoursesCodes = Object.keys(completedCourses).filter(
+      code => completedCourses[code]?.status === 'completed'
+    );
+
+    // Check each assigned blacklist for violations
+    blacklists.assignedBlacklists.forEach(assignedBlacklist => {
+      const blacklistCourses = assignedBlacklist.blacklist.courses.map(course => course.code);
+      const takenFromBlacklist = completedCoursesCodes.filter(code => 
+        blacklistCourses.includes(code)
+      );
+
+      if (takenFromBlacklist.length > 1) {
+        warnings.push(
+          `⚠️ Blacklist Violation: You have completed multiple courses from "${assignedBlacklist.blacklist.name}" blacklist: ${takenFromBlacklist.join(', ')}. This may affect your graduation requirements.`
+        );
+      }
+    });
+
+    return warnings;
+  };
+
+  // Convert completed courses to StudentCourseData format for validation
+  const convertToStudentCourseData = (): StudentCourseData[] => {
+    const courses: StudentCourseData[] = [];
+    
+    // Add completed courses
+    Object.entries(completedCourses).forEach(([courseCode, courseInfo]) => {
+      if (courseInfo.status === 'completed') {
+        courses.push({
+          courseCode,
+          courseName: courseCode, // We might not have full name, using code as fallback
+          credits: 3, // Default credits, will be replaced by real data when available
+          status: 'COMPLETED',
+          grade: courseInfo.grade
+        });
+      }
+    });
+    
+    // Add planned courses
+    plannedCourses.forEach(course => {
+      courses.push({
+        courseCode: course.code,
+        courseName: course.title,
+        credits: course.credits,
+        status: 'IN_PROGRESS' // Planned courses are considered in progress
+      });
+    });
+    
+    // Add free electives
+    freeElectives.forEach(elective => {
+      courses.push({
+        courseCode: elective.code,
+        courseName: elective.title,
+        credits: elective.credits,
+        status: 'COMPLETED'
+      });
+    });
+
+    return courses;
+  };
+
+  // Enhanced validation function
+  const runEnhancedValidation = async () => {
+    if (!selectedCurriculum) return;
+    
+    try {
+      if (typeof window !== 'undefined') {
+        console.log('🔍 DEBUG: Running enhanced validation...');
+      }
+      
+      const studentCourses = convertToStudentCourseData();
+      
+      if (typeof window !== 'undefined') {
+        console.log('🔍 DEBUG: Student courses for validation:', studentCourses);
+      }
+      
+      // Get curriculum and department IDs - use actualDepartmentId from data-entry page
+      const curriculumId = selectedCurriculum;
+      const departmentId = completedData.actualDepartmentId || completedData.selectedDepartment || 'default-dept';
+      
+      if (typeof window !== 'undefined') {
+        console.log('🔍 DEBUG: Department ID resolution:', {
+          selectedCurriculum: curriculumId,
+          actualDepartmentId: completedData.actualDepartmentId,
+          departmentId,
+          fallbackDepartment: completedData.selectedDepartment
+        });
+      }
+      
+      // Run comprehensive validation
+      const [validation, progress] = await Promise.all([
+        validateStudentProgress(studentCourses, curriculumId, departmentId),
+        calculateCurriculumProgress(studentCourses, curriculumId)
+      ]);
+      
+      setValidationResult(validation);
+      setCurriculumProgress(progress);
+      
+      if (typeof window !== 'undefined') {
+        console.log('🔍 DEBUG: Validation result:', validation);
+        console.log('🔍 DEBUG: Curriculum progress:', progress);
+      }
+      
+    } catch (error) {
+      if (typeof window !== 'undefined') {
+        console.warn('Enhanced validation temporarily unavailable:', error instanceof Error ? error.message : 'Unknown error');
+        console.log('Continuing with basic functionality...');
+      }
+      // Continue with basic functionality - don't block the page
+      setValidationResult(null);
+      setCurriculumProgress(null);
+    }
+  };
+
   const { completedCourses, selectedCurriculum, selectedConcentration, freeElectives } = completedData;
 
   // Only log during client-side execution
@@ -284,6 +500,20 @@ export default function ProgressPage() {
       plannedCoursesCount: plannedCourses.length
     });
   }
+
+  // Helper function to parse credit hours from formats like "2-0-4" -> 2
+  const parseCredits = (creditsStr: string | number): number => {
+    if (typeof creditsStr === 'number') {
+      return creditsStr;
+    }
+    if (typeof creditsStr === 'string') {
+      // Extract first number from formats like "2-0-4" or "3"
+      const firstNumber = creditsStr.split('-')[0];
+      const parsed = parseInt(firstNumber, 10);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  };
 
   // Use real curriculum data if available, otherwise fall back to mock data
   const curriculumCourses: { [key: string]: { [category: string]: { code: string; title: string; credits: number }[] } } = {};
@@ -308,6 +538,14 @@ export default function ProgressPage() {
     if (typeof window !== 'undefined') {
       console.log('🔍 DEBUG: Found curriculum courses, processing...');
     }
+    
+    // Get department course types mapping from the curriculum
+    const departmentCourseTypes = curriculumData?.departmentCourseTypes || {};
+    
+    if (typeof window !== 'undefined') {
+      console.log('🔍 DEBUG: Department course types mapping:', departmentCourseTypes);
+    }
+    
     // Transform real curriculum data into the format we need
     const coursesByCategory: { [category: string]: { code: string; title: string; credits: number }[] } = {};
     
@@ -320,31 +558,36 @@ export default function ProgressPage() {
           directDepartmentCourseType: course.departmentCourseType,
           hasDirectType: !!course.departmentCourseType,
           hasNestedTypes: !!course.course?.departmentCourseTypes,
-          nestedTypesLength: course.course?.departmentCourseTypes?.length || 0
+          nestedTypesLength: course.course?.departmentCourseTypes?.length || 0,
+          rawCredits: course.course.credits
         });
       }
       
-      // Try multiple ways to get the category
+      // Use the curriculum-specific department course type mapping
       let category = 'Other';
       
-      // Method 1: Direct departmentCourseType
+      // Method 1: Direct departmentCourseType with curriculum mapping
       if (course.departmentCourseType?.name) {
-        category = course.departmentCourseType.name;
+        const departmentTypeName = course.departmentCourseType.name;
+        category = departmentCourseTypes[departmentTypeName] || departmentTypeName || 'Other';
         if (typeof window !== 'undefined') {
-          console.log(`🔍 Method 1 - Direct type: ${category}`);
+          console.log(`🔍 Method 1 - Direct type: ${departmentTypeName} -> Mapped to: ${category}`);
         }
       }
-      // Method 2: From nested departmentCourseTypes array  
+      // Method 2: From nested departmentCourseTypes array with curriculum mapping
       else if (course.course?.departmentCourseTypes?.length > 0) {
         const firstType = course.course.departmentCourseTypes[0];
-        category = firstType.courseType?.name || firstType.name || 'Other';
+        const departmentTypeName = firstType.courseType?.name || firstType.name;
+        category = departmentCourseTypes[departmentTypeName] || departmentTypeName || 'Other';
         if (typeof window !== 'undefined') {
-          console.log(`🔍 Method 2 - Nested type: ${category}`, firstType);
+          console.log(`🔍 Method 2 - Nested type: ${departmentTypeName} -> Mapped to: ${category}`, firstType);
         }
       }
       
+      const parsedCredits = parseCredits(course.course.credits);
+      
       if (typeof window !== 'undefined') {
-        console.log(`🔍 Final category for ${course.course.code}: ${category}`);
+        console.log(`🔍 Final: ${course.course.code} -> Category: ${category}, Credits: ${course.course.credits} -> ${parsedCredits}`);
       }
       
       if (!coursesByCategory[category]) {
@@ -353,7 +596,7 @@ export default function ProgressPage() {
       coursesByCategory[category].push({
         code: course.course.code,
         title: course.course.name,
-        credits: course.course.credits
+        credits: parsedCredits
       });
     });
     
@@ -542,6 +785,74 @@ export default function ProgressPage() {
     };
   }
   
+  // Categorize completed courses that aren't in predefined curriculum categories
+  const coursesInCategories = new Set();
+  Object.values(allCoursesByCategory).flat().forEach(course => {
+    coursesInCategories.add(course.code);
+  });
+  
+  if (typeof window !== 'undefined') {
+    console.log('🔍 DEBUG: Courses in predefined categories:', Array.from(coursesInCategories));
+    console.log('🔍 DEBUG: All completed course codes:', Object.keys(completedCourses));
+  }
+  
+  // Add completed courses that aren't in any predefined category
+  Object.keys(completedCourses).forEach(courseCode => {
+    const courseStatus = completedCourses[courseCode];
+    if (courseStatus.status === 'completed' && !coursesInCategories.has(courseCode)) {
+      // Try to categorize based on course code pattern
+      let category = 'Unassigned';
+      
+      // Simple categorization logic based on course code patterns
+      if (courseCode.startsWith('CSX') || courseCode.startsWith('CS')) {
+        category = 'Major';
+      } else if (courseCode.startsWith('ITX') || courseCode.startsWith('IT')) {
+        category = 'Major';
+      } else if (courseCode.startsWith('GE')) {
+        category = 'General Education';
+      } else if (courseCode.startsWith('ELE')) {
+        category = 'Free Elective';
+      }
+      
+      // Parse credits from the course (assume 3 credits if not found)
+      const credits = 3; // Default credits
+      
+      if (typeof window !== 'undefined') {
+        console.log(`🔍 DEBUG: Categorizing external course ${courseCode} as ${category} with ${credits} credits`);
+      }
+      
+      // Add to completed list
+      completedList.push({
+        code: courseCode,
+        title: courseCode, // Use course code as title if no title available
+        credits: credits,
+        category: category,
+        grade: courseStatus.grade,
+        source: 'completed'
+      });
+      
+      // Update statistics
+      earnedCredits += credits;
+      if (!categoryStats[category]) {
+        categoryStats[category] = { completed: 0, planned: 0, total: 0, earned: 0, totalCredits: 0 };
+      }
+      categoryStats[category].completed += 1;
+      categoryStats[category].earned += credits;
+      
+      // Update GPA calculation
+      const grade = courseStatus.grade;
+      if (grade && gradeToGPA[grade] !== undefined) {
+        totalGradePoints += gradeToGPA[grade] * credits;
+        totalGpaCredits += credits;
+      }
+    }
+  });
+  
+  if (typeof window !== 'undefined') {
+    console.log('🔍 DEBUG: Final completed courses list:', completedList);
+    console.log('🔍 DEBUG: Final category stats:', categoryStats);
+  }
+  
   const totalCreditsRequired = 132; // Replace with real value from curriculum when available
   const percent = totalCreditsRequired ? Math.round((earnedCredits / totalCreditsRequired) * 100) : 0;
   const projectedPercent = totalCreditsRequired ? Math.round(((earnedCredits + plannedCredits) / totalCreditsRequired) * 100) : 0;
@@ -567,6 +878,10 @@ export default function ProgressPage() {
   const genEdCompleted = categoryStats['General Education']?.completed || 0;
   const genEdPlanned = categoryStats['General Education']?.planned || 0;
   const genEdTotal = allCoursesByCategory['General Education']?.length || 0;
+  
+  const generalCompleted = categoryStats['General']?.completed || 0;
+  const generalPlanned = categoryStats['General']?.planned || 0;
+  const generalTotal = allCoursesByCategory['General']?.length || 0;
 
   // PDF download handler
   const handleDownloadPDF = async () => {
@@ -634,6 +949,111 @@ export default function ProgressPage() {
       {/* Show progress data if available */}
       {!loading && selectedCurriculum && (
         <>
+          {/* Blacklist Warnings Section */}
+          {blacklistWarnings.length > 0 && (
+            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="text-orange-600 dark:text-orange-400 mt-1 flex-shrink-0" size={20} />
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-orange-800 dark:text-orange-200 mb-2">
+                    Course Conflict Warnings
+                  </h3>
+                  <div className="space-y-2">
+                    {blacklistWarnings.map((warning, index) => (
+                      <p key={index} className="text-orange-700 dark:text-orange-300 text-sm">
+                        {warning}
+                      </p>
+                    ))}
+                  </div>
+                  <p className="text-orange-600 dark:text-orange-400 text-xs mt-2">
+                    Contact your academic advisor to review these course combinations and ensure they meet graduation requirements.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Enhanced Validation Results Section */}
+          {validationResult && (
+            <>
+              {/* Validation Errors */}
+              {validationResult.errors.length > 0 && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="text-red-600 dark:text-red-400 mt-1 flex-shrink-0" size={20} />
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
+                        Validation Errors
+                      </h3>
+                      <div className="space-y-2">
+                        {validationResult.errors.map((error, index) => (
+                          <p key={index} className="text-red-700 dark:text-red-300 text-sm">
+                            • {error}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Validation Warnings */}
+              {validationResult.warnings.length > 0 && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="text-yellow-600 dark:text-yellow-400 mt-1 flex-shrink-0" size={20} />
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                        Academic Warnings
+                      </h3>
+                      <div className="space-y-2">
+                        {validationResult.warnings.map((warning, index) => (
+                          <p key={index} className="text-yellow-700 dark:text-yellow-300 text-sm">
+                            • {warning}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Course Recommendations */}
+              {validationResult.recommendations && validationResult.recommendations.length > 0 && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                  <div className="flex items-start gap-3">
+                    <div className="text-blue-600 dark:text-blue-400 mt-1 flex-shrink-0">💡</div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-2">
+                        Course Recommendations
+                      </h3>
+                      <div className="space-y-3">
+                        {validationResult.recommendations.map((rec, index) => (
+                          <div key={index} className="bg-white dark:bg-slate-700 rounded p-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-blue-900 dark:text-blue-100">{rec.courseCode}</span>
+                              <span className="text-sm bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+                                {rec.priority} priority
+                              </span>
+                              <span className="text-sm text-gray-600 dark:text-gray-400">{rec.credits} credits</span>
+                            </div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{rec.courseName}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{rec.reason}</p>
+                            {rec.prerequisites && rec.prerequisites.length > 0 && (
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                Prerequisites: {rec.prerequisites.join(', ')}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           <div ref={pdfRef} className="bg-white dark:bg-card rounded-xl p-6 mb-6 border border-gray-200 dark:border-border">
         {/* Custom Academic Progress Bar */}
         <div className="flex items-center relative h-24 mb-4 bg-gradient-to-r from-emerald-100 to-blue-100 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg px-6">
@@ -701,7 +1121,7 @@ export default function ProgressPage() {
           </div>
         </div>
         {/* Stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
           <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
             <div className="text-xs text-gray-500">Total Credits</div>
             <div className="text-2xl font-bold text-primary">
@@ -754,7 +1174,101 @@ export default function ProgressPage() {
               <span className="text-gray-400"> / {freeElectiveTotal}</span>
             </div>
           </div>
+          {generalCompleted > 0 && (
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+              <div className="text-xs text-gray-500">General</div>
+              <div className="text-xl font-bold text-primary">
+                {generalCompleted}
+                {generalPlanned > 0 && <span className="text-blue-600">+{generalPlanned}</span>}
+                <span className="text-gray-400"> / {generalTotal}</span>
+              </div>
+            </div>
+          )}
         </div>
+        
+        {/* Enhanced Curriculum Progress Summary */}
+        {curriculumProgress && (
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl p-6 mb-6 border border-purple-200 dark:border-purple-800">
+            <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-4">📊 Enhanced Progress Analysis</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                  {curriculumProgress.totalCreditsCompleted}
+                  {curriculumProgress.totalCreditsInProgress > 0 && (
+                    <span className="text-blue-600">+{curriculumProgress.totalCreditsInProgress}</span>
+                  )}
+                </div>
+                <div className="text-sm text-purple-600 dark:text-purple-400">Credits Completed</div>
+                <div className="text-xs text-gray-500">of {curriculumProgress.totalCreditsRequired} required</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                  {Math.round((curriculumProgress.totalCreditsCompleted / curriculumProgress.totalCreditsRequired) * 100)}%
+                </div>
+                <div className="text-sm text-purple-600 dark:text-purple-400">Overall Progress</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                  {curriculumProgress.graduationEligibility?.eligible ? '✅' : '⏳'}
+                </div>
+                <div className="text-sm text-purple-600 dark:text-purple-400">
+                  {curriculumProgress.graduationEligibility?.eligible ? 'Eligible' : 'In Progress'}
+                </div>
+                <div className="text-xs text-gray-500">Graduation Status</div>
+              </div>
+            </div>
+            
+            {/* Category Breakdown */}
+            {curriculumProgress.categoryProgress && Object.keys(curriculumProgress.categoryProgress).length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-md font-semibold text-purple-800 dark:text-purple-200 mb-2">Category Progress Details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {Object.entries(curriculumProgress.categoryProgress).map(([category, progress]) => (
+                    <div key={category} className="bg-white dark:bg-slate-700 rounded-lg p-3 text-sm">
+                      <div className="font-medium text-gray-900 dark:text-gray-100">{category}</div>
+                      <div className="text-purple-700 dark:text-purple-300">
+                        {progress.completed}
+                        {progress.inProgress > 0 && <span className="text-blue-600">+{progress.inProgress}</span>}
+                        <span className="text-gray-500"> / {progress.required}</span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {progress.remaining > 0 ? `${progress.remaining} remaining` : 'Complete'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Elective Progress */}
+            {curriculumProgress.electiveProgress && (
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white dark:bg-slate-700 rounded-lg p-4">
+                  <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Free Electives</h5>
+                  <div className="text-lg text-purple-700 dark:text-purple-300">
+                    {curriculumProgress.electiveProgress.freeElectives.completed} / {curriculumProgress.electiveProgress.freeElectives.required}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {curriculumProgress.electiveProgress.freeElectives.remaining} credits remaining
+                  </div>
+                </div>
+                
+                <div className="bg-white dark:bg-slate-700 rounded-lg p-4">
+                  <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Major Electives</h5>
+                  <div className="text-lg text-purple-700 dark:text-purple-300">
+                    {curriculumProgress.electiveProgress.majorElectives.completed} / {curriculumProgress.electiveProgress.majorElectives.required}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {curriculumProgress.electiveProgress.majorElectives.remaining} credits remaining
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       {/* Completed and Planned Courses */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
