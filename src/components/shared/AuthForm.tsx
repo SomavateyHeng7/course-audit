@@ -105,14 +105,14 @@ export default function AuthForm() {
               </button>
             </div>
             {error && <div className="text-red-600 dark:text-red-400 text-sm">{error}</div>}
-            <div className="text-center mt-4">
+            {/* <div className="text-center mt-4">
               <a
                 href="/auth/forgot-password"
                 className="text-gray-500 dark:text-gray-300 text-sm hover:text-gray-700 dark:hover:text-white underline cursor-pointer"
               >
                 Forget Your Password?
               </a>
-            </div>
+            </div> */}
             <button
               type="submit"
               disabled={isLoading}

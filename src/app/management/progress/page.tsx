@@ -4,7 +4,8 @@ import html2canvas from "html2canvas";
 import { useRef, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { curriculumBlacklistApi, type CurriculumBlacklistsResponse } from '@/services/curriculumBlacklistApi';
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { GiGraduateCap } from "react-icons/gi";
 import { 
   validateStudentProgress, 
   calculateCurriculumProgress,
@@ -985,13 +986,13 @@ export default function ProgressPage() {
 
   return (
     <div className="container py-8">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">Academic Progress Overview</h2>
-        <div className="flex gap-2">
+      <div className="mb-4">
+        <div className="flex justify-between items-center mb-4">
           <button
-            className="border border-input bg-background text-foreground px-4 py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="border border-input bg-background text-foreground px-4 py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground transition text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             onClick={() => router.push('/management/course-planning')}
           >
+            <ArrowLeft size={16} />
             Back to Course Planner
           </button>
           <button
@@ -1001,6 +1002,7 @@ export default function ProgressPage() {
             Course Entry
           </button>
         </div>
+        <h2 className="text-xl font-bold">Academic Progress Overview</h2>
       </div>
 
       {/* Show loading state */}
@@ -1179,7 +1181,7 @@ export default function ProgressPage() {
           
           {/* Graduate label at the far right */}
           <div className="flex items-center ml-4">
-            <span role="img" aria-label="graduate" className="mr-1" style={{ fontSize: 24 }}>🎓</span>
+            <GiGraduateCap className="mr-2 text-emerald-700 dark:text-emerald-300" size={24} />
             <span className="font-semibold text-lg text-emerald-700 dark:text-emerald-300">Graduate!</span>
           </div>
         </div>

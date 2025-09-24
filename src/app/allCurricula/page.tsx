@@ -19,6 +19,14 @@ const mockCurricula = [
     department: { name: "Business Administration", color: "text-green-400" },
     credits: 142
   },
+  {
+    id: "3",
+    faculty: "VMES",
+    program: "IT",
+    name: "BSIT651xxx-onwards",
+    department: { name: "Information Technology", color: "text-purple-400" },
+    credits: 132
+  },
 ];
 
 const getUnique = (arr: any[], key: string) => [
@@ -104,6 +112,23 @@ export default function AllCurriculaPage() {
 
 // Card component
 function CurriculumCard({ curriculum }: { curriculum: any }) {
+  const handleViewDetails = () => {
+    // Check if this is the IT program
+    if (curriculum.id === "3" && curriculum.program === "IT") {
+      // Create a temporary anchor element to download/view the PDF
+      const link = document.createElement('a');
+      link.href = '/Study Plan IT.pdf';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // Handle other curricula - you can add more PDFs or other logic here
+      alert(`Details for ${curriculum.name} are not available yet.`);
+    }
+  };
+
   return (
     <div className=" border border-gray-200 dark:border-[#23272f] rounded-xl p-6 shadow-sm flex flex-col gap-3 relative transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-teal-400 dark:hover:border-teal-500">
       <div className="mb-2">
@@ -115,8 +140,32 @@ function CurriculumCard({ curriculum }: { curriculum: any }) {
         <div><span className="font-bold text-lg text-gray-900 dark:text-white">{curriculum.credits}</span> <span className="text-xs ml-1">CREDITS</span></div>
       </div>
       <div className="flex gap-3 mt-auto">
-        <button  className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >View Details</button>
+        {curriculum.id === "1" && curriculum.program === "CS" ? (
+          <a
+            href="/bscs2022-study-plan-653.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed inline-block text-center"
+          >
+            View Details
+          </a>
+        ) : curriculum.id === "3" && curriculum.program === "IT" ? (
+          <a
+            href="/Study Plan IT.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed inline-block text-center"
+          >
+            View Details
+          </a>
+        ) : (
+          <button 
+            onClick={handleViewDetails}
+            className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            View Details
+          </button>
+        )}
       </div>
     </div>
   );

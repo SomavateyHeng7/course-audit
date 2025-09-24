@@ -743,21 +743,21 @@ export default function CoursePlanningPage() {
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6">
+        <Button
+          variant="outline"
+          onClick={() => router.push('/management/data-entry')}
+          className="flex items-center gap-2 mb-4"
+        >
+          <ArrowLeft size={16} />
+          Back to Data Entry
+        </Button>
         <div>
           <h1 className="text-3xl font-bold">Course Planning</h1>
           <p className="text-muted-foreground">
             Plan your future courses for {dataEntryContext.selectedDepartment} - {dataEntryContext.selectedCurriculum}
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => router.push('/management/data-entry')}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft size={16} />
-          Back to Data Entry
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
