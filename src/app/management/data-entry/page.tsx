@@ -1052,7 +1052,7 @@ export default function DataEntryPage() {
               <DropdownMenuContent align="start" className="w-48">
                 <DropdownMenuItem
                   onClick={() => {
-                    // Gather course data for export - only courses that are in progress (planning status)
+                    // Gather course data for export - include completed and planning courses
                     const rows: any[] = [];
                     courseTypeOrder.forEach(category => {
                       const courses = curriculumCourses[selectedCurriculum]?.[category] || [];
@@ -1060,30 +1060,29 @@ export default function DataEntryPage() {
                         const courseStatus = completedCourses[course.code]?.status;
                         const courseGrade = completedCourses[course.code]?.grade || '';
                         
-                        // Only include courses that are in progress (planning status)
-                        if (courseStatus === 'planning') {
+                        // Include courses that are completed or in progress (planning status)
+                        if (courseStatus === 'planning' || courseStatus === 'completed') {
                           rows.push({
                             Code: course.code,
                             Title: course.title,
                             Grade: courseGrade,
-                            'Currently Taking': 'Yes',
+                            'Currently Taking': courseStatus === 'planning' ? 'Yes' : '',
                           });
                         }
                       });
                     });
                     
-                    // Add assigned free electives that are in progress
+                    // Add assigned free electives that are completed or in progress
                     assignedFreeElectives.forEach(course => {
-                      // Check if this free elective has planning status
                       const courseStatus = completedCourses[course.courseCode]?.status;
                       const courseGrade = completedCourses[course.courseCode]?.grade || course.grade || '';
                       
-                      if (courseStatus === 'planning') {
+                      if (courseStatus === 'planning' || courseStatus === 'completed') {
                         rows.push({
                           Code: course.courseCode,
                           Title: course.courseName,
                           Grade: courseGrade,
-                          'Currently Taking': 'Yes',
+                          'Currently Taking': courseStatus === 'planning' ? 'Yes' : '',
                         });
                       }
                     });
@@ -1093,12 +1092,12 @@ export default function DataEntryPage() {
                       const courseStatus = completedCourses[course.code]?.status;
                       const courseGrade = completedCourses[course.code]?.grade || '';
                       
-                      if (courseStatus === 'planning') {
+                      if (courseStatus === 'planning' || courseStatus === 'completed') {
                         rows.push({
                           Code: course.code,
                           Title: course.title,
                           Grade: courseGrade,
-                          'Currently Taking': 'Yes',
+                          'Currently Taking': courseStatus === 'planning' ? 'Yes' : '',
                         });
                       }
                     });
@@ -1115,7 +1114,7 @@ export default function DataEntryPage() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
-                    // Gather course data for CSV export - only courses that are in progress (planning status)
+                    // Gather course data for CSV export - include completed and planning courses
                     const rows: any[] = [];
                     courseTypeOrder.forEach(category => {
                       const courses = curriculumCourses[selectedCurriculum]?.[category] || [];
@@ -1123,30 +1122,29 @@ export default function DataEntryPage() {
                         const courseStatus = completedCourses[course.code]?.status;
                         const courseGrade = completedCourses[course.code]?.grade || '';
                         
-                        // Only include courses that are in progress (planning status)
-                        if (courseStatus === 'planning') {
+                        // Include courses that are completed or in progress (planning status)
+                        if (courseStatus === 'planning' || courseStatus === 'completed') {
                           rows.push({
                             Code: course.code,
                             Title: course.title,
                             Grade: courseGrade,
-                            'Currently Taking': 'Yes',
+                            'Currently Taking': courseStatus === 'planning' ? 'Yes' : '',
                           });
                         }
                       });
                     });
                     
-                    // Add assigned free electives that are in progress
+                    // Add assigned free electives that are completed or in progress
                     assignedFreeElectives.forEach(course => {
-                      // Check if this free elective has planning status
                       const courseStatus = completedCourses[course.courseCode]?.status;
                       const courseGrade = completedCourses[course.courseCode]?.grade || course.grade || '';
                       
-                      if (courseStatus === 'planning') {
+                      if (courseStatus === 'planning' || courseStatus === 'completed') {
                         rows.push({
                           Code: course.courseCode,
                           Title: course.courseName,
                           Grade: courseGrade,
-                          'Currently Taking': 'Yes',
+                          'Currently Taking': courseStatus === 'planning' ? 'Yes' : '',
                         });
                       }
                     });
@@ -1156,12 +1154,12 @@ export default function DataEntryPage() {
                       const courseStatus = completedCourses[course.code]?.status;
                       const courseGrade = completedCourses[course.code]?.grade || '';
                       
-                      if (courseStatus === 'planning') {
+                      if (courseStatus === 'planning' || courseStatus === 'completed') {
                         rows.push({
                           Code: course.code,
                           Title: course.title,
                           Grade: courseGrade,
-                          'Currently Taking': 'Yes',
+                          'Currently Taking': courseStatus === 'planning' ? 'Yes' : '',
                         });
                       }
                     });
