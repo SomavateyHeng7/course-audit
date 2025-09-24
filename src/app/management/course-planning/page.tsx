@@ -37,7 +37,7 @@ interface PlannedCourse {
   credits: number;
   semester: string;
   year: number;
-  status: 'planning' | 'will-take' | 'considering';
+  status: 'planning';
   prerequisites?: string[];
   corequisites?: string[];
   validationStatus: 'valid' | 'warning' | 'error';
@@ -380,8 +380,13 @@ export default function CoursePlanningPage() {
         const planData = JSON.parse(savedCoursePlan);
         if (planData.curriculumId === dataEntryContext.selectedCurriculum && 
             planData.departmentId === dataEntryContext.selectedDepartment) {
-          setPlannedCourses(planData.plannedCourses || []);
-          console.log('Loaded saved course plan:', planData.plannedCourses);
+          // Migrate old status values to 'planning'
+          const migratedCourses = (planData.plannedCourses || []).map((course: any) => ({
+            ...course,
+            status: 'planning' // Convert all statuses to 'planning'
+          }));
+          setPlannedCourses(migratedCourses);
+          console.log('Loaded saved course plan:', migratedCourses);
         }
       }
     } catch (error) {
@@ -481,7 +486,7 @@ export default function CoursePlanningPage() {
 
     const missing = course.prerequisites.filter(prereq => 
       !completedCourses.has(prereq) && 
-      !plannedCourses.some(planned => planned.code === prereq && planned.status !== 'considering')
+      !plannedCourses.some(planned => planned.code === prereq)
     );
 
     return { valid: missing.length === 0, missing };
@@ -722,8 +727,11 @@ export default function CoursePlanningPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading course data...</div>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg text-muted-foreground">Loading course data...</p>
+        </div>
       </div>
     );
   }
@@ -989,8 +997,6 @@ export default function CoursePlanningPage() {
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="planning">Planning</SelectItem>
-                                    <SelectItem value="will-take">Will Take</SelectItem>
-                                    <SelectItem value="considering">Considering</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -1054,7 +1060,6 @@ export default function CoursePlanningPage() {
               <Button 
                 className="w-full mt-4" 
                 onClick={saveCoursePlan}
-                disabled={plannedCourses.length === 0}
               >
                 <Clock size={16} className="mr-2" />
                 Save Course Plan

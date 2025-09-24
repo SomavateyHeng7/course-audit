@@ -19,9 +19,9 @@ import UnmatchedCoursesSection, { UnmatchedCourse } from '@/components/student/U
 import FreeElectiveManager, { FreeElectiveCourse } from '@/components/student/FreeElectiveManager';
 import { type CourseData } from '@/components/excel/ExcelUtils';
 
-// Define CourseStatus for data entry page - simplified to completion tracking only
+// Define CourseStatus for data entry page - includes planning status for course planner compatibility
 interface CourseStatus {
-  status: 'not_completed' | 'completed' | 'failed' | 'withdrawn';
+  status: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning';
   grade?: string;
 }
 
@@ -67,26 +67,29 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Move these to module scope so StatusDropdown can use them - simplified for data entry
-const statusLabels: Record<'not_completed' | 'completed' | 'failed' | 'withdrawn', string> = {
+// Move these to module scope so StatusDropdown can use them - includes planning status
+const statusLabels: Record<'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning', string> = {
   not_completed: 'Not Completed',
   completed: 'Completed',
   failed: 'Failed',
   withdrawn: 'Withdrawn',
+  planning: 'Planning',
 };
-const statusOptions: { value: 'not_completed' | 'completed' | 'failed' | 'withdrawn'; label: string }[] = [
+const statusOptions: { value: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning'; label: string }[] = [
   { value: 'completed', label: 'Completed' },
   { value: 'failed', label: 'Failed' },
   { value: 'withdrawn', label: 'Withdrawn' },
   { value: 'not_completed', label: 'Not Completed' },
+  { value: 'planning', label: 'Planning' },
 ];
 
-// Add a helper for status color classes - simplified
-const statusColorClasses: Record<'not_completed' | 'completed' | 'failed' | 'withdrawn', string> = {
+// Add a helper for status color classes - includes planning status
+const statusColorClasses: Record<'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning', string> = {
   not_completed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
   completed: 'bg-green-200 text-green-800 dark:bg-green-700 dark:text-green-200',
   failed: 'bg-red-200 text-red-800 dark:bg-red-700 dark:text-red-200',
   withdrawn: 'bg-yellow-200 text-yellow-800 dark:bg-yellow-600 dark:text-yellow-100',
+  planning: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
 };
 
 // Move gradeOptions to module scope so it is accessible everywhere
@@ -187,7 +190,9 @@ export default function DataEntryPage() {
         // Find the department ID
         const selectedCurriculumData = curricula.find(c => c.id === selectedCurriculum);
         if (!selectedCurriculumData?.department?.id) {
-          console.error('Department ID not found for selected curriculum');
+          console.warn('Department ID not found for selected curriculum - please reselect department');
+          // Clear concentrations and let user reselect department
+          setConcentrations([]);
           return;
         }
 
@@ -1341,7 +1346,7 @@ function FreeElectiveAddButton() {
   );
 }
 
-function StatusDropdown({ code, status, setStatus }: { code: string; status: 'not_completed' | 'completed' | 'failed' | 'withdrawn'; setStatus: (status: 'not_completed' | 'completed' | 'failed' | 'withdrawn') => void }) {
+function StatusDropdown({ code, status, setStatus }: { code: string; status: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning'; setStatus: (status: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning') => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   // Close dropdown on outside click
@@ -1364,7 +1369,7 @@ function StatusDropdown({ code, status, setStatus }: { code: string; status: 'no
       </button>
       {open && (
         <div className="absolute z-10 mt-1 w-48 bg-background border border-border rounded-md shadow-lg">
-          {statusOptions.map((opt: { value: 'not_completed' | 'completed' | 'failed' | 'withdrawn'; label: string }) => (
+          {statusOptions.map((opt: { value: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning'; label: string }) => (
             <button
               key={opt.value}
               className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors ${status === opt.value ? `font-bold ${statusColorClasses[opt.value]}` : 'text-foreground'}`}

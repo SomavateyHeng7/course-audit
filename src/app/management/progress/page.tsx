@@ -923,7 +923,10 @@ export default function ProgressPage() {
       {/* Show loading state */}
       {loading && (
         <div className="flex justify-center items-center py-12">
-          <div className="text-lg">Loading progress data...</div>
+          <div className="p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-lg text-muted-foreground">Loading progress data...</p>
+          </div>
         </div>
       )}
 
