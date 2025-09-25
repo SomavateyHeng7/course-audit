@@ -124,10 +124,9 @@ export default function CoursePlanningPage() {
   };
 
   // Semester options
+  // Note: Summer session functionality requires additional implementation to properly filter courses with summerOnly flag
   const semesterOptions = [
-    { value: '1', label: 'Semester 1' },
-    { value: '2', label: 'Semester 2' },
-    { value: 'summer', label: 'Summer Session' },
+    { value: '1', label: 'Semester' },
   ];
 
   // Year options (current year + next 4 years)
@@ -188,8 +187,40 @@ export default function CoursePlanningPage() {
         );
         setCompletedCourses(new Set(completedCourseCodes));
 
+        // Auto-sync planning courses to course plan
+        const planningCourses = Object.keys(context.completedCourses).filter(
+          code => context.completedCourses[code]?.status === 'planning'
+        );
+        
+        if (planningCourses.length > 0) {
+          console.log('Found planning courses from data entry:', planningCourses);
+          // Convert planning courses to PlannedCourse format
+          const plannedCoursesFromDataEntry: PlannedCourse[] = planningCourses.map((code, index) => {
+            const courseData = context.completedCourses[code];
+            // Extract title and credits from courseData if available, otherwise use defaults
+            const title = (courseData as any)?.title || (courseData as any)?.name || code;
+            const credits = (courseData as any)?.credits || 3;
+            
+            return {
+              id: `planned-${code}-${Date.now()}-${index}`,
+              code: code,
+              title: title,
+              credits: credits,
+              semester: '1', // Default semester
+              year: new Date().getFullYear(),
+              status: 'planning' as const,
+              validationStatus: 'valid' as const,
+            };
+          });
+          
+          // Set these as the initial planned courses (will be merged with saved plan later)
+          setPlannedCourses(plannedCoursesFromDataEntry);
+          console.log('Auto-added planning courses to course plan:', plannedCoursesFromDataEntry);
+        }
+
         console.log('Loaded data entry context:', context);
         console.log('Completed courses:', completedCourseCodes);
+        console.log('Planning courses:', planningCourses);
 
       } catch (error) {
         console.error('Error loading data entry context:', error);
@@ -376,19 +407,36 @@ export default function CoursePlanningPage() {
     
     try {
       const savedCoursePlan = localStorage.getItem('coursePlan');
+      let savedCourses: PlannedCourse[] = [];
+      
       if (savedCoursePlan) {
         const planData = JSON.parse(savedCoursePlan);
         if (planData.curriculumId === dataEntryContext.selectedCurriculum && 
             planData.departmentId === dataEntryContext.selectedDepartment) {
           // Migrate old status values to 'planning'
-          const migratedCourses = (planData.plannedCourses || []).map((course: any) => ({
+          savedCourses = (planData.plannedCourses || []).map((course: any) => ({
             ...course,
             status: 'planning' // Convert all statuses to 'planning'
           }));
-          setPlannedCourses(migratedCourses);
-          console.log('Loaded saved course plan:', migratedCourses);
+          console.log('Loaded saved course plan:', savedCourses);
         }
       }
+      
+      // Merge with any auto-added planning courses from data entry
+      setPlannedCourses(prevPlanned => {
+        const existingCodes = new Set([...savedCourses.map(c => c.code), ...prevPlanned.map(c => c.code)]);
+        const mergedCourses = [...savedCourses];
+        
+        // Add any planning courses from data entry that aren't already in the saved plan
+        prevPlanned.forEach(course => {
+          if (!savedCourses.some(saved => saved.code === course.code)) {
+            mergedCourses.push(course);
+          }
+        });
+        
+        console.log('Final merged course plan:', mergedCourses);
+        return mergedCourses;
+      });
     } catch (error) {
       console.error('Error loading saved course plan:', error);
     }
