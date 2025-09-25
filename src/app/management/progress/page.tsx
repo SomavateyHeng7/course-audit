@@ -1107,20 +1107,187 @@ export default function ProgressPage() {
   const unassignedPlanned = categoryStats['Unassigned']?.planned || 0;
   const unassignedTotal = categoryStats['Unassigned']?.total || 0;
 
-  // PDF download handler
+  // Simple PDF download handler - create text-based PDF instead of image
   const handleDownloadPDF = async () => {
-    if (!pdfRef.current) return;
-    const element = pdfRef.current;
-    const canvas = await html2canvas(element, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    // Calculate image dimensions to fit A4
-    const imgWidth = pageWidth - 40;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    pdf.addImage(imgData, "PNG", 20, 20, imgWidth, imgHeight);
-    pdf.save("progress-report.pdf");
+    if (!selectedCurriculum) {
+      alert('Please select a curriculum first before generating PDF.');
+      return;
+    }
+    
+    if (loading) {
+      alert('Please wait for data to load before generating PDF.');
+      return;
+    }
+    
+    try {
+      // Create a text-based PDF instead of image-based
+      const pdf = new jsPDF({ 
+        orientation: "portrait", 
+        unit: "pt", 
+        format: "a4"
+      });
+      
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 40;
+      let yPosition = margin + 20;
+      const lineHeight = 15;
+      const maxWidth = pageWidth - (margin * 2);
+      
+      // Helper function to add text and handle page breaks
+      const addText = (text: string, fontSize = 11, isBold = false, leftMargin = margin) => {
+        if (yPosition > pageHeight - margin - 20) {
+          pdf.addPage();
+          yPosition = margin + 20;
+        }
+        
+        pdf.setFontSize(fontSize);
+        pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
+        
+        // Handle long text by splitting into lines
+        const lines = pdf.splitTextToSize(text, maxWidth - (leftMargin - margin));
+        
+        if (Array.isArray(lines)) {
+          lines.forEach((line: string) => {
+            pdf.text(line, leftMargin, yPosition);
+            yPosition += lineHeight;
+          });
+        } else {
+          pdf.text(lines, leftMargin, yPosition);
+          yPosition += lineHeight;
+        }
+        
+        return yPosition;
+      };
+      
+      // Title
+      addText('Academic Progress Report', 18, true);
+      yPosition += 10;
+      
+      // Date
+      const now = new Date();
+      addText(`Generated on: ${now.toLocaleDateString()}`, 10);
+      yPosition += 20;
+      
+      // Overall Progress
+      addText('OVERALL PROGRESS', 14, true);
+      yPosition += 5;
+      addText(`Total Credits Earned: ${earnedCredits}`);
+      if (plannedCredits > 0) {
+        addText(`Planned Credits: ${plannedCredits}`);
+      }
+      addText(`Total Required: ${totalCreditsRequired}`);
+      addText(`Progress: ${percent}%`);
+      if (gpa !== 'N/A') {
+        addText(`GPA: ${gpa}`);
+      }
+      yPosition += 20;
+      
+      // Category Progress
+      addText('CATEGORY PROGRESS', 14, true);
+      yPosition += 5;
+      
+      const categories = [
+        { name: 'General Education', completed: genEdCompleted, planned: genEdPlanned, total: genEdTotal },
+        { name: 'Core Courses', completed: coreCompleted, planned: corePlanned, total: coreTotal },
+        { name: 'Major', completed: majorCompleted, planned: majorPlanned, total: majorTotal },
+        { name: 'Major Elective', completed: majorElectiveCompleted, planned: majorElectivePlanned, total: majorElectiveTotal },
+        { name: 'Free Elective', completed: freeElectiveCompleted, planned: freeElectivePlanned, total: freeElectiveTotal }
+      ];
+      
+      categories.forEach(category => {
+        if (category.total > 0) {
+          const plannedText = category.planned > 0 ? ` (+${category.planned} planned)` : '';
+          addText(`${category.name}: ${category.completed}${plannedText} / ${category.total}`, 11, false, margin + 20);
+        }
+      });
+      yPosition += 15;
+      
+      // Completed Courses
+      if (completedList.length > 0) {
+        addText('COMPLETED COURSES', 14, true);
+        yPosition += 5;
+        
+        completedList.forEach(course => {
+          const gradeText = course.grade ? ` (${course.grade})` : '';
+          addText(`• ${course.code} - ${course.title}${gradeText}`, 10, false, margin + 20);
+        });
+        yPosition += 15;
+      }
+      
+      // Planned Courses
+      if (plannedFromPlannerList.length > 0) {
+        addText('PLANNED COURSES', 14, true);
+        yPosition += 5;
+        
+        plannedFromPlannerList.forEach(course => {
+          addText(`• ${course.code} - ${course.title} (${course.semester} ${course.year})`, 10, false, margin + 20);
+        });
+        yPosition += 15;
+      }
+      
+      // Concentration Progress
+      if (concentrationAnalysis.length > 0) {
+        addText('CONCENTRATION PROGRESS', 14, true);
+        yPosition += 5;
+        
+        concentrationAnalysis.forEach(analysis => {
+          addText(`${analysis.concentration.name}: ${Math.round(analysis.progress)}%`, 12, true, margin + 20);
+          addText(`  Completed: ${analysis.completedCourses.length} courses`, 10, false, margin + 40);
+          addText(`  Required: ${analysis.concentration.requiredCourses} courses`, 10, false, margin + 40);
+          if (analysis.remainingCourses > 0) {
+            addText(`  Remaining: ${analysis.remainingCourses} courses`, 10, false, margin + 40);
+          }
+          yPosition += 5;
+        });
+        yPosition += 10;
+      }
+      
+      // Remaining Courses
+      if (pendingList.length > 0) {
+        addText('REMAINING COURSES', 14, true);
+        yPosition += 5;
+        
+        // Group by category
+        const remainingByCategory: { [category: string]: typeof pendingList } = {};
+        pendingList.forEach(course => {
+          if (!remainingByCategory[course.category]) {
+            remainingByCategory[course.category] = [];
+          }
+          remainingByCategory[course.category].push(course);
+        });
+        
+        Object.entries(remainingByCategory).forEach(([category, courses]) => {
+          addText(`${category}:`, 12, true, margin + 20);
+          courses.forEach(course => {
+            addText(`  • ${course.code} - ${course.title} (${course.credits} credits)`, 10, false, margin + 40);
+          });
+          yPosition += 5;
+        });
+      }
+      
+      // Validation warnings if any
+      if (blacklistWarnings.length > 0) {
+        yPosition += 15;
+        addText('WARNINGS', 14, true);
+        yPosition += 5;
+        
+        blacklistWarnings.forEach(warning => {
+          addText(`⚠ ${warning}`, 10, false, margin + 20);
+        });
+      }
+      
+      // Generate filename with current date
+      const dateStr = now.toISOString().split('T')[0];
+      const filename = `academic-progress-report-${dateStr}.pdf`;
+      
+      pdf.save(filename);
+      alert('PDF generated successfully!');
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Error generating PDF. Please try again.');
+    }
   };
 
   // Export functions for CSV and Excel
@@ -1280,6 +1447,8 @@ export default function ProgressPage() {
         </div>
         <h2 className="text-xl font-bold">Academic Progress Overview</h2>
       </div>
+      
+      <div ref={pdfRef} className="w-full">{/* Main content wrapper for PDF export */}
 
       {/* Show loading state */}
       {loading && (
@@ -1419,7 +1588,7 @@ export default function ProgressPage() {
             </>
           )}
 
-          <div ref={pdfRef} className="bg-white dark:bg-card rounded-xl p-6 mb-6 border border-gray-200 dark:border-border">
+          <div className="bg-white dark:bg-card rounded-xl p-6 mb-6 border border-gray-200 dark:border-border">
         {/* Custom Academic Progress Bar */}
         <div className="flex items-center relative h-24 mb-4 bg-gradient-to-r from-emerald-100 to-blue-100 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg px-6">
           {/* Progress bar */}
@@ -1651,7 +1820,7 @@ export default function ProgressPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[150px]">
           <h3 className="text-lg font-bold mb-3">Completed Courses</h3>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
+          <div className="space-y-2 max-h-40 overflow-y-auto pdf-expandable">
             {completedList.length === 0 ? (
               <div className="text-gray-400 text-center py-4">No completed courses yet.</div>
             ) : (
@@ -1668,7 +1837,7 @@ export default function ProgressPage() {
         </div>
         <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[150px]">
           <h3 className="text-lg font-bold mb-3">Planned Courses <span className="text-sm text-blue-600">(From Course Planner)</span></h3>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
+          <div className="space-y-2 max-h-40 overflow-y-auto pdf-expandable">
             {plannedFromPlannerList.length === 0 ? (
               <div className="text-gray-400 text-center py-4">No courses planned yet. <br /><span className="text-xs">Use the Course Planner to add courses.</span></div>
             ) : (
@@ -1746,7 +1915,7 @@ export default function ProgressPage() {
       <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mt-6">
         <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[300px]">
           <h3 className="text-lg font-bold mb-3">Remaining Courses</h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
+          <div className="space-y-2 max-h-64 overflow-y-auto pdf-expandable">
             {pendingList.length === 0 ? (
               <div className="text-gray-400 text-center py-8">All courses completed or planned! 🎉</div>
             ) : (
@@ -1760,6 +1929,11 @@ export default function ProgressPage() {
           </div>
         </div>
       </div>
+        </>
+      )}
+      </div>{/* End of PDF ref wrapper */}
+      
+      {/* Download buttons - outside PDF export area */}
       <div className="flex justify-end gap-3 mt-8">
         {/* Export Data Dropdown */}
         {!loading && selectedCurriculum && (
@@ -1795,13 +1969,24 @@ export default function ProgressPage() {
         
         <button
           className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          onClick={handleDownloadPDF}
+          onClick={() => {
+            console.log('🔍 PDF Button clicked - Debug info:', {
+              loading,
+              selectedCurriculum,
+              completedCoursesCount: Object.keys(completedCourses).length,
+              plannedCoursesCount: plannedCourses.length,
+              pdfRefExists: !!pdfRef.current,
+              pdfRefDimensions: pdfRef.current ? {
+                width: pdfRef.current.offsetWidth,
+                height: pdfRef.current.offsetHeight
+              } : null
+            });
+            handleDownloadPDF();
+          }}
         >
           Download as PDF
         </button>
       </div>
-        </>
-      )}
     </div>
   );
 }
