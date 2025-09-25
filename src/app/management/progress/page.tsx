@@ -1,11 +1,14 @@
 "use client";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import * as XLSX from 'xlsx';
 import { useRef, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { curriculumBlacklistApi, type CurriculumBlacklistsResponse } from '@/services/curriculumBlacklistApi';
-import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Download, ChevronDown } from "lucide-react";
 import { GiGraduateCap } from "react-icons/gi";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { 
   validateStudentProgress, 
   calculateCurriculumProgress,
@@ -14,14 +17,7 @@ import {
   type CurriculumProgress
 } from "@/lib/courseValidation";
 
-const categoryOrder = [
-  "General Education",
-  "Core Courses",
-  "Major",
-  "Major Elective",
-  "Free Elective",
-  "General",
-];
+// categoryOrder is now dynamically determined inside the component
 
 interface CourseStatus {
   status: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning';
@@ -554,12 +550,24 @@ export default function ProgressPage() {
         calculateCurriculumProgress(studentCourses, curriculumId)
       ]);
       
+      // Validate the progress data before setting it
+      if (progress && typeof progress.totalCreditsRequired === 'number' && progress.totalCreditsRequired > 0) {
+        setCurriculumProgress(progress);
+        if (typeof window !== 'undefined') {
+          console.log('🔍 DEBUG: Valid curriculum progress set:', progress);
+        }
+      } else {
+        if (typeof window !== 'undefined') {
+          console.warn('🔍 DEBUG: Invalid curriculum progress data:', progress);
+        }
+        setCurriculumProgress(null);
+      }
+      
       setValidationResult(validation);
-      setCurriculumProgress(progress);
       
       if (typeof window !== 'undefined') {
         console.log('🔍 DEBUG: Validation result:', validation);
-        console.log('🔍 DEBUG: Curriculum progress:', progress);
+        console.log('🔍 DEBUG: Final curriculum progress state:', progress);
       }
       
     } catch (error) {
@@ -784,12 +792,89 @@ export default function ProgressPage() {
       console.warn('No curriculum data found for:', selectedCurriculum);
     }
     // Create empty categories to avoid errors
-    categoryOrder.forEach(category => {
+    const defaultCategories = [
+      'General Education',
+      'Core Courses', 
+      'Major',
+      'Major Elective',
+      'Free Elective',
+      'General'
+    ];
+    defaultCategories.forEach(category => {
       allCoursesByCategory[category] = [];
     });
     // At least add free electives
     allCoursesByCategory["Free Elective"] = freeElectives;
   }
+
+  // Also collect categories from completed courses that aren't in curriculum
+  const allPossibleCategories = new Set<string>();
+  
+  // Add curriculum categories
+  if (allCoursesByCategory) {
+    Object.keys(allCoursesByCategory).forEach(cat => allPossibleCategories.add(cat));
+  }
+  
+  // Add categories from completed courses
+  if (typeof window !== 'undefined') {
+    Object.keys(completedCourses).forEach(courseCode => {
+      const courseStatus = completedCourses[courseCode];
+      if (courseStatus.status === 'completed') {
+        // Simple categorization logic for completed courses not in curriculum
+        let category = 'Unassigned';
+        if (courseCode.startsWith('CSX') || courseCode.startsWith('CS')) {
+          category = 'Major';
+        } else if (courseCode.startsWith('ITX') || courseCode.startsWith('IT')) {
+          category = 'Major';  
+        } else if (courseCode.startsWith('GE')) {
+          category = 'General Education';
+        } else if (courseCode.startsWith('ELE')) {
+          category = 'Free Elective';
+        }
+        allPossibleCategories.add(category);
+      }
+    });
+  }
+  
+  // Add categories from planned courses
+  if (typeof window !== 'undefined') {
+    const storedPlanningData = localStorage.getItem('planningData');
+    if (storedPlanningData) {
+      const planningData = JSON.parse(storedPlanningData);
+      planningData.forEach((plannedCourse: any) => {
+        if (plannedCourse.category) {
+          allPossibleCategories.add(plannedCourse.category);
+        }
+      });
+    }
+  }
+
+  // Update getCategoryOrder to use all possible categories
+  const getCategoryOrder = () => {
+    const availableCategories = Array.from(allPossibleCategories);
+    console.log('🔍 DEBUG: All possible categories:', availableCategories);
+    
+    // Define preferred order, but include all available categories
+    const preferredOrder = [
+      'General Education',
+      'Core Courses', 
+      'Major',
+      'Major Elective',
+      'Free Elective',
+      'General',
+      'Unassigned'
+    ];
+    
+    // Start with preferred order categories that exist
+    const orderedCategories = preferredOrder.filter(cat => availableCategories.includes(cat));
+    
+    // Add any additional categories not in preferred order
+    const additionalCategories = availableCategories.filter(cat => !preferredOrder.includes(cat));
+    
+    return [...orderedCategories, ...additionalCategories];
+  };
+
+  const categoryOrder = getCategoryOrder();
 
   // GPA mapping
   const gradeToGPA: Record<string, number> = {
@@ -923,6 +1008,8 @@ export default function ProgressPage() {
       }
       categoryStats[category].completed += 1;
       categoryStats[category].earned += credits;
+      categoryStats[category].total += 1;
+      categoryStats[category].totalCredits += credits;
       
       // Update GPA calculation
       const grade = courseStatus.grade;
@@ -968,6 +1055,10 @@ export default function ProgressPage() {
   const generalPlanned = categoryStats['General']?.planned || 0;
   const generalTotal = allCoursesByCategory['General']?.length || 0;
 
+  const unassignedCompleted = categoryStats['Unassigned']?.completed || 0;
+  const unassignedPlanned = categoryStats['Unassigned']?.planned || 0;
+  const unassignedTotal = categoryStats['Unassigned']?.total || 0;
+
   // PDF download handler
   const handleDownloadPDF = async () => {
     if (!pdfRef.current) return;
@@ -984,6 +1075,142 @@ export default function ProgressPage() {
     pdf.save("progress-report.pdf");
   };
 
+  // Export functions for CSV and Excel
+  const exportToExcel = () => {
+    // Prepare all courses data (both completed and planned)
+    const allCourses: any[] = [];
+    
+    // Add all completed courses
+    completedList.forEach(course => {
+      allCourses.push({
+        Title: course.title,
+        Code: course.code,
+        Credits: course.credits,
+        Category: course.category,
+        Grade: course.grade || '',
+        Status: 'completed'
+      });
+    });
+    
+    // Add all planned courses
+    plannedFromPlannerList.forEach((course: any) => {
+      allCourses.push({
+        Title: course.title,
+        Code: course.code,
+        Credits: course.credits,
+        Category: course.category,
+        Grade: '',
+        Status: course.status || 'planning'
+      });
+    });
+
+    const worksheetData: any[][] = [];
+    worksheetData.push(['course data']); // Title (match CSV format)
+    worksheetData.push([]); // Empty row
+    
+    // Group courses by category
+    const groupedCourses: { [key: string]: any[] } = {};
+    allCourses.forEach(course => {
+      if (!groupedCourses[course.Category]) {
+        groupedCourses[course.Category] = [];
+      }
+      groupedCourses[course.Category].push(course);
+    });
+    
+    // Add each category section
+    Object.entries(groupedCourses).forEach(([category, courses]) => {
+      const totalCredits = courses.reduce((sum, course) => sum + (course.Credits || 0), 0);
+      worksheetData.push([`${category} (${totalCredits} Credits)`]);
+      
+      courses.forEach(course => {
+        const status = course.Status === 'completed' ? '' : course.Status;
+        worksheetData.push([
+          course.Title,
+          course.Code,
+          course.Credits,
+          course.Grade,
+          status
+        ]);
+      });
+      
+      worksheetData.push([]); // Empty row after each category
+    });
+    
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Course Data');
+    XLSX.writeFile(wb, 'course data.xlsx');
+  };
+
+  const exportToCSV = () => {
+    // Prepare all courses data (both completed and planned)
+    const allCourses: any[] = [];
+    
+    // Add all completed courses
+    completedList.forEach(course => {
+      allCourses.push({
+        Title: course.title,
+        Code: course.code,
+        Credits: course.credits,
+        Category: course.category,
+        Grade: course.grade || '',
+        Status: 'completed'
+      });
+    });
+    
+    // Add all planned courses
+    plannedFromPlannerList.forEach((course: any) => {
+      allCourses.push({
+        Title: course.title,
+        Code: course.code,
+        Credits: course.credits,
+        Category: course.category,
+        Grade: '',
+        Status: course.status || 'planning'
+      });
+    });
+
+    // Convert to curriculum transcript CSV format (match data-entry page exactly)
+    const csvLines: string[] = [];
+    csvLines.push('course data'); // Title
+    csvLines.push(''); // Empty line
+    
+    // Group courses by category
+    const groupedCourses: { [key: string]: any[] } = {};
+    allCourses.forEach(course => {
+      if (!groupedCourses[course.Category]) {
+        groupedCourses[course.Category] = [];
+      }
+      groupedCourses[course.Category].push(course);
+    });
+    
+    // Add each category section
+    Object.entries(groupedCourses).forEach(([category, courses]) => {
+      const totalCredits = courses.reduce((sum, course) => sum + (course.Credits || 0), 0);
+      csvLines.push(`"${category} (${totalCredits} Credits)"`);
+      
+      courses.forEach(course => {
+        const status = course.Status === 'completed' ? '' : course.Status;
+        csvLines.push(`"${course.Title}","${course.Code}",${course.Credits},"${course.Grade}","${status}"`);
+      });
+      
+      csvLines.push(''); // Empty line after each category
+    });
+    
+    const csvContent = csvLines.join('\n');
+
+    // Create and download CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'course data.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="container py-8">
       <div className="mb-4">
@@ -995,6 +1222,7 @@ export default function ProgressPage() {
             <ArrowLeft size={16} />
             Back to Course Planner
           </button>
+          
           <button
             className="border border-input bg-background text-foreground px-4 py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => router.push('/management/data-entry')}
@@ -1276,7 +1504,7 @@ export default function ProgressPage() {
         </div>
         
         {/* Enhanced Curriculum Progress Summary */}
-        {curriculumProgress && (
+        {curriculumProgress && curriculumProgress.totalCreditsRequired > 0 ? (
           <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl p-6 mb-6 border border-purple-200 dark:border-purple-800">
             <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-4">📊 Enhanced Progress Analysis</h3>
             
@@ -1294,7 +1522,9 @@ export default function ProgressPage() {
               
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-                  {Math.round((curriculumProgress.totalCreditsCompleted / curriculumProgress.totalCreditsRequired) * 100)}%
+                  {curriculumProgress.totalCreditsRequired > 0 
+                    ? Math.round((curriculumProgress.totalCreditsCompleted / curriculumProgress.totalCreditsRequired) * 100)
+                    : 0}%
                 </div>
                 <div className="text-sm text-purple-600 dark:text-purple-400">Overall Progress</div>
               </div>
@@ -1356,6 +1586,16 @@ export default function ProgressPage() {
                 </div>
               </div>
             )}
+          </div>
+        ) : (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-6 mb-6 border border-yellow-200 dark:border-yellow-800">
+            <h3 className="text-lg font-semibold text-yellow-900 dark:text-yellow-100 mb-2">📊 Enhanced Progress Analysis</h3>
+            <p className="text-yellow-700 dark:text-yellow-300">
+              Enhanced progress analysis is temporarily unavailable. This may occur if curriculum data is still loading or if there are validation issues.
+            </p>
+            <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-2">
+              The basic progress summary above should still provide accurate information about your completed courses.
+            </p>
           </div>
         )}
       </div>
@@ -1472,7 +1712,39 @@ export default function ProgressPage() {
           </div>
         </div>
       </div>
-      <div className="flex justify-end mt-8">
+      <div className="flex justify-end gap-3 mt-8">
+        {/* Export Data Dropdown */}
+        {!loading && selectedCurriculum && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="default"
+                className="bg-purple-600 hover:bg-purple-600/90 text-white min-w-[180px] shadow-sm"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+                </svg>
+                Download Data
+                <ChevronDown className="w-4 h-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem onClick={exportToExcel} className="cursor-pointer">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+                </svg>
+                Download as XLSX
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToCSV} className="cursor-pointer">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+                </svg>
+                Download as CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        
         <button
           className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleDownloadPDF}
