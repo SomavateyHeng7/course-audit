@@ -245,7 +245,8 @@ export default function DataEntryPage() {
         selectedCurriculum,
         selectedConcentration,
         freeElectives,
-        actualDepartmentId: actualDeptId // Add the real department ID
+        actualDepartmentId: actualDeptId, // Add the real department ID
+        electiveRules // Add elective rules for Free Elective credit requirements
       };
       localStorage.setItem('studentAuditData', JSON.stringify(dataToSave));
       
@@ -317,19 +318,28 @@ export default function DataEntryPage() {
     courses.forEach(course => {
       let status: CourseStatus['status'];
       
-      // Map StudentCourseStatus to local CourseStatus - simplified for data entry
+      // Map StudentCourseStatus to local CourseStatus - includes progress page export statuses
       switch (course.status) {
         case 'COMPLETED':
           status = 'completed';
           break;
         case 'IN_PROGRESS':
-          status = 'completed'; // Map in-progress to completed for data entry
+          status = 'planning'; // Map in-progress to planning for data entry (progress page exports planning as IN_PROGRESS)
+          break;
+        case 'TAKING':
+          status = 'planning'; // Handle "taking" status as planning
           break;
         case 'FAILED':
           status = 'failed';
           break;
         case 'DROPPED':
           status = 'withdrawn';
+          break;
+        case 'WITHDRAWN':
+          status = 'withdrawn';
+          break;
+        case 'PLANNING':
+          status = 'planning';
           break;
         case 'PENDING':
           status = 'not_completed'; // Map pending to not completed

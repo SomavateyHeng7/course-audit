@@ -328,6 +328,8 @@ export default function StudentTranscriptImport({
           status = 'completed';
         } else if (importedCourse.status === 'IN_PROGRESS') {
           status = 'taking';
+        } else if (importedCourse.status === 'PLANNING') {
+          status = 'planning';
         }
 
         console.log(`Adding to category "${course.category}": ${course.code} (${status})`);
@@ -371,6 +373,8 @@ export default function StudentTranscriptImport({
           status = 'completed';
         } else if (course.status === 'IN_PROGRESS') {
           status = 'taking';
+        } else if (course.status === 'PLANNING') {
+          status = 'planning';
         }
 
         categorizedCourses['Free Elective'].push({

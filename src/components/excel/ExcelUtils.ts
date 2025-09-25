@@ -1,14 +1,14 @@
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 
-// Updated interface to match StudentCourse status enum
+// Updated interface to match StudentCourse status enum and data-entry page statuses
 export interface CourseData {
   courseCode: string;
   courseName: string;
   credits: number;
   grade?: string;
   semester?: string;
-  status?: 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'DROPPED' | 'PENDING';
+  status?: 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'PLANNING' | 'WITHDRAWN' | 'TAKING' | 'DROPPED' | 'PENDING';
   category?: string; // Course category from transcript sections
 }
 
@@ -72,14 +72,27 @@ function extractCategoryName(headerText: string): string {
  * Determine course status based on grade and remark fields
  */
 function determineStatus(grade?: string, remark?: string): CourseData['status'] {
-  // Check for explicit status indicators first
+  // Check for explicit status indicators first - handle progress page export statuses
+  if (remark?.toLowerCase().includes('planning')) return 'PLANNING';
   if (remark?.toLowerCase().includes('taking')) return 'IN_PROGRESS';
   if (remark?.toLowerCase().includes('failed')) return 'FAILED';
   if (remark?.toLowerCase().includes('dropped')) return 'DROPPED';
+  if (remark?.toLowerCase().includes('withdrawn')) return 'WITHDRAWN';
   
-  // If grade is present and valid, course is completed
-  if (grade && grade.trim() && !['', '-', 'N/A'].includes(grade.trim())) {
-    return 'COMPLETED';
+  // Handle exact status matches (case-insensitive) from progress page exports
+  const remarkLower = remark?.toLowerCase();
+  if (remarkLower === 'planning') return 'PLANNING';
+  if (remarkLower === 'taking') return 'IN_PROGRESS'; // Handle "taking" status
+  if (remarkLower === 'completed') return 'COMPLETED';
+  if (remarkLower === 'failed') return 'FAILED';
+  if (remarkLower === 'withdrawn') return 'WITHDRAWN';
+  if (remarkLower === 'not_completed') return 'PENDING';
+  
+  // If no explicit status and grade is present and valid, course is completed
+  if (!remark || remark.trim() === '') {
+    if (grade && grade.trim() && !['', '-', 'N/A'].includes(grade.trim())) {
+      return 'COMPLETED';
+    }
   }
   
   // Default to pending
@@ -129,6 +142,14 @@ export function parseTranscriptCSV(csvText: string): TranscriptParseResult {
       const cleanedName = cleanCourseName(courseName);
       const creditValue = parseInt(credits) || 0;
       const status = determineStatus(grade, remark);
+      
+      // Debug logging for planning courses
+      if (remark?.toLowerCase() === 'planning') {
+        console.log(`🔍 CSV DEBUG: Planning course found - ${courseName} (${code})`);
+        console.log(`🔍 CSV DEBUG: Raw row:`, row);
+        console.log(`🔍 CSV DEBUG: grade='${grade}', remark='${remark}'`);
+        console.log(`🔍 CSV DEBUG: Determined status:`, status);
+      }
       
       // Validate essential fields
       if (!courseCode || !cleanedName) {

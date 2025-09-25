@@ -31,6 +31,7 @@ interface CompletedCourseData {
   selectedConcentration: string;
   freeElectives: { code: string; title: string; credits: number }[];
   actualDepartmentId?: string; // Real department ID from curriculum data
+  electiveRules?: any[]; // Rules for elective credit requirements
 }
 
 interface PlannedCourse {
@@ -657,12 +658,12 @@ export default function ProgressPage() {
       }
       
       // Use the curriculum-specific department course type mapping
-      let category = 'Other';
+      let category = 'Unassigned';
       
       // Method 1: Direct departmentCourseType with curriculum mapping
       if (course.departmentCourseType?.name) {
         const departmentTypeName = course.departmentCourseType.name;
-        category = departmentCourseTypes[departmentTypeName] || departmentTypeName || 'Other';
+        category = departmentCourseTypes[departmentTypeName] || departmentTypeName || 'Unassigned';
         if (typeof window !== 'undefined') {
           console.log(`🔍 Method 1 - Direct type: ${departmentTypeName} -> Mapped to: ${category}`);
         }
@@ -671,7 +672,7 @@ export default function ProgressPage() {
       else if (course.course?.departmentCourseTypes?.length > 0) {
         const firstType = course.course.departmentCourseTypes[0];
         const departmentTypeName = firstType.courseType?.name || firstType.name;
-        category = departmentCourseTypes[departmentTypeName] || departmentTypeName || 'Other';
+        category = departmentCourseTypes[departmentTypeName] || departmentTypeName || 'Unassigned';
         if (typeof window !== 'undefined') {
           console.log(`🔍 Method 2 - Nested type: ${departmentTypeName} -> Mapped to: ${category}`, firstType);
         }
@@ -970,19 +971,8 @@ export default function ProgressPage() {
   Object.keys(completedCourses).forEach(courseCode => {
     const courseStatus = completedCourses[courseCode];
     if (courseStatus.status === 'completed' && !coursesInCategories.has(courseCode)) {
-      // Try to categorize based on course code pattern
-      let category = 'Unassigned';
-      
-      // Simple categorization logic based on course code patterns
-      if (courseCode.startsWith('CSX') || courseCode.startsWith('CS')) {
-        category = 'Major';
-      } else if (courseCode.startsWith('ITX') || courseCode.startsWith('IT')) {
-        category = 'Major';
-      } else if (courseCode.startsWith('GE')) {
-        category = 'General Education';
-      } else if (courseCode.startsWith('ELE')) {
-        category = 'Free Elective';
-      }
+      // Courses not in curriculum are treated as Free Electives
+      const category = 'Free Elective';
       
       // Parse credits from the course (assume 3 credits if not found)
       const credits = 3; // Default credits
@@ -1020,8 +1010,43 @@ export default function ProgressPage() {
     }
   });
   
+  // Handle planned courses that aren't in predefined curriculum categories
+  // These should be treated as Free Electives as per user specification
+  plannedCourses.forEach(plannedCourse => {
+    if (!coursesInCategories.has(plannedCourse.code)) {
+      // This planned course is not in the predefined curriculum - treat as Free Elective
+      const category = 'Free Elective';
+      
+      if (typeof window !== 'undefined') {
+        console.log(`🔍 DEBUG: Adding planned course outside curriculum: ${plannedCourse.code} as ${category}`);
+      }
+      
+      // Add to planned list
+      plannedFromPlannerList.push({
+        code: plannedCourse.code,
+        title: plannedCourse.title,
+        credits: plannedCourse.credits,
+        category: category,
+        source: 'planner',
+        semester: plannedCourse.semester,
+        year: plannedCourse.year,
+        status: plannedCourse.status
+      });
+      
+      // Update statistics
+      plannedCredits += plannedCourse.credits;
+      if (!categoryStats[category]) {
+        categoryStats[category] = { completed: 0, planned: 0, total: 0, earned: 0, totalCredits: 0 };
+      }
+      categoryStats[category].planned += 1;
+      categoryStats[category].total += 1;
+      categoryStats[category].totalCredits += plannedCourse.credits;
+    }
+  });
+
   if (typeof window !== 'undefined') {
     console.log('🔍 DEBUG: Final completed courses list:', completedList);
+    console.log('🔍 DEBUG: Final planned courses list:', plannedFromPlannerList);
     console.log('🔍 DEBUG: Final category stats:', categoryStats);
   }
   
@@ -1041,11 +1066,34 @@ export default function ProgressPage() {
   
   const majorElectiveCompleted = categoryStats['Major Elective']?.completed || 0;
   const majorElectivePlanned = categoryStats['Major Elective']?.planned || 0;
-  const majorElectiveTotal = allCoursesByCategory['Major Elective']?.length || 0;
+  // For Major Electives, use the total from categoryStats if no predefined courses exist
+  const majorElectiveTotal = allCoursesByCategory['Major Elective']?.length || categoryStats['Major Elective']?.total || 0;
   
-  const freeElectiveCompleted = categoryStats['Free Elective']?.completed || 0;
-  const freeElectivePlanned = categoryStats['Free Elective']?.planned || 0;
-  const freeElectiveTotal = allCoursesByCategory['Free Elective']?.length || 0;
+  // For Free Electives, use credit-based calculations instead of course counts
+  const freeElectiveCompletedCredits = categoryStats['Free Elective']?.earned || 0;
+  
+  // Calculate planned credits for Free Electives
+  const freeElectivePlannedCreditSum = plannedFromPlannerList
+    .filter(course => course.category === 'Free Elective')
+    .reduce((sum, course) => sum + course.credits, 0);
+  
+  // Get Free Elective requirement from saved elective rules or use default
+  const freeElectiveRule = completedData.electiveRules?.find(rule => rule.category === 'Free Elective');
+  const freeElectiveRequiredCredits = freeElectiveRule?.requiredCredits || 12; // Default to 12 if not found
+  
+  // For display purposes, convert to course equivalents (assuming 3 credits per course average)
+  const freeElectiveCompleted = Math.ceil(freeElectiveCompletedCredits / 3);
+  const freeElectivePlanned = Math.ceil(freeElectivePlannedCreditSum / 3);
+  const freeElectiveTotal = Math.ceil(freeElectiveRequiredCredits / 3);
+  
+  if (typeof window !== 'undefined') {
+    console.log('🔍 DEBUG: Free Elective calculations:', {
+      completedCredits: freeElectiveCompletedCredits,
+      plannedCredits: freeElectivePlannedCreditSum,
+      requiredCredits: freeElectiveRequiredCredits,
+      displayValues: { completed: freeElectiveCompleted, planned: freeElectivePlanned, total: freeElectiveTotal }
+    });
+  }
   
   const genEdCompleted = categoryStats['General Education']?.completed || 0;
   const genEdPlanned = categoryStats['General Education']?.planned || 0;
@@ -1503,9 +1551,9 @@ export default function ProgressPage() {
           )}
         </div>
         
-        {/* Enhanced Curriculum Progress Summary */}
+        {/* Enhanced Curriculum Progress Summary - HIDDEN */}
         {curriculumProgress && curriculumProgress.totalCreditsRequired > 0 ? (
-          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl p-6 mb-6 border border-purple-200 dark:border-purple-800">
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl p-6 mb-6 border border-purple-200 dark:border-purple-800 hidden">
             <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-4">📊 Enhanced Progress Analysis</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -1588,7 +1636,7 @@ export default function ProgressPage() {
             )}
           </div>
         ) : (
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-6 mb-6 border border-yellow-200 dark:border-yellow-800">
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-6 mb-6 border border-yellow-200 dark:border-yellow-800 hidden">
             <h3 className="text-lg font-semibold text-yellow-900 dark:text-yellow-100 mb-2">📊 Enhanced Progress Analysis</h3>
             <p className="text-yellow-700 dark:text-yellow-300">
               Enhanced progress analysis is temporarily unavailable. This may occur if curriculum data is still loading or if there are validation issues.

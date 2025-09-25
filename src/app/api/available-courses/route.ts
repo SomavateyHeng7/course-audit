@@ -80,25 +80,8 @@ export async function GET(request: NextRequest) {
       } else {
         console.log(`⚠️ Course ${course.code}: No departmentCourseTypes found, using fallback`);
         // Fallback categorization for courses not in the curriculum catalog
-        const courseCode = course.code.toUpperCase();
-        if (courseCode.startsWith('CS') || courseCode.startsWith('CSX')) {
-          category = 'Major';
-        } else if (courseCode.startsWith('IT') || courseCode.startsWith('ITX')) {
-          category = 'Major';
-        } else if (courseCode.startsWith('GE') || courseCode.includes('GEN ED')) {
-          category = 'General Education';
-        } else if (courseCode.startsWith('ELE') || courseCode.includes('ELECTIVE')) {
-          category = 'Free Elective';
-        } else if (courseCode.startsWith('MAT') || courseCode.startsWith('MATH')) {
-          category = 'Foundation';
-        } else if (courseCode.startsWith('PHY') || courseCode.startsWith('PHYSICS')) {
-          category = 'Foundation';
-        } else if (courseCode.startsWith('ENG') || courseCode.includes('ENGLISH')) {
-          category = 'General Education';
-        } else {
-          // Default to Unassigned if no pattern matches
-          category = 'Unassigned';
-        }
+        // All courses without departmentCourseTypes should be categorized as 'Unassigned' for consistency
+        category = 'Unassigned';
         console.log(`🔄 Course ${course.code}: Applied fallback category - ${category}`);
       }
 
