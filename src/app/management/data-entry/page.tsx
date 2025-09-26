@@ -670,7 +670,7 @@ export default function DataEntryPage() {
         />
       )}
 
-      {/* Free Elective Manager Section */}
+      {/* Free Elective Manager Section
       {(curriculumFreeElectives.length > 0 || assignedFreeElectives.length > 0) && (
         <FreeElectiveManager
           curriculumId={selectedCurriculum}
@@ -690,7 +690,7 @@ export default function DataEntryPage() {
             // (This is a simplified approach - in practice you might want to track original source)
           }}
         />
-      )}
+      )} */}
 
       {/* Only show curriculum course list if all three are selected (concentration can be 'none') */}
       {(() => {
