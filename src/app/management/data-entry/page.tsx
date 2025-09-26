@@ -670,7 +670,7 @@ export default function DataEntryPage() {
         />
       )}
 
-      {/* Free Elective Manager Section */}
+      {/* Free Elective Manager Section
       {(curriculumFreeElectives.length > 0 || assignedFreeElectives.length > 0) && (
         <FreeElectiveManager
           curriculumId={selectedCurriculum}
@@ -690,7 +690,7 @@ export default function DataEntryPage() {
             // (This is a simplified approach - in practice you might want to track original source)
           }}
         />
-      )}
+      )} */}
 
       {/* Only show curriculum course list if all three are selected (concentration can be 'none') */}
       {(() => {
@@ -1266,14 +1266,14 @@ export default function DataEntryPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button 
+            {/* <Button 
               variant="default"
               className="bg-sky-500 hover:bg-sky-500/90 text-white min-w-[180px] shadow-sm"
               onClick={() => router.push('/management/progress')}
             >
               <BarChart2 className="w-4 h-4 mr-2" />
               Show Progress
-            </Button>
+            </Button> */}
           </div>
             </div>
       )}
