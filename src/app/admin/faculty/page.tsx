@@ -50,12 +50,26 @@ export default function FacultyManagement() {
   const fetchFaculties = async () => {
     try {
       const response = await fetch('/api/faculties');
+      console.log('Faculties API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Faculties data received:', data);
         setFaculties(data.faculties);
+      } else {
+        const errorData = await response.json();
+        console.error('Faculties API error:', response.status, errorData);
+        setToast({ 
+          message: `Failed to fetch faculties: ${errorData.error || 'Unknown error'}`, 
+          type: 'error' 
+        });
       }
     } catch (error) {
       console.error('Error fetching faculties:', error);
+      setToast({ 
+        message: 'Network error while fetching faculties', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }

@@ -6,7 +6,15 @@ export async function GET(req: NextRequest) {
   try {
     // Check authentication and authorization
     const session = await auth();
+    console.log('Session in departments API:', JSON.stringify(session, null, 2));
+    
     if (!session?.user || !['SUPER_ADMIN', 'CHAIRPERSON'].includes(session.user.role || '')) {
+      console.log('Authorization failed for departments:', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userRole: session?.user?.role,
+        allowedRoles: ['SUPER_ADMIN', 'CHAIRPERSON']
+      });
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
         { status: 401 }
@@ -27,6 +35,12 @@ export async function GET(req: NextRequest) {
             id: true,
             name: true,
             code: true,
+          },
+        },
+        _count: {
+          select: {
+            users: true,
+            curricula: true,
           },
         },
       },

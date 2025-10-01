@@ -2,16 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { 
   Users, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye,
   Shield,
   UserCheck,
   GraduationCap
@@ -45,14 +38,6 @@ const roleIcons = {
 export default function RoleManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    role: 'ADVISOR' as 'ADVISOR' | 'CHAIRPERSON',
-    facultyId: '',
-  });
 
   useEffect(() => {
     fetchUsers();
@@ -69,46 +54,6 @@ export default function RoleManagement() {
       console.error('Error fetching users:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        setShowCreateModal(false);
-  setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '' });
-        fetchUsers();
-      }
-    } catch (error) {
-      console.error('Error creating user:', error);
-    }
-  };
-
-  const handleUpdateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingUser) return;
-
-    try {
-      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        setEditingUser(null);
-  setFormData({ name: '', email: '', role: 'ADVISOR', facultyId: '' });
-        fetchUsers();
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
     }
   };
 
@@ -146,7 +91,6 @@ export default function RoleManagement() {
             Manage user roles and permissions across the entire system
           </p>
         </div>
-       
       </div>
 
       {/* Users List */}
@@ -163,7 +107,7 @@ export default function RoleManagement() {
         <CardContent>
           <div className="space-y-4">
             {users.map((user) => {
-              const RoleIcon = roleIcons[user.role];
+              const RoleIcon = roleIcons[user.role] ?? Users;
               return (
                 <div
                   key={user.id}
@@ -180,8 +124,8 @@ export default function RoleManagement() {
                       <p className="text-sm text-gray-600 dark:text-gray-400">
                         {user.email}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500">
-                        {user.faculty.name}
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {user.faculty?.name ?? 'No Faculty Assigned'}
                       </p>
                     </div>
                   </div>
@@ -189,31 +133,6 @@ export default function RoleManagement() {
                     <Badge className={roleColors[user.role]}>
                       {user.role}
                     </Badge>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setEditingUser(user);
-                          setFormData({
-                            name: user.name,
-                            email: user.email,
-                            role: (user.role === 'ADVISOR' || user.role === 'CHAIRPERSON') ? user.role : 'ADVISOR',
-                            facultyId: '',
-                          });
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
                   </div>
                 </div>
               );
@@ -221,53 +140,6 @@ export default function RoleManagement() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Create/Edit Modal */}
-      {(showCreateModal || editingUser) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">
-              {editingUser ? 'Edit User' : 'Create New User'}
-            </h3>
-            <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="role">Role</Label>
-                <select
-                  id="role"
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-                  className="w-full p-2 border rounded-md"
-                  required
-                >
-                  <option value="ADVISOR">Advisor</option>
-                  <option value="CHAIRPERSON">Chairperson</option>
-                  {/* <option value="STUDENT">Student</option> */}
-                </select>
-              </div>
-              
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
-} 
+}

@@ -2,15 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { 
   Building2, 
-  Plus, 
-  Edit, 
-  Trash2, 
   Users,
   GraduationCap
 } from 'lucide-react';
@@ -19,11 +13,11 @@ interface Department {
   id: string;
   name: string;
   code: string;
-  faculty: {
+  faculty?: {
     id: string;
     name: string;
     code: string;
-  };
+  } | null;
   _count?: {
     users: number;
     curricula: number;
@@ -41,13 +35,6 @@ export default function DepartmentManagement() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    code: '',
-    facultyId: '',
-  });
 
   useEffect(() => {
     fetchDepartments();
@@ -57,9 +44,15 @@ export default function DepartmentManagement() {
   const fetchDepartments = async () => {
     try {
       const response = await fetch('/api/departments');
+      console.log('Departments API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Departments data received:', data);
         setDepartments(data.departments);
+      } else {
+        const errorData = await response.json();
+        console.error('Departments API error:', response.status, errorData);
       }
     } catch (error) {
       console.error('Error fetching departments:', error);
@@ -71,52 +64,18 @@ export default function DepartmentManagement() {
   const fetchFaculties = async () => {
     try {
       const response = await fetch('/api/faculties');
+      console.log('Faculties API response status in dept management:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Faculties data received in dept management:', data);
         setFaculties(data.faculties);
+      } else {
+        const errorData = await response.json();
+        console.error('Faculties API error in dept management:', response.status, errorData);
       }
     } catch (error) {
       console.error('Error fetching faculties:', error);
-    }
-  };
-
-  const handleCreateDepartment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch('/api/departments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        setShowCreateModal(false);
-        setFormData({ name: '', code: '', facultyId: '' });
-        fetchDepartments();
-      }
-    } catch (error) {
-      console.error('Error creating department:', error);
-    }
-  };
-
-  const handleUpdateDepartment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingDepartment) return;
-
-    try {
-      const response = await fetch(`/api/departments/${editingDepartment.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        setEditingDepartment(null);
-        setFormData({ name: '', code: '', facultyId: '' });
-        fetchDepartments();
-      }
-    } catch (error) {
-      console.error('Error updating department:', error);
     }
   };
 
@@ -154,7 +113,6 @@ export default function DepartmentManagement() {
             Manage departments and their faculty associations across the entire system
           </p>
         </div>
-  
       </div>
 
       {/* Departments List */}
@@ -186,8 +144,8 @@ export default function DepartmentManagement() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Code: {department.code}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">
-                      Faculty: {department.faculty.name} ({department.faculty.code})
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Faculty: {department.faculty?.name ?? 'N/A'} ({department.faculty?.code ?? '-'})
                     </p>
                   </div>
                 </div>
@@ -202,85 +160,12 @@ export default function DepartmentManagement() {
                       {department._count?.curricula || 0}
                     </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setEditingDepartment(department);
-                        setFormData({
-                          name: department.name,
-                          code: department.code,
-                          facultyId: department.faculty.id,
-                        });
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteDepartment(department.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
                 </div>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
-
-      {/* Create/Edit Modal */}
-      {(showCreateModal || editingDepartment) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">
-              {editingDepartment ? 'Edit Department' : 'Create New Department'}
-            </h3>
-            <form onSubmit={editingDepartment ? handleUpdateDepartment : handleCreateDepartment} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Department Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="code">Department Code</Label>
-                <Input
-                  id="code"
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="facultyId">Faculty</Label>
-                <select
-                  id="facultyId"
-                  value={formData.facultyId}
-                  onChange={(e) => setFormData({ ...formData, facultyId: e.target.value })}
-                  className="w-full p-2 border rounded-md"
-                  required
-                >
-                  <option value="">Select a faculty</option>
-                  {faculties.map((faculty) => (
-                    <option key={faculty.id} value={faculty.id}>
-                      {faculty.name} ({faculty.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-           
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
-} 
+}

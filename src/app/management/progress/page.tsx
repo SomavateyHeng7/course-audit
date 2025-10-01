@@ -5,10 +5,17 @@ import * as XLSX from 'xlsx';
 import { useRef, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { curriculumBlacklistApi, type CurriculumBlacklistsResponse } from '@/services/curriculumBlacklistApi';
-import { AlertTriangle, ArrowLeft, Download, ChevronDown } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Download, ChevronDown, BookOpen, Calendar, Plus, Target, Award, Clock } from "lucide-react";
 import { GiGraduateCap } from "react-icons/gi";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
 import { 
   validateStudentProgress, 
   calculateCurriculumProgress,
@@ -16,6 +23,118 @@ import {
   type ValidationResult,
   type CurriculumProgress
 } from "@/lib/courseValidation";
+
+// Enhanced Donut Chart Component with Gradient and Shadow Effects
+const DonutChart = ({ 
+  completed, 
+  planned, 
+  total, 
+  size = 120, 
+  strokeWidth = 12 
+}: { 
+  completed: number; 
+  planned: number; 
+  total: number; 
+  size?: number; 
+  strokeWidth?: number; 
+}) => {
+  const center = size / 2;
+  const radius = center - strokeWidth / 2;
+  const circumference = 2 * Math.PI * radius;
+  
+  const completedPercent = total > 0 ? (completed / total) * 100 : 0;
+  const plannedPercent = total > 0 ? (planned / total) * 100 : 0;
+  const totalPercent = completedPercent + plannedPercent;
+  
+  const completedOffset = circumference - (completedPercent / 100) * circumference;
+  const plannedOffset = circumference - (totalPercent / 100) * circumference;
+  
+  // Generate unique IDs for gradients
+  const completedGradientId = `completed-gradient-${Math.random().toString(36).substr(2, 9)}`;
+  const plannedGradientId = `planned-gradient-${Math.random().toString(36).substr(2, 9)}`;
+  
+  return (
+    <div className="relative flex items-center justify-center drop-shadow-sm">
+      <svg 
+        width={size} 
+        height={size} 
+        className="transform -rotate-90 filter drop-shadow-sm"
+        style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))' }}
+      >
+        {/* Define gradients */}
+        <defs>
+          <linearGradient id={completedGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#10b981" />
+            <stop offset="100%" stopColor="#059669" />
+          </linearGradient>
+          <linearGradient id={plannedGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#1d4ed8" />
+          </linearGradient>
+          {/* Shadow filter */}
+          <filter id="shadow">
+            <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.3"/>
+          </filter>
+        </defs>
+        
+        {/* Background circle with subtle shadow */}
+        <circle
+          cx={center}
+          cy={center}
+          r={radius}
+          fill="transparent"
+          stroke="#e5e7eb"
+          strokeWidth={strokeWidth - 2}
+          className="dark:stroke-gray-700"
+        />
+        
+        {/* Planned courses arc with gradient */}
+        {plannedPercent > 0 && (
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            fill="transparent"
+            stroke={`url(#${plannedGradientId})`}
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            strokeDashoffset={plannedOffset}
+            strokeLinecap="round"
+            className="transition-all duration-700 ease-in-out"
+            filter="url(#shadow)"
+          />
+        )}
+        
+        {/* Completed courses arc with gradient */}
+        {completedPercent > 0 && (
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            fill="transparent"
+            stroke={`url(#${completedGradientId})`}
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            strokeDashoffset={completedOffset}
+            strokeLinecap="round"
+            className="transition-all duration-700 ease-in-out"
+            filter="url(#shadow)"
+          />
+        )}
+      </svg>
+      
+      {/* Enhanced center content with better typography */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <div className="text-2xl font-bold bg-gradient-to-br from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
+          {Math.round(totalPercent)}%
+        </div>
+        <div className="text-xs font-medium text-gray-400 dark:text-gray-500 mt-0.5">
+          {completed + planned}/{total}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // categoryOrder is now dynamically determined inside the component
 
@@ -1654,71 +1773,153 @@ export default function ProgressPage() {
             </span>
           </div>
         </div>
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">Total Credits</div>
-            <div className="text-2xl font-bold text-primary">
-              {earnedCredits} 
-              {plannedCredits > 0 && <span className="text-blue-600">+{plannedCredits}</span>}
-              <span className="text-gray-400"> / {totalCreditsRequired}</span>
+        {/* Academic Progress Stats - Reorganized Layout */}
+        <TooltipProvider>
+          {/* Row 1 - Requirements (4 columns) - Moved to top */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 cursor-help relative group">
+                  <div className="flex items-center justify-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    General Ed
+                    <HelpCircle className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <div className="text-2xl font-bold text-blue-500 dark:text-blue-400 mb-1">
+                    {genEdCompleted}
+                    {genEdPlanned > 0 && <span className="text-blue-400 dark:text-blue-300">+{genEdPlanned}</span>}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">/ {genEdTotal}</div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm">
+                <p className="font-semibold mb-1">General Education Courses</p>
+                <p className="text-sm">Foundational courses including:</p>
+                <ul className="text-xs mt-1 space-y-0.5">
+                  <li>• Language Courses</li>
+                  <li>• Humanities Courses</li>
+                  <li>• Social Science Courses</li>
+                  <li>• Science and Mathematics Courses</li>
+                </ul>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 cursor-help relative group">
+                  <div className="flex items-center justify-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    Core
+                    <HelpCircle className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <div className="text-2xl font-bold text-teal-600 dark:text-teal-400 mb-1">
+                    {coreCompleted}
+                    {corePlanned > 0 && <span className="text-teal-500 dark:text-teal-300">+{corePlanned}</span>}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">/ {coreTotal}</div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm">
+                <p className="font-semibold mb-1">Core Courses</p>
+                <p className="text-sm">Major required courses essential for your program.</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 cursor-help relative group">
+                  <div className="flex items-center justify-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    Major
+                    <HelpCircle className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400 mb-1">
+                    {majorCompleted}
+                    {majorPlanned > 0 && <span className="text-cyan-500 dark:text-cyan-300">+{majorPlanned}</span>}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">/ {majorTotal}</div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm">
+                <p className="font-semibold mb-1">Major Courses</p>
+                <p className="text-sm mb-2">Core curriculum courses organized into specialized groups:</p>
+                <ul className="text-xs space-y-0.5">
+                  <li>• Organization Issues and Information Systems Group</li>
+                  <li>• Applications Technology Group</li>
+                  <li>• Technology and Software Methods Group</li>
+                  <li>• Systems Infrastructure Group</li>
+                  <li>• Hardware and Computer Architecture Group</li>
+                </ul>
+                <p className="text-xs mt-1 text-yellow-600 dark:text-yellow-400">
+                  ⚠️ At least C grades are required to pass these courses.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 cursor-help relative group">
+                  <div className="flex items-center justify-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    Electives
+                    <HelpCircle className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
+                    {(majorElectiveCompleted + freeElectiveCompleted)}
+                    {(majorElectivePlanned + freeElectivePlanned) > 0 && <span className="text-green-500 dark:text-green-300">+{majorElectivePlanned + freeElectivePlanned}</span>}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">/ {majorElectiveTotal + freeElectiveTotal}</div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm">
+                <p className="font-semibold mb-1">Elective Courses</p>
+                <p className="text-sm mb-2">Combined major and free electives:</p>
+                <ul className="text-xs space-y-1">
+                  <li>• <span className="font-medium">Major Electives:</span> {majorElectiveCompleted}/{majorElectiveTotal} ({15} credits required)</li>
+                  <li>• <span className="font-medium">Free Electives:</span> {freeElectiveCompleted}/{freeElectiveTotal} ({12} credits required)</li>
+                </ul>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          {/* Overview and Summary Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 cursor-pointer group">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">Total Credits</div>
+              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-1">
+                {earnedCredits} 
+                {plannedCredits > 0 && <span className="text-blue-500 dark:text-blue-300">+{plannedCredits}</span>}
+              </div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">/ {totalCreditsRequired}</div>
             </div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">GPA</div>
-            <div className="text-2xl font-bold text-primary">{gpa}</div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">General Education</div>
-            <div className="text-xl font-bold text-primary">
-              {genEdCompleted}
-              {genEdPlanned > 0 && <span className="text-blue-600">+{genEdPlanned}</span>}
-              <span className="text-gray-400"> / {genEdTotal}</span>
+            
+            <div className="bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 cursor-pointer group">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">GPA</div>
+              <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-1">{gpa}</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Current</div>
             </div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">Core Courses</div>
-            <div className="text-xl font-bold text-primary">
-              {coreCompleted}
-              {corePlanned > 0 && <span className="text-blue-600">+{corePlanned}</span>}
-              <span className="text-gray-400"> / {coreTotal}</span>
-            </div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">Major</div>
-            <div className="text-xl font-bold text-primary">
-              {majorCompleted}
-              {majorPlanned > 0 && <span className="text-blue-600">+{majorPlanned}</span>}
-              <span className="text-gray-400"> / {majorTotal}</span>
-            </div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">Major Elective</div>
-            <div className="text-xl font-bold text-primary">
-              {majorElectiveCompleted}
-              {majorElectivePlanned > 0 && <span className="text-blue-600">+{majorElectivePlanned}</span>}
-              <span className="text-gray-400"> / {majorElectiveTotal}</span>
-            </div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-            <div className="text-xs text-gray-500">Free Elective</div>
-            <div className="text-xl font-bold text-primary">
-              {freeElectiveCompleted}
-              {freeElectivePlanned > 0 && <span className="text-blue-600">+{freeElectivePlanned}</span>}
-              <span className="text-gray-400"> / {freeElectiveTotal}</span>
-            </div>
-          </div>
-          {generalCompleted > 0 && (
-            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-              <div className="text-xs text-gray-500">General</div>
-              <div className="text-xl font-bold text-primary">
-                {generalCompleted}
-                {generalPlanned > 0 && <span className="text-blue-600">+{generalPlanned}</span>}
-                <span className="text-gray-400"> / {generalTotal}</span>
+            
+            <div className="bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 cursor-pointer group">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-3">Progress</div>
+              <div className="flex justify-center mb-3">
+                <DonutChart 
+                  completed={earnedCredits}
+                  planned={plannedCredits}
+                  total={totalCreditsRequired}
+                  size={80}
+                  strokeWidth={8}
+                />
+              </div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                {earnedCredits}/{totalCreditsRequired} credits
               </div>
             </div>
-          )}
-        </div>
+
+            <div className="bg-gray-50 dark:bg-gray-800/30 rounded-xl p-6 text-center border border-gray-200 dark:border-gray-700 shadow-sm">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">Remaining</div>
+              <div className="text-3xl font-bold text-gray-600 dark:text-gray-300 mb-1">
+                {Math.max(0, totalCreditsRequired - earnedCredits - plannedCredits)}
+              </div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Credits</div>
+            </div>
+          </div>
+        </TooltipProvider>
         
         {/* Enhanced Curriculum Progress Summary - HIDDEN */}
         {curriculumProgress && curriculumProgress.totalCreditsRequired > 0 ? (
@@ -1822,7 +2023,21 @@ export default function ProgressPage() {
           <h3 className="text-lg font-bold mb-3">Completed Courses</h3>
           <div className="space-y-2 max-h-40 overflow-y-auto pdf-expandable">
             {completedList.length === 0 ? (
-              <div className="text-gray-400 text-center py-4">No completed courses yet.</div>
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                  <BookOpen className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                </div>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">No completed courses yet</p>
+                <p className="text-gray-400 dark:text-gray-500 text-xs mb-4">Start by adding your completed courses in the Course Entry page</p>
+                <Button
+                  onClick={() => router.push('/management/data-entry')}
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Courses Now
+                </Button>
+              </div>
             ) : (
               completedList.map((c) => (
                 <div key={c.code} className="flex justify-between items-center bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded px-3 py-2">
@@ -1839,7 +2054,21 @@ export default function ProgressPage() {
           <h3 className="text-lg font-bold mb-3">Planned Courses <span className="text-sm text-blue-600">(From Course Planner)</span></h3>
           <div className="space-y-2 max-h-40 overflow-y-auto pdf-expandable">
             {plannedFromPlannerList.length === 0 ? (
-              <div className="text-gray-400 text-center py-4">No courses planned yet. <br /><span className="text-xs">Use the Course Planner to add courses.</span></div>
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mb-4">
+                  <Calendar className="w-8 h-8 text-blue-400 dark:text-blue-500" />
+                </div>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">No courses planned yet</p>
+                <p className="text-gray-400 dark:text-gray-500 text-xs mb-4">Use the Course Planner to organize your upcoming semesters</p>
+                <Button
+                  onClick={() => router.push('/management/course-planning')}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Plan Courses Now
+                </Button>
+              </div>
             ) : (
               plannedFromPlannerList.map((c) => (
                 <div key={c.code} className="flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded px-3 py-2">
@@ -1854,75 +2083,119 @@ export default function ProgressPage() {
         </div>
       </div>
       
-      {/* Add Concentration Analysis Section */}
+      {/* Enhanced Concentration Analysis Section with Donut Charts */}
       {concentrationAnalysis.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-xl font-bold mb-4">Concentration Progress</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {concentrationAnalysis.map((analysis) => (
-              <div key={analysis.concentration.id} className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h4 className="font-semibold text-lg">{analysis.concentration.name}</h4>
-                    {analysis.concentration.description && (
-                      <p className="text-sm text-muted-foreground">{analysis.concentration.description}</p>
+          <div className="flex items-center gap-3 mb-6">
+            <Target className="w-6 h-6 text-purple-600" />
+            <h3 className="text-xl font-bold">Concentration Progress</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {concentrationAnalysis.map((analysis) => {
+              const completedCount = analysis.completedCourses.length;
+              const plannedCount = analysis.plannedCourses.length;
+              const totalRequired = analysis.concentration.requiredCourses;
+              const totalProgress = completedCount + plannedCount;
+              
+              return (
+                <div key={analysis.concentration.id} className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border shadow-sm hover:shadow-md transition-shadow">
+                  {/* Header with status indicator */}
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="font-semibold text-lg">{analysis.concentration.name}</h4>
+                        {analysis.isEligible && (
+                          <div className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/20 rounded-full">
+                            <Award className="w-3 h-3 text-green-600" />
+                            <span className="text-xs text-green-600 font-medium">Complete</span>
+                          </div>
+                        )}
+                      </div>
+                      {analysis.concentration.description && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{analysis.concentration.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Donut Chart */}
+                  <div className="flex justify-center mb-6">
+                    <DonutChart 
+                      completed={completedCount}
+                      planned={plannedCount}
+                      total={totalRequired}
+                      size={140}
+                      strokeWidth={14}
+                    />
+                  </div>
+                  
+                  {/* Progress Statistics */}
+                  <div className="space-y-3 mb-4">
+                    <div className="flex items-center justify-between py-2 px-3 bg-green-50 dark:bg-green-900/10 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <span className="text-sm font-medium text-green-700 dark:text-green-300">Completed</span>
+                      </div>
+                      <span className="text-sm font-bold text-green-700 dark:text-green-300">{completedCount}</span>
+                    </div>
+                    
+                    {plannedCount > 0 && (
+                      <div className="flex items-center justify-between py-2 px-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+                          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Planned</span>
+                        </div>
+                        <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{plannedCount}</span>
+                      </div>
+                    )}
+                    
+                    {analysis.remainingCourses > 0 && (
+                      <div className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3 h-3 text-gray-500" />
+                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Remaining</span>
+                        </div>
+                        <span className="text-sm font-bold text-gray-600 dark:text-gray-400">{analysis.remainingCourses}</span>
+                      </div>
                     )}
                   </div>
-                  <div className="text-right">
-                    <div className={`text-2xl font-bold ${analysis.isEligible ? 'text-green-600' : 'text-blue-600'}`}>
-                      {Math.round(analysis.progress)}%
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {analysis.completedCourses.length + analysis.plannedCourses.length} / {analysis.concentration.requiredCourses}
-                    </div>
+                  
+                  {/* Course Details */}
+                  <div className="space-y-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    {analysis.completedCourses.length > 0 && (
+                      <div className="text-sm">
+                        <span className="font-medium text-green-600 dark:text-green-400">Completed:</span>
+                        <p className="text-gray-600 dark:text-gray-400 mt-1">
+                          {analysis.completedCourses.join(', ')}
+                        </p>
+                      </div>
+                    )}
+                    {analysis.plannedCourses.length > 0 && (
+                      <div className="text-sm">
+                        <span className="font-medium text-blue-600 dark:text-blue-400">Planned:</span>
+                        <p className="text-gray-600 dark:text-gray-400 mt-1">
+                          {analysis.plannedCourses.join(', ')}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
-                
-                {/* Progress Bar */}
-                <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
-                  <div 
-                    className={`h-2 rounded-full transition-all ${
-                      analysis.isEligible ? 'bg-green-500' : 'bg-blue-500'
-                    }`}
-                    style={{ width: `${Math.min(100, analysis.progress)}%` }}
-                  />
-                </div>
-                
-                {/* Course breakdown */}
-                <div className="space-y-2">
-                  {analysis.completedCourses.length > 0 && (
-                    <div className="text-sm">
-                      <span className="font-medium text-green-600">Completed:</span> {analysis.completedCourses.join(', ')}
-                    </div>
-                  )}
-                  {analysis.plannedCourses.length > 0 && (
-                    <div className="text-sm">
-                      <span className="font-medium text-blue-600">Planned:</span> {analysis.plannedCourses.join(', ')}
-                    </div>
-                  )}
-                  {analysis.remainingCourses > 0 && (
-                    <div className="text-sm text-muted-foreground">
-                      {analysis.remainingCourses} more course{analysis.remainingCourses !== 1 ? 's' : ''} needed
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
       
       <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mt-6">
-        <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[300px]">
-          <h3 className="text-lg font-bold mb-3">Remaining Courses</h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto pdf-expandable">
+        <div className="bg-white dark:bg-card rounded-xl p-8 border border-gray-200 dark:border-border min-h-[400px]">
+          <h3 className="text-2xl font-bold mb-6">Remaining Courses</h3>
+          <div className="space-y-3 max-h-80 overflow-y-auto pdf-expandable">
             {pendingList.length === 0 ? (
-              <div className="text-gray-400 text-center py-8">All courses completed or planned! 🎉</div>
+              <div className="text-gray-400 text-center py-12 text-lg">All courses completed or planned! 🎉</div>
             ) : (
               pendingList.map((c) => (
-                <div key={c.code} className="flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 rounded px-3 py-2">
-                  <span className="font-semibold text-xs">{c.code} - {c.title}</span>
-                  <span className="text-xs text-gray-500">{c.category}</span>
+                <div key={c.code} className="flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 rounded-lg px-5 py-4 hover:bg-gray-100 dark:hover:bg-gray-800/70 transition-colors">
+                  <span className="font-semibold text-base text-gray-800 dark:text-gray-200">{c.code} - {c.title}</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full">{c.category}</span>
                 </div>
               ))
             )}

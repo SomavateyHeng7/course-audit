@@ -6,7 +6,15 @@ export async function GET() {
   try {
     // Check authentication and authorization
     const session = await auth();
+    console.log('Session in faculties API:', JSON.stringify(session, null, 2));
+    
     if (!session?.user || !['SUPER_ADMIN', 'CHAIRPERSON'].includes(session.user.role || '')) {
+      console.log('Authorization failed:', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userRole: session?.user?.role,
+        allowedRoles: ['SUPER_ADMIN', 'CHAIRPERSON']
+      });
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
         { status: 401 }
@@ -19,8 +27,17 @@ export async function GET() {
     const connectionTest = await prisma.$queryRaw`SELECT 1 as test`;
     console.log('Database connection test result:', connectionTest);
     
-    console.log('Fetching faculties...');
+    console.log('Fetching faculties with counts...');
     const faculties = await prisma.faculty.findMany({
+      include: {
+        _count: {
+          select: {
+            departments: true,
+            users: true,
+            curricula: true,
+          },
+        },
+      },
       orderBy: {
         name: 'asc',
       },
