@@ -1,0 +1,31 @@
+course data
+
+"General Education (15 Credits)"
+"Communicative English II","ELE1002",3,"A-",""
+"Academic English","ELE2000",3,"B+",""
+"Advanced Academic English","ELE2001",3,"A",""
+"Communication in Thai","GE1403",3,"B",""
+"Communicative English I","ELE1001",3,"A",""
+
+"Unassigned (45 Credits)"
+"Principles of Statistics","CSX 2003",3,"A",""
+"Mathematics and Statistics for Data Science","CSX 2006",3,"A-",""
+"Mathematics Foundation for Computer Science","CSX 2008",3,"B+",""
+"Design Thinking","ITX 2005",3,"A",""
+"Data Science","ITX 2007",3,"B",""
+"Introduction to Information Technology","ITX 3002",3,"B+",""
+"Senior Project I","CSX 3010",3,"A",""
+"Senior Project II","CSX 3011",3,"B+",""
+"Fundamentals of Computer Programming","CSX 3001",3,"A-",""
+"Object-Oriented Concepts and Programming","CSX 3002",3,"A",""
+"Data Structures and Algorithms","CSX 3003",3,"B+",""
+"Programming Languages","CSX 3004",3,"A-",""
+"Algorithm Design","CSX 3009",3,"B",""
+"Cloud Computing","CSX 2009",3,"A",""
+"Computer Networks","CSX 3005",3,"B+",""
+
+"whatever (2 Credits)"
+"Human Civilizations and Global Citizens","GE 2110",2,"","taking"
+
+"purple (3 Credits)"
+"Software Engineering","ITX 3007",3,"A-",""

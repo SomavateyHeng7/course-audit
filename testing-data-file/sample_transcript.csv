@@ -1,0 +1,45 @@
+General Education Courses (24 Credits)
+English Composition I,ENG101,3,A,
+English Composition II,ENG102,3,B+,
+College Algebra,MATH110,3,A-,
+Introduction to Psychology,PSYC101,3,B,
+World History,HIST101,3,A,
+Philosophy and Ethics,PHIL201,3,B+,
+Physical Education,PE101,2,A,
+Art Appreciation,ART101,2,B,
+
+Core Courses (42 Credits)
+Introduction to Programming,CS101,3,A,
+Data Structures,CS201,4,A-,
+Computer Organization,CS211,3,B+,
+Object-Oriented Programming,CS202,4,A,
+Database Systems,CS301,3,A-,
+Software Engineering,CS302,3,B+,
+Computer Networks,CS311,3,A,
+Operating Systems,CS312,4,A-,
+Algorithm Analysis,CS401,3,B+,
+Computer Graphics,CS321,3,A,
+Web Development,CS322,3,A-,
+Mobile App Development,CS323,3,B,
+Artificial Intelligence,CS411,3,A,
+Machine Learning,CS412,3,,taking
+
+Major Elective (18 Credits)
+Advanced Database Systems,CS501,3,A-,
+Cloud Computing,CS502,3,B+,
+Cybersecurity,CS503,3,A,
+Data Mining,CS504,3,B,
+Software Architecture,CS505,3,A-,
+Distributed Systems,CS506,3,B+,
+
+Free Elective (12 Credits)
+Introduction to Business,BUS101,3,A,
+Marketing Principles,MKT201,3,B+,
+Financial Accounting,ACC101,3,B,
+Statistics,STAT201,3,A-,
+
+Mathematics (15 Credits)
+Calculus I,MATH201,4,A,
+Calculus II,MATH202,4,A-,
+Discrete Mathematics,MATH301,3,B+,
+Linear Algebra,MATH302,4,B,
