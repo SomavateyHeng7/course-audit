@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Users, Plus, Edit, Trash2, Shield, UserCheck, GraduationCap } from 'lucide-react';
+import { useToastHelpers } from '@/hooks/useToast';
 
 interface User {
   id: string;
@@ -34,11 +35,11 @@ const roleIcons = {
 };
 
 export default function RoleManagement() {
+  const { success, error: showError } = useToastHelpers();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [createSuccess, setCreateSuccess] = useState('');
@@ -110,8 +111,7 @@ export default function RoleManagement() {
     e.preventDefault();
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      setToast({ message: 'Passwords do not match.', type: 'error' });
-      setTimeout(() => setToast(null), 4000);
+      showError('Passwords do not match.');
       return;
     }
     setCreateLoading(true);
@@ -124,29 +124,25 @@ export default function RoleManagement() {
         body: JSON.stringify(submitData),
       });
       if (response.ok) {
-        setToast({ message: 'User created successfully!', type: 'success' });
+        success('User created successfully!');
         setShowCreateModal(false);
         setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
         fetchUsers();
       } else {
         const data = await response.json();
         if (data?.error && data?.details) {
-          setToast({
-            message: `Cannot create user: ${data.error}. Details: ${JSON.stringify(data.details)}`,
-            type: 'error',
-          });
+          showError(`Cannot create user: ${data.error}. Details: ${JSON.stringify(data.details)}`);
         } else if (data?.error) {
-          setToast({ message: `Failed to create user: ${data.error}`, type: 'error' });
+          showError(`Failed to create user: ${data.error}`);
         } else {
-          setToast({ message: 'Failed to create user.', type: 'error' });
+          showError('Failed to create user.');
         }
       }
     } catch (error) {
-      setToast({ message: 'Error creating user.', type: 'error' });
+      showError('Error creating user.');
       console.error('Error creating user:', error);
     } finally {
       setCreateLoading(false);
-      setTimeout(() => setToast(null), 4000);
     }
   };
 
@@ -154,8 +150,7 @@ export default function RoleManagement() {
     e.preventDefault();
     if (!editingUser) return;
     if (formData.password !== formData.confirmPassword) {
-      setToast({ message: 'Passwords do not match.', type: 'error' });
-      setTimeout(() => setToast(null), 4000);
+      showError('Passwords do not match.');
       return;
     }
     setUpdateLoading(true);
@@ -167,29 +162,25 @@ export default function RoleManagement() {
         body: JSON.stringify(submitData),
       });
       if (response.ok) {
-        setToast({ message: 'User updated successfully!', type: 'success' });
+        success('User updated successfully!');
         setEditingUser(null);
         setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
         fetchUsers();
       } else {
         const data = await response.json();
         if (data?.error && data?.details) {
-          setToast({
-            message: `Cannot update user: ${data.error}. Details: ${JSON.stringify(data.details)}`,
-            type: 'error',
-          });
+          showError(`Cannot update user: ${data.error}. Details: ${JSON.stringify(data.details)}`);
         } else if (data?.error) {
-          setToast({ message: `Failed to update user: ${data.error}`, type: 'error' });
+          showError(`Failed to update user: ${data.error}`);
         } else {
-          setToast({ message: 'Failed to update user.', type: 'error' });
+          showError('Failed to update user.');
         }
       }
     } catch (error) {
-      setToast({ message: 'Error updating user.', type: 'error' });
+      showError('Error updating user.');
       console.error('Error updating user:', error);
     } finally {
       setUpdateLoading(false);
-      setTimeout(() => setToast(null), 4000);
     }
   };
 
@@ -208,16 +199,7 @@ export default function RoleManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
-      {toast && (
-        <div
-          className={`fixed top-6 right-6 z-[100] transition-all ${
-            toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-          } text-white px-4 py-2 rounded shadow-lg`}
-        >
-          {toast.message}
-        </div>
-      )}
+
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -256,28 +238,25 @@ export default function RoleManagement() {
                   try {
                     const response = await fetch(`/api/admin/users/${deleteUserId}`, { method: 'DELETE' });
                     if (response.ok) {
-                      setToast({ message: 'User deleted successfully!', type: 'success' });
+                      success('User deleted successfully!');
                       fetchUsers();
                     } else {
                       const data = await response.json();
                       if (data?.error && data?.details) {
-                        setToast({
-                          message: `Cannot delete user: ${data.error}. Details: ${JSON.stringify(data.details)}`,
-                          type: 'error',
-                        });
+                        showError(`Cannot delete user: ${data.error}. Details: ${JSON.stringify(data.details)}`);
                       } else if (data?.error) {
-                        setToast({ message: `Failed to delete user: ${data.error}`, type: 'error' });
+                        showError(`Failed to delete user: ${data.error}`);
                       } else {
-                        setToast({ message: 'Failed to delete user.', type: 'error' });
+                        showError('Failed to delete user.');
                       }
                     }
                   } catch (error) {
-                    setToast({ message: 'Error deleting user.', type: 'error' });
+                    showError('Error deleting user.');
                   } finally {
                     setCreateLoading(false);
                     setShowDeleteModal(false);
                     setDeleteUserId(null);
-                    setTimeout(() => setToast(null), 4000);
+
                   }
                 }}
               >

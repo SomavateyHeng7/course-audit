@@ -1,8 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
+import { useToastHelpers } from '@/hooks/useToast';
 
 interface ParsedCourse {
   code: string;
@@ -12,20 +14,33 @@ interface ParsedCourse {
   creditHours: string;
 }
 
-export default function CreateCurriculum() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+export default function CreateCurriculumPage() {
   const router = useRouter();
+  const { success, error } = useToastHelpers();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // State for form inputs
   const [curriculumName, setCurriculumName] = useState('');
-  const [year, setYear] = useState(new Date().getFullYear().toString());
+  const [year, setYear] = useState('');
   const [totalCredits, setTotalCredits] = useState('');
   const [idStart, setIdStart] = useState('');
   const [idEnd, setIdEnd] = useState('');
+  const [description, setDescription] = useState('');
+  
+  // State for CSV/Excel handling
+  const [csvData, setCsvData] = useState<string[][]>([]);
+  const [parsedCourses, setParsedCourses] = useState<any[]>([]);
+  const [fileName, setFileName] = useState('');
+  const [parseStatus, setParseStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  
+  // UI State
+  const [isLoading, setIsLoading] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [parsedCourses, setParsedCourses] = useState<ParsedCourse[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);  const parseCSVLine = (line: string): string[] => {
+
+  const parseCSVLine = (line: string): string[] => {
     const result: string[] = [];
     let current = '';
     let inQuotes = false;
@@ -277,13 +292,11 @@ export default function CreateCurriculum() {
     
     try {
       if (!curriculumName || !year || !totalCredits || !idStart || !idEnd) {
-        setToast({ message: 'Please fill in all required fields: curriculum name, year, total credits, ID start, and ID end', type: 'error' });
-        setTimeout(() => setToast(null), 3000);
+        error('Please fill in all required fields: curriculum name, year, total credits, ID start, and ID end');
         return;
       }
       if (!uploadedFile || parsedCourses.length === 0) {
-        setToast({ message: 'Please upload and successfully parse a course file', type: 'error' });
-        setTimeout(() => setToast(null), 3000);
+        error('Please upload and successfully parse a course file');
         return;
       }
       
@@ -299,16 +312,14 @@ export default function CreateCurriculum() {
         courseCount: parsedCourses.length
       }));
 
-      setToast({ message: 'Curriculum data prepared successfully! Redirecting...', type: 'success' });
+      success('Curriculum data prepared successfully! Redirecting...', 'Success');
       setTimeout(() => {
-        setToast(null);
         // Navigate to details page
         router.push('/chairperson/create/details');
       }, 1500);
       
-    } catch (error) {
-      setToast({ message: 'Error preparing curriculum data. Please try again.', type: 'error' });
-      setTimeout(() => setToast(null), 3000);
+    } catch (err) {
+      error('Error preparing curriculum data. Please try again.');
     } finally {
       setTimeout(() => setIsSubmitting(false), 1500);
     }
@@ -338,24 +349,12 @@ export default function CreateCurriculum() {
     if (file) {
       await handleFileUploadFromFile(file);
     } else {
-      setToast({ message: 'Please drop a CSV or Excel file (.csv, .xlsx, .xls)', type: 'error' });
-      setTimeout(() => setToast(null), 3000);
+      error('Please drop a CSV or Excel file (.csv, .xlsx, .xls)');
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Toast Notification */}
-      {toast && (
-        <div
-          className={`fixed top-6 right-6 z-[100] transition-all ${
-            toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-          } text-white px-4 py-2 rounded shadow-lg`}
-        >
-          {toast.message}
-        </div>
-      )}
-      
       <div className="container mx-auto">
         <div className="w-full max-w-5xl mx-auto bg-card rounded-2xl border border-border p-12">
           <div className="flex gap-12">

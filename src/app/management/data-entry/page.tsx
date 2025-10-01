@@ -106,6 +106,22 @@ export default function DataEntryPage() {
     freeElectives, // <-- add this line
   } = useProgressContext();
 
+  // State to track collapsed/expanded sections
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  // Helper function to toggle section collapse
+  const toggleSection = (sectionName: string) => {
+    setCollapsedSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sectionName)) {
+        newSet.delete(sectionName);
+      } else {
+        newSet.add(sectionName);
+      }
+      return newSet;
+    });
+  };
+
   // State for dynamic options from API
   const [curricula, setCurricula] = useState<Array<{ 
     id: string; 
@@ -708,10 +724,20 @@ export default function DataEntryPage() {
           {/* Render all categories in the new order, with special logic for Major (concentration) if needed */}
           {courseTypeOrder.map(category => {
             if (category === 'Major' && selectedCurriculum === 'bscs2022') {
+              const isCollapsed = collapsedSections.has(category);
               return (
                 <div key={category} className="border border-border rounded-lg mb-6 p-6">
-                  <div className="text-lg font-bold mb-2 text-foreground p-4 pb-0">Major</div>
-                  <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
+                  <button
+                    onClick={() => toggleSection(category)}
+                    className="w-full flex items-center justify-between text-lg font-bold mb-2 text-foreground p-4 pb-0 hover:text-primary transition-colors"
+                  >
+                    <span>Major</span>
+                    <ChevronDown 
+                      className={`w-5 h-5 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : 'rotate-0'}`} 
+                    />
+                  </button>
+                  {!isCollapsed && (
+                    <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
                     {(!selectedConcentration || selectedConcentration === 'none') ? (
                       (() => {
                         const realConcentrations = Object.entries(mockConcentrations[selectedCurriculum] || {}).filter(([concKey]) => concKey !== 'none');
@@ -813,14 +839,25 @@ export default function DataEntryPage() {
                       ))
                     )}
                   </div>
+                  )}
                 </div>
               );
             }
             if (category === 'Major Elective') {
+              const isCollapsed = collapsedSections.has(category);
               return (
                 <div key={category} className="border border-border rounded-lg mb-6 p-6">
-                  <div className="text-lg font-bold mb-2 text-foreground p-4 pb-0">Major Elective</div>
-                  <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
+                  <button
+                    onClick={() => toggleSection(category)}
+                    className="w-full flex items-center justify-between text-lg font-bold mb-2 text-foreground p-4 pb-0 hover:text-primary transition-colors"
+                  >
+                    <span>Major Elective</span>
+                    <ChevronDown 
+                      className={`w-5 h-5 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : 'rotate-0'}`} 
+                    />
+                  </button>
+                  {!isCollapsed && (
+                    <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
                     {(curriculumCourses[selectedCurriculum]?.['Major Elective'] || []).length === 0 ? (
                       <div className="text-muted-foreground text-center py-4">No courses in this category.</div>
                     ) : (
@@ -864,18 +901,30 @@ export default function DataEntryPage() {
                         </div>
                       ))
                     )}
-            </div>
-            </div>
+                  </div>
+                  )}
+                </div>
               );
             }
             if (category === 'Free Elective') {
+              const isCollapsed = collapsedSections.has(category);
               return (
                 <div key={category} className="border border-border rounded-lg mb-6 p-6">
-                  <div className="text-lg font-bold text-foreground p-4 pb-0">Free Elective</div>
-                  <div className="text-sm text-muted-foreground p-4 mb-2">
-                    Students can take free elective courses of 12 credits from any faculty in Assumption University upon completion of the prerequisite. Check with academic advisor for the course availability.
-                  </div>
-                  <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
+                  <button
+                    onClick={() => toggleSection(category)}
+                    className="w-full flex items-center justify-between text-lg font-bold text-foreground p-4 pb-0 hover:text-primary transition-colors"
+                  >
+                    <span>Free Elective</span>
+                    <ChevronDown 
+                      className={`w-5 h-5 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : 'rotate-0'}`} 
+                    />
+                  </button>
+                  {!isCollapsed && (
+                    <>
+                      <div className="text-sm text-muted-foreground p-4 mb-2">
+                        Students can take free elective courses of 12 credits from any faculty in Assumption University upon completion of the prerequisite. Check with academic advisor for the course availability.
+                      </div>
+                      <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
                     <FreeElectiveAddButton />
                     {/* Render static free electives, if any */}
                     {(curriculumCourses[selectedCurriculum]?.['Free Elective'] || []).map(course => (
@@ -917,15 +966,27 @@ export default function DataEntryPage() {
                         </div>
                       </div>
                     ))}
-                  </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             }
             // General Education, Core Courses
+            const isCollapsed = collapsedSections.has(category);
             return (
               <div key={category} className="border border-border rounded-lg mb-6 p-6">
-                <div className="text-lg font-bold mb-2 text-foreground p-4 pb-0">{category}</div>
-                <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
+                <button
+                  onClick={() => toggleSection(category)}
+                  className="w-full flex items-center justify-between text-lg font-bold mb-2 text-foreground p-4 pb-0 hover:text-primary transition-colors"
+                >
+                  <span>{category}</span>
+                  <ChevronDown 
+                    className={`w-5 h-5 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : 'rotate-0'}`} 
+                  />
+                </button>
+                {!isCollapsed && (
+                  <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
                   {(curriculumCourses[selectedCurriculum]?.[category] || []).length === 0 ? (
                     <div className="text-muted-foreground text-center py-4">No courses in this category.</div>
                   ) : (
@@ -969,7 +1030,8 @@ export default function DataEntryPage() {
                       </div>
                     ))
                   )}
-                </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -977,72 +1039,84 @@ export default function DataEntryPage() {
           {/* Free Electives Section - Show assigned free electives */}
           {assignedFreeElectives.length > 0 && (
             <div className="border border-border rounded-lg mb-6 p-6">
-              <div className="text-lg font-bold mb-2 text-foreground p-4 pb-0 flex items-center justify-between">
-                <span>Free Electives</span>
-                <div className="text-sm text-muted-foreground">
-                  {(() => {
-                    const assignedCredits = assignedFreeElectives.reduce((total, course) => total + course.credits, 0);
-                    const freeElectiveRule = electiveRules.find(rule => rule.category === 'Free Elective');
-                    const requiredCredits = freeElectiveRule?.requiredCredits || 0;
-                    
-                    if (requiredCredits > 0) {
-                      const isComplete = assignedCredits >= requiredCredits;
-                      return (
-                        <span className={`font-semibold ${isComplete ? 'text-green-600' : assignedCredits > requiredCredits ? 'text-orange-600' : 'text-blue-600'}`}>
-                          {assignedCredits} / {requiredCredits} credits 
-                          {isComplete && assignedCredits === requiredCredits && ' ✓'}
-                          {assignedCredits > requiredCredits && ` (+${assignedCredits - requiredCredits} extra)`}
-                        </span>
-                      );
-                    } else {
-                      return <span className="font-semibold text-blue-600">{assignedCredits} credits assigned</span>;
-                    }
-                  })()}
-                </div>
-              </div>
-              <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
-                {assignedFreeElectives.map(course => (
-                  <div key={course.courseCode} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-muted rounded-lg px-4 py-3 border border-border mb-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                      <span className="font-semibold text-sm">{course.courseCode} - {course.courseName}</span>
-                      <span className="text-sm text-muted-foreground">{course.credits} credits</span>
-                      {course.grade && (
-                        <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
-                          Grade: {course.grade}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          // Remove from assigned free electives
-                          setAssignedFreeElectives(prev => 
-                            prev.filter(c => c.courseCode !== course.courseCode)
+              <button
+                onClick={() => toggleSection('Assigned Free Electives')}
+                className="w-full flex items-center justify-between text-lg font-bold mb-2 text-foreground p-4 pb-0 hover:text-primary transition-colors"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span>Free Electives</span>
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm text-muted-foreground">
+                      {(() => {
+                        const assignedCredits = assignedFreeElectives.reduce((total, course) => total + course.credits, 0);
+                        const freeElectiveRule = electiveRules.find(rule => rule.category === 'Free Elective');
+                        const requiredCredits = freeElectiveRule?.requiredCredits || 0;
+                        
+                        if (requiredCredits > 0) {
+                          const isComplete = assignedCredits >= requiredCredits;
+                          return (
+                            <span className={`font-semibold ${isComplete ? 'text-green-600' : assignedCredits > requiredCredits ? 'text-orange-600' : 'text-blue-600'}`}>
+                              {assignedCredits} / {requiredCredits} credits 
+                              {isComplete && assignedCredits === requiredCredits && ' ✓'}
+                              {assignedCredits > requiredCredits && ` (+${assignedCredits - requiredCredits} extra)`}
+                            </span>
                           );
-                          // Update assigned codes set
-                          const newCodes = new Set(assignedFreeElectiveCodes);
-                          newCodes.delete(course.courseCode);
-                          setAssignedFreeElectiveCodes(newCodes);
-                          // Add back to unmatched courses
-                          const unmatchedCourse: UnmatchedCourse = {
-                            courseCode: course.courseCode,
-                            courseName: course.courseName,
-                            credits: course.credits,
-                            grade: course.grade,
-                            status: 'completed'
-                          };
-                          setUnmatchedCourses(prev => [...prev, unmatchedCourse]);
-                        }}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        Remove from Free Electives
-                      </Button>
+                        } else {
+                          return <span className="font-semibold text-blue-600">{assignedCredits} credits assigned</span>;
+                        }
+                      })()}
                     </div>
+                    <ChevronDown 
+                      className={`w-5 h-5 transition-transform duration-200 ${collapsedSections.has('Assigned Free Electives') ? '-rotate-90' : 'rotate-0'}`} 
+                    />
                   </div>
-                ))}
-              </div>
+                </div>
+              </button>
+              {!collapsedSections.has('Assigned Free Electives') && (
+                <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
+                  {assignedFreeElectives.map(course => (
+                    <div key={course.courseCode} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-muted rounded-lg px-4 py-3 border border-border mb-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <span className="font-semibold text-sm">{course.courseCode} - {course.courseName}</span>
+                        <span className="text-sm text-muted-foreground">{course.credits} credits</span>
+                        {course.grade && (
+                          <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
+                            Grade: {course.grade}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Remove from assigned free electives
+                            setAssignedFreeElectives(prev => 
+                              prev.filter(c => c.courseCode !== course.courseCode)
+                            );
+                            // Update assigned codes set
+                            const newCodes = new Set(assignedFreeElectiveCodes);
+                            newCodes.delete(course.courseCode);
+                            setAssignedFreeElectiveCodes(newCodes);
+                            // Add back to unmatched courses
+                            const unmatchedCourse: UnmatchedCourse = {
+                              courseCode: course.courseCode,
+                              courseName: course.courseName,
+                              credits: course.credits,
+                              grade: course.grade,
+                              status: 'completed'
+                            };
+                            setUnmatchedCourses(prev => [...prev, unmatchedCourse]);
+                          }}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Remove from Free Electives
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

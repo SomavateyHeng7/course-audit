@@ -9,10 +9,12 @@ import ElectiveRulesTab from '@/components/curriculum/ElectiveRulesTab';
 import ConcentrationsTab from '@/components/curriculum/ConcentrationsTab';
 import BlacklistTab from '@/components/curriculum/BlacklistTab';
 import { facultyLabelApi } from '@/services/facultyLabelApi';
+import { useToastHelpers } from '@/hooks/useToast';
 
 export default function EditCurriculum() {
   const params = useParams();
   const curriculumId = params.id as string;
+  const { success, error: showError } = useToastHelpers();
   
   // State for curriculum data
   const [curriculum, setCurriculum] = useState<any>(null);
@@ -62,7 +64,6 @@ export default function EditCurriculum() {
   // Add Course Loading State
   const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -318,13 +319,11 @@ export default function EditCurriculum() {
         };
       });
 
-      setToast({ message: 'Course updated successfully!', type: 'success' });
-      setTimeout(() => setToast(null), 3000);
+      success('Course updated successfully!');
       handleCloseEditModal();
     } catch (error) {
       console.error('Error updating course:', error);
-      setToast({ message: 'Failed to update course. Please try again.', type: 'error' });
-      setTimeout(() => setToast(null), 3000);
+      showError('Failed to update course. Please try again.');
     } finally {
       setIsUpdatingCourse(false);
     }
@@ -352,12 +351,10 @@ export default function EditCurriculum() {
         };
       });
 
-      setToast({ message: 'Course removed from curriculum successfully!', type: 'success' });
-      setTimeout(() => setToast(null), 3000);
+      success('Course removed from curriculum successfully!');
     } catch (error) {
       console.error('Error removing course from curriculum:', error);
-      setToast({ message: 'Failed to remove course from curriculum. Please try again.', type: 'error' });
-      setTimeout(() => setToast(null), 3000);
+      showError('Failed to remove course from curriculum. Please try again.');
     }
   };
 
@@ -491,30 +488,17 @@ export default function EditCurriculum() {
         };
       });
 
-      setToast({ message: 'Course added to curriculum successfully!', type: 'success' });
-      setTimeout(() => setToast(null), 3000);
+      success('Course added to curriculum successfully!');
       handleCloseAddModal();
     } catch (error) {
       console.error('Error adding course:', error);
-      setToast({ message: 'Failed to add course. Please try again.', type: 'error' });
-      setTimeout(() => setToast(null), 3000);
+      showError('Failed to add course. Please try again.');
     } finally {
       setIsAddingCourse(false);
     }
   };
   return (
     <div className="flex min-h-screen bg-white dark:bg-background">
-      {/* Toast Notification */}
-      {toast && (
-        <div
-          className={`fixed top-6 right-6 z-[100] transition-all ${
-            toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-          } text-white px-4 py-2 rounded shadow-lg`}
-        >
-          {toast.message}
-        </div>
-      )}
-      
       {/* Sidebar is assumed to be rendered by layout */}
       <div className="flex-1 flex flex-col items-center py-10">
         <div className="w-full max-w-6xl bg-white dark:bg-card rounded-2xl border border-gray-200 dark:border-border p-10">

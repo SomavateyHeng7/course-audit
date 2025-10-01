@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Roboto } from 'next/font/google';
 import { SessionProvider } from '@/components/providers/SessionProvider';
 import { CourseManagementProvider } from '@/app/contexts/CourseManagementContext';
+import { ToastProvider } from '@/hooks/useToast';
 import ConditionalLayout from '@/components/layout/ConditionalLayout';
 import './globals.css';
 
@@ -30,13 +31,15 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className={`${roboto.variable} font-sans antialiased`}>
-        <SessionProvider>
-          <CourseManagementProvider>
-            <ConditionalLayout>
-              {children}
-            </ConditionalLayout>
-          </CourseManagementProvider>
-        </SessionProvider>
+        <ToastProvider>
+          <SessionProvider>
+            <CourseManagementProvider>
+              <ConditionalLayout>
+                {children}
+              </ConditionalLayout>
+            </CourseManagementProvider>
+          </SessionProvider>
+        </ToastProvider>
       </body>
     </html>
   );
