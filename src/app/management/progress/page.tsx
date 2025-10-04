@@ -1420,7 +1420,7 @@ export default function ProgressPage() {
     completedList.forEach(course => {
       allCourses.push({
         Title: course.title,
-        Code: course.code,
+        Code: (course.code || '').trim(),
         Credits: course.credits,
         Category: course.category,
         Grade: course.grade || '',
@@ -1432,7 +1432,7 @@ export default function ProgressPage() {
     plannedFromPlannerList.forEach((course: any) => {
       allCourses.push({
         Title: course.title,
-        Code: course.code,
+        Code: (course.code || '').trim(),
         Credits: course.credits,
         Category: course.category,
         Grade: '',
@@ -1486,7 +1486,7 @@ export default function ProgressPage() {
     completedList.forEach(course => {
       allCourses.push({
         Title: course.title,
-        Code: course.code,
+        Code: (course.code || '').trim(),
         Credits: course.credits,
         Category: course.category,
         Grade: course.grade || '',
@@ -1498,7 +1498,7 @@ export default function ProgressPage() {
     plannedFromPlannerList.forEach((course: any) => {
       allCourses.push({
         Title: course.title,
-        Code: course.code,
+        Code: (course.code || '').trim(),
         Credits: course.credits,
         Category: course.category,
         Grade: '',

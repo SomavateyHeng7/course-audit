@@ -15,10 +15,11 @@ October 4, 2025
 ### Toast Hook Used
 - **Hook**: `useToastHelpers` from `@/hooks/useToast.tsx`
 - **Component**: `Toast` from `@/components/ui/toast.tsx`
+- **Confirmation Dialog**: Custom Dialog component for Yes/No decisions
 
 ## Course Planning Page Changes
 
-### Alerts Replaced (5 instances)
+### Alerts Replaced (5 instances + 2 confirm dialogs)
 
 #### 1. Missing Semester Selection
 **Before:**
@@ -111,6 +112,66 @@ toast.error('Failed to save course plan. Please try again.', 'Save Failed');
 **Type**: Error toast
 **Duration**: Default (4 seconds)
 **Improvements**: Added actionable guidance ("Please try again")
+
+---
+
+#### 6. Course Warnings Confirmation (NEW)
+**Before:**
+```typescript
+const confirmed = confirm(
+  `⚠️ Warnings for ${course.code}:\n\n${flagWarnings.join('\n')}\n\nDo you want to add this course anyway?`
+);
+```
+
+**After:**
+```typescript
+setConfirmDialog({
+  isOpen: true,
+  title: `Warnings for ${course.code}`,
+  message: 'Do you want to add this course anyway?',
+  warnings: flagWarnings,
+  onConfirm: () => {
+    // Proceed with adding course
+  }
+});
+```
+
+**Type**: Custom confirmation dialog
+**Features**:
+- Non-blocking dialog (uses shadcn Dialog component)
+- Warning icon and styling
+- List of warnings displayed in yellow box
+- Cancel / Continue buttons
+- Matches app theme
+
+---
+
+#### 7. Dependent Courses Removal Confirmation (NEW)
+**Before:**
+```typescript
+const confirmRemoval = confirm(
+  `Removing ${courseToRemove.code} will also remove dependent courses: ${dependentNames}. Continue?`
+);
+```
+
+**After:**
+```typescript
+setConfirmDialog({
+  isOpen: true,
+  title: 'Remove Dependent Courses?',
+  message: `Removing ${courseToRemove.code} will also remove dependent courses: ${dependentNames}. Continue?`,
+  onConfirm: () => {
+    // Proceed with removal
+  }
+});
+```
+
+**Type**: Custom confirmation dialog
+**Features**:
+- Professional dialog UI
+- Warning icon
+- Clear messaging
+- Cancel / Continue buttons
 
 ---
 

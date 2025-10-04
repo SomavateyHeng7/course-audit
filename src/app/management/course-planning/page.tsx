@@ -113,6 +113,16 @@ export default function CoursePlanningPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedSemester, setSelectedSemester] = useState('');
   const [loading, setLoading] = useState(true);
+  const [blacklistedCourses, setBlacklistedCourses] = useState<Set<string>>(new Set());
+  
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    warnings?: string[];
+    onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   // Helper function to parse credit hours from formats like "2-0-4" -> 2
   const parseCredits = (creditsStr: string | number): number => {
@@ -245,6 +255,7 @@ export default function CoursePlanningPage() {
     if (hasValidContext && dataEntryContext) {
       fetchAvailableCourses();
       fetchConcentrations();
+      fetchBlacklistedCourses();
       loadSavedCoursePlan();
     }
   }, [hasValidContext, dataEntryContext]);
@@ -261,7 +272,12 @@ export default function CoursePlanningPage() {
         throw new Error('Failed to fetch available courses');
       }
       const data = await response.json();
-      setAvailableCourses(data.courses || []);
+      // Trim course codes to remove any spaces
+      const coursesWithTrimmedCodes = (data.courses || []).map((course: AvailableCourse) => ({
+        ...course,
+        code: (course.code || '').trim()
+      }));
+      setAvailableCourses(coursesWithTrimmedCodes);
     } catch (error) {
       console.error('Error fetching available courses:', error);
       // Fall back to mock data if API fails
@@ -428,6 +444,38 @@ export default function CoursePlanningPage() {
     }
   };
 
+  // Fetch blacklisted courses for the curriculum
+  const fetchBlacklistedCourses = async () => {
+    if (!dataEntryContext) return;
+    
+    try {
+      const response = await fetch(`/api/public-curricula/${dataEntryContext.selectedCurriculum}/blacklists`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch blacklisted courses');
+      }
+      
+      const data = await response.json();
+      
+      // Extract all blacklisted course codes from blacklists
+      const blacklistedCodesSet = new Set<string>();
+      (data.blacklists || []).forEach((blacklist: any) => {
+        (blacklist.courses || []).forEach((courseWrapper: any) => {
+          if (courseWrapper.course?.code) {
+            blacklistedCodesSet.add(courseWrapper.course.code.trim());
+          }
+        });
+      });
+      
+      console.log('Blacklisted courses for curriculum:', Array.from(blacklistedCodesSet));
+      setBlacklistedCourses(blacklistedCodesSet);
+    } catch (error) {
+      console.error('Error fetching blacklisted courses:', error);
+      // Set empty set on error
+      setBlacklistedCourses(new Set());
+    }
+  };
+
   // Load saved course plan from localStorage
   const loadSavedCoursePlan = () => {
     if (!dataEntryContext) return;
@@ -471,33 +519,53 @@ export default function CoursePlanningPage() {
 
   // Validate banned combinations for a course
   const validateBannedCombinations = (course: AvailableCourse): { valid: boolean; blockingCourse?: string; reason?: string } => {
+    // First check if course is blacklisted for this curriculum
+    if (blacklistedCourses.has(course.code.trim())) {
+      return {
+        valid: false,
+        blockingCourse: course.code,
+        reason: `${course.code} is blacklisted and cannot be added to this curriculum`
+      };
+    }
+
     if (!course.bannedWith || course.bannedWith.length === 0) {
       return { valid: true };
     }
 
+    console.log(`🔍 Checking banned combinations for ${course.code}:`, {
+      bannedWith: course.bannedWith,
+      completedCourses: Array.from(completedCourses),
+      plannedCourses: plannedCourses.map(p => p.code)
+    });
+
     // Check against completed courses
     for (const bannedCourseCode of course.bannedWith) {
-      if (completedCourses.has(bannedCourseCode)) {
+      const trimmedBannedCode = bannedCourseCode.trim();
+      if (completedCourses.has(trimmedBannedCode)) {
+        console.log(`❌ ${course.code} blocked: conflicts with completed course ${trimmedBannedCode}`);
         return { 
           valid: false, 
-          blockingCourse: bannedCourseCode, 
-          reason: `Cannot add ${course.code} - conflicts with completed course ${bannedCourseCode}` 
+          blockingCourse: trimmedBannedCode, 
+          reason: `Cannot add ${course.code} - conflicts with completed course ${trimmedBannedCode}` 
         };
       }
     }
 
     // Check against planned courses
     for (const bannedCourseCode of course.bannedWith) {
-      const plannedConflict = plannedCourses.find(planned => planned.code === bannedCourseCode);
+      const trimmedBannedCode = bannedCourseCode.trim();
+      const plannedConflict = plannedCourses.find(planned => planned.code.trim() === trimmedBannedCode);
       if (plannedConflict) {
+        console.log(`❌ ${course.code} blocked: conflicts with planned course ${trimmedBannedCode}`);
         return { 
           valid: false, 
-          blockingCourse: bannedCourseCode, 
-          reason: `Cannot add ${course.code} - conflicts with planned course ${bannedCourseCode}` 
+          blockingCourse: trimmedBannedCode, 
+          reason: `Cannot add ${course.code} - conflicts with planned course ${trimmedBannedCode}` 
         };
       }
     }
 
+    console.log(`✅ ${course.code} allowed: no banned combination conflicts`);
     return { valid: true };
   };
 
@@ -629,12 +697,27 @@ export default function CoursePlanningPage() {
     
     // Show warnings and confirm before proceeding
     if (flagWarnings.length > 0) {
-      const confirmed = confirm(
-        `⚠️ Warnings for ${course.code}:\n\n${flagWarnings.join('\n')}\n\nDo you want to add this course anyway?`
-      );
-      if (!confirmed) return;
+      setConfirmDialog({
+        isOpen: true,
+        title: `Warnings for ${course.code}`,
+        message: 'Do you want to add this course anyway?',
+        warnings: flagWarnings,
+        onConfirm: () => {
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+          // Continue with adding the course
+          proceedWithAddingCourse(course, status);
+        }
+      });
+      return;
     }
     // ===== END: Course Flags Validation =====
+    
+    // If no warnings, proceed directly
+    proceedWithAddingCourse(course, status);
+  };
+  
+  // Helper function to proceed with adding course after validation
+  const proceedWithAddingCourse = (course: AvailableCourse, status: PlannedCourse['status']) => {
 
     // 1. Validate banned combinations
     const bannedValidation = validateBannedCombinations(course);
@@ -701,17 +784,17 @@ export default function CoursePlanningPage() {
     
     if (dependentCourses.length > 0) {
       const dependentNames = dependentCourses.map(c => c.code).join(', ');
-      const confirmRemoval = confirm(
-        `Removing ${courseToRemove.code} will also remove dependent courses: ${dependentNames}. Continue?`
-      );
-      
-      if (!confirmRemoval) {
-        return;
-      }
-      
-      // Remove the course and all its dependents
-      const coursesToRemove = new Set([courseId, ...dependentCourses.map(c => c.id)]);
-      setPlannedCourses(prev => prev.filter(course => !coursesToRemove.has(course.id)));
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Remove Dependent Courses?',
+        message: `Removing ${courseToRemove.code} will also remove dependent courses: ${dependentNames}. Continue?`,
+        onConfirm: () => {
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+          // Remove the course and all its dependents
+          const coursesToRemove = new Set([courseId, ...dependentCourses.map(c => c.id)]);
+          setPlannedCourses(prev => prev.filter(course => !coursesToRemove.has(course.id)));
+        }
+      });
     } else {
       // Simple removal - no dependents
       setPlannedCourses(prev => prev.filter(course => course.id !== courseId));
@@ -1377,6 +1460,47 @@ export default function CoursePlanningPage() {
               router.push('/management/progress');
             }}>
               View Detailed Progress
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialog.isOpen} onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, isOpen: open }))}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="text-yellow-500" size={20} />
+              {confirmDialog.title}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmDialog.message}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {confirmDialog.warnings && confirmDialog.warnings.length > 0 && (
+            <div className="space-y-2 bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              {confirmDialog.warnings.map((warning, index) => (
+                <div key={index} className="flex items-start gap-2 text-sm">
+                  <AlertTriangle className="text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" size={16} />
+                  <span className="text-yellow-800 dark:text-yellow-200">{warning}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-2 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmDialog.onConfirm}
+              className="bg-yellow-600 hover:bg-yellow-700"
+            >
+              Continue
             </Button>
           </div>
         </DialogContent>
