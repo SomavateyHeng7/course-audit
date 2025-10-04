@@ -4,6 +4,7 @@ import html2canvas from "html2canvas";
 import * as XLSX from 'xlsx';
 import { useRef, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToastHelpers } from '@/hooks/useToast';
 import { curriculumBlacklistApi, type CurriculumBlacklistsResponse } from '@/services/curriculumBlacklistApi';
 import { AlertTriangle, ArrowLeft, Download, ChevronDown, BookOpen, Calendar, Plus, Target, Award, Clock } from "lucide-react";
 import { GiGraduateCap } from "react-icons/gi";
@@ -184,6 +185,7 @@ interface ConcentrationProgress {
 
 export default function ProgressPage() {
   const router = useRouter();
+  const toast = useToastHelpers();
   const pdfRef = useRef<HTMLDivElement>(null);
   const [plannedCourses, setPlannedCourses] = useState<PlannedCourse[]>([]);
   const [concentrationAnalysis, setConcentrationAnalysis] = useState<ConcentrationProgress[]>([]);
@@ -1229,12 +1231,12 @@ export default function ProgressPage() {
   // Simple PDF download handler - create text-based PDF instead of image
   const handleDownloadPDF = async () => {
     if (!selectedCurriculum) {
-      alert('Please select a curriculum first before generating PDF.');
+      toast.warning('Please select a curriculum first before generating PDF.', 'Curriculum Required');
       return;
     }
     
     if (loading) {
-      alert('Please wait for data to load before generating PDF.');
+      toast.info('Please wait for data to load before generating PDF.', 'Loading');
       return;
     }
     
@@ -1401,11 +1403,11 @@ export default function ProgressPage() {
       const filename = `academic-progress-report-${dateStr}.pdf`;
       
       pdf.save(filename);
-      alert('PDF generated successfully!');
+      toast.success('PDF generated successfully!', 'Download Complete');
       
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Error generating PDF. Please try again.');
+      toast.error('Error generating PDF. Please try again.', 'PDF Generation Failed');
     }
   };
 

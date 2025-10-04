@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useToastHelpers } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -36,7 +37,6 @@ interface PlannedCourse {
   title: string;
   credits: number;
   semester: string;
-  year: number;
   status: 'planning';
   prerequisites?: string[];
   corequisites?: string[];
@@ -55,6 +55,11 @@ interface AvailableCourse {
   category: string;
   level: number;
   blockingCourse?: string; // Course that blocks this one from being added
+  // Course flags for special requirements
+  requiresPermission: boolean;
+  summerOnly: boolean;
+  requiresSeniorStanding: boolean;
+  minCreditThreshold: number | null;
 }
 
 interface Concentration {
@@ -91,6 +96,7 @@ interface DataEntryContext {
 
 export default function CoursePlanningPage() {
   const router = useRouter();
+  const toast = useToastHelpers();
   
   // Check for data entry context
   const [dataEntryContext, setDataEntryContext] = useState<DataEntryContext | null>(null);
@@ -106,7 +112,6 @@ export default function CoursePlanningPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedSemester, setSelectedSemester] = useState('');
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
 
   // Helper function to parse credit hours from formats like "2-0-4" -> 2
@@ -124,26 +129,29 @@ export default function CoursePlanningPage() {
   };
 
   // Semester options
-  // Note: Summer session functionality requires additional implementation to properly filter courses with summerOnly flag
   const semesterOptions = [
     { value: '1', label: 'Semester' },
+    { value: 'summer', label: 'Summer Session' },
   ];
 
-  // Year options (current year + next 4 years)
-  const yearOptions = Array.from({ length: 5 }, (_, i) => {
-    const year = new Date().getFullYear() + i;
-    return { value: year, label: year.toString() };
-  });
-
-  // Category options
-  const categoryOptions = [
-    { value: 'all', label: 'All Categories' },
-    { value: 'General Education', label: 'General Education' },
-    { value: 'Core', label: 'Core Courses' },
-    { value: 'Major', label: 'Major Courses' },
-    { value: 'Major Elective', label: 'Major Electives' },
-    { value: 'Free Elective', label: 'Free Electives' },
-  ];
+  // Dynamic category options from available courses
+  const categoryOptions = React.useMemo(() => {
+    const categories = new Set<string>();
+    availableCourses.forEach(course => {
+      if (course.category) {
+        categories.add(course.category);
+      }
+    });
+    
+    const options = [{ value: 'all', label: 'All Categories' }];
+    Array.from(categories)
+      .sort()
+      .forEach(cat => {
+        options.push({ value: cat, label: cat });
+      });
+    
+    return options;
+  }, [availableCourses]);
 
   // Check for data entry context on mount
   useEffect(() => {
@@ -207,7 +215,6 @@ export default function CoursePlanningPage() {
               title: title,
               credits: credits,
               semester: '1', // Default semester
-              year: new Date().getFullYear(),
               status: 'planning' as const,
               validationStatus: 'valid' as const,
             };
@@ -268,7 +275,11 @@ export default function CoursePlanningPage() {
           corequisites: [],
           bannedWith: ['CSX4010'], // Example banned combination
           category: 'Major',
-          level: 4
+          level: 4,
+          requiresPermission: false,
+          summerOnly: false,
+          requiresSeniorStanding: true,
+          minCreditThreshold: 90
         },
         {
           code: 'CSX4002',
@@ -279,7 +290,11 @@ export default function CoursePlanningPage() {
           corequisites: ['CSX4003'], // Example corequisite
           bannedWith: [],
           category: 'Major Elective',
-          level: 4
+          level: 4,
+          requiresPermission: true,
+          summerOnly: false,
+          requiresSeniorStanding: false,
+          minCreditThreshold: null
         },
         {
           code: 'CSX4003',
@@ -290,7 +305,11 @@ export default function CoursePlanningPage() {
           corequisites: [],
           bannedWith: [],
           category: 'Major Elective',
-          level: 4
+          level: 4,
+          requiresPermission: false,
+          summerOnly: true,
+          requiresSeniorStanding: false,
+          minCreditThreshold: null
         },
         {
           code: 'CSX4010',
@@ -301,7 +320,11 @@ export default function CoursePlanningPage() {
           corequisites: [],
           bannedWith: ['CSX4001'], // Banned with Advanced Algorithms
           category: 'Major Elective',
-          level: 4
+          level: 4,
+          requiresPermission: false,
+          summerOnly: false,
+          requiresSeniorStanding: false,
+          minCreditThreshold: null
         },
         {
           code: 'ITX4001',
@@ -312,7 +335,11 @@ export default function CoursePlanningPage() {
           corequisites: [],
           bannedWith: [],
           category: 'Major Elective',
-          level: 4
+          level: 4,
+          requiresPermission: false,
+          summerOnly: false,
+          requiresSeniorStanding: false,
+          minCreditThreshold: null
         }
       ];
       setAvailableCourses(mockCourses);
@@ -474,7 +501,7 @@ export default function CoursePlanningPage() {
     return { valid: true };
   };
 
-  // Filter available courses based on search and category
+  // Filter available courses based on search, category, and semester selection
   const filteredCourses = availableCourses.filter(course => {
     const matchesSearch = course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          course.title.toLowerCase().includes(searchTerm.toLowerCase());
@@ -486,7 +513,14 @@ export default function CoursePlanningPage() {
     const bannedValidation = validateBannedCombinations(course);
     const notBanned = bannedValidation.valid;
     
-    return matchesSearch && matchesCategory && notAlreadyPlanned && notAlreadyCompleted && notBanned;
+    // Summer session filtering:
+    // - If "Summer Session" selected: show ONLY summer-flagged courses
+    // - If regular semester selected: show ALL courses
+    const matchesSemester = selectedSemester === 'summer'
+      ? course.summerOnly  // In summer session: show ONLY summer courses
+      : true;              // In regular semester: show ALL courses
+    
+    return matchesSearch && matchesCategory && notAlreadyPlanned && notAlreadyCompleted && notBanned && matchesSemester;
   });
 
   // Find courses that depend on a specific prerequisite
@@ -498,7 +532,7 @@ export default function CoursePlanningPage() {
   };
 
   // Add corequisites automatically
-  const addCorequisites = (course: AvailableCourse, semester: string, year: number): AvailableCourse[] => {
+  const addCorequisites = (course: AvailableCourse, semester: string): AvailableCourse[] => {
     const corequisitesToAdd: AvailableCourse[] = [];
     
     if (!course.corequisites || course.corequisites.length === 0) {
@@ -540,17 +574,72 @@ export default function CoursePlanningPage() {
     return { valid: missing.length === 0, missing };
   };
 
+  // Helper function to calculate total credits (completed + planned)
+  const calculateTotalCredits = (): number => {
+    if (!dataEntryContext) return 0;
+    
+    const completedCredits = Object.values(dataEntryContext.completedCourses)
+      .filter(c => c.status === 'completed')
+      .reduce((sum, c) => sum + (parseCredits(c.grade || '') || 0), 0);
+    
+    const plannedCredits = plannedCourses
+      .reduce((sum, p) => sum + p.credits, 0);
+    
+    return completedCredits + plannedCredits;
+  };
+
   // Add course to plan with advanced validation and corequisite handling
   const addCourseToPlan = (course: AvailableCourse, status: PlannedCourse['status'] = 'planning') => {
-    if (!selectedSemester || !selectedYear) {
-      alert('Please select a semester and year first');
+    if (!selectedSemester) {
+      toast.warning('Please select a semester first', 'Semester Required');
       return;
     }
+
+    // ===== NEW: Course Flags Validation =====
+    const flagErrors: string[] = [];
+    const flagWarnings: string[] = [];
+    
+    // Check summer only constraint
+    if (course.summerOnly && selectedSemester !== 'summer') {
+      flagErrors.push(`${course.code} can only be taken during Summer Session`);
+    }
+    
+    // Check permission required
+    if (course.requiresPermission) {
+      flagWarnings.push(`${course.code} requires chairperson permission to enroll`);
+    }
+    
+    // Check senior standing requirement
+    if (course.requiresSeniorStanding) {
+      const totalCredits = calculateTotalCredits();
+      const threshold = course.minCreditThreshold || 90;
+      if (totalCredits < threshold) {
+        flagWarnings.push(
+          `${course.code} requires Senior Standing (${threshold}+ credits). ` +
+          `You currently have ${totalCredits} credits completed/planned.`
+        );
+      }
+    }
+    
+    // Show errors and stop if any critical issues
+    if (flagErrors.length > 0) {
+      toast.error(flagErrors.join(' • '), 'Cannot Add Course');
+      return;
+    }
+    
+    // Show warnings and confirm before proceeding
+    if (flagWarnings.length > 0) {
+      const confirmed = confirm(
+        `⚠️ Warnings for ${course.code}:\n\n${flagWarnings.join('\n')}\n\nDo you want to add this course anyway?`
+      );
+      if (!confirmed) return;
+    }
+    // ===== END: Course Flags Validation =====
 
     // 1. Validate banned combinations
     const bannedValidation = validateBannedCombinations(course);
     if (!bannedValidation.valid) {
-      alert(bannedValidation.reason || `Cannot add ${course.code} due to banned combination`);
+      toast.error(bannedValidation.reason || `Cannot add ${course.code} due to banned combination`, 'Banned Combination');
       return;
     }
 
@@ -558,16 +647,15 @@ export default function CoursePlanningPage() {
     const prerequisiteValidation = validatePrerequisites(course);
     
     // 3. Check for corequisites that need to be added
-    const corequisitesToAdd = addCorequisites(course, selectedSemester, selectedYear);
+    const corequisitesToAdd = addCorequisites(course, selectedSemester);
     
     // 4. Create the main planned course
     const plannedCourse: PlannedCourse = {
-      id: `${course.code}-${selectedSemester}-${selectedYear}`,
+      id: `${course.code}-${selectedSemester}`,
       code: course.code,
       title: course.title,
       credits: parseCredits(course.credits),
       semester: selectedSemester,
-      year: selectedYear,
       status,
       prerequisites: course.prerequisites,
       corequisites: course.corequisites,
@@ -579,12 +667,11 @@ export default function CoursePlanningPage() {
 
     // 5. Create corequisite planned courses
     const corequisitePlannedCourses: PlannedCourse[] = corequisitesToAdd.map(coreqCourse => ({
-      id: `${coreqCourse.code}-${selectedSemester}-${selectedYear}`,
+      id: `${coreqCourse.code}-${selectedSemester}`,
       code: coreqCourse.code,
       title: coreqCourse.title,
       credits: parseCredits(coreqCourse.credits),
       semester: selectedSemester,
-      year: selectedYear,
       status,
       prerequisites: coreqCourse.prerequisites,
       corequisites: coreqCourse.corequisites,
@@ -598,7 +685,9 @@ export default function CoursePlanningPage() {
     // 7. Show notification if corequisites were added
     if (corequisitesToAdd.length > 0) {
       const coreqNames = corequisitesToAdd.map(c => c.code).join(', ');
-      alert(`Added ${course.code} and corequisites: ${coreqNames} to ${selectedSemester} ${selectedYear}`);
+      toast.success(`Added ${course.code} and corequisites: ${coreqNames} to ${selectedSemester}`, 'Courses Added', 5000);
+    } else {
+      toast.success(`Added ${course.code} to ${selectedSemester}`, 'Course Added');
     }
   };
 
@@ -740,7 +829,7 @@ export default function CoursePlanningPage() {
       
     } catch (error) {
       console.error('Error saving course plan:', error);
-      alert('Failed to save course plan');
+      toast.error('Failed to save course plan. Please try again.', 'Save Failed');
     }
   };
 
@@ -848,8 +937,8 @@ export default function CoursePlanningPage() {
                 </div>
               </div>
 
-              {/* Semester and Year Selection */}
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+              {/* Semester Selection */}
+              <div className="p-4 bg-muted rounded-lg">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Semester</label>
                   <Select value={selectedSemester} onValueChange={setSelectedSemester}>
@@ -865,20 +954,22 @@ export default function CoursePlanningPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Year</label>
-                  <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {yearOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value.toString()}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              </div>
+
+              {/* Course Flags Legend - AWS-inspired minimal design */}
+              <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded text-xs">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Course indicators:</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <span className="text-gray-700 dark:text-gray-300">Summer only</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                  <span className="text-gray-700 dark:text-gray-300">Permission required</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                  <span className="text-gray-700 dark:text-gray-300">Senior standing</span>
                 </div>
               </div>
 
@@ -902,6 +993,29 @@ export default function CoursePlanningPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-semibold">{course.code}</h3>
+                            
+                            {/* Course Flag Indicators - AWS-style minimal dots */}
+                            <div className="flex items-center gap-1">
+                              {course.summerOnly && (
+                                <div 
+                                  className="w-2 h-2 rounded-full bg-blue-500" 
+                                  title="Summer only"
+                                />
+                              )}
+                              {course.requiresPermission && (
+                                <div 
+                                  className="w-2 h-2 rounded-full bg-orange-500" 
+                                  title="Permission required"
+                                />
+                              )}
+                              {course.requiresSeniorStanding && (
+                                <div 
+                                  className="w-2 h-2 rounded-full bg-purple-500" 
+                                  title={`Senior standing (${course.minCreditThreshold || 90}+ credits)`}
+                                />
+                              )}
+                            </div>
+                            
                             <Badge variant="outline">{course.category}</Badge>
                             <Badge variant="secondary">{parseCredits(course.credits)} credits</Badge>
                             {!bannedValidation.valid && (
@@ -951,7 +1065,7 @@ export default function CoursePlanningPage() {
                           <Button
                             size="sm"
                             onClick={() => addCourseToPlan(course, 'planning')}
-                            disabled={!selectedSemester || !selectedYear || hasBlockingIssues}
+                            disabled={!selectedSemester || hasBlockingIssues}
                             className="flex items-center gap-1"
                             variant={hasBlockingIssues ? "secondary" : "default"}
                           >
@@ -1002,10 +1116,10 @@ export default function CoursePlanningPage() {
                   </p>
                 ) : (
                   <>
-                    {/* Group courses by semester and year */}
+                    {/* Group courses by semester */}
                     {Object.entries(
                       plannedCourses.reduce((acc, course) => {
-                        const key = `${course.year} - Semester ${course.semester}`;
+                        const key = `Semester ${course.semester}`;
                         if (!acc[key]) acc[key] = [];
                         acc[key].push(course);
                         return acc;
