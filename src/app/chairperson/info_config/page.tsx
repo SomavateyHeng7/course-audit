@@ -2194,7 +2194,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => concentrationFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primary rounded text-sm bg-primary/90 transition-colors"
+                          className="px-3 py-1 rounded text-sm bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
