@@ -113,7 +113,7 @@ export default function AdminDashboard() {
             Super Admin Dashboard
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
-            Manage roles, departments, and faculties across the system
+            Overview of roles, departments, and faculties across the system
           </p>
           {error && (
             <div className="mt-2 p-2 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
                   </Card>
 
                   {/* Departments Card */}
-                  <Card className="rounded-2xl shadow-md border-l-8 border-l-green-600">
+                  {/* <Card className="rounded-2xl shadow-md border-l-8 border-l-green-600">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                         Departments
@@ -185,10 +185,10 @@ export default function AdminDashboard() {
                         Across all faculties
                       </p>
                     </CardContent>
-                  </Card>
+                  </Card> */}
 
                   {/* Faculties Card */}
-                  <Card className="rounded-2xl shadow-md border-l-8 border-l-amber-500">
+                  {/* <Card className="rounded-2xl shadow-md border-l-8 border-l-amber-500">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                         Faculties
@@ -203,7 +203,7 @@ export default function AdminDashboard() {
                         Active faculties
                       </p>
                     </CardContent>
-                  </Card>
+                  </Card> */}
 
                   {/* Active Courses Card */}
                   <Card className="rounded-2xl shadow-md border-l-8 border-l-purple-600">
@@ -298,7 +298,7 @@ export default function AdminDashboard() {
                                 className="w-4 h-4 rounded-full" 
                                 style={{ backgroundColor: faculty.color }}
                               ></div>
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px] truncate">
                                 {faculty.name}
                               </span>
                               <span className="text-xs text-gray-500">({faculty.count} users)</span>

@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Footer from '@/components/shared/footer';
+import Navbar from '@/components/shared/navbar';
 import { ThemeProvider } from '@/components/theme-provider';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 import SEO from '@/components/SEO';
+import { image } from 'html2canvas/dist/types/css/types/image';
 
 export default function Home() {
   const router = useRouter();
@@ -17,108 +18,146 @@ export default function Home() {
         title="EduTrack | Streamline Your Academic Journey"
         description="EduTrack helps university students manage their academic progress efficiently. Track courses, monitor requirements, and stay on top of your degree path."
         keywords="university, course tracking, academic progress, degree management, student, education, curriculum, requirements"
-        url="https://your-domain.com/"
+        url="https://edutracks.site/"
         image="/public/image/logo.png"
       />
-      <div className="flex flex-col min-h-screen">
-        {/* Theme Toggle Button */}
-        <div className="fixed top-4 right-4 z-50">
-          <ThemeToggle />
-        </div>
+      <Navbar />
+      <div className="flex flex-col min-h-screen transition-colors duration-300">
         
-        {/* Hero Section */}
-        <section className="py-10 sm:py-16 px-4 sm:px-8 md:px-16 bg-gray-100 dark:bg-gray-950">
-          <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-2xl sm:text-4xl font-semibold mb-2 sm:mb-4 text-primary">EduTrack</h1>
-            <h2 className="text-xl sm:text-2xl font-medium mb-4 sm:mb-6 text-gray-700 dark:text-gray-200">Streamline Your Academic Journey</h2>
-            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 max-w-2xl mx-auto">
-              EduTrack helps university students manage their academic progress efficiently. Track courses, monitor requirements, and stay on top of your degree path.
+        {/* Hero Section - Minimalist Design */}
+        <section className="pt-20 pb-12 px-4 bg-white dark:bg-gray-950 transition-colors duration-300 min-h-[85vh] flex items-center">
+          <div className="max-w-5xl mx-auto text-center relative">
+            {/* Main Heading */}
+            <h1 className="font-montserrat text-5xl sm:text-7xl font-light mb-6 text-gray-900 dark:text-white tracking-tight">
+              Leave it to <span className="font-semibold text-emerald-600 dark:text-emerald-400">EduTrack</span>
+            </h1>
+            
+            {/* Subtitle */}
+            <p className="font-montserrat text-lg sm:text-xl text-gray-600 dark:text-gray-300 mb-16 max-w-3xl mx-auto leading-relaxed font-light">
+              Effortlessly track your academic progress with EduTrack. 
+              Monitor requirements, plan your path, and stay on top of your degree journey.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+
+            {/* Main Illustration */}
+            <div className="relative mb-8 flex justify-center">
+              <div className="w-[600px] h-[400px] mx-auto relative">
+                {/* Light mode image */}
+                <img 
+                  src="/image/cover.png" 
+                  alt="Student with graduation cap managing academic progress"
+                  className="w-full h-full object-contain dark:hidden"
+                  style={{ 
+                    filter: 'none',
+                    background: 'transparent',
+                    mixBlendMode: 'multiply'
+                  }}
+                />
+                {/* Dark mode image */}
+                <img 
+                  src="/image/dark.png" 
+                  alt="Student with graduation cap managing academic progress"
+                  className="w-full h-full object-contain hidden dark:block"
+                  style={{ 
+                    filter: 'none',
+                    background: 'transparent'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* CTA Button */}
+            <div className="flex justify-center">
               <Link 
                 href="/management" 
-                className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors border border-primary text-base sm:text-lg text-center"
+                className="font-montserrat inline-flex items-center px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full hover:bg-gray-800 dark:hover:bg-gray-100 transition-all duration-300 text-lg font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
-                Browse Courses (Anonymous)
+                Start Tracking
               </Link>
-              <Link 
-                href="/auth" 
-                className="px-6 sm:px-8 py-2 sm:py-3 border border-primary text-primary rounded-lg hover:bg-accent transition-colors text-base sm:text-lg text-center"
-              >
-                Login for Full Access
-              </Link>
-            </div>
-          </div>
-        </section>
-        <section className="py-8 sm:py-12 px-4 sm:px-8 bg-white dark:bg-gray-900">
-          <div className="max-w-5xl mx-auto">
-            <h2 className="text-xl sm:text-2xl font-semibold text-center mb-6 sm:mb-10 text-gray-800 dark:text-gray-100">Key Features</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-              <div className="p-4 sm:p-6 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                <h3 className="text-base sm:text-lg font-medium mb-1 sm:mb-2 text-gray-700 dark:text-gray-200">Course Tracking</h3>
-                <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Easily track your completed courses and remaining requirements.</p>
-              </div>
-              <div className="p-4 sm:p-6 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                <h3 className="text-base sm:text-lg font-medium mb-1 sm:mb-2 text-gray-700 dark:text-gray-200">Progress Analytics</h3>
-                <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Visualize your academic progress with intuitive analytics.</p>
-              </div>
-              <div className="p-4 sm:p-6 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                <h3 className="text-base sm:text-lg font-medium mb-1 sm:mb-2 text-gray-700 dark:text-gray-200">Smart Planning</h3>
-                <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Plan your course schedule with smart recommendations.</p>
-              </div>
             </div>
           </div>
         </section>
 
-        {/* More Information Section */}
-        <section className="py-12 px-4 sm:px-8 bg-white dark:bg-gray-900">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl font-semibold text-center mb-12 text-gray-900 dark:text-gray-100">More Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-              {/* Calendar */}
-              <div className="flex flex-col items-center text-center">
-                <div className="w-28 h-28 rounded-full bg-primary flex items-center justify-center mb-6">
-                  <svg className="w-14 h-14 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect x="3" y="7" width="18" height="14" rx="2" stroke="currentColor"/>
-                    <path d="M16 3v4M8 3v4M3 11h18" stroke="currentColor"/>
-                    <circle cx="8" cy="15" r="1" fill="currentColor"/>
-                    <circle cx="12" cy="15" r="1" fill="currentColor"/>
-                    <circle cx="16" cy="15" r="1" fill="currentColor"/>
-                  </svg>
+        {/* Separator */}
+        <div className="py-8 bg-white dark:bg-gray-950">
+          <div className="max-w-6xl mx-auto px-32">
+            <hr className="border-t border-gray-200 dark:border-gray-800" />
+          </div>
+        </div>
+
+        {/* How it Works Section - Clean Steps */}
+        <section className="py-24 bg-white dark:bg-gray-950 transition-colors duration-300">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="text-center mb-20">
+              <h2 className="font-montserrat text-3xl font-light text-gray-900 dark:text-white mb-4">
+                Three Simple Steps To Academic Success
+              </h2>
+            </div>
+            
+            <div className="space-y-20">
+              {[
+                {
+                  number: "01",
+                  title: "Define Your Program",
+                  description: "Explore your curriculum and select courses that match your academic goals.",
+                  gradient: "from-blue-200 to-blue-300",
+                  image: "/image/computer.gif"
+                },
+                {
+                  number: "02", 
+                  title: "Track Progress",
+                  description: "Monitor your completed courses and see what requirements remain.",
+                  gradient: "from-emerald-200 to-emerald-300",
+                  image: "/image/checklist.gif"
+                },
+                {
+                  number: "03",
+                  title: "Plan Ahead",
+                  description: "Get smart recommendations for your next semester and graduation timeline.",
+                  gradient: "from-purple-200 to-purple-300",
+                  image: "/image/loading.gif"
+                }
+              ].map((step, index) => (
+                <div key={step.number} className={`flex items-center ${index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} gap-16 max-w-4xl mx-auto`}>
+                  <div className="flex-1">
+                    <div className={`text-7xl font-light bg-gradient-to-r ${step.gradient} bg-clip-text text-transparent mb-6`}>
+                      {step.number}
+                    </div>
+                    <h3 className="font-montserrat text-2xl font-medium text-gray-900 dark:text-white mb-4">
+                      {step.title}
+                    </h3>
+                    <p className="font-montserrat text-lg text-gray-600 dark:text-gray-400 leading-relaxed max-w-md">
+                      {step.description}
+                    </p>
+                  </div>
+                  <div className="flex-1 flex justify-center">
+                    <div className={`w-40 h-40 rounded-3xl bg-gradient-to-br ${step.gradient} bg-opacity-20 flex items-center justify-center overflow-hidden`}>
+                      <img 
+                        src={step.image} 
+                        alt={`${step.title} animation`}
+                        className="w-30 h-30 object-contain"
+                        style={{ 
+                          filter: 'none',
+                          background: 'transparent'
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-2xl font-medium mb-2">Calendar</h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-6">See dates and deadlines for the school year.</p>
-                <a href="#" className="px-8 py-3 border border-gray-800 dark:border-gray-200 rounded-full font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition">Go to the Calendar</a>
-              </div>
-              {/* FAQ */}
-              <div className="flex flex-col items-center text-center">
-                <div className="w-28 h-28 rounded-full bg-primary flex items-center justify-center mb-6">
-                  <svg className="w-14 h-14 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect x="6" y="4" width="12" height="16" rx="2" stroke="currentColor"/>
-                    <path d="M9 8h6M9 12h6M9 16h2" stroke="currentColor"/>
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-medium mb-2">Frequently Asked Questions</h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-6">Find answers to all your EduTrack questions.</p>
-                <a href="#" className="px-8 py-3 border border-gray-800 dark:border-gray-200 rounded-full font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition">Go to FAQ</a>
-              </div>
-              {/* Contact Us */}
-              <div className="flex flex-col items-center text-center">
-                <div className="w-28 h-28 rounded-full bg-primary flex items-center justify-center mb-6">
-                  <svg className="w-14 h-14 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect x="7" y="4" width="10" height="16" rx="2" stroke="currentColor"/>
-                    <path d="M11 18h2" stroke="currentColor"/>
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-medium mb-2">Contact Us</h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-6">Here's how to get in touch with us.</p>
-                <a href="#" className="px-8 py-3 border border-gray-800 dark:border-gray-200 rounded-full font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition">Contact Us</a>
-              </div>
+              ))}
             </div>
           </div>
         </section>
+
       </div>
-      <Footer />
+      
+      {/* Minimal Footer */}
+      <footer className="py-12 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 transition-colors duration-300">
+        <div className="max-w-6xl mx-auto px-4 text-center">
+          <p className="font-montserrat text-sm text-gray-500 dark:text-gray-400">
+            Copyright © All Rights Reserved. 2025, EduTrack. Powered by sleepless night.
+          </p>
+        </div>
+      </footer>
     </ThemeProvider>
   );
 }
