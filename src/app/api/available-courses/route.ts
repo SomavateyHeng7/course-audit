@@ -119,7 +119,12 @@ export async function GET(request: NextRequest) {
         corequisites,
         bannedWith: [...new Set(bannedWith)], // Remove duplicates
         category,
-        level
+        level,
+        // Course flags for special requirements
+        requiresPermission: course.requiresPermission || false,
+        summerOnly: course.summerOnly || false,
+        requiresSeniorStanding: course.requiresSeniorStanding || false,
+        minCreditThreshold: course.minCreditThreshold || null,
       };
     });
 
