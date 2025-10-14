@@ -1,15 +1,27 @@
 import type { Metadata } from 'next';
-import { Roboto } from 'next/font/google';
+import { Montserrat, Playfair_Display, Inter } from 'next/font/google';
 import { SessionProvider } from '@/components/providers/SessionProvider';
 import { CourseManagementProvider } from '@/app/contexts/CourseManagementContext';
 import { ToastProvider } from '@/hooks/useToast';
 import ConditionalLayout from '@/components/layout/ConditionalLayout';
 import './globals.css';
 
-const roboto = Roboto({
+const montserrat = Montserrat({
   subsets: ['latin'],
-  weight: ['300', '400', '500', '700'],
-  variable: '--font-roboto',
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-montserrat',
+});
+
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-playfair',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600'],
+  variable: '--font-inter',
 });
 
 export const metadata: Metadata = {  title: 'Course Audit',
@@ -30,7 +42,7 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className={`${roboto.variable} font-sans antialiased`}>
+      <body className={`${montserrat.variable} ${playfair.variable} ${inter.variable} font-sans antialiased`}>
         <ToastProvider>
           <SessionProvider>
             <CourseManagementProvider>

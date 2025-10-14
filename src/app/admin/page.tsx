@@ -113,7 +113,7 @@ export default function AdminDashboard() {
             Super Admin Dashboard
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
-            Manage roles, departments, and faculties across the system
+            Overview of roles, departments, and faculties across the system
           </p>
           {error && (
             <div className="mt-2 p-2 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
                   </Card>
 
                   {/* Departments Card */}
-                  <Card className="rounded-2xl shadow-md border-l-8 border-l-green-600">
+                  {/* <Card className="rounded-2xl shadow-md border-l-8 border-l-green-600">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                         Departments
@@ -185,10 +185,10 @@ export default function AdminDashboard() {
                         Across all faculties
                       </p>
                     </CardContent>
-                  </Card>
+                  </Card> */}
 
                   {/* Faculties Card */}
-                  <Card className="rounded-2xl shadow-md border-l-8 border-l-amber-500">
+                  {/* <Card className="rounded-2xl shadow-md border-l-8 border-l-amber-500">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                         Faculties
@@ -203,7 +203,7 @@ export default function AdminDashboard() {
                         Active faculties
                       </p>
                     </CardContent>
-                  </Card>
+                  </Card> */}
 
                   {/* Active Courses Card */}
                   <Card className="rounded-2xl shadow-md border-l-8 border-l-purple-600">
@@ -298,7 +298,7 @@ export default function AdminDashboard() {
                                 className="w-4 h-4 rounded-full" 
                                 style={{ backgroundColor: faculty.color }}
                               ></div>
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px] truncate">
                                 {faculty.name}
                               </span>
                               <span className="text-xs text-gray-500">({faculty.count} users)</span>
@@ -323,77 +323,6 @@ export default function AdminDashboard() {
                     </CardContent>
                   </Card>
                 </div>
-
-                {/* Course Completion Rates */}
-                <Card className="rounded-2xl shadow-lg mb-10">
-                  <CardHeader>
-                    <CardTitle className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                      <Award className="h-6 w-6 text-amber-500" />
-                      Course Completion Rates by Program
-                    </CardTitle>
-                    <p className="text-gray-600 dark:text-gray-400">Completion rates across different academic programs</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                      {dashboardData.programCompletion.map((program) => (
-                        <div key={program.program} className="text-center">
-                          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                            {program.program}
-                          </h3>
-                          
-                          {/* Circular Progress */}
-                          <div className="relative w-24 h-24 mx-auto mb-4">
-                            <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 36 36">
-                              {/* Background Circle */}
-                              <circle
-                                cx="18"
-                                cy="18"
-                                r="16"
-                                fill="none"
-                                className="stroke-gray-200 dark:stroke-gray-700"
-                                strokeWidth="3"
-                              />
-                              {/* Progress Circle */}
-                              <circle
-                                cx="18"
-                                cy="18"
-                                r="16"
-                                fill="none"
-                                className="stroke-green-500"
-                                strokeWidth="3"
-                                strokeDasharray={`${program.completed} ${100 - program.completed}`}
-                                strokeDashoffset="0"
-                                strokeLinecap="round"
-                              />
-                            </svg>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <span className="text-xl font-bold text-gray-900 dark:text-white">
-                                {program.completed}%
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-green-600 flex items-center gap-1">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                Completed
-                              </span>
-                              <span className="font-medium">{program.completed}%</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-yellow-600 flex items-center gap-1">
-                                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                                In Progress
-                              </span>
-                              <span className="font-medium">{program.inProgress}%</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
               </>
             ) : (
               <div className="text-center py-8">No data available</div>

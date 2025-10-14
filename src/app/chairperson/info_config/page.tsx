@@ -6,6 +6,7 @@ import { blacklistApi, type BlacklistData, type BlacklistCourse } from '@/servic
 import { concentrationApi, type ConcentrationData, type ConcentrationCourse } from '@/services/concentrationApi';
 import { facultyLabelApi } from '@/services/facultyLabelApi';
 import { courseTypesApi, type CourseTypeData } from '@/services/courseTypesApi';
+import { formatCreatedDate } from "@/lib/dateformat";
 
 interface Course {
   code: string;
@@ -845,10 +846,10 @@ export default function InfoConfig() {
     <div className="flex min-h-screen bg-white dark:bg-background">
       {/* Sidebar is assumed to be rendered by layout */}
       <div className="flex-1 flex flex-col items-center py-2">
-        <div className="w-full max-w-6xl bg-white dark:bg-card rounded-2xl border border-gray-200 dark:border-border p-10">
+        <div className="w-full max-w-6xl bg-white dark:bg-card rounded-2xl p-5">
           {/* Page Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground">Config</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground">Configuration</h1>
           </div>
 
           {/* Configuration Containers */}
@@ -857,20 +858,17 @@ export default function InfoConfig() {
             {/* Blacklist */}
             <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-foreground">Blacklist</h2>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm">
-                      Manage blacklists of courses that are no longer available or recommended for students.
-                    </p>
-                  </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-foreground mb-2">Blacklists</h2>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                    Manage blacklists of courses that are no longer available or recommended for students.
+                  </p>
                 </div>
+               
                 <button
                   onClick={handleAddBlacklist}
                   disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   <FaPlus className="w-4 h-4" />
                   Add Blacklist
@@ -886,11 +884,11 @@ export default function InfoConfig() {
                     <div className="flex-1">
                       <div className="flex items-center gap-4">
                         <h3 className="font-semibold text-foreground">{blacklist.name}</h3>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                           {blacklist.courses.length} courses
                         </span>
                         <span className="text-sm text-gray-500 dark:text-gray-400">
-                          Created {blacklist.createdAt}
+                            Created {formatCreatedDate(blacklist.createdAt)}
                         </span>
                       </div>
                     </div>
@@ -938,14 +936,14 @@ export default function InfoConfig() {
             <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-foreground mb-2">Categories (type)</h2>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-foreground mb-2">Course Categories</h2>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
                     Manage course types and categories used in your curriculum.
                   </p>
                 </div>
                 <button
                   onClick={handleAddType}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   <FaPlus className="w-4 h-4" />
                   Add Type
@@ -1023,7 +1021,7 @@ export default function InfoConfig() {
                 <button
                   onClick={handleAddConcentration}
                   disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   <FaPlus className="w-4 h-4" />
                   Add Concentration
@@ -1043,7 +1041,7 @@ export default function InfoConfig() {
                           {concentration.courses.length} courses
                         </span>
                         <span className="text-sm text-gray-500 dark:text-gray-400">
-                          Created {concentration.createdAt}
+                          Created {formatCreatedDate(concentration.createdAt)}
                         </span>
                       </div>
                     </div>
@@ -1275,7 +1273,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => blacklistFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primarary rounded text-sm hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primarary rounded text-sm bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -1341,7 +1339,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveNewBlacklist}
                 disabled={loading || !newBlacklist.name.trim() || newBlacklist.courses.length === 0}
-                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-border rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -1540,7 +1538,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => blacklistFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primarary rounded text-sm hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primarary rounded text-sm bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -1606,7 +1604,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveEditBlacklist}
                 disabled={!newBlacklist.name.trim()}
-                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Changes
               </button>
@@ -1673,7 +1671,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveNewType}
                 disabled={!newType.name.trim()}
-                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add Type
               </button>
@@ -1738,7 +1736,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveEditType}
                 disabled={!newType.name.trim()}
-                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Changes
               </button>
@@ -1931,7 +1929,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => concentrationFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primarary rounded text-sm hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primarary rounded text-sm bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -1997,7 +1995,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveNewConcentration}
                 disabled={loading || !newConcentration.name.trim() || newConcentration.courses.length === 0}
-                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -2196,7 +2194,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => concentrationFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primary rounded text-sm hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1 rounded text-sm bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -2262,7 +2260,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveEditConcentration}
                 disabled={!newConcentration.name.trim()}
-                className="flex-1 px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primarary rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Changes
               </button>
@@ -2339,16 +2337,7 @@ export default function InfoConfig() {
                 <p className="text-lg font-medium mb-2">No courses in this blacklist</p>
                 <p className="text-sm">This blacklist is currently empty</p>
               </div>
-            )}
-
-            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-border">
-              <button
-                onClick={() => setIsBlacklistInfoModalOpen(false)}
-                className="w-full px-4 py-2 bg-gray-60aryrounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Close
-              </button>
-            </div>
+            )}          
           </div>
         </div>
       )}
@@ -2422,15 +2411,6 @@ export default function InfoConfig() {
                 <p className="text-sm">This concentration is currently empty</p>
               </div>
             )}
-
-            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-border">
-              <button
-                onClick={() => setIsConcentrationInfoModalOpen(false)}
-                className="w-full px-4 py-2 bg-gray-600 text-foreground rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Close
-              </button>
-            </div>
           </div>
         </div>
       )}

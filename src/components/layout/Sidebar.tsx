@@ -66,12 +66,12 @@ const adminNavigationItems = [
 // Navigation for chairperson users
 const chairpersonNavigationItems = [
   {
-    name: 'Curriculum',
+    name: 'Curriculum Management',
     href: '/chairperson',
     icon: BookOpen,
   },
   {
-    name: 'Config',
+    name: 'Configuration',
     href: '/chairperson/info_config',
     icon: Settings,
   }
@@ -212,7 +212,8 @@ export default function Sidebar() {
               </Button>
             </div>
           </div>
-        </div>        {/* Profile Section */}
+        </div>       
+        {/* Profile Section */}
         <div className="px-3 py-4 border-b border-teal-200/60 dark:border-teal-800/40">
           <div className="bg-teal-100/50 dark:bg-teal-900/30 rounded-lg p-3 border border-teal-200/40 dark:border-teal-800/30">
             <div className="flex flex-col items-center">
@@ -234,17 +235,21 @@ export default function Sidebar() {
               </AnimatePresence>
             </div>
           </div>
-        </div>{/* Theme Toggle */}
+        </div>
+        {/* Theme Toggle */}
         <div className="px-3 py-2 border-b border-teal-200/60 dark:border-teal-800/40">
           <div className="flex justify-center">
             <ThemeToggle />
           </div>
-        </div>        {/* Navigation */}
+        </div>        
+        {/* Navigation */}
         <nav className="flex-1 px-2 py-4">
           <div className="space-y-1">
             {navigationItems.map((item) => {
-              // More precise active state logic for chairperson routes
-              const isActive = item.href === '/chairperson' 
+              // More precise active state logic for all routes
+              const isActive = item.href === '/admin'
+                ? pathname === '/admin'  // Exact match for admin dashboard
+                : item.href === '/chairperson' 
                 ? pathname === '/chairperson'  // Exact match for main chairperson page
                 : pathname.startsWith(item.href);
               const Icon = item.icon;if (isCollapsed) {
@@ -287,7 +292,9 @@ export default function Sidebar() {
               );
             })}
           </div>
-        </nav>        {/* Logout/Clear Data Button */}        <div className="p-4 border-t mt-auto">
+        </nav>        
+        {/* Logout/Clear Data Button */}       
+        <div className="p-4 border-t mt-auto">
           {isCollapsed ? (
             <Button
               onClick={handleLogout}

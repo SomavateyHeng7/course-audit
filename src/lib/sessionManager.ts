@@ -247,7 +247,15 @@ export function isSessionExpiringSoon(): boolean {
 // Helper functions
 
 function generateSessionId(): string {
-  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // Use crypto.randomUUID if available (modern browsers), otherwise fall back to timestamp + counter
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `session_${crypto.randomUUID()}`;
+  }
+  
+  // Fallback for older browsers - use timestamp + counter to avoid SSR issues
+  const timestamp = Date.now();
+  const counter = Math.floor(timestamp / 1000) % 10000; // Use deterministic counter
+  return `session_${timestamp}_${counter.toString(36)}`;
 }
 
 function saveSessionToStorage(session: AnonymousSession): void {
