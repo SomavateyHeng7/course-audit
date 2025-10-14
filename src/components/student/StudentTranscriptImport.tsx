@@ -515,8 +515,11 @@ export default function StudentTranscriptImport({
       </CardHeader>
       <CardContent>
         <div className="mb-4">
-          <p className="text-sm text-muted-foreground mb-2">
-            Upload your transcript file (CSV or Excel) to automatically import completed courses.
+          <p className="text-sm text-muted-foreground text-teal-500 mb-1">
+            Upload your transcript file (CSV or Excel) to automatically import completed courses...            
+          </p>
+          <p className="text-sm text-muted-foreground text-teal-500 mb-1">
+            Manually add few courses and generate an excel file to see how the system works!
           </p>
           <p className="text-xs text-muted-foreground">
             Supported formats: CSV (transcript format), Excel (.xlsx, .xls)

@@ -570,7 +570,7 @@ export default function DataEntryPage() {
           <ArrowLeft size={16} />
           Back to Management
         </Button>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Manual Course Entry</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Course Data Entry</h1>
       </div>
 
       {/* Step 1: Select Faculty, Department, Curriculum, and Concentration */}

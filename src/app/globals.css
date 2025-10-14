@@ -33,13 +33,13 @@
     --ring: 174 78% 34%; /* Teal focus ring */    --radius: 0.5rem;
   }
   .dark {
-    --background: 217.2 32.6% 12%; /* Brighter dark background - increased from 8% to 12% */
+    --background: 250.2 32.6% 8%; /* Brighter dark background - increased from 8% to 12% */
     --foreground: 210 40% 98%;
  
-    --card: 217.2 32.6% 14%; /* Slightly brighter cards */
+    --card: 217.2 32.6% 12%; /* Slightly brighter cards */
     --card-foreground: 210 40% 98%;
  
-    --popover: 217.2 32.6% 14%;
+    --popover: 217.2 32.6% 13%;
     --popover-foreground: 210 40% 98%;
  
     --primary: 174 65% 65%; /* Teal for dark mode */
