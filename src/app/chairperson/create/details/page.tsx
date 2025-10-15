@@ -353,12 +353,12 @@ export default function CurriculumDetails() {
                 <span>Courses: {courses.length}</span>
                 <span>File: {curriculumInfo.fileName}</span>
               </div>
-              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              {/* <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <p className="text-sm text-blue-700 dark:text-blue-300">
                   <strong>Auto-Assignment:</strong> Course categories and requirements have been automatically assigned based on course codes and titles. 
                   You can modify them below or use quick actions for bulk updates.
                 </p>
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -431,10 +431,10 @@ export default function CurriculumDetails() {
               ) : (
                 <>
                   {/* Debug Info */}
-                  <div className="bg-muted/50 rounded p-2 mb-4 text-xs">
+                  {/* <div className="bg-muted/50 rounded p-2 mb-4 text-xs">
                     <strong>Debug:</strong> Department ID: {selectedDepartmentId} | 
                     Course Types: {courseTypes.length}
-                  </div>
+                  </div> */}
               {/* Filters */}
               <div className="flex gap-4 mb-4">
                 <input
@@ -631,7 +631,7 @@ export default function CurriculumDetails() {
                     )}
                     
                     {/* Auto-Assignment Info */}
-                    <div className="pt-3 border-t border-border">
+                    {/* <div className="pt-3 border-t border-border">
                       <div className="text-xs text-muted-foreground">
                         <div className="font-medium mb-1">Auto-Assignment Logic:</div>
                         <div className="space-y-1 text-xs">
@@ -640,7 +640,7 @@ export default function CurriculumDetails() {
                           <div>• Manual adjustments can be made using dropdowns</div>
                         </div>
                       </div>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               )}{/* Additional Course Information */}
