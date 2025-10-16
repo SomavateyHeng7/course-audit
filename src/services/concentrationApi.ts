@@ -244,30 +244,57 @@ export const concentrationApi = {
 
   async parseExcelFile(file: File): Promise<any[]> {
     const XLSX = await import('xlsx');
-    const arrayBuffer = await file.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
     
-    if (jsonData.length === 0) return [];
-    
-    const courses = [];
-    for (let i = 1; i < jsonData.length; i++) {
-      const row = jsonData[i] as any[];
-      if (row.length >= 2) {
-        courses.push({
-          code: row[0] || '',
-          name: row[1] || '',
-          credits: parseInt(row[2]) || 3,
-          creditHours: row[3] || '3-0-6',
-          category: row[4] || 'Major Elective',
-          description: row[5] || ''
-        });
-      }
-    }
-    
-    return courses;
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+          
+          // Get the first sheet
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          // Convert to JSON
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+          
+          const courses: any[] = [];
+          
+          // Skip header row and process data
+          for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (!row || row.length < 2) continue;
+            
+            const course = {
+              code: String(row[0] || '').trim(),
+              name: String(row[1] || '').trim(),
+              credits: parseInt(String(row[2] || '3')) || 3,
+              creditHours: String(row[3] || '3-0-6').trim(),
+              category: String(row[4] || 'Major Elective').trim(),
+              description: row[5] ? String(row[5]).trim() : ''
+            };
+            
+            // Only add if we have at least code and name
+            if (course.code && course.name) {
+              courses.push(course);
+            }
+          }
+          
+          resolve(courses);
+        } catch (error) {
+          console.error('Error parsing Excel file:', error);
+          reject(new Error('Failed to parse Excel file. Please check the file format.'));
+        }
+      };
+
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+
+      reader.readAsBinaryString(file);
+    });
   },
 
   validateConcentrationData(data: { name: string }): string[] {

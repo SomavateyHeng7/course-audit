@@ -221,16 +221,46 @@ export default function InfoConfig() {
     type: 'Major Elective',
     description: ''
   });
+  
+  // Database courses for search functionality
+  const [databaseCourses, setDatabaseCourses] = useState<Course[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  // Mock database courses for search functionality
-  const mockDatabaseCourses = [
-    { code: 'CSX 1001', title: 'Introduction to Computer Science', credits: 3, creditHours: '3-0-6', type: 'Core', description: 'Basic computer science concepts' },
-    { code: 'CSX 2001', title: 'Data Structures', credits: 3, creditHours: '3-0-6', type: 'Major', description: 'Study of data structures and algorithms' },
-    { code: 'CSX 3001', title: 'Machine Learning', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Introduction to machine learning' },
-    { code: 'CSX 4001', title: 'Advanced AI', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Advanced artificial intelligence' },
-    { code: 'MAT 1001', title: 'Calculus I', credits: 3, creditHours: '3-0-6', type: 'General Education', description: 'Introduction to calculus' },
-    { code: 'PHY 1001', title: 'Physics I', credits: 3, creditHours: '3-0-6', type: 'General Education', description: 'Basic physics principles' },
-  ];
+  // Fetch courses from database based on search query
+  const searchDatabaseCourses = async (query: string) => {
+    if (!query || query.trim().length < 2) {
+      setDatabaseCourses([]);
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      const response = await fetch(`/api/courses/search?q=${encodeURIComponent(query)}&limit=20`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to search courses');
+      }
+      
+      const data = await response.json();
+      
+      // Convert API response to Course[] format
+      const courses: Course[] = data.courses.map((course: any) => ({
+        code: course.code,
+        title: course.name,
+        credits: course.credits,
+        creditHours: course.creditHours || '3-0-6',
+        type: course.category || 'Unknown',
+        description: course.description || ''
+      }));
+      
+      setDatabaseCourses(courses);
+    } catch (err) {
+      console.error('Error searching courses:', err);
+      setDatabaseCourses([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   // Blacklist management functions
   const handleAddBlacklist = () => {
@@ -599,14 +629,40 @@ export default function InfoConfig() {
     }
   };
 
-  const handleConcentrationFileUpload = (file: File | null) => {
-    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
-      // TODO: Backend integration - Parse Excel file for concentration courses
-      const mockCourses: Course[] = [
-        { code: 'CSX 4003', title: 'Advanced AI', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Advanced artificial intelligence concepts and applications.' },
-        { code: 'CSX 4004', title: 'Neural Networks', credits: 3, creditHours: '3-0-6', type: 'Major Elective', description: 'Design and implementation of neural network architectures.' },
-      ];
-      setNewConcentration({ ...newConcentration, courses: mockCourses });
+  const handleConcentrationFileUpload = async (file: File | null) => {
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
+      try {
+        setLoading(true);
+        let uploadedCourses: any[] = [];
+        
+        if (file.name.endsWith('.csv')) {
+          // For CSV files, read as text and parse
+          const fileContent = await file.text();
+          uploadedCourses = concentrationApi.parseCSVContent(fileContent);
+        } else {
+          // For Excel files, parse directly with the file object
+          uploadedCourses = await concentrationApi.parseExcelFile(file);
+        }
+        
+        // Convert to Course[] format for the form
+        const coursesForForm: Course[] = uploadedCourses.map(course => ({
+          code: course.code,
+          title: course.name, // API uses 'name', form uses 'title'
+          credits: course.credits,
+          creditHours: course.creditHours,
+          type: course.category, // API uses 'category', form uses 'type'
+          description: course.description
+        }));
+        
+        setNewConcentration({ ...newConcentration, courses: coursesForForm });
+      } catch (err) {
+        console.error('Error parsing file:', err);
+        setError('Failed to parse file. Please check the file format.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setError('Please upload a valid Excel (.xlsx, .xls) or CSV file');
     }
   };
 
@@ -837,10 +893,18 @@ export default function InfoConfig() {
     }));
   };
 
-  const filteredDatabaseCourses = mockDatabaseCourses.filter(course =>
-    course.code.toLowerCase().includes(courseSearch.toLowerCase()) ||
-    course.title.toLowerCase().includes(courseSearch.toLowerCase())
-  );
+  // Trigger search when courseSearch changes
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (courseSearch && courseSearch.trim().length >= 2) {
+        searchDatabaseCourses(courseSearch);
+      } else {
+        setDatabaseCourses([]);
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [courseSearch]);
 
   return (
     <div className="flex min-h-screen bg-white dark:bg-background">
@@ -1134,14 +1198,19 @@ export default function InfoConfig() {
                       
                       {courseSearch && (
                         <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
-                          {filteredDatabaseCourses.length > 0 ? (
-                            filteredDatabaseCourses.map((course, index) => (
+                          {searchLoading ? (
+                            <div className="p-3 text-center text-gray-500 dark:text-gray-400 text-sm">
+                              Searching...
+                            </div>
+                          ) : databaseCourses.length > 0 ? (
+                            databaseCourses.map((course, index) => (
                               <div
                                 key={index}
                                 className="p-3 border-b border-gray-200 dark:border-border last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex justify-between items-center"
                                 onClick={() => {
                                   handleAddExistingCourse(course, 'blacklist');
                                   setCourseSearch('');
+                                  setDatabaseCourses([]);
                                 }}
                               >
                                 <div>
@@ -1151,9 +1220,13 @@ export default function InfoConfig() {
                                 <div className="text-xs text-gray-500 dark:text-gray-400">{course.credits} credits</div>
                               </div>
                             ))
-                          ) : (
+                          ) : courseSearch.length >= 2 ? (
                             <div className="p-3 text-center text-gray-500 dark:text-gray-400 text-sm">
                               No courses found matching "{courseSearch}"
+                            </div>
+                          ) : (
+                            <div className="p-3 text-center text-gray-500 dark:text-gray-400 text-sm">
+                              Type at least 2 characters to search
                             </div>
                           )}
                         </div>
@@ -1399,14 +1472,19 @@ export default function InfoConfig() {
                       
                       {courseSearch && (
                         <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
-                          {filteredDatabaseCourses.length > 0 ? (
-                            filteredDatabaseCourses.map((course, index) => (
+                          {searchLoading ? (
+                            <div className="p-3 text-center text-gray-500 dark:text-gray-400 text-sm">
+                              Searching...
+                            </div>
+                          ) : databaseCourses.length > 0 ? (
+                            databaseCourses.map((course, index) => (
                               <div
                                 key={index}
                                 className="p-3 border-b border-gray-200 dark:border-border last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex justify-between items-center"
                                 onClick={() => {
                                   handleAddExistingCourse(course, 'blacklist');
                                   setCourseSearch('');
+                                  setDatabaseCourses([]);
                                 }}
                               >
                                 <div>
@@ -1416,9 +1494,13 @@ export default function InfoConfig() {
                                 <div className="text-xs text-gray-500 dark:text-gray-400">{course.credits} credits</div>
                               </div>
                             ))
-                          ) : (
+                          ) : courseSearch.length >= 2 ? (
                             <div className="p-3 text-center text-gray-500 dark:text-gray-400 text-sm">
                               No courses found matching "{courseSearch}"
+                            </div>
+                          ) : (
+                            <div className="p-3 text-center text-gray-500 dark:text-gray-400 text-sm">
+                              Type at least 2 characters to search
                             </div>
                           )}
                         </div>
@@ -1790,14 +1872,15 @@ export default function InfoConfig() {
                       
                       {courseSearch && (
                         <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
-                          {filteredDatabaseCourses.length > 0 ? (
-                            filteredDatabaseCourses.map((course, index) => (
+                          {searchLoading ? (<div className="p-3 text-center text-gray-500 dark:text-gray-400 text-sm">Searching...</div>) : databaseCourses.length > 0 ? (
+                            databaseCourses.map((course, index) => (
                               <div
                                 key={index}
                                 className="p-3 border-b border-gray-200 dark:border-border last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex justify-between items-center"
                                 onClick={() => {
                                   handleAddExistingCourse(course, 'concentration');
                                   setCourseSearch('');
+                                  setDatabaseCourses([]);
                                 }}
                               >
                                 <div>
@@ -2055,14 +2138,15 @@ export default function InfoConfig() {
                       
                       {courseSearch && (
                         <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
-                          {filteredDatabaseCourses.length > 0 ? (
-                            filteredDatabaseCourses.map((course, index) => (
+                          {searchLoading ? (<div className="p-3 text-center text-gray-500 dark:text-gray-400 text-sm">Searching...</div>) : databaseCourses.length > 0 ? (
+                            databaseCourses.map((course, index) => (
                               <div
                                 key={index}
                                 className="p-3 border-b border-gray-200 dark:border-border last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex justify-between items-center"
                                 onClick={() => {
                                   handleAddExistingCourse(course, 'concentration');
                                   setCourseSearch('');
+                                  setDatabaseCourses([]);
                                 }}
                               >
                                 <div>
@@ -2417,3 +2501,7 @@ export default function InfoConfig() {
     </div>
   );
 }
+
+
+
+
