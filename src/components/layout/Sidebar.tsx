@@ -66,7 +66,7 @@ const adminNavigationItems = [
 // Navigation for chairperson users
 const chairpersonNavigationItems = [
   {
-    name: 'Curriculum Management',
+    name: 'Manage Curriculum',
     href: '/chairperson',
     icon: BookOpen,
   },
