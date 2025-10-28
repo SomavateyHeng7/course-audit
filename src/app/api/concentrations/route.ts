@@ -21,8 +21,17 @@ const createConcentrationSchema = z.object({
 // GET /api/concentrations - List concentrations for the user's department
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔍 Concentrations API: Starting request...');
+    
     const session = await auth();
+    console.log('🔍 Session check:', { 
+      hasSession: !!session, 
+      userId: session?.user?.id, 
+      userRole: session?.user?.role 
+    });
+
     if (!session?.user?.id) {
+      console.log('❌ No session or user ID');
       return NextResponse.json(
         { error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
         { status: 401 }
@@ -30,12 +39,15 @@ export async function GET(request: NextRequest) {
     }
 
     if (session.user.role !== 'CHAIRPERSON') {
+      console.log('❌ User is not a chairperson, role:', session.user.role);
       return NextResponse.json(
         { error: { code: 'FORBIDDEN', message: 'Chairperson access required' } },
         { status: 403 }
       );
     }
 
+    console.log('🔍 Fetching user with faculty and departments...');
+    
     // Get user's faculty and department
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -48,15 +60,32 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    if (!user?.faculty || !user.faculty.departments.length) {
+    console.log('🔍 User data:', { 
+      hasUser: !!user, 
+      hasFaculty: !!user?.faculty, 
+      departmentCount: user?.faculty?.departments?.length || 0,
+      userDepartmentId: user?.departmentId
+    });
+
+    if (!user?.faculty) {
+      console.log('❌ User faculty not found');
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'User faculty or department not found' } },
+        { error: { code: 'NOT_FOUND', message: 'User faculty not found' } },
+        { status: 404 }
+      );
+    }
+
+    if (!user.faculty.departments.length) {
+      console.log('❌ No departments found in user faculty');
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'No departments found in faculty' } },
         { status: 404 }
       );
     }
 
     // Get user's accessible departments (their department + other departments in same faculty)
     const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
+    console.log('🔍 Accessible department IDs:', accessibleDepartmentIds);
 
     // Get concentrations for accessible departments
     const concentrations = await prisma.concentration.findMany({
@@ -80,6 +109,8 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    console.log('🔍 Found concentrations:', concentrations.length);
+
     // Transform data for frontend
     const transformedConcentrations = concentrations.map(concentration => ({
       id: concentration.id,
@@ -99,9 +130,10 @@ export async function GET(request: NextRequest) {
       updatedAt: concentration.updatedAt,
     }));
 
+    console.log('✅ Returning concentrations successfully');
     return NextResponse.json(transformedConcentrations);
   } catch (error) {
-    console.error('Error fetching concentrations:', error);
+    console.error('❌ Error fetching concentrations:', error);
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch concentrations' } },
       { status: 500 }

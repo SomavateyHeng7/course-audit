@@ -167,43 +167,7 @@ export default function AdminDashboard() {
                         +{dashboardData.overview.userGrowth}% from last month
                       </p>
                     </CardContent>
-                  </Card>
-
-                  {/* Departments Card */}
-                  {/* <Card className="rounded-2xl shadow-md border-l-8 border-l-green-600">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                        Departments
-                      </CardTitle>
-                      <Building2 className="h-5 w-5 text-green-600" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                        {dashboardData.overview.totalDepartments}
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Across all faculties
-                      </p>
-                    </CardContent>
-                  </Card> */}
-
-                  {/* Faculties Card */}
-                  {/* <Card className="rounded-2xl shadow-md border-l-8 border-l-amber-500">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                        Faculties
-                      </CardTitle>
-                      <GraduationCap className="h-5 w-5 text-amber-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                        {dashboardData.overview.totalFaculties}
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Active faculties
-                      </p>
-                    </CardContent>
-                  </Card> */}
+                  </Card>           
 
                   {/* Active Courses Card */}
                   <Card className="rounded-2xl shadow-md border-l-8 border-l-purple-600">

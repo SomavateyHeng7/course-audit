@@ -961,28 +961,29 @@ export default function CoursePlanningPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6 max-w-7xl">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-4 sm:mb-6">
         <Button
           variant="outline"
           onClick={() => router.push('/management/data-entry')}
-          className="flex items-center gap-2 mb-4"
+          className="flex items-center gap-2 mb-3 sm:mb-4"
         >
           <ArrowLeft size={16} />
-          Back to Data Entry
+          <span className="hidden xs:inline">Back to Data Entry</span>
+          <span className="xs:hidden">Back</span>
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">Course Planning</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold">Course Planning</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
             Plan your future courses for {dataEntryContext.selectedDepartment} - {dataEntryContext.selectedCurriculum}
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
         {/* Course Search and Selection - Left Panel */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="xl:col-span-2 space-y-4 sm:space-y-6">
           {/* Search and Filters */}
           <Card>
             <CardHeader>
@@ -991,9 +992,9 @@ export default function CoursePlanningPage() {
                 Available Courses
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4">
               {/* Search and Filter Controls */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex flex-col space-y-3 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-4 sm:space-y-0">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
                   <Input
@@ -1021,11 +1022,11 @@ export default function CoursePlanningPage() {
               </div>
 
               {/* Semester Selection */}
-              <div className="p-4 bg-muted rounded-lg">
+              <div className="p-3 sm:p-4 bg-muted rounded-lg">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Semester</label>
                   <Select value={selectedSemester} onValueChange={setSelectedSemester}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select semester" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1039,8 +1040,8 @@ export default function CoursePlanningPage() {
                 </div>
               </div>
 
-              {/* Course Flags Legend - AWS-inspired minimal design */}
-              <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded text-xs">
+              {/* Course Flags Legend - Mobile-optimized */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded text-xs">
                 <span className="text-gray-600 dark:text-gray-400 font-medium">Course indicators:</span>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-blue-500"></div>
@@ -1057,7 +1058,7 @@ export default function CoursePlanningPage() {
               </div>
 
               {/* Course List */}
-              <div className="max-h-[600px] overflow-y-auto space-y-3">
+              <div className="max-h-[500px] sm:max-h-[600px] overflow-y-auto space-y-2 sm:space-y-3">
                 {filteredCourses.map((course) => {
                   const prerequisiteValidation = validatePrerequisites(course);
                   const bannedValidation = validateBannedCombinations(course);
@@ -1066,13 +1067,13 @@ export default function CoursePlanningPage() {
                   return (
                     <div 
                       key={course.code} 
-                      className={`border rounded-lg p-4 transition-colors ${
+                      className={`border rounded-lg p-3 sm:p-4 transition-colors ${
                         hasBlockingIssues 
                           ? 'border-red-200 bg-red-50/50 hover:bg-red-50' 
                           : 'hover:bg-muted/50'
                       }`}
                     >
-                      <div className="flex justify-between items-start mb-2">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 space-y-2 sm:space-y-0">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-semibold">{course.code}</h3>
@@ -1144,16 +1145,17 @@ export default function CoursePlanningPage() {
                           )}
                         </div>
                         
-                        <div className="flex flex-col gap-2 ml-4">
+                        <div className="flex flex-col gap-1 sm:gap-2 ml-2 sm:ml-4 shrink-0">
                           <Button
                             size="sm"
                             onClick={() => addCourseToPlan(course, 'planning')}
                             disabled={!selectedSemester || hasBlockingIssues}
-                            className="flex items-center gap-1"
+                            className="flex items-center gap-1 text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
                             variant={hasBlockingIssues ? "secondary" : "default"}
                           >
-                            <Plus size={14} />
-                            {hasBlockingIssues ? "Blocked" : "Add to Plan"}
+                            <Plus size={12} className="sm:w-3.5 sm:h-3.5" />
+                            <span className="hidden xs:inline">{hasBlockingIssues ? "Blocked" : "Add to Plan"}</span>
+                            <span className="xs:hidden">+</span>
                           </Button>
                           {!prerequisiteValidation.valid && (
                             <div className="text-xs text-orange-600 text-center">
@@ -1182,12 +1184,12 @@ export default function CoursePlanningPage() {
         </div>
 
         {/* Course Plan Summary - Right Panel */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Planned Courses */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar size={20} />
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                <Calendar size={18} className="sm:w-5 sm:h-5" />
                 Course Plan
               </CardTitle>
             </CardHeader>
@@ -1213,12 +1215,12 @@ export default function CoursePlanningPage() {
                           {semesterKey}
                         </h4>
                         {courses.map((course) => (
-                          <div key={course.id} className="bg-muted rounded-lg p-3 space-y-2">
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="font-medium text-sm">{course.code}</span>
-                                  <Badge variant="outline" className="text-xs">
+                          <div key={course.id} className="bg-muted rounded-lg p-2 sm:p-3 space-y-1 sm:space-y-2">
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                                  <span className="font-medium text-xs sm:text-sm truncate">{course.code}</span>
+                                  <Badge variant="outline" className="text-xs shrink-0">
                                     {course.credits} cr
                                   </Badge>
                                   {course.validationStatus === 'valid' && (
@@ -1276,9 +1278,9 @@ export default function CoursePlanningPage() {
           {/* Summary Statistics */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Plan Summary</CardTitle>
+              <CardTitle className="text-base sm:text-lg">Plan Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 sm:space-y-3">
               <div className="flex justify-between text-sm">
                 <span>Total Courses:</span>
                 <span className="font-medium">{plannedCourses.length}</span>
@@ -1303,10 +1305,10 @@ export default function CoursePlanningPage() {
               </div>
               
               <Button 
-                className="w-full mt-4" 
+                className="w-full mt-3 sm:mt-4 text-sm sm:text-base" 
                 onClick={saveCoursePlan}
               >
-                <Clock size={16} className="mr-2" />
+                <Clock size={14} className="mr-2 sm:w-4 sm:h-4" />
                 Save Course Plan
               </Button>
             </CardContent>
@@ -1316,10 +1318,10 @@ export default function CoursePlanningPage() {
 
       {/* Concentration Analysis Modal */}
       <Dialog open={showConcentrationModal} onOpenChange={setShowConcentrationModal}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Target size={20} />
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Target size={18} className="sm:w-5 sm:h-5" />
               Concentration Analysis
             </DialogTitle>
             <DialogDescription>

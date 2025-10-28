@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Upload, FileText, AlertCircle, CheckCircle, Search, Lightbulb } from 'lucide-react';
+import { useToastHelpers } from '@/hooks/useToast';
 import { 
   parseTranscriptCSV, 
   parseExcelFile, 
@@ -129,6 +130,7 @@ export default function StudentTranscriptImport({
   onCoursesImported, 
   onError 
 }: StudentTranscriptImportProps) {
+  const { success, error: showError, warning, info } = useToastHelpers();
   const [importResult, setImportResult] = useState<TranscriptParseResult | null>(null);
   const [importStatus, setImportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [importError, setImportError] = useState<string>('');
@@ -193,6 +195,7 @@ export default function StudentTranscriptImport({
       return courses;
     } catch (error) {
       console.error('Failed to fetch curriculum structure:', error);
+      showError('Failed to load curriculum structure. Please try again.');
       throw error;
     }
   };
@@ -252,6 +255,7 @@ export default function StudentTranscriptImport({
       return curriculum?.electiveRules || [];
     } catch (error) {
       console.error('Error fetching elective rules:', error);
+      warning('Could not load elective rules. Some features may be limited.');
       return [];
     }
   };
@@ -399,6 +403,8 @@ export default function StudentTranscriptImport({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
+
     setImportStatus('loading');
     setImportError('');
     setAnalysisResult(null);
@@ -406,10 +412,15 @@ export default function StudentTranscriptImport({
     try {
       let result: TranscriptParseResult;
       
-      if (file.name.toLowerCase().endsWith('.csv')) {
+      const fileName = file.name.toLowerCase();
+      console.log('Processing file:', fileName);
+      
+      if (fileName.endsWith('.csv')) {
+        console.log('Parsing as CSV file');
         const text = await file.text();
         result = parseTranscriptCSV(text);
-      } else {
+      } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        console.log('Parsing as Excel file');
         // Handle Excel files
         const excelData = await parseExcelFile(file);
         result = {
@@ -426,6 +437,8 @@ export default function StudentTranscriptImport({
           },
           warnings: []
         };
+      } else {
+        throw new Error('Unsupported file format. Please upload a CSV (.csv) or Excel (.xlsx, .xls) file.');
       }
 
       // Validate the parsed data
@@ -451,6 +464,7 @@ export default function StudentTranscriptImport({
       const errorMessage = error instanceof Error ? error.message : 'Failed to import transcript';
       setImportError(errorMessage);
       setImportStatus('error');
+      showError(errorMessage, 'Import Failed');
       if (onError) {
         onError(errorMessage);
       }
@@ -490,8 +504,10 @@ export default function StudentTranscriptImport({
       setImportResult(null);
       setAnalysisResult(null);
       setImportStatus('idle');
+      success('Courses imported and categorized successfully!', 'Import Complete');
     } catch (error) {
       console.error('Error applying imported courses:', error);
+      showError('Failed to apply imported courses. Please try again.');
       onError?.('Failed to apply imported courses');
     } finally {
       setIsApplying(false);
@@ -534,24 +550,20 @@ export default function StudentTranscriptImport({
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.xlsx,.xls"
+            accept=".csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
             onChange={handleFileUpload}
             className="hidden"
             id="student-transcript-upload"
           />
-          <label htmlFor="student-transcript-upload">
-            <Button
-              variant="outline"
-              className="cursor-pointer"
-              disabled={importStatus === 'loading'}
-              asChild
-            >
-              <span>
-                <FileText className="w-4 h-4 mr-2" />
-                {importStatus === 'loading' ? 'Processing...' : 'Choose File'}
-              </span>
-            </Button>
-          </label>
+          <Button
+            variant="outline"
+            className="cursor-pointer"
+            disabled={importStatus === 'loading'}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            {importStatus === 'loading' ? 'Processing...' : 'Choose File'}
+          </Button>
         </div>
 
         {/* Import Status */}

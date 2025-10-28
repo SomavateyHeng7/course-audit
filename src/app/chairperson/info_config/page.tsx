@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { FaEye, FaUpload, FaFileExcel, FaEdit, FaTrash, FaPlus, FaInfoCircle } from 'react-icons/fa';
 import { blacklistApi, type BlacklistData, type BlacklistCourse } from '@/services/blacklistApi';
 import { concentrationApi, type ConcentrationData, type ConcentrationCourse } from '@/services/concentrationApi';
 import { facultyLabelApi } from '@/services/facultyLabelApi';
 import { courseTypesApi, type CourseTypeData } from '@/services/courseTypesApi';
 import { formatCreatedDate } from "@/lib/dateformat";
+import { useToastHelpers } from '@/hooks/useToast';
 
 interface Course {
   code: string;
@@ -67,6 +70,13 @@ const mockBlacklists: Blacklist[] = [
 ];
 
 export default function InfoConfig() {
+  // Authentication hooks - MUST be at the top
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Toast notifications - MUST be before conditional returns
+  const { success, error: showError, warning, info } = useToastHelpers();
+  
   // Course type management states
   const [courseTypes, setCourseTypes] = useState<CourseTypeData[]>([]);
   const [isAddTypeModalOpen, setIsAddTypeModalOpen] = useState(false);
@@ -104,25 +114,94 @@ export default function InfoConfig() {
   const [selectedInfoBlacklist, setSelectedInfoBlacklist] = useState<BlacklistData | null>(null);
   const [selectedInfoConcentration, setSelectedInfoConcentration] = useState<ConcentrationData | null>(null);
 
-  // Load blacklists on component mount
-  useEffect(() => {
-    loadBlacklists();
-  }, []);
+  // Manual course addition states
+  const [courseSearch, setCourseSearch] = useState('');
+  const [showAddCourseForm, setShowAddCourseForm] = useState(false);
+  const [newCourse, setNewCourse] = useState({
+    code: '',
+    title: '',
+    credits: 3,
+    creditHours: '3-0-6',
+    type: 'Major Elective',
+    description: ''
+  });
+  
+  // Database courses for search functionality
+  const [databaseCourses, setDatabaseCourses] = useState<Course[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  // Load concentrations on component mount
+  // Authentication check - AFTER all hooks are declared
   useEffect(() => {
-    loadConcentrations();
-  }, []);
+    if (status === 'loading') return; // Still loading
 
-  // Load concentration title on component mount
-  useEffect(() => {
-    loadConcentrationTitle();
-  }, []);
+    if (!session) {
+      router.push('/auth');
+      return;
+    }
 
-  // Load course types on component mount
+    if (session.user.role !== 'CHAIRPERSON') {
+      router.push('/dashboard');
+      return;
+    }
+  }, [session, status, router]);
+
+  // Load blacklists on component mount - only if authenticated
   useEffect(() => {
-    loadCourseTypes();
-  }, []);
+    if (session && session.user.role === 'CHAIRPERSON') {
+      loadBlacklists();
+    }
+  }, [session]);
+
+  // Load concentrations on component mount - only if authenticated
+  useEffect(() => {
+    if (session && session.user.role === 'CHAIRPERSON') {
+      loadConcentrations();
+    }
+  }, [session]);
+
+  // Load concentration title on component mount - only if authenticated
+  useEffect(() => {
+    if (session && session.user.role === 'CHAIRPERSON') {
+      loadConcentrationTitle();
+    }
+  }, [session]);
+
+  // Load course types on component mount - only if authenticated
+  useEffect(() => {
+    if (session && session.user.role === 'CHAIRPERSON') {
+      loadCourseTypes();
+    }
+  }, [session]);
+
+  // Trigger search when courseSearch changes - with debounce
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (courseSearch && courseSearch.trim().length >= 2) {
+        searchDatabaseCourses(courseSearch);
+      } else {
+        setDatabaseCourses([]);
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [courseSearch]);
+
+  // Show loading while checking authentication
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated or not chairperson
+  if (!session || session.user.role !== 'CHAIRPERSON') {
+    return null;
+  }
 
   const loadBlacklists = async () => {
     try {
@@ -209,22 +288,6 @@ export default function InfoConfig() {
       console.error('Error creating default course types:', err);
     }
   };
-
-  // Manual course addition states
-  const [courseSearch, setCourseSearch] = useState('');
-  const [showAddCourseForm, setShowAddCourseForm] = useState(false);
-  const [newCourse, setNewCourse] = useState({
-    code: '',
-    title: '',
-    credits: 3,
-    creditHours: '3-0-6',
-    type: 'Major Elective',
-    description: ''
-  });
-  
-  // Database courses for search functionality
-  const [databaseCourses, setDatabaseCourses] = useState<Course[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
 
   // Fetch courses from database based on search query
   const searchDatabaseCourses = async (query: string) => {
@@ -503,12 +566,21 @@ export default function InfoConfig() {
   };
 
   const handleDeleteType = async (typeId: string) => {
+    // Find the type to get its name for the confirmation dialog
+    const typeToDelete = courseTypes.find(type => type.id === typeId);
+    if (!typeToDelete) return;
+
+    if (!confirm(`Are you sure you want to delete the course type "${typeToDelete.name}"?`)) {
+      return;
+    }
+
     try {
       await courseTypesApi.deleteCourseType(typeId);
       setCourseTypes(courseTypes.filter(type => type.id !== typeId));
+      success('Course type deleted successfully');
     } catch (error) {
       console.error('Error deleting course type:', error);
-      alert('Failed to delete course type. Please try again.');
+      showError('Failed to delete course type. Please try again.');
     }
   };
 
@@ -517,7 +589,7 @@ export default function InfoConfig() {
       // Validate input
       const errors = courseTypesApi.validateCourseType(newType.name, newType.color);
       if (errors.length > 0) {
-        alert(errors.join('\n'));
+        showError(errors.join(', '));
         return;
       }
 
@@ -529,9 +601,10 @@ export default function InfoConfig() {
       setCourseTypes([...courseTypes, newTypeData]);
       setIsAddTypeModalOpen(false);
       setNewType({ name: '', color: '#6366f1' });
+      success('Course type created successfully');
     } catch (error) {
       console.error('Error creating course type:', error);
-      alert('Failed to create course type. Please try again.');
+      showError('Failed to create course type. Please try again.');
     }
   };
 
@@ -541,7 +614,7 @@ export default function InfoConfig() {
         // Validate input
         const errors = courseTypesApi.validateCourseType(newType.name, newType.color);
         if (errors.length > 0) {
-          alert(errors.join('\n'));
+          showError(errors.join(', '));
           return;
         }
 
@@ -556,9 +629,10 @@ export default function InfoConfig() {
         setIsEditTypeModalOpen(false);
         setEditingType(null);
         setNewType({ name: '', color: '#6366f1' });
+        success('Course type updated successfully');
       } catch (error) {
         console.error('Error updating course type:', error);
-        alert('Failed to update course type. Please try again.');
+        showError('Failed to update course type. Please try again.');
       }
     }
   };
@@ -574,9 +648,10 @@ export default function InfoConfig() {
       setIsEditConcentrationTitleOpen(false);
       // Optionally reload the data to ensure consistency
       await loadConcentrationTitle();
+      success('Concentration title updated successfully');
     } catch (error) {
       console.error('Error updating concentration title:', error);
-      alert('Failed to update concentration title. Please try again.');
+      showError('Failed to update concentration title. Please try again.');
     }
   };
 
@@ -600,13 +675,22 @@ export default function InfoConfig() {
   };
 
   const handleDeleteConcentration = async (concentrationId: string) => {
+    // Find the concentration to get its name for the confirmation dialog
+    const concentrationToDelete = concentrations.find(concentration => concentration.id === concentrationId);
+    if (!concentrationToDelete) return;
+
+    if (!confirm(`Are you sure you want to delete the concentration "${concentrationToDelete.name}"?`)) {
+      return;
+    }
+
     try {
       await concentrationApi.deleteConcentration(concentrationId);
       // Reload concentrations from API to get the latest data
       await loadConcentrations();
+      success('Concentration deleted successfully');
     } catch (error) {
       console.error('Error deleting concentration:', error);
-      alert('Failed to delete concentration. Please try again.');
+      showError('Failed to delete concentration. Please try again.');
     }
   };
 
@@ -724,9 +808,10 @@ export default function InfoConfig() {
         await loadConcentrations();
         setIsAddConcentrationModalOpen(false);
         setNewConcentration({ name: '', courses: [] });
+        success('Concentration created successfully');
       } catch (error) {
         console.error('Error creating concentration:', error);
-        alert('Failed to create concentration. Please try again.');
+        showError('Failed to create concentration. Please try again.');
       }
     }
   };
@@ -803,9 +888,10 @@ export default function InfoConfig() {
         setIsEditConcentrationModalOpen(false);
         setEditingConcentration(null);
         setNewConcentration({ name: '', courses: [] });
+        success('Concentration updated successfully');
       } catch (error) {
         console.error('Error updating concentration:', error);
-        alert('Failed to update concentration. Please try again.');
+        showError('Failed to update concentration. Please try again.');
       }
     }
   };
@@ -880,6 +966,13 @@ export default function InfoConfig() {
   };
 
   const handleRemoveCourseFromConcentration = (courseIndex: number) => {
+    const course = newConcentration.courses[courseIndex];
+    if (!course) return;
+
+    if (!confirm(`Are you sure you want to remove "${course.code} - ${course.title}" from this concentration?`)) {
+      return;
+    }
+
     setNewConcentration(prev => ({
       ...prev,
       courses: prev.courses.filter((_, index) => index !== courseIndex)
@@ -887,44 +980,38 @@ export default function InfoConfig() {
   };
 
   const handleRemoveCourseFromBlacklist = (courseIndex: number) => {
+    const course = newBlacklist.courses[courseIndex];
+    if (!course) return;
+
+    if (!confirm(`Are you sure you want to remove "${course.code} - ${course.name}" from this blacklist?`)) {
+      return;
+    }
+
     setNewBlacklist(prev => ({
       ...prev,
       courses: prev.courses.filter((_, index) => index !== courseIndex)
     }));
   };
 
-  // Trigger search when courseSearch changes
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (courseSearch && courseSearch.trim().length >= 2) {
-        searchDatabaseCourses(courseSearch);
-      } else {
-        setDatabaseCourses([]);
-      }
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [courseSearch]);
-
   return (
     <div className="flex min-h-screen bg-white dark:bg-background">
       {/* Sidebar is assumed to be rendered by layout */}
-      <div className="flex-1 flex flex-col items-center py-2">
-        <div className="w-full max-w-6xl bg-white dark:bg-card rounded-2xl p-5">
+      <div className="flex-1 flex flex-col items-center py-2 px-2 sm:px-4">
+        <div className="w-full max-w-6xl bg-white dark:bg-card rounded-lg sm:rounded-2xl p-3 sm:p-5">
           {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground">Configuration</h1>
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-foreground">Configuration</h1>
           </div>
 
           {/* Configuration Containers */}
-          <div className="space-y-8">
+          <div className="space-y-4 sm:space-y-8">
             
             {/* Blacklist */}
-            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-foreground mb-2">Blacklists</h2>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+                <div className="flex-1">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground mb-2">Blacklists</h2>
+                  <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
                     Manage blacklists of courses that are no longer available or recommended for students.
                   </p>
                 </div>
@@ -932,28 +1019,31 @@ export default function InfoConfig() {
                 <button
                   onClick={handleAddBlacklist}
                   disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm sm:text-base shrink-0"
                 >
-                  <FaPlus className="w-4 h-4" />
-                  Add Blacklist
+                  <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden xs:inline">Add Blacklist</span>
+                  <span className="xs:hidden">Add</span>
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {blacklists.map((blacklist) => (
                   <div
                     key={blacklist.id}
-                    className="flex items-center justify-between p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors space-y-2 sm:space-y-0"
                   >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4">
-                        <h3 className="font-semibold text-foreground">{blacklist.name}</h3>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                          {blacklist.courses.length} courses
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                            Created {formatCreatedDate(blacklist.createdAt)}
-                        </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">{blacklist.name}</h3>
+                        <div className="flex items-center gap-2 sm:gap-4">
+                          <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 shrink-0">
+                            {blacklist.courses.length} courses
+                          </span>
+                          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
+                              Created {formatCreatedDate(blacklist.createdAt)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -997,50 +1087,51 @@ export default function InfoConfig() {
             </div>
 
             {/* Categories (type) */}
-            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-foreground mb-2">Course Categories</h2>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+                <div className="flex-1">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground mb-2">Course Categories</h2>
+                  <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
                     Manage course types and categories used in your curriculum.
                   </p>
                 </div>
                 <button
                   onClick={handleAddType}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm sm:text-base shrink-0"
                 >
-                  <FaPlus className="w-4 h-4" />
-                  Add Type
+                  <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden xs:inline">Add Type</span>
+                  <span className="xs:hidden">Add</span>
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                 {courseTypes.map((type) => (
                   <div
                     key={type.id}
-                    className="flex items-center justify-between p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                    className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                       <div
-                        className="w-4 h-4 rounded-full"
+                        className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shrink-0"
                         style={{ backgroundColor: type.color }}
                       ></div>
-                      <span className="font-medium text-foreground">{type.name}</span>
+                      <span className="font-medium text-foreground text-sm sm:text-base truncate">{type.name}</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                       <button
                         onClick={() => handleEditType(type)}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all"
+                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all"
                         title="Edit Type"
                       >
-                        <FaEdit className="w-4 h-4" />
+                        <FaEdit className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteType(type.id)}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
                         title="Delete Type"
                       >
-                        <FaTrash className="w-4 h-4" />
+                        <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                     </div>
                   </div>
@@ -1049,35 +1140,35 @@ export default function InfoConfig() {
             </div>
 
             {/* Concentrations */}
-            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  {isEditConcentrationTitleOpen ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={concentrationTitle}
-                        onChange={(e) => setConcentrationTitle(e.target.value)}
-                        className="text-xl font-bold border border-gray-300 dark:border-border rounded px-2 py-1 bg-background text-foreground"
-                        onBlur={handleSaveConcentrationTitle}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSaveConcentrationTitle()}
-                        autoFocus
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-foreground">{concentrationTitle}</h2>
-                      <button
-                        onClick={handleEditConcentrationTitle}
-                        className="p-1 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary rounded transition-colors"
-                        title="Edit Title"
-                      >
-                        <FaEdit className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm">
+            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+                <div className="flex-1">
+                  <div className="flex flex-col space-y-2">
+                    {isEditConcentrationTitleOpen ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={concentrationTitle}
+                          onChange={(e) => setConcentrationTitle(e.target.value)}
+                          className="text-lg sm:text-xl font-bold border border-gray-300 dark:border-border rounded px-2 py-1 bg-background text-foreground"
+                          onBlur={handleSaveConcentrationTitle}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSaveConcentrationTitle()}
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground">{concentrationTitle}</h2>
+                        <button
+                          onClick={handleEditConcentrationTitle}
+                          className="p-1 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary rounded transition-colors"
+                          title="Edit Title"
+                        >
+                          <FaEdit className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
                       Manage academic concentrations available in your department.
                     </p>
                   </div>
@@ -1085,51 +1176,54 @@ export default function InfoConfig() {
                 <button
                   onClick={handleAddConcentration}
                   disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm sm:text-base shrink-0"
                 >
-                  <FaPlus className="w-4 h-4" />
-                  Add Concentration
+                  <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden xs:inline">Add Concentration</span>
+                  <span className="xs:hidden">Add</span>
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {concentrations.map((concentration) => (
                   <div
                     key={concentration.id}
-                    className="flex items-center justify-between p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors space-y-2 sm:space-y-0"
                   >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4">
-                        <h3 className="font-semibold text-foreground">{concentration.name}</h3>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary">
-                          {concentration.courses.length} courses
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          Created {formatCreatedDate(concentration.createdAt)}
-                        </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">{concentration.name}</h3>
+                        <div className="flex items-center gap-2 sm:gap-4">
+                          <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary shrink-0">
+                            {concentration.courses.length} courses
+                          </span>
+                          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
+                            Created {formatCreatedDate(concentration.createdAt)}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                       <button
                         onClick={() => handleShowConcentrationInfo(concentration)}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
                         title="View Course Details"
                       >
-                        <FaInfoCircle className="w-4 h-4" />
+                        <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                       <button
                         onClick={() => handleEditConcentration(concentration)}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all"
+                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all"
                         title="Edit Concentration"
                       >
-                        <FaEdit className="w-4 h-4" />
+                        <FaEdit className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteConcentration(concentration.id)}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
                         title="Delete Concentration"
                       >
-                        <FaTrash className="w-4 h-4" />
+                        <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                     </div>
                   </div>

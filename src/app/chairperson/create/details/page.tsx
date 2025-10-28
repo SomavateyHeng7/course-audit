@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useToastHelpers } from '@/hooks/useToast';
 
 interface ParsedCourse {
   code: string;
@@ -26,6 +27,7 @@ interface CurriculumInfo {
 export default function CurriculumDetails() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { success, error: showError, warning, info } = useToastHelpers();
   const [courses, setCourses] = useState<ParsedCourse[]>([]);
   const [curriculumInfo, setCurriculumInfo] = useState<CurriculumInfo | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -199,17 +201,17 @@ export default function CurriculumDetails() {
 
   const handleSaveCurriculum = async () => {
     if (!curriculumInfo || courses.length === 0) {
-      alert('Missing curriculum information or courses');
+      showError('Missing curriculum information or courses');
       return;
     }
 
     if (!selectedDepartmentId) {
-      alert('Please select a department');
+      showError('Please select a department');
       return;
     }
 
     if (!session?.user?.faculty?.id) {
-      alert('User faculty information not available');
+      showError('User faculty information not available');
       return;
     }
 
@@ -277,7 +279,7 @@ export default function CurriculumDetails() {
       if (!response.ok) {
         const errorData = result.error || result;
         if (errorData.code === 'DUPLICATE_CURRICULUM') {
-          alert(
+          showError(
             `${errorData.message}\n\nExisting curriculum: ${errorData.existingCurriculum?.name || 'Unknown'}\nPlease use a different year or ID range.`
           );
           return; // Don't throw error, just show message and return
@@ -292,16 +294,16 @@ export default function CurriculumDetails() {
       sessionStorage.removeItem('uploadedCourses');
       sessionStorage.removeItem('curriculumInfo');
       
-      alert('Curriculum created successfully!');
+      success('Curriculum created successfully!');
       router.push('/chairperson');
 
     } catch (error) {
       console.error('Error creating curriculum:', error);
       
       if (error instanceof Error) {
-        alert(`Error creating curriculum: ${error.message}`);
+        showError(`Error creating curriculum: ${error.message}`);
       } else {
-        alert('Error creating curriculum: Unknown error occurred');
+        showError('Error creating curriculum: Unknown error occurred');
       }
     } finally {
       setIsLoading(false);

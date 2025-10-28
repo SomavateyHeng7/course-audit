@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useState, createContext, useContext, useRef, useEffect } from 'react';
+import { useToastHelpers } from '@/hooks/useToast';
 
 import * as XLSX from 'xlsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -97,6 +98,7 @@ const gradeOptions: string[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D'
 
 export default function DataEntryPage() {
   const router = useRouter();
+  const { success, error: showError, warning, info } = useToastHelpers();
   // Use context for shared state
   const {
     completedCourses, setCompletedCourses,
@@ -186,6 +188,7 @@ export default function DataEntryPage() {
 
       } catch (error) {
         console.error('Error fetching data:', error);
+        showError('Failed to load initial data. Please refresh the page.');
       } finally {
         setLoading(false);
       }
@@ -236,11 +239,13 @@ export default function DataEntryPage() {
           }
         } else {
           console.error('Failed to fetch concentrations:', concData.error);
+          warning('Could not load all concentrations. Some options may be missing.');
           setConcentrations([]);
         }
 
       } catch (error) {
         console.error('Error fetching concentrations:', error);
+        showError('Failed to load concentrations. Please try selecting the curriculum again.');
         setConcentrations([]);
       }
     };
@@ -640,7 +645,10 @@ export default function DataEntryPage() {
           curriculumId={selectedCurriculum}
           departmentId={selectedDepartment}
           onCoursesImported={handleCategorizedCoursesImported}
-          onError={(error) => console.error('Import error:', error)}
+          onError={(error) => {
+            console.error('Import error:', error);
+            showError('Failed to import transcript data. Please check the file format and try again.');
+          }}
         />
       )}
 

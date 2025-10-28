@@ -22,6 +22,10 @@ import {
   Users,
   Building,
   GraduationCap,
+  CalendarClock,
+  UserCheck,
+  Library,
+  Folders,
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -33,9 +37,19 @@ const defaultNavigationItems = [
     icon: LayoutDashboard,
   },
   {
+    name: 'Plan Future Courses',
+    href: '/FutureCourse',
+    icon: Library,
+  },
+  {
+    name: 'Next Semester Course',
+    href: '/SemesterCourse',
+    icon: Book,
+  },
+  {
     name: 'All Curricula',
     href: '/allCurricula',
-    icon: Book,
+    icon: Folders,
   },
 ];
 
@@ -74,7 +88,18 @@ const chairpersonNavigationItems = [
     name: 'Configuration',
     href: '/chairperson/info_config',
     icon: Settings,
+  },
+  {
+    name: 'Tentative Schedule',
+    href: '/chairperson/tentative_schedule',
+    icon: CalendarClock,
+  },
+  {
+    name: 'Student',
+    href: '/chairperson/student',
+    icon: UserCheck,
   }
+  
 ];
 
 export default function Sidebar() {

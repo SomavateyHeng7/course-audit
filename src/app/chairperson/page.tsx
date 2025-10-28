@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { FaTrash, FaInfoCircle, FaSearch } from 'react-icons/fa';
+import { useToastHelpers } from '@/hooks/useToast';
 
 interface Curriculum {
   id: string;
@@ -41,6 +42,7 @@ interface PaginationInfo {
 }
 
 const ChairpersonPage: React.FC = () => {
+  const { success, error: showError, warning, info } = useToastHelpers();
   const { data: session } = useSession();
   const router = useRouter();
   const [curricula, setCurricula] = useState<Curriculum[]>([]);
@@ -106,14 +108,14 @@ const ChairpersonPage: React.FC = () => {
       if (response.ok) {
         // Refresh the curricula list
         fetchCurricula(searchTerm, pagination.page);
-        alert(`Curriculum "${curriculumName}" has been deleted successfully.`);
+        success(`Curriculum "${curriculumName}" has been deleted successfully.`);
       } else {
         const data = await response.json();
-        alert(`Failed to delete curriculum: ${data.error?.message || 'Unknown error'}`);
+        showError(`Failed to delete curriculum: ${data.error?.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error deleting curriculum:', error);
-      alert('An error occurred while deleting the curriculum. Please try again.');
+      showError('An error occurred while deleting the curriculum. Please try again.');
     }
   };
 

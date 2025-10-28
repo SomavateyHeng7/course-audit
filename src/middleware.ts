@@ -12,7 +12,7 @@ export default auth((req) => {
   }
 
   // Public paths that don't require authentication
-  const publicPaths = ['/', '/auth', '/auth/error', '/student', '/management', '/allCurricula', '/management/data-entry', '/management/progress', '/management/course-planning']
+  const publicPaths = ['/', '/auth', '/auth/error', '/student', '/management', '/allCurricula', '/management/data-entry', '/management/progress', '/management/course-planning', '/FutureCourses', '/SemesterCourse']
   // Allow all /management and /allCurricula subpages to be public
   const isPublicPath = publicPaths.includes(req.nextUrl.pathname) ||
     req.nextUrl.pathname.startsWith('/management/data-entry') ||
