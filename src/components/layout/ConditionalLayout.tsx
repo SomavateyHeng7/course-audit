@@ -9,10 +9,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isCollapsed } = useSidebar();
   
-  // Don't show sidebar on the landing page and auth page
-  const isLandingOrAuthPage = pathname === '/' || pathname === '/auth';
+  // Don't show sidebar on public pages (landing, auth, and course pages)
+  const isPublicPage = pathname === '/' || 
+                      pathname === '/auth' 
   
-  if (isLandingOrAuthPage) {
+  if (isPublicPage) {
     return <>{children}</>;
   }
 

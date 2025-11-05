@@ -105,14 +105,14 @@ export default function AdminDashboard() {
   const maxCourses = dashboardData?.monthlyEnrollment ? Math.max(...dashboardData.monthlyEnrollment.map(item => item.courses), 1) : 1;
 
   return (
-    <div className="w-full py-8">
-      <div className="container mx-auto px-4">
+    <div className="w-full py-4 sm:py-8">
+      <div className="container mx-auto px-2 sm:px-4">
         {/* Header */}
-        <div className="mb-10">
-          <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+        <div className="mb-6 sm:mb-10">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">
             Super Admin Dashboard
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
+          <p className="text-gray-600 dark:text-gray-400 mt-2 text-sm sm:text-base lg:text-lg">
             Overview of roles, departments, and faculties across the system
           </p>
           {error && (
@@ -124,22 +124,25 @@ export default function AdminDashboard() {
 
         {/* Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Overview
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-6 sm:mb-8 h-auto">
+            <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 px-1 sm:px-3">
+              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Overview</span>
+              <span className="xs:hidden">Stats</span>
             </TabsTrigger>
-            <TabsTrigger value="roles" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Roles
+            <TabsTrigger value="roles" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 px-1 sm:px-3">
+              <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span>Roles</span>
             </TabsTrigger>
-            <TabsTrigger value="departments" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Departments
+            <TabsTrigger value="departments" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 px-1 sm:px-3">
+              <Building2 className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Departments</span>
+              <span className="xs:hidden">Depts</span>
             </TabsTrigger>
-            <TabsTrigger value="faculties" className="flex items-center gap-2">
-              <GraduationCap className="h-4 w-4" />
-              Faculties
+            <TabsTrigger value="faculties" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 px-1 sm:px-3">
+              <GraduationCap className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Faculties</span>
+              <span className="xs:hidden">Fac</span>
             </TabsTrigger>
           </TabsList>
 
@@ -150,38 +153,38 @@ export default function AdminDashboard() {
             ) : dashboardData ? (
               <>
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-10">
                   {/* Users Card */}
-                  <Card className="rounded-2xl shadow-md border-l-8 border-l-blue-600">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  <Card className="rounded-xl sm:rounded-2xl shadow-md border-l-4 sm:border-l-8 border-l-blue-600">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
+                      <CardTitle className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">
                         Total Users
                       </CardTitle>
-                      <Users className="h-5 w-5 text-blue-600" />
+                      <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                    <CardContent className="p-4 sm:p-6 pt-0">
+                      <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                         {dashboardData.overview.totalUsers.toLocaleString()}
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         +{dashboardData.overview.userGrowth}% from last month
                       </p>
                     </CardContent>
                   </Card>           
 
                   {/* Active Courses Card */}
-                  <Card className="rounded-2xl shadow-md border-l-8 border-l-purple-600">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  <Card className="rounded-xl sm:rounded-2xl shadow-md border-l-4 sm:border-l-8 border-l-purple-600">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
+                      <CardTitle className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">
                         Active Courses
                       </CardTitle>
-                      <BookOpen className="h-5 w-5 text-purple-600" />
+                      <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                    <CardContent className="p-4 sm:p-6 pt-0">
+                      <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                         {dashboardData.overview.totalCourses}
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         +{dashboardData.overview.newCourses} new this semester
                       </p>
                     </CardContent>
@@ -189,32 +192,33 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Charts Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-10">
                   {/* Monthly Enrollment Trend */}
-                  <Card className="rounded-2xl shadow-lg">
-                    <CardHeader>
-                      <CardTitle className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <TrendingUp className="h-6 w-6 text-blue-600" />
-                        Monthly Enrollment Trends
+                  <Card className="rounded-xl sm:rounded-2xl shadow-lg">
+                    <CardHeader className="p-4 sm:p-6">
+                      <CardTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                        <span className="hidden sm:inline">Monthly Enrollment Trends</span>
+                        <span className="sm:hidden">Enrollment Trends</span>
                       </CardTitle>
-                      <p className="text-gray-600 dark:text-gray-400">Student enrollment and course offerings over time</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Student enrollment and course offerings over time</p>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="space-y-3 sm:space-y-4">
                         {dashboardData.monthlyEnrollment.map((item) => (
                           <div key={item.month} className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 min-w-[80px]">
-                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-[60px] sm:min-w-[80px]">
+                              <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">
                                 {item.month}
                               </span>
                             </div>
-                            <div className="flex-1 mx-4">
-                              <div className="flex gap-2">
+                            <div className="flex-1 mx-2 sm:mx-4">
+                              <div className="flex gap-1 sm:gap-2">
                                 {/* Students Bar */}
                                 <div className="flex-1">
                                   <div className="flex justify-between text-xs mb-1">
-                                    <span className="text-blue-600">Students</span>
-                                    <span className="font-medium">{item.students}</span>
+                                    <span className="text-blue-600 truncate">Students</span>
+                                    <span className="font-medium ml-1">{item.students}</span>
                                   </div>
                                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                     <div 
@@ -226,8 +230,8 @@ export default function AdminDashboard() {
                                 {/* Courses Bar */}
                                 <div className="flex-1">
                                   <div className="flex justify-between text-xs mb-1">
-                                    <span className="text-green-600">Courses</span>
-                                    <span className="font-medium">{item.courses}</span>
+                                    <span className="text-green-600 truncate">Courses</span>
+                                    <span className="font-medium ml-1">{item.courses}</span>
                                   </div>
                                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                     <div 
@@ -245,39 +249,47 @@ export default function AdminDashboard() {
                   </Card>
 
                   {/* Faculty Distribution */}
-                  <Card className="rounded-2xl shadow-lg">
-                    <CardHeader>
-                      <CardTitle className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <Building2 className="h-6 w-6 text-green-600" />
-                        Faculty Distribution
+                  <Card className="rounded-xl sm:rounded-2xl shadow-lg">
+                    <CardHeader className="p-4 sm:p-6">
+                      <CardTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                        <span className="hidden sm:inline">Faculty Distribution</span>
+                        <span className="sm:hidden">Faculty Stats</span>
                       </CardTitle>
-                      <p className="text-gray-600 dark:text-gray-400">Student distribution across different faculties</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Student distribution across different faculties</p>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="space-y-3 sm:space-y-4">
                         {dashboardData.facultyDistribution.map((faculty) => (
-                          <div key={faculty.name} className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
+                          <div key={faculty.name} className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink">
                               <div 
-                                className="w-4 h-4 rounded-full" 
+                                className="w-3 h-3 sm:w-4 sm:h-4 rounded-full flex-shrink-0" 
                                 style={{ backgroundColor: faculty.color }}
                               ></div>
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px] truncate">
-                                {faculty.name}
+                              <div className="min-w-0 flex-shrink">
+                                <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 block truncate">
+                                  {faculty.name}
+                                </span>
+                                <span className="text-xs text-gray-500 block sm:hidden">
+                                  {faculty.count} users
+                                </span>
+                              </div>
+                              <span className="text-xs text-gray-500 hidden sm:inline whitespace-nowrap">
+                                ({faculty.count} users)
                               </span>
-                              <span className="text-xs text-gray-500">({faculty.count} users)</span>
                             </div>
-                            <div className="flex items-center gap-3 flex-1 max-w-[200px]">
-                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-[120px] sm:max-w-[200px]">
+                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 sm:h-3">
                                 <div 
-                                  className="h-3 rounded-full transition-all duration-500" 
+                                  className="h-2 sm:h-3 rounded-full transition-all duration-500" 
                                   style={{ 
                                     width: `${faculty.value}%`, 
                                     backgroundColor: faculty.color 
                                   }}
                                 ></div>
                               </div>
-                              <span className="text-sm font-bold text-gray-900 dark:text-white min-w-[35px]">
+                              <span className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white min-w-[30px] sm:min-w-[35px] text-right">
                                 {faculty.value}%
                               </span>
                             </div>

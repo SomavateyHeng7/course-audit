@@ -342,18 +342,18 @@ export default function CurriculumDetails() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-4 sm:p-6">
         <div className="max-w-7xl mx-auto">          {/* Header */}
-          <div className="bg-card rounded-xl border border-border p-6 mb-6">
+          <div className="bg-card rounded-xl border border-border p-4 sm:p-6 mb-4 sm:mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-foreground mb-2">
+              <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-foreground mb-2">
                 {curriculumInfo.name} - {curriculumInfo.year} ({curriculumInfo.idStart} - {curriculumInfo.idEnd})
               </h1>
-              <div className="flex gap-6 text-sm text-muted-foreground">
+              <div className="flex flex-col sm:flex-row sm:gap-6 gap-1 text-xs sm:text-sm text-muted-foreground">
                 <span>Academic Year: {curriculumInfo.year}</span>
                 <span>Total Credits: {curriculumInfo.totalCredits}</span>
                 <span>Courses: {courses.length}</span>
-                <span>File: {curriculumInfo.fileName}</span>
+                <span className="truncate">File: {curriculumInfo.fileName}</span>
               </div>
               {/* <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <p className="text-sm text-blue-700 dark:text-blue-300">
@@ -365,17 +365,17 @@ export default function CurriculumDetails() {
           </div>
 
           {/* Department Selection */}
-          <div className="bg-card rounded-xl border border-border p-6 mb-6">
-            <h2 className="text-xl font-bold text-foreground mb-4">Department Selection</h2>
+          <div className="bg-card rounded-xl border border-border p-4 sm:p-6 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4">Department Selection</h2>
             
             {/* Smart Default Info */}
             {session?.user?.departmentId && (
-              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="mb-4 p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-4 h-4 text-blue-600 dark:text-blue-400">ℹ️</div>
-                  <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Default Department</span>
+                  <span className="text-xs sm:text-sm font-medium text-blue-800 dark:text-blue-200">Default Department</span>
                 </div>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
+                <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">
                   Creating curriculum for <strong>
                     {departments.find(d => d.id === session.user.departmentId)?.name || 'Your Department'}
                   </strong>. 
@@ -385,13 +385,13 @@ export default function CurriculumDetails() {
             )}
             
             <div className="max-w-md">
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-foreground mb-2">
                 Select Department
               </label>
               <select
                 value={selectedDepartmentId}
                 onChange={(e) => setSelectedDepartmentId(e.target.value)}
-                className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm sm:text-base"
                 required
               >
                 <option value="">Choose a department...</option>
@@ -416,19 +416,19 @@ export default function CurriculumDetails() {
           </div>
 
           {/* Main Content */}
-          <div className="flex gap-6">
+          <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
             {/* Left Panel - Course List */}
-            <div className="w-2/3 bg-card rounded-xl border border-border p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-foreground">Course Assignment</h2>
-                <span className="text-sm text-muted-foreground">
+            <div className="w-full lg:w-2/3 bg-card rounded-xl border border-border p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2">
+                <h2 className="text-lg sm:text-xl font-bold text-foreground">Course Assignment</h2>
+                <span className="text-xs sm:text-sm text-muted-foreground">
                   {filteredCourses.length} of {courses.length} courses
                 </span>
               </div>
 
               {!selectedDepartmentId ? (
                 <div className="text-center py-8">
-                  <p className="text-muted-foreground">Please select a department first to view course assignment options.</p>
+                  <p className="text-sm text-muted-foreground">Please select a department first to view course assignment options.</p>
                 </div>
               ) : (
                 <>
@@ -438,36 +438,36 @@ export default function CurriculumDetails() {
                     Course Types: {courseTypes.length}
                   </div> */}
               {/* Filters */}
-              <div className="flex gap-4 mb-4">
+              <div className="flex gap-3 sm:gap-4 mb-4">
                 <input
                   type="text"
                   placeholder="Search courses..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="flex-1 border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  className="flex-1 border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm sm:text-base"
                 />
               </div>
 
               {/* Requirement Assignment Controls */}
-              <div className="flex gap-2 mb-4 p-3 bg-muted/50 rounded-lg border border-border">
+              <div className="flex flex-wrap gap-2 mb-4 p-3 bg-muted/50 rounded-lg border border-border">
                 <button
                   onClick={selectAllFilteredCourses}
                   disabled={filteredCourses.length === 0}
-                  className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2 sm:px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                 >
                   Select All ({filteredCourses.length})
                 </button>
                 <button
                   onClick={clearSelection}
                   disabled={selectedCourses.size === 0}
-                  className="px-3 py-1 text-xs bg-secondary text-secondary-foreground rounded hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2 sm:px-3 py-1 text-xs bg-secondary text-secondary-foreground rounded hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                 >
                   Clear ({selectedCourses.size})
                 </button>
                 <button
                   onClick={() => setShowBatchAssignment(!showBatchAssignment)}
                   disabled={selectedCourses.size === 0}
-                  className="px-3 py-1 text-xs bg-accent text-accent-foreground rounded hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2 sm:px-3 py-1 text-xs bg-accent text-accent-foreground rounded hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                 >
                   Assign Requirements
                 </button>
@@ -475,8 +475,8 @@ export default function CurriculumDetails() {
 
               {/* Requirement Assignment Panel */}
               {showBatchAssignment && selectedCourses.size > 0 && (
-                <div className="mb-4 p-4 bg-card border border-border rounded-lg">
-                  <h3 className="font-semibold mb-3 text-sm">
+                <div className="mb-4 p-3 sm:p-4 bg-card border border-border rounded-lg">
+                  <h3 className="font-semibold mb-3 text-xs sm:text-sm">
                     Assign requirements to {selectedCourses.size} selected course{selectedCourses.size !== 1 ? 's' : ''}
                   </h3>
                   <div>
@@ -484,13 +484,13 @@ export default function CurriculumDetails() {
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => batchAssignRequirement('Required')}
-                        className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                        className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors touch-manipulation"
                       >
                         Required
                       </button>
                       <button
                         onClick={() => batchAssignRequirement('Elective')}
-                        className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                        className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors touch-manipulation"
                       >
                         Elective
                       </button>
@@ -499,12 +499,12 @@ export default function CurriculumDetails() {
                 </div>
               )}              {/* Course List */}
               <div className="border border-border rounded-lg overflow-hidden">
-                <div className="bg-muted px-4 py-2 border-b border-border">
-                  <div className="flex gap-4 text-xs font-medium text-muted-foreground">
-                    <div className="w-10">Select</div>
+                <div className="bg-muted px-2 sm:px-4 py-2 border-b border-border">
+                  <div className="flex gap-2 sm:gap-4 text-xs font-medium text-muted-foreground">
+                    <div className="w-8 sm:w-10">Select</div>
                     <div className="flex-1">Course Code</div>
-                    <div className="flex-[2]">Course Title</div>
-                    <div className="w-16">Credits</div>
+                    <div className="flex-[2] hidden sm:block">Course Title</div>
+                    <div className="w-12 sm:w-16">Credits</div>
                     <div className="flex-1">Requirement</div>
                   </div>
                 </div>
@@ -517,14 +517,14 @@ export default function CurriculumDetails() {
                       <div
                         key={course.code}
                         onClick={() => setSelectedCourse(course.code)}
-                        className={`flex gap-4 p-3 border-b border-border cursor-pointer transition-all items-center ${
+                        className={`flex gap-2 sm:gap-4 p-2 sm:p-3 border-b border-border cursor-pointer transition-all items-center touch-manipulation ${
                           isSelected 
                             ? 'bg-primary/5 border-l-4 border-l-primary' 
                             : 'hover:bg-muted/50'
                         }`}
                       >
                         {/* Checkbox */}
-                        <div className="w-10 flex justify-center">
+                        <div className="w-8 sm:w-10 flex justify-center">
                           <input
                             type="checkbox"
                             checked={selectedCourses.has(course.code)}
@@ -532,18 +532,20 @@ export default function CurriculumDetails() {
                               e.stopPropagation();
                               toggleCourseSelection(course.code);
                             }}
-                            className="rounded border-border text-primary focus:ring-primary focus:ring-offset-0"
+                            className="rounded border-border text-primary focus:ring-primary focus:ring-offset-0 h-3 w-3 sm:h-4 sm:w-4"
                           />
                         </div>
                         
                         {/* Course Code */}
-                        <div className="flex-1">
-                          <div className="font-semibold text-sm text-foreground">{course.code}</div>
-                          <div className="text-xs text-muted-foreground">{course.creditHours}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-xs sm:text-sm text-foreground truncate">{course.code}</div>
+                          <div className="text-xs text-muted-foreground truncate sm:block hidden">{course.creditHours}</div>
+                          {/* Mobile: Show title under code */}
+                          <div className="text-xs text-foreground mt-1 line-clamp-2 sm:hidden">{course.title}</div>
                         </div>
                         
-                        {/* Course Title */}
-                        <div className="flex-[2]">
+                        {/* Course Title - Desktop only */}
+                        <div className="flex-[2] hidden sm:block min-w-0">
                           <div className="text-sm text-foreground line-clamp-2">{course.title}</div>
                           {course.description && (
                             <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
@@ -553,17 +555,17 @@ export default function CurriculumDetails() {
                         </div>
                         
                         {/* Credits */}
-                        <div className="w-16">
-                          <div className="text-sm font-medium text-center">{course.credits}</div>
+                        <div className="w-12 sm:w-16">
+                          <div className="text-xs sm:text-sm font-medium text-center">{course.credits}</div>
                         </div>
                         
                         {/* Requirement */}
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <select
                             value={course.requirement || 'Required'}
                             onChange={(e) => updateCourse(originalIndex, 'requirement', e.target.value as 'Required' | 'Elective')}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full text-xs border border-input rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                            className="w-full text-xs border border-input rounded px-1 sm:px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
                           >
                             <option value="Required">Required</option>
                             <option value="Elective">Elective</option>
@@ -585,34 +587,34 @@ export default function CurriculumDetails() {
             </div>
 
             {/* Right Panel - Course Details and Statistics */}
-            <div className="w-1/3 space-y-6">              {/* Course Details */}
+            <div className="w-full lg:w-1/3 space-y-4 sm:space-y-6">              {/* Course Details */}
               {selectedCourse && getSelectedCourseData() && (
-                <div className="bg-card rounded-xl border border-border p-6">
-                  <h3 className="text-lg font-bold text-foreground mb-4">Course Details</h3>
-                  <div className="space-y-4">
+                <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
+                  <h3 className="text-base sm:text-lg font-bold text-foreground mb-4">Course Details</h3>
+                  <div className="space-y-3 sm:space-y-4">
                     {/* Course Header */}
                     <div className="pb-3 border-b border-border">
-                      <div className="font-bold text-lg text-foreground">{getSelectedCourseData()?.code}</div>
-                      <div className="text-muted-foreground text-sm leading-relaxed">{getSelectedCourseData()?.title}</div>
+                      <div className="font-bold text-base sm:text-lg text-foreground">{getSelectedCourseData()?.code}</div>
+                      <div className="text-muted-foreground text-xs sm:text-sm leading-relaxed">{getSelectedCourseData()?.title}</div>
                     </div>
                     
                     {/* Course Metrics */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-muted/30 rounded-lg p-3">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                      <div className="bg-muted/30 rounded-lg p-2 sm:p-3">
                         <div className="text-xs text-muted-foreground uppercase tracking-wide">Credits</div>
-                        <div className="text-lg font-bold text-foreground">{getSelectedCourseData()?.credits}</div>
+                        <div className="text-base sm:text-lg font-bold text-foreground">{getSelectedCourseData()?.credits}</div>
                       </div>
-                      <div className="bg-muted/30 rounded-lg p-3">
+                      <div className="bg-muted/30 rounded-lg p-2 sm:p-3">
                         <div className="text-xs text-muted-foreground uppercase tracking-wide">Credit Hours</div>
-                        <div className="text-sm font-medium text-foreground">{getSelectedCourseData()?.creditHours}</div>
+                        <div className="text-xs sm:text-sm font-medium text-foreground">{getSelectedCourseData()?.creditHours}</div>
                       </div>
                     </div>
                     
                     {/* Course Classification */}
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Requirement:</span>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        <span className="text-xs sm:text-sm text-muted-foreground">Requirement:</span>
+                        <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
                           getSelectedCourseData()?.requirement === 'Required' 
                             ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary'
                             : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
@@ -625,8 +627,8 @@ export default function CurriculumDetails() {
                     {/* Course Description */}
                     {getSelectedCourseData()?.description && (
                       <div className="pt-3 border-t border-border">
-                        <div className="text-sm font-medium text-foreground mb-2">Course Description</div>
-                        <div className="text-xs text-muted-foreground leading-relaxed bg-muted/30 rounded-lg p-3">
+                        <div className="text-xs sm:text-sm font-medium text-foreground mb-2">Course Description</div>
+                        <div className="text-xs text-muted-foreground leading-relaxed bg-muted/30 rounded-lg p-2 sm:p-3">
                           {getSelectedCourseData()?.description}
                         </div>
                       </div>
@@ -645,13 +647,13 @@ export default function CurriculumDetails() {
                     </div> */}
                   </div>
                 </div>
-              )}{/* Additional Course Information */}
+              )}              {/* Additional Course Information */}
               {!selectedCourse && (
-                <div className="bg-card rounded-xl border border-border p-6">
-                  <h3 className="text-lg font-bold text-foreground mb-4">Course Information</h3>
-                  <div className="text-center text-muted-foreground py-8">
-                    <div className="text-4xl mb-2">📋</div>
-                    <div className="text-sm">
+                <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
+                  <h3 className="text-base sm:text-lg font-bold text-foreground mb-4">Course Information</h3>
+                  <div className="text-center text-muted-foreground py-6 sm:py-8">
+                    <div className="text-3xl sm:text-4xl mb-2">📋</div>
+                    <div className="text-xs sm:text-sm">
                       Select a course from the list to view detailed information
                     </div>
                   </div>
@@ -659,16 +661,16 @@ export default function CurriculumDetails() {
               )}
 
               {/* Requirement Statistics */}
-              <div className="bg-card rounded-xl border border-border p-6">
-                <h3 className="text-lg font-bold text-foreground mb-4">Requirement Statistics</h3>
-                <div className="space-y-3">
+              <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-bold text-foreground mb-4">Requirement Statistics</h3>
+                <div className="space-y-2 sm:space-y-3">
                   {getRequirementStats().map(stat => (
-                    <div key={stat.requirement} className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <div key={stat.requirement} className="flex justify-between items-center p-2 sm:p-3 bg-muted rounded-lg">
                       <div>
-                        <div className="font-medium text-sm">{stat.requirement}</div>
+                        <div className="font-medium text-xs sm:text-sm">{stat.requirement}</div>
                       </div>
                       <div className="text-right">
-                        <div className="font-medium text-sm">{stat.credits} cr</div>
+                        <div className="font-medium text-xs sm:text-sm">{stat.credits} cr</div>
                         <div className="text-xs text-muted-foreground">{stat.courses} courses</div>
                       </div>
                     </div>
@@ -679,11 +681,11 @@ export default function CurriculumDetails() {
           </div>
 
           {/* Footer with Save Button */}
-          <div className="mt-6 flex justify-end">
+          <div className="mt-4 sm:mt-6 flex justify-end">
             <button
               onClick={handleSaveCurriculum}
               disabled={isLoading || !selectedDepartmentId}
-              className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-primary text-primary-foreground px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium hover:bg-primary/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation w-full sm:w-auto"
             >
               {isLoading ? 'Creating Curriculum...' : 'Save Curriculum'}
             </button>

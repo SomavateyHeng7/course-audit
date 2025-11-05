@@ -500,8 +500,8 @@ export default function EditCurriculum() {
   return (
     <div className="flex min-h-screen bg-white dark:bg-background">
       {/* Sidebar is assumed to be rendered by layout */}
-      <div className="flex-1 flex flex-col items-center py-10">
-        <div className="w-full max-w-6xl bg-white dark:bg-card rounded-2xl border border-gray-200 dark:border-border p-10">
+      <div className="flex-1 flex flex-col items-center py-3 sm:py-6 lg:py-10 px-2 sm:px-4">
+        <div className="w-full max-w-6xl bg-white dark:bg-card rounded-lg sm:rounded-xl lg:rounded-2xl border border-gray-200 dark:border-border p-3 sm:p-6 lg:p-10">
           {/* Loading State */}
           {isLoading && (
             <div className="flex items-center justify-center py-20">
@@ -525,12 +525,14 @@ export default function EditCurriculum() {
           {/* Curriculum Content */}
           {!isLoading && !error && curriculum && (
             <>
-              <div className="mb-6">
-                <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-foreground">
-                  Course Management <span className="text-primary dark:text-primary/40">&gt;</span> {curriculum.name}
+              <div className="mb-4 sm:mb-6">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 text-gray-900 dark:text-foreground">
+                  <span className="block sm:inline">Course Management</span>
+                  <span className="text-primary dark:text-primary/40 hidden sm:inline"> &gt; </span>
+                  <span className="block sm:inline text-lg sm:text-2xl lg:text-3xl">{curriculum.name}</span>
                 </h1>
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4">
+                  <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
                     Manage all aspects of your curriculum from courses to constraints
                   </p>
                   <div className="hidden lg:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
@@ -547,12 +549,12 @@ export default function EditCurriculum() {
             {/* Tabs */}
             <div className="w-full mt-4 mb-8">
               {/* Tab Progress Indicator */}
-              <div className="hidden lg:block mb-4">
+              <div className="hidden lg:block mb-3 sm:mb-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                  <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                     Section {tabs.findIndex(t => t.name === activeTab) + 1} of {tabs.length}
                   </span>
-                  <span className="text-sm font-medium text-primary dark:text-primary/40">
+                  <span className="text-xs sm:text-sm font-medium text-primary dark:text-primary/40">
                     {activeTab}
                   </span>
                 </div>
@@ -565,7 +567,7 @@ export default function EditCurriculum() {
               </div>
               
               {/* Desktop Tab Bar */}
-              <div className="hidden lg:flex gap-3 flex-wrap">
+              <div className="hidden lg:flex gap-2 sm:gap-3 flex-wrap">
                 {tabs.map((tab, index) => {
                   const IconComponent = tab.icon;
                   const isActive = activeTab === tab.name;
@@ -575,7 +577,7 @@ export default function EditCurriculum() {
                     <button
                       key={tab.name}
                       suppressHydrationWarning
-                      className={`px-5 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 border-2 shadow-sm hover:shadow-md flex items-center gap-2 relative overflow-hidden ${
+                      className={`px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5 rounded-full font-semibold text-xs sm:text-sm transition-all duration-200 border-2 shadow-sm hover:shadow-md flex items-center gap-1 sm:gap-2 relative overflow-hidden touch-manipulation ${
                         isActive
                           ? "bg-primary text-white border-primary shadow-primary/20 dark:shadow-primary/50 transform scale-105"
                           : isPrevious
@@ -588,10 +590,11 @@ export default function EditCurriculum() {
                       {isActive && (
                         <div className="absolute inset-0 bg-white/20 rounded-full animate-ping"></div>
                       )}
-                      <IconComponent className={`w-4 h-4 relative z-10 ${isActive ? 'animate-pulse' : ''}`} />
-                      <span className="relative z-10">{tab.name}</span>
+                      <IconComponent className={`w-3 h-3 sm:w-4 sm:h-4 relative z-10 ${isActive ? 'animate-pulse' : ''}`} />
+                      <span className="relative z-10 hidden sm:inline">{tab.name}</span>
+                      <span className="relative z-10 sm:hidden text-xs truncate max-w-16">{tab.name.split(' ')[0]}</span>
                       {isPrevious && (
-                        <svg className="w-3 h-3 ml-1 text-ring" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-2 h-2 sm:w-3 sm:h-3 ml-1 text-ring" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}
@@ -611,7 +614,7 @@ export default function EditCurriculum() {
                   <select
                     value={activeTab}
                     onChange={(e) => setActiveTab(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-card border-2 border-primary/20 dark:border-primary rounded-xl text-primary dark:text-primary/40 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all shadow-sm appearance-none cursor-pointer"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white dark:bg-card border-2 border-primary/20 dark:border-primary rounded-lg sm:rounded-xl text-primary dark:text-primary/40 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all shadow-sm appearance-none cursor-pointer touch-manipulation"
                   >
                     {tabs.map((tab, index) => (
                       <option key={tab.name} value={tab.name} className="bg-white dark:bg-card py-2">
@@ -620,7 +623,7 @@ export default function EditCurriculum() {
                     ))}
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none mt-6">
-                    <svg className="w-5 h-5 text-primary dark:text-primary/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-primary dark:text-primary/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
@@ -642,18 +645,18 @@ export default function EditCurriculum() {
               </div>
             </div>
           </div>          {/* Summary Cards */}
-          <div className="flex gap-8 mb-8">
-            <div className="flex-1 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6 flex flex-col items-center">
-              <span className="text-gray-500 dark:text-gray-400 text-md mb-2">Total Curriculum Credits</span>
-              <span className="text-3xl font-bold text-primary dark:text-primary/40">{summary.totalCredits} Credits</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-8 mb-6 sm:mb-8">
+            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6 flex flex-col items-center">
+              <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm lg:text-md mb-1 sm:mb-2 text-center">Total Curriculum Credits</span>
+              <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary dark:text-primary/40">{summary.totalCredits} Credits</span>
             </div>
-            <div className="flex-1 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6 flex flex-col items-center">
-              <span className="text-gray-500 dark:text-gray-400 text-md mb-2">Required Core Courses</span>
-              <span className="text-3xl font-bold text-primary dark:text-primary/40">{summary.requiredCore} Credits</span>
+            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6 flex flex-col items-center">
+              <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm lg:text-md mb-1 sm:mb-2 text-center">Required Core Courses</span>
+              <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary dark:text-primary/40">{summary.requiredCore} Credits</span>
             </div>
-            <div className="flex-1 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-6 flex flex-col items-center">
-              <span className="text-gray-500 dark:text-gray-400 text-md mb-2">Elective Credits</span>
-              <span className="text-3xl font-bold text-primary dark:text-primary/40">{summary.electiveCredits} Credits</span>
+            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6 flex flex-col items-center sm:col-span-2 lg:col-span-1">
+              <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm lg:text-md mb-1 sm:mb-2 text-center">Elective Credits</span>
+              <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary dark:text-primary/40">{summary.electiveCredits} Credits</span>
             </div>
           </div>          {/* Tab Content */}
           {activeTab === "Courses" && (
@@ -694,30 +697,31 @@ export default function EditCurriculum() {
           )}
           
           {/* Tab Navigation Buttons */}
-          <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200 dark:border-border">
+          <div className="flex justify-between items-center mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200 dark:border-border">
             <button
               onClick={goToPreviousTab}
               disabled={isFirstTab}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm transition-all touch-manipulation ${
                 isFirstTab
                   ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
                   : "text-primary dark:text-primary/40 hover:bg-primary/10 dark:hover:bg-primary/20/20 hover:text-primary dark:hover:text-primary/30"
               }`}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              Previous
+              <span className="hidden xs:inline">Previous</span>
+              <span className="xs:hidden">Prev</span>
             </button>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               {tabs.map((tab, index) => (
                 <button
                   key={tab.name}
                   onClick={() => setActiveTab(tab.name)}
-                  className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                  className={`w-2 h-2 rounded-full transition-all duration-200 touch-manipulation ${
                     activeTab === tab.name
-                      ? "bg-primary w-6"
+                      ? "bg-primary w-4 sm:w-6"
                       : index < currentTabIndex
                       ? "bg-primary/30 dark:bg-primary"
                       : "bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500"
@@ -730,14 +734,15 @@ export default function EditCurriculum() {
             <button
               onClick={goToNextTab}
               disabled={isLastTab}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm transition-all touch-manipulation ${
                 isLastTab
                   ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
                   : "text-primary dark:text-primary/40 hover:bg-primary/10 dark:hover:bg-primary/20/20 hover:text-primary dark:hover:text-primary/30"
               }`}
             >
-              Next
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <span className="hidden xs:inline">Next</span>
+              <span className="xs:hidden">Next</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
@@ -747,62 +752,63 @@ export default function EditCurriculum() {
         </div>
       </div>      {/* Edit Course Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-card rounded-xl p-6 sm:p-8 w-full max-w-[90vw] sm:max-w-[600px] lg:max-w-[700px] border border-gray-200 dark:border-border shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-foreground">Edit Course Details</h3><button
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-2 sm:p-4">
+          <div className="bg-white dark:bg-card rounded-lg sm:rounded-xl p-4 sm:p-6 lg:p-8 w-full max-w-xs sm:max-w-lg lg:max-w-2xl border border-gray-200 dark:border-border shadow-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-xl font-bold text-foreground">Edit Course Details</h3>
+              <button
                 suppressHydrationWarning
                 onClick={handleCloseEditModal}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 touch-manipulation"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
               {editingCourse && (
-              <div className="space-y-5">
+              <div className="space-y-4 sm:space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-foreground">Course Code</label>
+                  <label className="block text-xs sm:text-sm font-semibold mb-2 text-foreground">Course Code</label>
                   <input
                     type="text"
                     value={editingCourse.code}
                     readOnly
-                    className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-not-allowed"
+                    className="w-full border border-gray-300 dark:border-border rounded-lg px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-not-allowed text-sm sm:text-base"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Course code cannot be modified</p>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-foreground">Course Title</label>
+                  <label className="block text-xs sm:text-sm font-semibold mb-2 text-foreground">Course Title</label>
                   <input
                     type="text"
                     value={editingCourse.title}
                     onChange={(e) => setEditingCourse({...editingCourse, title: e.target.value})}
-                    className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
+                    className="w-full border border-gray-300 dark:border-border rounded-lg px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors text-sm sm:text-base"
                     placeholder="Enter course title"
                   />
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-sm font-semibold mb-2 text-foreground">Credits</label>
+                    <label className="block text-xs sm:text-sm font-semibold mb-2 text-foreground">Credits</label>
                     <input
                       type="number"
                       value={editingCourse.credits}
                       onChange={(e) => setEditingCourse({...editingCourse, credits: parseInt(e.target.value) || 0})}
-                      className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
+                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors text-sm sm:text-base"
                       min="0"
                       max="6"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold mb-2 text-foreground">Credit Hours</label>
+                    <label className="block text-xs sm:text-sm font-semibold mb-2 text-foreground">Credit Hours</label>
                     <input
                       type="text"
                       value={editingCourse.creditHours}
                       onChange={(e) => setEditingCourse({...editingCourse, creditHours: e.target.value})}
-                      className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
+                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors text-sm sm:text-base"
                       placeholder="e.g., 3-0-6"
                     />
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Format: Lecture-Lab-Total (e.g., 3-0-6)</p>
@@ -841,12 +847,12 @@ export default function EditCurriculum() {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Provide a comprehensive description of the course</p>
                 </div>
               </div>            )}
-              <div className="flex flex-col sm:flex-row gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-border">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200 dark:border-border">
               <button
                 suppressHydrationWarning
                 onClick={handleCloseEditModal}
                 disabled={isUpdatingCourse}
-                className="flex-1 px-6 py-3 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base touch-manipulation"
               >
                 Cancel
               </button>
@@ -854,7 +860,7 @@ export default function EditCurriculum() {
                 suppressHydrationWarning
                 onClick={handleSaveEditCourse}
                 disabled={isUpdatingCourse}
-                className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary transition-colors border border-primary font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-primary text-white rounded-lg hover:bg-primary transition-colors border border-primary font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base touch-manipulation"
               >
                 {isUpdatingCourse ? (
                   <>
@@ -862,10 +868,14 @@ export default function EditCurriculum() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Updating...
+                    <span className="hidden xs:inline">Updating...</span>
+                    <span className="xs:hidden">...</span>
                   </>
                 ) : (
-                  'Save Changes'
+                  <>
+                    <span className="hidden xs:inline">Save Changes</span>
+                    <span className="xs:hidden">Save</span>
+                  </>
                 )}
               </button>
             </div>
@@ -873,32 +883,32 @@ export default function EditCurriculum() {
         </div>
       )}      {/* Add Course Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-card rounded-xl p-6 sm:p-8 w-full max-w-[90vw] sm:max-w-[600px] lg:max-w-[700px] border border-gray-200 dark:border-border shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-foreground">Add Course to Curriculum</h3>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-2 sm:p-4">
+          <div className="bg-white dark:bg-card rounded-lg sm:rounded-xl p-4 sm:p-6 lg:p-8 w-full max-w-xs sm:max-w-lg lg:max-w-2xl border border-gray-200 dark:border-border shadow-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-xl font-bold text-foreground">Add Course to Curriculum</h3>
               <button
                 suppressHydrationWarning
                 onClick={handleCloseAddModal}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 touch-manipulation"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Course Assignment Settings */}
-              <div className="border border-gray-200 dark:border-border rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
-                <h5 className="font-medium text-foreground mb-3">Course Assignment Settings</h5>
+              <div className="border border-gray-200 dark:border-border rounded-lg p-3 sm:p-4 bg-gray-50 dark:bg-gray-800/50">
+                <h5 className="font-medium text-foreground mb-3 text-sm sm:text-base">Course Assignment Settings</h5>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-sm font-medium mb-1 text-foreground">Year</label>
+                    <label className="block text-xs sm:text-sm font-medium mb-1 text-foreground">Year</label>
                     <select
                       value={courseAssignment.year}
                       onChange={(e) => setCourseAssignment({...courseAssignment, year: parseInt(e.target.value)})}
-                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-xs sm:text-sm touch-manipulation"
                     >
                       <option value={1}>Year 1</option>
                       <option value={2}>Year 2</option>
@@ -909,11 +919,11 @@ export default function EditCurriculum() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1 text-foreground">Semester</label>
+                    <label className="block text-xs sm:text-sm font-medium mb-1 text-foreground">Semester</label>
                     <select
                       value={courseAssignment.semester}
                       onChange={(e) => setCourseAssignment({...courseAssignment, semester: e.target.value})}
-                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-xs sm:text-sm touch-manipulation"
                     >
                       <option value="1">Semester 1</option>
                       <option value="2">Semester 2</option>
@@ -921,11 +931,11 @@ export default function EditCurriculum() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1 text-foreground">Type</label>
+                    <label className="block text-xs sm:text-sm font-medium mb-1 text-foreground">Type</label>
                     <select
                       value={courseAssignment.isRequired ? 'required' : 'elective'}
                       onChange={(e) => setCourseAssignment({...courseAssignment, isRequired: e.target.value === 'required'})}
-                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-xs sm:text-sm touch-manipulation"
                     >
                       <option value="required">Required</option>
                       <option value="elective">Elective</option>
@@ -1099,12 +1109,12 @@ export default function EditCurriculum() {
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-border">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200 dark:border-border">
               <button
                 suppressHydrationWarning
                 onClick={handleCloseAddModal}
                 disabled={isAddingCourse}
-                className="flex-1 px-6 py-3 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base touch-manipulation"
               >
                 Cancel
               </button>
@@ -1112,7 +1122,7 @@ export default function EditCurriculum() {
                 suppressHydrationWarning
                 onClick={handleSaveAddCourse}
                 disabled={isAddingCourse || (!selectedCourse && (!showAddCourseForm || !newCourse.code || !newCourse.title))}
-                className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary transition-colors border border-primary font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-primary text-white rounded-lg hover:bg-primary transition-colors border border-primary font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base touch-manipulation"
               >
                 {isAddingCourse ? (
                   <>
@@ -1120,10 +1130,14 @@ export default function EditCurriculum() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Adding...
+                    <span className="hidden xs:inline">Adding...</span>
+                    <span className="xs:hidden">...</span>
                   </>
                 ) : (
-                  'Add Course'
+                  <>
+                    <span className="hidden xs:inline">Add Course</span>
+                    <span className="xs:hidden">Add</span>
+                  </>
                 )}
               </button>
             </div>

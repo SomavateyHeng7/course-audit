@@ -355,55 +355,55 @@ export default function CreateCurriculumPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto">
-        <div className="w-full max-w-5xl mx-auto bg-card rounded-2xl border border-border p-12">
-          <div className="flex gap-12">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="w-full max-w-5xl mx-auto bg-card rounded-xl sm:rounded-2xl border border-border p-4 sm:p-8 lg:p-12">
+          <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 lg:gap-12">
             {/* Form Section */}
-            <div className="w-[400px]">              <h1 className="text-4xl font-extrabold mb-10 text-foreground">Create Curriculum</h1>
-              <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div className="w-full lg:w-[400px]">              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-6 sm:mb-8 lg:mb-10 text-foreground">Create Curriculum</h1>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4 sm:gap-6">
                 <div>
-                  <label className="block font-semibold mb-1 text-foreground">Curriculum Name</label>
+                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">Curriculum Name</label>
                   <input
                     type="text"
                     placeholder="Enter curriculum name"
                     value={curriculumName}
                     onChange={(e) => setCurriculumName(e.target.value)}
-                    className="w-full border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    className="w-full border border-input rounded-lg px-3 sm:px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm sm:text-base"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-foreground">Academic Year</label>
+                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">Academic Year</label>
                   <input
                     type="text"
                     placeholder="Enter academic year (e.g., 2024, 2025)"
                     value={year}
                     onChange={(e) => setYear(e.target.value)}
-                    className="w-full border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    className="w-full border border-input rounded-lg px-3 sm:px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm sm:text-base"
                     required
                     pattern="[0-9]{4}"
                     title="Please enter a 4-digit year"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-foreground">Total Credits</label>
+                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">Total Credits</label>
                   <input
                     type="number"
                     placeholder="Enter total credits"
                     value={totalCredits}
                     onChange={(e) => setTotalCredits(e.target.value)}
-                    className="w-full border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    className="w-full border border-input rounded-lg px-3 sm:px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm sm:text-base"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-foreground">ID - Start</label>
+                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">ID - Start</label>
                   <input
                     type="text"
                     placeholder="Enter starting ID (e.g., 63001, 64001, 65001)"
                     value={idStart}
                     onChange={(e) => setIdStart(e.target.value)}
-                    className="w-full border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    className="w-full border border-input rounded-lg px-3 sm:px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm sm:text-base"
                     required
                   />
                   <div className="text-xs text-muted-foreground mt-1">
@@ -411,13 +411,13 @@ export default function CreateCurriculumPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-foreground">ID - End</label>
+                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">ID - End</label>
                   <input
                     type="text"
                     placeholder="Enter ending ID (e.g., 63999, 64999, 65999)"
                     value={idEnd}
                     onChange={(e) => setIdEnd(e.target.value)}
-                    className="w-full border border-input rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    className="w-full border border-input rounded-lg px-3 sm:px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm sm:text-base"
                     required
                   />
                   <div className="text-xs text-muted-foreground mt-1">
@@ -427,39 +427,39 @@ export default function CreateCurriculumPage() {
                 <button
                   type="submit"
                   disabled={isUploading || isSubmitting || !uploadedFile}
-                  className="bg-primary text-primary-foreground py-2 rounded-lg font-semibold hover:bg-primary/90 transition mt-4 w-32 self-start disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-primary text-primary-foreground py-2 sm:py-2.5 px-4 sm:px-6 rounded-lg font-semibold hover:bg-primary/90 transition mt-4 w-full sm:w-auto sm:self-start disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base touch-manipulation"
                 >
                   {isSubmitting ? 'Processing...' : (isUploading ? 'Uploading...' : 'Continue')}
                 </button>
               </form>
             </div>
             {/* File Upload Section */}
-            <div className="flex-1 flex flex-col justify-start">              <div className="bg-card p-6 rounded-xl border border-border">
-                <h2 className="font-bold text-xl mb-4 text-foreground">Upload Course File</h2>                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">                  <p className="text-sm text-blue-700 dark:text-blue-300">
+            <div className="flex-1 flex flex-col justify-start">              <div className="bg-card p-4 sm:p-6 rounded-xl border border-border">
+                <h2 className="font-bold text-lg sm:text-xl mb-4 text-foreground">Upload Course File</h2>                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">                  <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">
                     <strong>Excel Format Preferred:</strong> Include columns for Course Code, Course Title, Credits, Course Description, and Crd Hour. 
                     Excel files (.xlsx, .xls) are preferred over CSV. Course categories and constraints will be set in the next step.
                   </p>
                   <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-700">
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <a 
                         href="/api/download/sample-csv" 
                         download="sample_curriculum_courses.csv"
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline transition-colors"
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline transition-colors touch-manipulation"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        Download Sample CSV Template
+                        <span className="truncate">Download Sample CSV Template</span>
                       </a>
                       <a 
                         href="/api/download/sample-xlsx" 
                         download="sample_curriculum_courses.xlsx"
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline transition-colors"
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline transition-colors touch-manipulation"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        Download Sample XLSX Template
+                        <span className="truncate">Download Sample XLSX Template</span>
                       </a>
                     </div>
                   </div>
@@ -467,14 +467,14 @@ export default function CreateCurriculumPage() {
                 
                 {uploadedFile && (
                   <div className="mb-4 p-3 bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30 rounded-lg">
-                    <p className="text-sm text-primary">
-                      <strong>File uploaded:</strong> {uploadedFile.name}
+                    <p className="text-xs sm:text-sm text-primary">
+                      <strong>File uploaded:</strong> <span className="truncate">{uploadedFile.name}</span>
                     </p>
                   </div>
                 )}
                 
                 <div
-                  className={`h-52 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ${
+                  className={`h-40 sm:h-52 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-200 touch-manipulation ${
                     isDragOver 
                       ? 'border-primary bg-primary/10 text-primary scale-105'
                       : uploadedFile 
@@ -488,35 +488,35 @@ export default function CreateCurriculumPage() {
                 >
                   {isUploading ? (
                     <>
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-                      <p className="text-sm">Processing file...</p>
+                      <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-primary mb-2"></div>
+                      <p className="text-xs sm:text-sm text-center px-2">Processing file...</p>
                     </>
                   ) : isDragOver ? (
                     <>
-                      <svg className="w-12 h-12 mb-2 text-primary animate-bounce" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <svg className="w-8 h-8 sm:w-12 sm:h-12 mb-2 text-primary animate-bounce" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
                       </svg>
-                      <p className="text-center text-sm font-medium">
+                      <p className="text-center text-xs sm:text-sm font-medium px-2">
                         Drop your file here!
                       </p>
                     </>
                   ) : uploadedFile ? (
                     <>
-                      <svg className="w-10 h-10 mb-2 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <svg className="w-8 h-8 sm:w-10 sm:h-10 mb-2 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
-                      <p className="text-center text-sm">
-                        File uploaded successfully!<br />
-                        Click to upload a different file.
+                      <p className="text-center text-xs sm:text-sm px-2">
+                        File uploaded successfully!<br className="hidden sm:block" />
+                        <span className="sm:hidden"> </span>Click to upload a different file.
                       </p>
                     </>
                   ) : (
                     <>
-                      <svg className="w-10 h-10 mb-2 text-muted-foreground" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <svg className="w-8 h-8 sm:w-10 sm:h-10 mb-2 text-muted-foreground" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-8m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
-                      </svg>                      <p className="text-center text-sm text-muted-foreground">
-                        <span className="font-medium">Drag and drop</span> Excel or CSV file here,<br />
-                        or <span className="text-primary underline">click here to upload</span>.
+                      </svg>                      <p className="text-center text-xs sm:text-sm text-muted-foreground px-2">
+                        <span className="font-medium">Drag and drop</span> Excel or CSV file here,<br className="hidden sm:block" />
+                        <span className="sm:hidden"> </span>or <span className="text-primary underline">click here to upload</span>.
                       </p>
                     </>
                   )}                  <input

@@ -33,22 +33,22 @@ import Image from 'next/image';
 const defaultNavigationItems = [
   {
     name: 'Course Management',
-    href: '/management',
+    href: '/student/management',
     icon: LayoutDashboard,
   },
   {
     name: 'Plan Future Courses',
-    href: '/FutureCourse',
+    href: '/student/FutureCourses',
     icon: Library,
   },
   {
     name: 'Next Semester Course',
-    href: '/SemesterCourse',
+    href: '/student/SemesterCourse',
     icon: Book,
   },
   {
     name: 'All Curricula',
-    href: '/allCurricula',
+    href: '/student/allCurricula',
     icon: Folders,
   },
 ];

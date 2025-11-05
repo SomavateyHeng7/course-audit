@@ -68,7 +68,7 @@ export default function Home() {
             {/* CTA Button */}
             <div className="flex justify-center">
               <Link 
-                href="/management" 
+                href="/student/management" 
                 className="font-montserrat inline-flex items-center px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full hover:bg-gray-800 dark:hover:bg-gray-100 transition-all duration-300 text-lg font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 Start Tracking

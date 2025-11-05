@@ -166,7 +166,7 @@ export default function DepartmentManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
       {/* Toast Notification */}
       {toast && (
         <div
@@ -180,8 +180,8 @@ export default function DepartmentManagement() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md relative">
             <button
               type="button"
               aria-label="Close"
@@ -240,19 +240,20 @@ export default function DepartmentManagement() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Department Management</h2>
-          <p className="text-gray-600 dark:text-gray-400">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Department Management</h2>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
             Manage departments and their faculty associations across the entire system
           </p>
         </div>
         <Button 
           onClick={() => setShowCreateModal(true)}
-          className="bg-[#2ECC71] hover:bg-[#2ECC71]/90"
+          className="bg-[#2ECC71] hover:bg-[#2ECC71]/90 w-full sm:w-auto"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Department
+          <span className="hidden xs:inline">Add Department</span>
+          <span className="xs:hidden">Add</span>
         </Button>
       </div>
 
@@ -260,47 +261,47 @@ export default function DepartmentManagement() {
 
       {/* Departments List */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+            <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
             Departments ({departments.length})
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-sm">
             All departments organized by faculty
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="p-4 sm:p-6">
+          <div className="space-y-3 sm:space-y-4">
             {departments.map((department) => (
               <div
                 key={department.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors gap-3 sm:gap-4"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                  <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center flex-shrink-0">
                     <Building2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                   </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base truncate">
                       {department.name}
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                       Code: {department.code}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
                       Faculty: {department.faculty.name} ({department.faculty.code})
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                  <div className="flex gap-3 sm:gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      {department._count?.users || 0}
+                      <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span>{department._count?.users || 0}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <GraduationCap className="h-4 w-4" />
-                      {department._count?.curricula || 0}
+                      <GraduationCap className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span>{department._count?.curricula || 0}</span>
                     </div>
                   </div>
                   <div className="flex gap-1">
@@ -315,16 +316,17 @@ export default function DepartmentManagement() {
                           facultyId: department.faculty.id,
                         });
                       }}
+                      className="p-2"
                     >
-                      <Edit className="h-4 w-4" />
+                      <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteDepartment(department.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 p-2"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                   </div>
                 </div>
@@ -336,8 +338,8 @@ export default function DepartmentManagement() {
 
       {/* Create/Edit Modal */}
       {(showCreateModal || editingDepartment) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md relative max-h-[90vh] overflow-y-auto">
             <button
               type="button"
               aria-label="Close"

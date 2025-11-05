@@ -12,14 +12,16 @@ export default auth((req) => {
   }
 
   // Public paths that don't require authentication
-  const publicPaths = ['/', '/auth', '/auth/error', '/student', '/management', '/allCurricula', '/management/data-entry', '/management/progress', '/management/course-planning', '/FutureCourses', '/SemesterCourse']
+  const publicPaths = ['/', '/auth', '/auth/error', '/student', '/student/management', '/student/allCurricula', '/student/management/data-entry', 
+    '/student/management/progress', '/student/management/course-planning', 
+    '/student/FutureCourses', '/student/SemesterCourse']
   // Allow all /management and /allCurricula subpages to be public
   const isPublicPath = publicPaths.includes(req.nextUrl.pathname) ||
-    req.nextUrl.pathname.startsWith('/management/data-entry') ||
-    req.nextUrl.pathname.startsWith('/management/progress') ||
-    req.nextUrl.pathname.startsWith('/management/course-planning') ||
-    req.nextUrl.pathname.startsWith('/allCurricula')
-  
+    req.nextUrl.pathname.startsWith('/student/management/data-entry') ||
+    req.nextUrl.pathname.startsWith('/student/management/progress') ||
+    req.nextUrl.pathname.startsWith('/student/management/course-planning') ||
+    req.nextUrl.pathname.startsWith('/student/allCurricula')
+
   // Redirect authenticated users away from auth pages (but allow landing page)
   if (isAuthenticated && req.nextUrl.pathname === '/auth') {
     // Redirect based on user role

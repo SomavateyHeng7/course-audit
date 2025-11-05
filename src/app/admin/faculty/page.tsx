@@ -143,7 +143,7 @@ export default function FacultyManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
       {/* Toast Notification */}
       {toast && (
         <div
@@ -157,8 +157,8 @@ export default function FacultyManagement() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md relative">
             <button
               type="button"
               aria-label="Close"
@@ -225,49 +225,50 @@ export default function FacultyManagement() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Faculty Management</h2>
-          <p className="text-gray-600 dark:text-gray-400">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Faculty Management</h2>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
             Manage faculties and their organizational structure across the entire system
           </p>
         </div>
         <Button 
           onClick={() => setShowCreateModal(true)}
-          className="bg-[#F39C12] hover:bg-[#F39C12]/90"
+          className="bg-[#F39C12] hover:bg-[#F39C12]/90 w-full sm:w-auto"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Faculty
+          <span className="hidden xs:inline">Add Faculty</span>
+          <span className="xs:hidden">Add</span>
         </Button>
       </div>
 
       {/* Faculties List */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <GraduationCap className="h-5 w-5" />
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+            <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5" />
             Faculties ({faculties.length})
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-sm">
             All faculties in the system with their departments and users
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="p-4 sm:p-6">
+          <div className="space-y-3 sm:space-y-4">
             {faculties.map((faculty) => (
               <div
                 key={faculty.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors gap-3 sm:gap-4"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                  <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center flex-shrink-0">
                     <GraduationCap className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                   </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base truncate">
                       {faculty.name}
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                       Code: {faculty.code}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-500">
@@ -275,19 +276,19 @@ export default function FacultyManagement() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex gap-4 text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                  <div className="flex gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      {faculty._count?.users || 0}
+                      <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span>{faculty._count?.users || 0}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Building2 className="h-4 w-4" />
-                      {faculty._count?.departments || 0}
+                      <Building2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span>{faculty._count?.departments || 0}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <BookOpen className="h-4 w-4" />
-                      {faculty._count?.curricula || 0}
+                      <BookOpen className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span>{faculty._count?.curricula || 0}</span>
                     </div>
                   </div>
                   <div className="flex gap-1">
@@ -301,16 +302,17 @@ export default function FacultyManagement() {
                           code: faculty.code,
                         });
                       }}
+                      className="p-2"
                     >
-                      <Edit className="h-4 w-4" />
+                      <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteFaculty(faculty.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 p-2"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                   </div>
                 </div>
@@ -322,8 +324,8 @@ export default function FacultyManagement() {
 
       {/* Create/Edit Modal */}
       {(showCreateModal || editingFaculty) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md relative max-h-[90vh] overflow-y-auto">
             <button
               type="button"
               aria-label="Close"

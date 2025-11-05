@@ -996,21 +996,21 @@ export default function InfoConfig() {
   return (
     <div className="flex min-h-screen bg-white dark:bg-background">
       {/* Sidebar is assumed to be rendered by layout */}
-      <div className="flex-1 flex flex-col items-center py-2 px-2 sm:px-4">
-        <div className="w-full max-w-6xl bg-white dark:bg-card rounded-lg sm:rounded-2xl p-3 sm:p-5">
+      <div className="flex-1 flex flex-col items-center py-2 px-2 sm:px-4 lg:px-6">
+        <div className="w-full max-w-6xl bg-white dark:bg-card rounded-lg sm:rounded-2xl p-3 sm:p-5 lg:p-6">
           {/* Page Header */}
-          <div className="mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-foreground">Configuration</h1>
+          <div className="mb-4 sm:mb-6 lg:mb-8">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-foreground">Configuration</h1>
           </div>
 
           {/* Configuration Containers */}
-          <div className="space-y-4 sm:space-y-8">
+          <div className="space-y-4 sm:space-y-6 lg:space-y-8">
             
             {/* Blacklist */}
-            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
-                <div className="flex-1">
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground mb-2">Blacklists</h2>
+            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 lg:mb-6 space-y-2 sm:space-y-0">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-foreground mb-1 sm:mb-2">Blacklists</h2>
                   <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
                     Manage blacklists of courses that are no longer available or recommended for students.
                   </p>
@@ -1019,7 +1019,7 @@ export default function InfoConfig() {
                 <button
                   onClick={handleAddBlacklist}
                   disabled={loading}
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm sm:text-base shrink-0"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs sm:text-sm lg:text-base shrink-0 touch-manipulation"
                 >
                   <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden xs:inline">Add Blacklist</span>
@@ -1097,7 +1097,7 @@ export default function InfoConfig() {
                 </div>
                 <button
                   onClick={handleAddType}
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm sm:text-base shrink-0"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs sm:text-sm lg:text-base shrink-0 touch-manipulation"
                 >
                   <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden xs:inline">Add Type</span>
@@ -1121,14 +1121,14 @@ export default function InfoConfig() {
                     <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                       <button
                         onClick={() => handleEditType(type)}
-                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all"
+                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all touch-manipulation"
                         title="Edit Type"
                       >
                         <FaEdit className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteType(type.id)}
-                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all touch-manipulation"
                         title="Delete Type"
                       >
                         <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1161,7 +1161,7 @@ export default function InfoConfig() {
                         <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground">{concentrationTitle}</h2>
                         <button
                           onClick={handleEditConcentrationTitle}
-                          className="p-1 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary rounded transition-colors"
+                          className="p-1 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary rounded transition-colors touch-manipulation"
                           title="Edit Title"
                         >
                           <FaEdit className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1176,7 +1176,7 @@ export default function InfoConfig() {
                 <button
                   onClick={handleAddConcentration}
                   disabled={loading}
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm sm:text-base shrink-0"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs sm:text-sm lg:text-base shrink-0 touch-manipulation"
                 >
                   <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden xs:inline">Add Concentration</span>
@@ -1206,21 +1206,21 @@ export default function InfoConfig() {
                     <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                       <button
                         onClick={() => handleShowConcentrationInfo(concentration)}
-                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all touch-manipulation"
                         title="View Course Details"
                       >
                         <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                       <button
                         onClick={() => handleEditConcentration(concentration)}
-                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all"
+                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all touch-manipulation"
                         title="Edit Concentration"
                       >
                         <FaEdit className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteConcentration(concentration.id)}
-                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all touch-manipulation"
                         title="Delete Concentration"
                       >
                         <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1249,29 +1249,29 @@ export default function InfoConfig() {
 
       {/* Add Blacklist Modal */}
       {isAddBlacklistModalOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-2xl border border-gray-200 dark:border-border shadow-2xl max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-foreground">Add New Blacklist</h3>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-2 sm:p-4">
+          <div className="bg-white dark:bg-card rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 w-full max-w-xs sm:max-w-lg lg:max-w-2xl border border-gray-200 dark:border-border shadow-2xl max-h-[90vh] sm:max-h-[85vh] lg:max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-xl font-bold text-foreground">Add New Blacklist</h3>
               <button
                 onClick={() => setIsAddBlacklistModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 touch-manipulation"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <div>
-                <label className="block text-sm font-semibold mb-2 text-foreground">Blacklist Name</label>
+                <label className="block text-xs sm:text-sm font-semibold mb-2 text-foreground">Blacklist Name</label>
                 <input
                   type="text"
                   value={newBlacklist.name}
                   onChange={(e) => setNewBlacklist({ ...newBlacklist, name: e.target.value })}
                   placeholder="e.g., Outdated Courses"
-                  className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground transition-colors"
+                  className="w-full border border-gray-300 dark:border-border rounded-lg px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground transition-colors text-sm sm:text-base"
                 />
               </div>
 
@@ -1496,25 +1496,29 @@ export default function InfoConfig() {
               )}
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
               <button
                 onClick={() => setIsAddBlacklistModalOpen(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm sm:text-base touch-manipulation"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveNewBlacklist}
                 disabled={loading || !newBlacklist.name.trim() || newBlacklist.courses.length === 0}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-border rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 dark:border-border rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base touch-manipulation"
               >
                 {loading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"></div>
-                    Creating...
+                    <span className="hidden xs:inline">Creating...</span>
+                    <span className="xs:hidden">...</span>
                   </>
                 ) : (
-                  'Add Blacklist'
+                  <>
+                    <span className="hidden xs:inline">Add Blacklist</span>
+                    <span className="xs:hidden">Add</span>
+                  </>
                 )}
               </button>
             </div>
@@ -1524,8 +1528,8 @@ export default function InfoConfig() {
 
       {/* Edit Blacklist Modal */}
       {isEditBlacklistModalOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-2xl border border-gray-200 dark:border-border shadow-2xl max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-2 sm:p-4">
+          <div className="bg-white dark:bg-card rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 w-full max-w-xs sm:max-w-lg lg:max-w-2xl border border-gray-200 dark:border-border shadow-2xl max-h-[90vh] sm:max-h-[85vh] lg:max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-foreground">Edit Blacklist</h3>
               <button
@@ -1791,65 +1795,66 @@ export default function InfoConfig() {
 
       {/* Add Type Modal */}
       {isAddTypeModalOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-md border border-gray-200 dark:border-border shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-foreground">Add New Course Type</h3>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-2 sm:p-4">
+          <div className="bg-white dark:bg-card rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 w-full max-w-xs sm:max-w-sm lg:max-w-md border border-gray-200 dark:border-border shadow-2xl">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-xl font-bold text-foreground">Add New Course Type</h3>
               <button
                 onClick={() => setIsAddTypeModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 touch-manipulation"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-semibold mb-2 text-foreground">Type Name</label>
+                <label className="block text-xs sm:text-sm font-semibold mb-2 text-foreground">Type Name</label>
                 <input
                   type="text"
                   value={newType.name}
                   onChange={(e) => setNewType({ ...newType, name: e.target.value })}
                   placeholder="e.g., Capstone"
-                  className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground transition-colors"
+                  className="w-full border border-gray-300 dark:border-border rounded-lg px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground transition-colors text-sm sm:text-base"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-semibold mb-2 text-foreground">Color</label>
-                <div className="flex items-center gap-3">
+                <label className="block text-xs sm:text-sm font-semibold mb-2 text-foreground">Color</label>
+                <div className="flex items-center gap-2 sm:gap-3">
                   <input
                     type="color"
                     value={newType.color}
                     onChange={(e) => setNewType({ ...newType, color: e.target.value })}
-                    className="w-12 h-10 border border-gray-300 dark:border-border rounded cursor-pointer"
+                    className="w-10 h-8 sm:w-12 sm:h-10 border border-gray-300 dark:border-border rounded cursor-pointer touch-manipulation"
                   />
                   <input
                     type="text"
                     value={newType.color}
                     onChange={(e) => setNewType({ ...newType, color: e.target.value })}
-                    className="flex-1 border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground transition-colors"
+                    className="flex-1 border border-gray-300 dark:border-border rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground transition-colors text-xs sm:text-sm"
                     placeholder="#6366f1"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
               <button
                 onClick={() => setIsAddTypeModalOpen(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm sm:text-base touch-manipulation"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveNewType}
                 disabled={!newType.name.trim()}
-                className="flex-1 px-4 py-2 bg-primarary rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base touch-manipulation"
               >
-                Add Type
+                <span className="hidden xs:inline">Add Type</span>
+                <span className="xs:hidden">Add</span>
               </button>
             </div>
           </div>
