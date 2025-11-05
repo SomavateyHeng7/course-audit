@@ -3,8 +3,21 @@
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { FaUser, FaChartBar, FaCalendarAlt, FaSave, FaSearch } from 'react-icons/fa';
+import { User, BarChart3, Calendar, Save, Search, Users, BookOpen, Award, GraduationCap } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
+
+// Import chairperson components
+import { PageHeader } from '@/components/chairperson/PageHeader';
+import { SearchBar } from '@/components/chairperson/SearchBar';
+import { DataTable } from '@/components/chairperson/DataTable';
+import { LoadingSpinner } from '@/components/chairperson/LoadingSpinner';
+import { EmptyState } from '@/components/chairperson/EmptyState';
+import { StatCard } from '@/components/chairperson/StatCard';
+import { ActionButton } from '@/components/chairperson/ActionButton';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { FaCalendarAlt, FaChartBar, FaSave, FaSearch, FaUser } from "react-icons/fa";
 
 interface Student {
   id: string;
@@ -208,23 +221,52 @@ const StudentManagementPage: React.FC = () => {
   );
 
   return (
-    <div className="flex min-h-screen">
-      <div className="flex-1 flex flex-col items-center py-2 sm:py-4 px-2 sm:px-4 lg:px-8">
-        <div className="w-full max-w-7xl bg-white dark:bg-card rounded-lg shadow-sm border border-gray-200 dark:border-border">
-          
-          {/* Header */}
-          <div className="border-b border-gray-200 dark:border-border px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-foreground">
-                  Student Management
-                </h1>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Chairperson can see each student progress, and their plan for the next semester.
-                </p>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        <PageHeader
+          title="Student Management"
+          description="Monitor student progress and academic planning for next semester"
+          backButton={{
+            label: "Back to Dashboard",
+            onClick: () => router.back()
+          }}
+          actions={[
+            {
+              label: "Save Changes",
+              onClick: handleSave,
+              disabled: !selectedStudent || loading,
+              icon: <Save size={16} />
+            }
+          ]}
+        />
+
+        {/* Statistics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <StatCard
+            title="Total Students"
+            value={students.length}
+            subtitle="Enrolled students"
+            icon={<Users size={20} />}
+          />
+          <StatCard
+            title="Selected"
+            value={selectedStudent ? "1" : "0"}
+            subtitle="Student selected"
+            icon={<User size={20} />}
+          />
+          <StatCard
+            title="Avg Progress"
+            value={selectedStudent && academicProgress ? `${academicProgress.graduationProgress}%` : "N/A"}
+            subtitle="Graduation progress"
+            icon={<GraduationCap size={20} />}
+          />
+          <StatCard
+            title="Current GPA"
+            value={selectedStudent && academicProgress ? academicProgress.gpa.toFixed(2) : "N/A"}
+            subtitle="Academic performance"
+            icon={<Award size={20} />}
+          />
+        </div>
 
           <div className="p-3 sm:p-4 lg:p-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
@@ -444,7 +486,6 @@ const StudentManagementPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
   );
 };
 

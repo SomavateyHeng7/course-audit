@@ -2,8 +2,16 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FaCalendarAlt, FaClock, FaUser, FaBook, FaChevronDown, FaSearch } from 'react-icons/fa';
+import { Calendar, Clock, User, Book, ChevronDown, Search } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
+
+// Import chairperson components
+import { PageHeader } from '@/components/chairperson/PageHeader';
+import { SearchBar } from '@/components/chairperson/SearchBar';
+import { DataTable } from '@/components/chairperson/DataTable';
+import { EmptyState } from '@/components/chairperson/EmptyState';
+import { LoadingSpinner } from '@/components/chairperson/LoadingSpinner';
+import { StatCard } from '@/components/chairperson/StatCard';
 
 interface CourseSchedule {
   id: string;
@@ -239,15 +247,40 @@ const SemesterCoursePage: React.FC = () => {
         <div className="flex-1 p-4 sm:p-6 lg:p-8">
           <div className="max-w-6xl mx-auto">
             
-            {/* Header */}
-            <div className="mb-6 sm:mb-8">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-foreground mb-2">
-                Course Offering For Next Semester
-              </h1>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-                Check available subjects in the coming semester
-              </p>
-            </div>
+            <PageHeader
+              title="Course Offering For Next Semester"
+              description="Check available subjects in the coming semester"
+            />
+
+            {/* Statistics */}
+            {selectedDraft && courseSchedules.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <StatCard
+                  title="Total Courses"
+                  value={courseSchedules.length.toString()}
+                  subtitle="Available courses"
+                  icon={<Book className="h-5 w-5" />}
+                />
+                <StatCard
+                  title="Core Courses"
+                  value={courseSchedules.filter(c => c.category === 'Core').length.toString()}
+                  subtitle="Required courses"
+                  icon={<Calendar className="h-5 w-5" />}
+                />
+                <StatCard
+                  title="Electives"
+                  value={courseSchedules.filter(c => c.category === 'Elective').length.toString()}
+                  subtitle="Optional courses"
+                  icon={<User className="h-5 w-5" />}
+                />
+                <StatCard
+                  title="Enrollment Rate"
+                  value={`${Math.round((courseSchedules.reduce((acc, c) => acc + c.enrolled, 0) / courseSchedules.reduce((acc, c) => acc + c.capacity, 0)) * 100)}%`}
+                  subtitle="Overall capacity"
+                  icon={<Search className="h-5 w-5" />}
+                />
+              </div>
+            )}
 
             {/* Schedule Selection and Search */}
             <div className="mb-6 sm:mb-8 space-y-3 sm:space-y-4">
@@ -273,7 +306,7 @@ const SemesterCoursePage: React.FC = () => {
                         </option>
                       ))}
                     </select>
-                    <FaChevronDown className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4 pointer-events-none" />
+                    <ChevronDown className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4 pointer-events-none" />
                   </div>
                   {selectedDraft && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -287,16 +320,12 @@ const SemesterCoursePage: React.FC = () => {
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Search Courses
                   </label>
-                  <div className="relative">
-                    <FaSearch className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search by course code, name, or instructor..."
-                      className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2.5 sm:py-3 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-background text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm sm:text-base"
-                    />
-                  </div>
+                  <SearchBar
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    placeholder="Search by course code, name, or instructor..."
+                    className="w-full"
+                  />
                 </div>
               </div>
             </div>
@@ -314,18 +343,13 @@ const SemesterCoursePage: React.FC = () => {
               {/* Content */}
               <div className="p-4 sm:p-6">
                 {loadingSchedules ? (
-                  <div className="flex items-center justify-center h-48 sm:h-64">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                      <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Loading course schedules...</p>
-                    </div>
-                  </div>
+                  <LoadingSpinner text="Loading course schedules..." size="lg" />
                 ) : filteredCourses.length > 0 ? (
                   <div className="space-y-6 sm:space-y-8">
                     {sortedDays.map((day) => (
                       <div key={day}>
                         <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-foreground mb-3 sm:mb-4 flex items-center gap-2">
-                          <FaCalendarAlt className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                          <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                           {day}
                         </h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -352,15 +376,15 @@ const SemesterCoursePage: React.FC = () => {
                                 
                                 <div className="space-y-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                                   <div className="flex items-center gap-2">
-                                    <FaClock className="w-3 h-3 flex-shrink-0" />
+                                    <Clock className="w-3 h-3 flex-shrink-0" />
                                     <span className="truncate">{course.time}</span>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <FaUser className="w-3 h-3 flex-shrink-0" />
+                                    <User className="w-3 h-3 flex-shrink-0" />
                                     <span className="truncate">{course.instructor}</span>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <FaBook className="w-3 h-3 flex-shrink-0" />
+                                    <Book className="w-3 h-3 flex-shrink-0" />
                                     <span className="truncate">{course.credits} credits • {course.room}</span>
                                   </div>
                                 </div>
@@ -381,35 +405,24 @@ const SemesterCoursePage: React.FC = () => {
                     ))}
                   </div>
                 ) : selectedDraft ? (
-                  <div className="text-center py-12 sm:py-16">
-                    <FaBook className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-                    <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-foreground mb-2">
-                      {searchTerm ? 'No courses found' : 'No courses scheduled'}
-                    </h3>
-                    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 px-4">
-                      {searchTerm 
-                        ? 'Try adjusting your search terms or clear the search to see all courses.'
-                        : 'No courses have been scheduled for this semester yet.'}
-                    </p>
-                    {searchTerm && (
-                      <button
-                        onClick={() => setSearchTerm('')}
-                        className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm sm:text-base"
-                      >
-                        Clear Search
-                      </button>
-                    )}
-                  </div>
+                  <EmptyState
+                    icon={<Book className="w-full h-full" />}
+                    title={searchTerm ? 'No courses found' : 'No courses scheduled'}
+                    description={searchTerm 
+                      ? 'Try adjusting your search terms or clear the search to see all courses.'
+                      : 'No courses have been scheduled for this semester yet.'}
+                    action={searchTerm ? {
+                      label: 'Clear Search',
+                      onClick: () => setSearchTerm(''),
+                      variant: 'default'
+                    } : undefined}
+                  />
                 ) : (
-                  <div className="text-center py-12 sm:py-16">
-                    <FaCalendarAlt className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-                    <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-foreground mb-2">
-                      Select a schedule to view courses
-                    </h3>
-                    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 px-4">
-                      Choose an available class schedule from the dropdown above.
-                    </p>
-                  </div>
+                  <EmptyState
+                    icon={<Calendar className="w-full h-full" />}
+                    title="Select a schedule to view courses"
+                    description="Choose an available class schedule from the dropdown above."
+                  />
                 )}
               </div>
             </div>

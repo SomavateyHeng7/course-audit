@@ -3,9 +3,20 @@
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { FaSearch, FaPlus, FaTrash, FaSave } from 'react-icons/fa';
+import { Search, Plus, Trash2, Save, BookOpen, Calendar, Users, ArrowLeft } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
 import CourseDetailForm from '@/components/schedule/CourseDetailForm';
+
+// Import chairperson components
+import { PageHeader } from '@/components/chairperson/PageHeader';
+import { SearchBar } from '@/components/chairperson/SearchBar';
+import { LoadingSpinner } from '@/components/chairperson/LoadingSpinner';
+import { EmptyState } from '@/components/chairperson/EmptyState';
+import { ActionButton } from '@/components/chairperson/ActionButton';
+import { StatCard } from '@/components/chairperson/StatCard';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface Course {
   id: string;
@@ -133,130 +144,212 @@ const TentativeSchedulePage: React.FC = () => {
 
   if (!session || session.user.role !== 'CHAIRPERSON') return null;
 
+  const totalCredits = schedule.courses.reduce((sum, course) => sum + course.credits, 0);
+
   return (
-    <div className="flex min-h-screen px-2 sm:px-4 py-2 sm:py-4">
-      <div className="w-full max-w-7xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden">
-        <div className="border-b border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-8">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white">
-            🎓 Create Tentative Schedule
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm sm:text-base">Plan, review, and finalize course schedules.</p>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        <PageHeader
+          title="Create Tentative Schedule"
+          description="Plan, review, and finalize course schedules for upcoming semesters"
+          backButton={{
+            label: "Back to Dashboard",
+            onClick: () => router.back()
+          }}
+          actions={[
+            {
+              label: "Save Schedule",
+              onClick: handleSaveSchedule,
+              disabled: loading || !schedule.name || !schedule.semester || !schedule.version || schedule.courses.length === 0,
+              icon: <Save size={16} />
+            }
+          ]}
+        />
+
+        {/* Statistics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <StatCard
+            title="Available Courses"
+            value={availableCourses.length}
+            subtitle="Total courses"
+            icon={<BookOpen size={20} />}
+          />
+          <StatCard
+            title="Selected Courses"
+            value={schedule.courses.length}
+            subtitle="In current schedule"
+            icon={<Calendar size={20} />}
+          />
+          <StatCard
+            title="Total Credits"
+            value={totalCredits}
+            subtitle="Credit hours"
+            icon={<Users size={20} />}
+          />
+          <StatCard
+            title="Progress"
+            value={`${Math.round((schedule.courses.length / Math.max(availableCourses.length, 1)) * 100)}%`}
+            subtitle="Selection completed"
+            icon={<Search size={20} />}
+          />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-10 p-3 sm:p-4 lg:p-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Left: Form + Course List */}
-          <div className="space-y-4 sm:space-y-6 lg:space-y-10">
-            {/* Basic Info */}
-            <div className="bg-gray-100/50 dark:bg-gray-700/30 p-4 sm:p-5 lg:p-6 rounded-lg sm:rounded-xl space-y-3 sm:space-y-4">
-              {['name', 'semester', 'version'].map(field => (
-                <div key={field}>
-                  <label className="block text-xs sm:text-sm font-medium capitalize text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">
-                    {field}
-                  </label>
-                  <input
+          <div className="space-y-6">
+            {/* Basic Info Form */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Schedule Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Schedule Name</Label>
+                  <Input
+                    id="name"
                     type="text"
-                    value={(schedule as any)[field]}
-                    onChange={e => setSchedule(prev => ({ ...prev, [field]: e.target.value }))}
-                    placeholder={`Enter ${field}`}
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 outline-none text-sm sm:text-base"
+                    value={schedule.name}
+                    onChange={e => setSchedule(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter schedule name"
                   />
                 </div>
-              ))}
-            </div>
+                <div>
+                  <Label htmlFor="semester">Semester</Label>
+                  <Input
+                    id="semester"
+                    type="text"
+                    value={schedule.semester}
+                    onChange={e => setSchedule(prev => ({ ...prev, semester: e.target.value }))}
+                    placeholder="e.g., Fall 2024"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="version">Version</Label>
+                  <Input
+                    id="version"
+                    type="text"
+                    value={schedule.version}
+                    onChange={e => setSchedule(prev => ({ ...prev, version: e.target.value }))}
+                    placeholder="e.g., 1.0"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-            {/* Search Courses */}
-            <div>
-              <div className="relative mb-3 sm:mb-4">
-                <FaSearch className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
-                <input
-                  type="text"
-                  value={courseSearch}
-                  onChange={e => setCourseSearch(e.target.value)}
-                  placeholder="Search courses..."
-                  className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 outline-none text-sm sm:text-base"
-                />
-              </div>
+            {/* Course Search and Selection */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Available Courses</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <SearchBar
+                    value={courseSearch}
+                    onChange={setCourseSearch}
+                    placeholder="Search courses by code or name..."
+                    className="w-full"
+                  />
+                </div>
 
-              <div className="h-64 sm:h-72 lg:h-80 overflow-y-auto bg-gray-50 dark:bg-gray-700/20 rounded-lg border border-gray-200 dark:border-gray-700 p-1 sm:p-2">
-                {loading ? (
-                  <p className="text-center py-4 sm:py-6 text-gray-500 dark:text-gray-400 text-sm sm:text-base">Loading courses...</p>
-                ) : filteredCourses.length > 0 ? (
-                  filteredCourses.map(course => (
-                    <div
-                      key={course.id}
-                      className="flex flex-col xs:flex-row xs:justify-between xs:items-center bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-4 mb-2 shadow-sm hover:shadow-md transition gap-2 xs:gap-0"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 dark:text-gray-100 text-sm sm:text-base truncate">{course.code}</p>
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{course.name}</p>
-                      </div>
-                      <button
-                        onClick={() => handleAddCourse(course)}
-                        disabled={schedule.courses.some(c => c.id === course.id)}
-                        className="flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-teal-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50 transition touch-manipulation shrink-0"
-                      >
-                        <FaPlus className="w-3 h-3" /> 
-                        <span className="hidden xs:inline">Add</span>
-                        <span className="xs:hidden">+</span>
-                      </button>
+                <div className="h-80 overflow-y-auto border rounded-lg p-2">
+                  {loading ? (
+                    <LoadingSpinner text="Loading courses..." />
+                  ) : filteredCourses.length > 0 ? (
+                    <div className="space-y-2">
+                      {filteredCourses.map(course => (
+                        <div
+                          key={course.id}
+                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-foreground truncate">
+                              {course.code}
+                            </div>
+                            <div className="text-sm text-muted-foreground truncate">
+                              {course.name} • {course.credits} credits
+                            </div>
+                            {course.category && (
+                              <div className="text-xs text-muted-foreground">
+                                {course.category}
+                              </div>
+                            )}
+                          </div>
+                          <ActionButton
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleAddCourse(course)}
+                            disabled={schedule.courses.some(c => c.id === course.id)}
+                            icon={<Plus size={14} />}
+                            tooltip="Add to schedule"
+                          >
+                            Add
+                          </ActionButton>
+                        </div>
+                      ))}
                     </div>
-                  ))
-                ) : (
-                  <p className="text-center py-4 sm:py-6 text-gray-500 dark:text-gray-400 text-sm sm:text-base">No courses found</p>
-                )}
-              </div>
-            </div>
+                  ) : (
+                    <EmptyState
+                      icon={<Search size={32} />}
+                      title="No courses found"
+                      description="Try adjusting your search terms to find courses"
+                    />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Right: Selected Courses */}
-          <div className="lg:sticky lg:top-8 space-y-4 sm:space-y-6">
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Selected Courses</h3>
-
-            <div className="bg-gray-50 dark:bg-gray-700/30 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-4 min-h-[300px] sm:min-h-[400px]">
-              {schedule.courses.length > 0 ? (
-                schedule.courses.map(course => (
-                  <div
-                    key={course.id}
-                    className="flex flex-col xs:flex-row xs:justify-between xs:items-center p-2 sm:p-3 mb-2 rounded-lg bg-white dark:bg-gray-800 hover:shadow transition gap-2 xs:gap-0"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 dark:text-gray-100 text-sm sm:text-base truncate">{course.code}</p>
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{course.name}</p>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveCourse(course.id)}
-                      className="p-1.5 sm:p-2 text-red-500 hover:text-red-700 transition touch-manipulation self-end xs:self-auto shrink-0"
-                    >
-                      <FaTrash className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 text-center px-4">
-                  <p className="text-sm sm:text-base">No courses selected yet</p>
-                  <p className="text-xs sm:text-sm mt-1">Search and add courses on the left</p>
+          <div className="lg:sticky lg:top-8">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Selected Courses</CardTitle>
+                <div className="text-sm text-muted-foreground">
+                  {schedule.courses.length} courses • {totalCredits} credits
                 </div>
-              )}
-            </div>
-
-            {/* Save Button */}
-            <button
-              onClick={handleSaveSchedule}
-              disabled={loading || !schedule.name || !schedule.semester || !schedule.version || schedule.courses.length === 0}
-              className="w-full py-2.5 sm:py-3 flex items-center justify-center gap-2 bg-teal-600 text-white text-base sm:text-lg font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50 transition touch-manipulation"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white"></div>
-                  <span className="text-sm sm:text-base">Saving...</span>
-                </>
-              ) : (
-                <>
-                  <FaSave className="w-4 h-4 sm:w-5 sm:h-5" /> 
-                  <span className="text-sm sm:text-base">Save Schedule</span>
-                </>
-              )}
-            </button>
+              </CardHeader>
+              <CardContent>
+                <div className="min-h-[400px]">
+                  {schedule.courses.length > 0 ? (
+                    <div className="space-y-3">
+                      {schedule.courses.map(course => (
+                        <div
+                          key={course.id}
+                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-foreground truncate">
+                              {course.code}
+                            </div>
+                            <div className="text-sm text-muted-foreground truncate">
+                              {course.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {course.credits} credits
+                              {course.category && ` • ${course.category}`}
+                            </div>
+                          </div>
+                          <ActionButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveCourse(course.id)}
+                            icon={<Trash2 size={14} />}
+                            tooltip="Remove from schedule"
+                            className="text-destructive hover:text-destructive"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      icon={<Calendar size={32} />}
+                      title="No courses selected"
+                      description="Search and add courses from the left panel to build your schedule"
+                    />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

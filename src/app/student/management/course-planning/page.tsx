@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
-  Search, 
-  Plus, 
+  Search,
+  Plus,
   Calendar, 
   BookOpen, 
   AlertTriangle, 
@@ -21,6 +21,10 @@ import {
   BarChart3,
   Target
 } from 'lucide-react';
+import { CourseCard, AvailableCourse as MgmtAvailableCourse } from '@/components/management/CourseCard';
+import { CourseSearch } from '@/components/management/CourseSearch';
+import { PlannedCourseCard, PlannedCourse as MgmtPlannedCourse } from '@/components/management/PlannedCourseCard';
+import { ConcentrationAnalysis, ConcentrationProgress as MgmtConcentrationProgress } from '@/components/management/ConcentrationAnalysis';
 import {
   Dialog,
   DialogContent,
@@ -30,36 +34,26 @@ import {
 } from '@/components/ui/dialog';
 
 
-// Course planning specific interfaces
-interface PlannedCourse {
-  id: string;
-  code: string;
-  title: string;
-  credits: number;
-  semester: string;
-  status: 'planning';
+// Extended interfaces to maintain compatibility
+interface PlannedCourse extends MgmtPlannedCourse {
+  semester?: string;
   prerequisites?: string[];
   corequisites?: string[];
-  validationStatus: 'valid' | 'warning' | 'error';
-  validationNotes?: string[];
 }
 
-interface AvailableCourse {
+interface AvailableCourse extends MgmtAvailableCourse {
+  bannedWith?: string[];
+  level?: number;
+  blockingCourse?: string;
+  minCreditThreshold?: number;
+}
+
+// Custom concentration interfaces
+interface ConcentrationCourse {
   code: string;
-  title: string;
+  name: string;
   credits: number;
   description?: string;
-  prerequisites?: string[];
-  corequisites?: string[];
-  bannedWith?: string[];
-  category: string;
-  level: number;
-  blockingCourse?: string; // Course that blocks this one from being added
-  // Course flags for special requirements
-  requiresPermission: boolean;
-  summerOnly: boolean;
-  requiresSeniorStanding: boolean;
-  minCreditThreshold: number | null;
 }
 
 interface Concentration {
@@ -68,19 +62,14 @@ interface Concentration {
   description?: string;
   requiredCourses: number;
   totalCourses: number;
-  courses: {
-    code: string;
-    name: string;
-    credits: number;
-    description?: string;
-  }[];
+  courses: ConcentrationCourse[];
 }
 
 interface ConcentrationProgress {
   concentration: Concentration;
   completedCourses: string[];
   plannedCourses: string[];
-  progress: number; // percentage
+  progress: number;
   isEligible: boolean;
   remainingCourses: number;
 }
@@ -310,7 +299,7 @@ export default function CoursePlanningPage() {
           requiresPermission: true,
           summerOnly: false,
           requiresSeniorStanding: false,
-          minCreditThreshold: null
+          minCreditThreshold: undefined
         },
         {
           code: 'CSX4003',
@@ -325,7 +314,7 @@ export default function CoursePlanningPage() {
           requiresPermission: false,
           summerOnly: true,
           requiresSeniorStanding: false,
-          minCreditThreshold: null
+          minCreditThreshold: undefined
         },
         {
           code: 'CSX4010',
@@ -340,7 +329,7 @@ export default function CoursePlanningPage() {
           requiresPermission: false,
           summerOnly: false,
           requiresSeniorStanding: false,
-          minCreditThreshold: null
+          minCreditThreshold: undefined
         },
         {
           code: 'ITX4001',
@@ -355,7 +344,7 @@ export default function CoursePlanningPage() {
           requiresPermission: false,
           summerOnly: false,
           requiresSeniorStanding: false,
-          minCreditThreshold: null
+          minCreditThreshold: undefined
         }
       ];
       setAvailableCourses(mockCourses);
@@ -993,33 +982,14 @@ export default function CoursePlanningPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 sm:space-y-4">
-              {/* Search and Filter Controls */}
-              <div className="flex flex-col space-y-3 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-4 sm:space-y-0">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                  <Input
-                    placeholder="Search courses..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoryOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="text-sm text-muted-foreground flex items-center">
-                  {filteredCourses.length} course(s) available
-                </div>
-              </div>
+              <CourseSearch
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+                categoryOptions={categoryOptions}
+                filteredCoursesCount={filteredCourses.length}
+              />
 
               {/* Semester Selection */}
               <div className="p-3 sm:p-4 bg-muted rounded-lg">
@@ -1062,114 +1032,16 @@ export default function CoursePlanningPage() {
                 {filteredCourses.map((course) => {
                   const prerequisiteValidation = validatePrerequisites(course);
                   const bannedValidation = validateBannedCombinations(course);
-                  const hasBlockingIssues = !prerequisiteValidation.valid || !bannedValidation.valid;
                   
                   return (
-                    <div 
-                      key={course.code} 
-                      className={`border rounded-lg p-3 sm:p-4 transition-colors ${
-                        hasBlockingIssues 
-                          ? 'border-red-200 bg-red-50/50 hover:bg-red-50' 
-                          : 'hover:bg-muted/50'
-                      }`}
-                    >
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 space-y-2 sm:space-y-0">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold">{course.code}</h3>
-                            
-                            {/* Course Flag Indicators - AWS-style minimal dots */}
-                            <div className="flex items-center gap-1">
-                              {course.summerOnly && (
-                                <div 
-                                  className="w-2 h-2 rounded-full bg-blue-500" 
-                                  title="Summer only"
-                                />
-                              )}
-                              {course.requiresPermission && (
-                                <div 
-                                  className="w-2 h-2 rounded-full bg-orange-500" 
-                                  title="Permission required"
-                                />
-                              )}
-                              {course.requiresSeniorStanding && (
-                                <div 
-                                  className="w-2 h-2 rounded-full bg-purple-500" 
-                                  title={`Senior standing (${course.minCreditThreshold || 90}+ credits)`}
-                                />
-                              )}
-                            </div>
-                            
-                            <Badge variant="outline">{course.category}</Badge>
-                            <Badge variant="secondary">{parseCredits(course.credits)} credits</Badge>
-                            {!bannedValidation.valid && (
-                              <Badge variant="destructive" className="text-xs">
-                                🚫 Blocked
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm font-medium mb-1">{course.title}</p>
-                          {course.description && (
-                            <p className="text-sm text-muted-foreground mb-2">{course.description}</p>
-                          )}
-                          
-                          {/* Prerequisites info */}
-                          {course.prerequisites && course.prerequisites.length > 0 && (
-                            <div className="text-xs text-muted-foreground mb-1">
-                              Prerequisites: {course.prerequisites.join(', ')}
-                              {!prerequisiteValidation.valid && (
-                                <span className="text-orange-600 ml-2">
-                                  (Missing: {prerequisiteValidation.missing.join(', ')})
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          
-                          {/* Corequisites info */}
-                          {course.corequisites && course.corequisites.length > 0 && (
-                            <div className="text-xs text-muted-foreground mb-1">
-                              Corequisites: {course.corequisites.join(', ')}
-                            </div>
-                          )}
-                          
-                          {/* Banned combinations warning */}
-                          {!bannedValidation.valid && (
-                            <div className="text-xs text-red-600 mb-1">
-                              ⚠️ Cannot be taken with: {bannedValidation.blockingCourse}
-                              {bannedValidation.reason && (
-                                <span className="block text-xs mt-1">
-                                  {bannedValidation.reason}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex flex-col gap-1 sm:gap-2 ml-2 sm:ml-4 shrink-0">
-                          <Button
-                            size="sm"
-                            onClick={() => addCourseToPlan(course, 'planning')}
-                            disabled={!selectedSemester || hasBlockingIssues}
-                            className="flex items-center gap-1 text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
-                            variant={hasBlockingIssues ? "secondary" : "default"}
-                          >
-                            <Plus size={12} className="sm:w-3.5 sm:h-3.5" />
-                            <span className="hidden xs:inline">{hasBlockingIssues ? "Blocked" : "Add to Plan"}</span>
-                            <span className="xs:hidden">+</span>
-                          </Button>
-                          {!prerequisiteValidation.valid && (
-                            <div className="text-xs text-orange-600 text-center">
-                              ⚠️ Missing Prerequisites
-                            </div>
-                          )}
-                          {!bannedValidation.valid && (
-                            <div className="text-xs text-red-600 text-center">
-                              🚫 Banned Combination
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <CourseCard
+                      key={course.code}
+                      course={course}
+                      onAddToPlan={(course) => addCourseToPlan(course, 'planning')}
+                      selectedSemester={selectedSemester}
+                      prerequisiteValidation={prerequisiteValidation}
+                      bannedValidation={bannedValidation}
+                    />
                   );
                 })}
                 
@@ -1204,7 +1076,7 @@ export default function CoursePlanningPage() {
                     {/* Group courses by semester */}
                     {Object.entries(
                       plannedCourses.reduce((acc, course) => {
-                        const key = `Semester ${course.semester}`;
+                        const key = `Semester ${course.semester || '1'}`;
                         if (!acc[key]) acc[key] = [];
                         acc[key].push(course);
                         return acc;
@@ -1215,57 +1087,12 @@ export default function CoursePlanningPage() {
                           {semesterKey}
                         </h4>
                         {courses.map((course) => (
-                          <div key={course.id} className="bg-muted rounded-lg p-2 sm:p-3 space-y-1 sm:space-y-2">
-                            <div className="flex justify-between items-start gap-2">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1 sm:gap-2 mb-1">
-                                  <span className="font-medium text-xs sm:text-sm truncate">{course.code}</span>
-                                  <Badge variant="outline" className="text-xs shrink-0">
-                                    {course.credits} cr
-                                  </Badge>
-                                  {course.validationStatus === 'valid' && (
-                                    <CheckCircle size={14} className="text-green-600" />
-                                  )}
-                                  {course.validationStatus === 'warning' && (
-                                    <AlertTriangle size={14} className="text-orange-600" />
-                                  )}
-                                  {course.validationStatus === 'error' && (
-                                    <AlertTriangle size={14} className="text-red-600" />
-                                  )}
-                                </div>
-                                <p className="text-xs text-muted-foreground mb-1">{course.title}</p>
-                                
-                                <Select
-                                  value={course.status}
-                                  onValueChange={(value) => updateCourseStatus(course.id, value as PlannedCourse['status'])}
-                                >
-                                  <SelectTrigger className="h-6 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="planning">Planning</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => removeCourseFromPlan(course.id)}
-                                className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
-                              >
-                                ×
-                              </Button>
-                            </div>
-                            
-                            {course.validationNotes && course.validationNotes.length > 0 && (
-                              <Alert className="py-1 px-2">
-                                <AlertDescription className="text-xs">
-                                  {course.validationNotes.join(', ')}
-                                </AlertDescription>
-                              </Alert>
-                            )}
-                          </div>
+                          <PlannedCourseCard
+                            key={course.id}
+                            course={course}
+                            onRemove={removeCourseFromPlan}
+                            onStatusUpdate={updateCourseStatus}
+                          />
                         ))}
                       </div>
                     ))}
@@ -1329,141 +1156,14 @@ export default function CoursePlanningPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-6">
-            {concentrationAnalysis.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Target size={48} className="mx-auto mb-4 opacity-50" />
-                <p>No concentration data available.</p>
-              </div>
-            ) : (
-              concentrationAnalysis.map((analysis) => (
-                <div key={analysis.concentration.id} className="border rounded-lg p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold">{analysis.concentration.name}</h3>
-                      {analysis.concentration.description && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {analysis.concentration.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <div className={`text-2xl font-bold ${analysis.isEligible ? 'text-green-600' : 'text-blue-600'}`}>
-                        {Math.round(analysis.progress)}%
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {analysis.completedCourses.length + analysis.plannedCourses.length} / {analysis.concentration.requiredCourses} required
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Progress Bar */}
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-                    <div 
-                      className={`h-2 rounded-full transition-all ${
-                        analysis.isEligible ? 'bg-green-500' : 'bg-blue-500'
-                      }`}
-                      style={{ width: `${Math.min(100, analysis.progress)}%` }}
-                    />
-                  </div>
-                  
-                  {/* Status */}
-                  <div className="flex items-center gap-2 mb-4">
-                    {analysis.isEligible ? (
-                      <>
-                        <CheckCircle size={16} className="text-green-600" />
-                        <span className="text-green-600 font-medium">Eligible for this concentration!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Clock size={16} className="text-blue-600" />
-                        <span className="text-blue-600">
-                          {analysis.remainingCourses} more course{analysis.remainingCourses !== 1 ? 's' : ''} needed
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  
-                  {/* Course Breakdown */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Completed Courses */}
-                    {analysis.completedCourses.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-green-600 mb-2 flex items-center gap-1">
-                          <CheckCircle size={14} />
-                          Completed ({analysis.completedCourses.length})
-                        </h4>
-                        <div className="space-y-1">
-                          {analysis.completedCourses.map(courseCode => {
-                            const course = analysis.concentration.courses.find(c => c.code === courseCode);
-                            return (
-                              <div key={courseCode} className="text-sm text-muted-foreground">
-                                {courseCode} - {course?.name || 'Unknown Course'}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Planned Courses */}
-                    {analysis.plannedCourses.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-blue-600 mb-2 flex items-center gap-1">
-                          <Clock size={14} />
-                          Planned ({analysis.plannedCourses.length})
-                        </h4>
-                        <div className="space-y-1">
-                          {analysis.plannedCourses.map(courseCode => {
-                            const course = analysis.concentration.courses.find(c => c.code === courseCode);
-                            return (
-                              <div key={courseCode} className="text-sm text-muted-foreground">
-                                {courseCode} - {course?.name || 'Unknown Course'}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Available Courses for this Concentration */}
-                  {!analysis.isEligible && (
-                    <div className="mt-4 pt-4 border-t">
-                      <h4 className="font-medium text-muted-foreground mb-2">
-                        Available courses for this concentration:
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {analysis.concentration.courses
-                          .filter(course => 
-                            !analysis.completedCourses.includes(course.code) && 
-                            !analysis.plannedCourses.includes(course.code)
-                          )
-                          .slice(0, 6) // Show first 6 remaining courses
-                          .map(course => (
-                            <div key={course.code} className="text-sm p-2 bg-muted rounded">
-                              <div className="font-medium">{course.code}</div>
-                              <div className="text-xs text-muted-foreground">{course.name}</div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-          
-          <div className="flex justify-end pt-4 border-t">
-            <Button onClick={() => {
-              // Store concentration analysis data for progress page
-              localStorage.setItem('concentrationAnalysis', JSON.stringify(concentrationAnalysis));
-              setShowConcentrationModal(false);
-              router.push('/management/progress');
-            }}>
-              View Detailed Progress
-            </Button>
-          </div>
+          <ConcentrationAnalysis
+            concentrationAnalysis={concentrationAnalysis.map(analysis => ({
+              ...analysis,
+              completedCourses: analysis.completedCourses.map(code => ({ id: code, code, name: code })),
+              plannedCourses: analysis.plannedCourses.map(code => ({ id: code, code, name: code }))
+            }))}
+            onClose={() => setShowConcentrationModal(false)}
+          />
         </DialogContent>
       </Dialog>
 
