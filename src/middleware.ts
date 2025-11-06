@@ -31,7 +31,7 @@ export default auth((req) => {
     if (token?.user?.role === 'CHAIRPERSON') {
       return NextResponse.redirect(new URL('/chairperson', req.url))
     }
-    return NextResponse.redirect(new URL('/management', req.url))
+    return NextResponse.redirect(new URL('/student', req.url))
   }
 
   // Redirect unauthenticated users to auth page (except for landing page)

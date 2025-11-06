@@ -2032,7 +2032,7 @@ export default function ProgressPage() {
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">No completed courses yet</p>
                 <p className="text-gray-400 dark:text-gray-500 text-xs mb-4">Start by adding your completed courses in the Course Entry page</p>
                 <Button
-                  onClick={() => router.push('/management/data-entry')}
+                  onClick={() => router.push('/student/management/data-entry')}
                   size="sm"
                   className="bg-green-600 hover:bg-green-700 text-white"
                 >
@@ -2063,7 +2063,7 @@ export default function ProgressPage() {
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">No courses planned yet</p>
                 <p className="text-gray-400 dark:text-gray-500 text-xs mb-4">Use the Course Planner to organize your upcoming semesters</p>
                 <Button
-                  onClick={() => router.push('/management/course-planning')}
+                  onClick={() => router.push('/student/management/course-planning')}
                   size="sm"
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >

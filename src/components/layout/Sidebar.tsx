@@ -91,12 +91,12 @@ const chairpersonNavigationItems = [
   },
   {
     name: 'Tentative Schedule',
-    href: '/chairperson/tentative_schedule',
+    href: '/chairperson/TentativeSchedule',
     icon: CalendarClock,
   },
   {
     name: 'Student',
-    href: '/chairperson/student',
+    href: '/chairperson/StudentCheckList',
     icon: UserCheck,
   }
   

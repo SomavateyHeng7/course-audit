@@ -565,7 +565,7 @@ export default function DataEntryPage() {
   const handleCoursePlanning = () => {
     // Data is automatically stored in localStorage via useEffect
     // Navigate to course planning
-    router.push('/management/course-planning');
+    router.push('/student/management/course-planning');
   };
 
   return (

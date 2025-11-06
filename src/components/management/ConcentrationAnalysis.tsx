@@ -42,7 +42,7 @@ export const ConcentrationAnalysis: React.FC<ConcentrationAnalysisProps> = ({
   const handleViewProgress = () => {
     localStorage.setItem('concentrationAnalysis', JSON.stringify(concentrationAnalysis));
     onClose();
-    router.push('/management/progress');
+    router.push('/student/management/progress');
   };
 
   return (

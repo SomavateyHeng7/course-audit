@@ -61,7 +61,7 @@ export default function ManagementPage() {
       title: "Manual Entry",
       description: "Enter course data manually",
       icon: <Plus className="h-6 w-6" />,
-      action: handleManualEntry,
+      action: () => router.push('/student/management/data-entry'),
       color: "bg-red-500"
     }
   ]
@@ -80,37 +80,9 @@ export default function ManagementPage() {
           </div>
         )}
 
-        {/* Statistics Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Credits"
-            value="120"
-            subtitle="Required for graduation"
-            icon={<Award className="h-5 w-5" />}
-          />
-          <StatCard
-            title="Completed Courses"
-            value="24"
-            subtitle="Courses completed"
-            icon={<BookOpen className="h-5 w-5" />}
-          />
-          <StatCard
-            title="Current Semester"
-            value="Fall 2024"
-            subtitle="Active semester"
-            icon={<Calendar className="h-5 w-5" />}
-          />
-          <StatCard
-            title="Progress"
-            value="75%"
-            subtitle="Toward graduation"
-            icon={<TrendingUp className="h-5 w-5" />}
-          />
-        </div>
-
         {/* Quick Actions Section */}
         <div className="space-y-4">
-          <h2 className="text-2xl font-semibold text-gray-900">Quick Actions</h2>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {quickActions.map((action, index) => (
               <Card 
@@ -134,43 +106,6 @@ export default function ManagementPage() {
           </div>
         </div>
 
-        {/* Recent Activity Section */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold text-gray-900">Recent Activity</h2>
-          <Card>
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
-                  <div className="p-2 bg-blue-500 text-white rounded-full">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Course Plan Updated</p>
-                    <p className="text-sm text-muted-foreground">Added CS 301 to Spring 2025 plan</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
-                  <div className="p-2 bg-green-500 text-white rounded-full">
-                    <BookOpen className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Course Completed</p>
-                    <p className="text-sm text-muted-foreground">CS 201 marked as completed with grade A</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-purple-50 rounded-lg">
-                  <div className="p-2 bg-purple-500 text-white rounded-full">
-                    <Users className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Prerequisites Met</p>
-                    <p className="text-sm text-muted-foreground">Now eligible for CS 401 Advanced Algorithms</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Feature Status Indicators */}
         <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground">

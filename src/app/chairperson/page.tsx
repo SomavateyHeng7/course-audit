@@ -150,18 +150,6 @@ const ChairpersonPage: React.FC = () => {
               label: "Create New Curriculum",
               onClick: () => router.push('/chairperson/create'),
               icon: <Plus size={16} />
-            },
-            {
-              label: "Student Check List",
-              onClick: () => router.push('/chairperson/StudentCheckList'),
-              variant: "outline" as const,
-              icon: <Users size={16} />
-            },
-            {
-              label: "Tentative Schedule", 
-              onClick: () => router.push('/chairperson/TentativeSchedule'),
-              variant: "outline" as const,
-              icon: <Calendar size={16} />
             }
           ]}
         />
