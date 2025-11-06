@@ -1,6 +1,6 @@
 'use client';
 
-import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeProvider } from '@/components/common/theme-provider';
 import { CourseManagementProvider } from '@/app/contexts/CourseManagementContext';
 import Sidebar from '@/components/layout/Sidebar';
 import { usePathname } from 'next/navigation';

@@ -3,9 +3,9 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LoadingSpinner } from '@/components/chairperson/LoadingSpinner';
-import { EmptyState } from '@/components/chairperson/EmptyState';
-import { Pagination } from '@/components/chairperson/Pagination';
+import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
+import { EmptyState } from '@/components/role-specific/chairperson/EmptyState';
+import { Pagination } from '@/components/role-specific/chairperson/Pagination';
 
 interface Column<T> {
   key: keyof T | string;

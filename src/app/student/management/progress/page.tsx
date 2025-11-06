@@ -23,7 +23,7 @@ import {
   type StudentCourseData,
   type ValidationResult,
   type CurriculumProgress
-} from "@/lib/courseValidation";
+} from "@/lib/validation/courseValidation";
 
 // Enhanced Donut Chart Component with Gradient and Shadow Effects
 const DonutChart = ({ 

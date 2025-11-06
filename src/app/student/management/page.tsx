@@ -17,8 +17,8 @@ import {
 } from 'lucide-react'
 
 // Import chairperson components
-import { PageHeader } from '@/components/chairperson/PageHeader'
-import { StatCard } from '@/components/chairperson/StatCard'
+import { PageHeader } from '@/components/role-specific/chairperson/PageHeader'
+import { StatCard } from '@/components/role-specific/chairperson/StatCard'
 
 export default function ManagementPage() {
   const router = useRouter()

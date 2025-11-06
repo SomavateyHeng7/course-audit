@@ -5,15 +5,15 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Search, Plus, Trash2, Save, BookOpen, Calendar, Users, ArrowLeft } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
-import CourseDetailForm from '@/components/schedule/CourseDetailForm';
+import CourseDetailForm from '@/components/features/schedule/CourseDetailForm';
 
 // Import chairperson components
-import { PageHeader } from '@/components/chairperson/PageHeader';
-import { SearchBar } from '@/components/chairperson/SearchBar';
-import { LoadingSpinner } from '@/components/chairperson/LoadingSpinner';
-import { EmptyState } from '@/components/chairperson/EmptyState';
-import { ActionButton } from '@/components/chairperson/ActionButton';
-import { StatCard } from '@/components/chairperson/StatCard';
+import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
+import { SearchBar } from '@/components/role-specific/chairperson/SearchBar';
+import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
+import { EmptyState } from '@/components/role-specific/chairperson/EmptyState';
+import { ActionButton } from '@/components/role-specific/chairperson/ActionButton';
+import { StatCard } from '@/components/role-specific/chairperson/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { auth } from '@/lib/auth/auth';
+import { prisma } from '@/lib/database/prisma';
 
 // GET /api/blacklists - Get all blacklists for the user's department
 export async function GET(request: NextRequest) {

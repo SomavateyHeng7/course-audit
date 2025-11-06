@@ -7,13 +7,13 @@ import { User, BarChart3, Calendar, Save, Search, Users, BookOpen, Award, Gradua
 import { useToastHelpers } from '@/hooks/useToast';
 
 // Import chairperson components
-import { PageHeader } from '@/components/chairperson/PageHeader';
-import { SearchBar } from '@/components/chairperson/SearchBar';
-import { DataTable } from '@/components/chairperson/DataTable';
-import { LoadingSpinner } from '@/components/chairperson/LoadingSpinner';
-import { EmptyState } from '@/components/chairperson/EmptyState';
-import { StatCard } from '@/components/chairperson/StatCard';
-import { ActionButton } from '@/components/chairperson/ActionButton';
+import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
+import { SearchBar } from '@/components/role-specific/chairperson/SearchBar';
+import { DataTable } from '@/components/role-specific/chairperson/DataTable';
+import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
+import { EmptyState } from '@/components/role-specific/chairperson/EmptyState';
+import { StatCard } from '@/components/role-specific/chairperson/StatCard';
+import { ActionButton } from '@/components/role-specific/chairperson/ActionButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';

@@ -1,6 +1,6 @@
 import React from 'react';
-import AuthForm from '@/components/shared/AuthForm';
-import { ThemeProvider } from '@/components/theme-provider';
+import AuthForm from '@/components/common/shared/AuthForm';
+import { ThemeProvider } from '@/components/common/theme-provider';
 
 export default function AuthPage() {
   return (

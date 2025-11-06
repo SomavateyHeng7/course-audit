@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/database/prisma';
 
 // GET /api/public-curricula - List all active curricula and their courses (public/student access)
 export async function GET(request: NextRequest) {

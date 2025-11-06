@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/database/prisma';
 
 // GET /api/public-curricula/[id]/blacklists - Get curriculum blacklists (public/student access)
 export async function GET(

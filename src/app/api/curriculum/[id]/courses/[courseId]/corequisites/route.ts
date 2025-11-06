@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/database/prisma';
+import { auth } from '@/lib/auth/auth';
 
 function extractParamsFromUrl(req: NextRequest) {
   const url = new URL(req.url);

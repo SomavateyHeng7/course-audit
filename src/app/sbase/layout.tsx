@@ -1,4 +1,4 @@
-import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeProvider } from '@/components/common/theme-provider';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { 

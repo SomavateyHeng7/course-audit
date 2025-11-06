@@ -21,10 +21,10 @@ import {
   BarChart3,
   Target
 } from 'lucide-react';
-import { CourseCard, AvailableCourse as MgmtAvailableCourse } from '@/components/management/CourseCard';
-import { CourseSearch } from '@/components/management/CourseSearch';
-import { PlannedCourseCard, PlannedCourse as MgmtPlannedCourse } from '@/components/management/PlannedCourseCard';
-import { ConcentrationAnalysis, ConcentrationProgress as MgmtConcentrationProgress } from '@/components/management/ConcentrationAnalysis';
+import { CourseCard, AvailableCourse as MgmtAvailableCourse } from '@/components/features/management/CourseCard';
+import { CourseSearch } from '@/components/features/management/CourseSearch';
+import { PlannedCourseCard, PlannedCourse as MgmtPlannedCourse } from '@/components/features/management/PlannedCourseCard';
+import { ConcentrationAnalysis, ConcentrationProgress as MgmtConcentrationProgress } from '@/components/features/management/ConcentrationAnalysis';
 import {
   Dialog,
   DialogContent,

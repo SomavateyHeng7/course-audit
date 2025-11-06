@@ -7,7 +7,7 @@ import { signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/common-utils';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useSidebar } from '@/contexts/SidebarContext';
 import {

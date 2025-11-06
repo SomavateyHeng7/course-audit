@@ -1,5 +1,5 @@
 import { SidebarProvider } from '@/contexts/SidebarContext';
-import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeProvider } from '@/components/common/theme-provider';
 
 export default function AdminLayout({
   children,

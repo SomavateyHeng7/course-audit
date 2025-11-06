@@ -1,6 +1,14 @@
 
 # EduTrack – Course Audit System
 
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Next.js](https://img.shields.io/badge/Next.js-15.1.6-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
+
+*Last Updated: November 2025*
+
 ## 🎓 Overview
 
 EduTrack is a comprehensive academic management platform designed for universities to streamline curriculum management, student progress tracking, and administrative oversight. The system features a modern, role-based architecture with four distinct access levels, supporting everything from anonymous course browsing to full administrative control.
@@ -98,24 +106,33 @@ EduTrack is a comprehensive academic management platform designed for universiti
 - **Framer Motion** - Smooth animations and transitions
 - **Lucide React** - Beautiful icon library
 - **React Icons** - Comprehensive icon collection
+- **Heroicons** - Additional icon set for enhanced UI
+- **Recharts** - Interactive charts for data visualization
+- **Next Themes** - Dark/light mode theme switching
 
 ### **Backend & Database**
 - **Prisma ORM 6.8.2** - Type-safe database access with PostgreSQL
-- **NextAuth 5.0.0** - Authentication with session management
+- **NextAuth 5.0.0 Beta** - Authentication with session management
 - **bcryptjs** - Password hashing and security
-- **Zod** - Runtime type validation and parsing
+- **Zod 4.0.5** - Runtime type validation and parsing
+- **Axios** - HTTP client for API requests
+- **SWR** - Data fetching with caching and revalidation
+- **Nodemailer** - Email service integration
 
 ### **Data Processing & Export**
 - **xlsx** - Excel file processing for import/export
 - **Papa Parse** - CSV parsing and generation
+- **csv-parse** - Advanced CSV parsing capabilities
 - **jsPDF & html2canvas** - PDF report generation
 - **file-saver** - Client-side file download utilities
+- **React Dropzone** - Drag-and-drop file upload interface
 
 ### **Development Tools**
 - **ESLint** - Code quality and style enforcement
 - **PostCSS & Autoprefixer** - CSS processing and optimization
 - **ts-node** - TypeScript execution for scripts
-- **Turbopack** - Fast development builds
+- **Turbopack** - Fast development builds with Next.js
+- **PNPM** - Fast, disk space efficient package manager (recommended)
 
 ---
 
@@ -161,7 +178,8 @@ EduTrack is a comprehensive academic management platform designed for universiti
 ### **Prerequisites**
 - **Node.js 18+** (recommended: Node.js 20+)
 - **PostgreSQL 14+** database
-- **pnpm** package manager (recommended) or npm/yarn
+- **PNPM** package manager (recommended) or npm/yarn
+- **Git** for version control
 
 ### **Quick Start**
 
@@ -178,6 +196,7 @@ EduTrack is a comprehensive academic management platform designed for universiti
 
 3. **Environment setup:**
    ```bash
+   # Create your environment file
    cp .env.example .env.local
    # Edit .env.local with your database and auth configuration
    ```
@@ -205,13 +224,34 @@ EduTrack is a comprehensive academic management platform designed for universiti
 6. **Start development server:**
    ```bash
    pnpm run dev
+   # This runs Next.js with Turbopack for faster development builds
    ```
 
 7. **Access the application:**
    - **Main App**: [http://localhost:3000](http://localhost:3000)
-   - **Student Interface**: [http://localhost:3000/management](http://localhost:3000/management)
+   - **Student Interface**: [http://localhost:3000/student/management](http://localhost:3000/student/management)
    - **Admin Interface**: [http://localhost:3000/admin](http://localhost:3000/admin)
    - **Chairperson Interface**: [http://localhost:3000/chairperson](http://localhost:3000/chairperson)
+
+### **Quick Access by Role**
+
+#### **For Students (No Registration Required)**
+1. Visit [http://localhost:3000](http://localhost:3000)
+2. Browse available curricula anonymously
+3. Access the management interface at [/student/management](http://localhost:3000/student/management)
+4. Import transcripts or manually track progress
+
+#### **For Administrators**
+1. Create admin account via seeded data or API
+2. Login and access [/admin](http://localhost:3000/admin)
+3. Manage users, faculties, and departments
+4. Configure system-wide settings
+
+#### **For Chairpersons**
+1. Get chairperson role assigned by admin
+2. Access [/chairperson](http://localhost:3000/chairperson)
+3. Create and manage curricula for your faculty
+4. Configure course requirements and constraints
 
 ### **Production Deployment**
 
@@ -223,6 +263,21 @@ EduTrack is a comprehensive academic management platform designed for universiti
 2. **Start production server:**
    ```bash
    pnpm run start
+   ```
+
+3. **Additional development commands:**
+   ```bash
+   # Lint the codebase
+   pnpm run lint
+   
+   # Generate Prisma client (runs automatically after install)
+   npx prisma generate
+   
+   # Reset database and reseed
+   npx prisma migrate reset
+   
+   # View database in Prisma Studio
+   npx prisma studio
    ```
 
 3. **Environment variables for production:**
@@ -272,14 +327,19 @@ course-audit/
 │   ├── app/              # Next.js App Router pages
 │   │   ├── admin/        # Admin interface pages
 │   │   ├── chairperson/  # Chairperson interface pages
-│   │   ├── management/   # Student interface pages
+│   │   ├── student/      # Student interface pages
 │   │   └── api/          # API route handlers
 │   ├── components/       # Reusable UI components
-│   │   ├── admin/        # Admin-specific components
-│   │   ├── chairperson/  # Chairperson-specific components
-│   │   ├── student/      # Student-specific components
-│   │   └── ui/           # Base UI components
+│   │   ├── role-specific/ # Role-based component organization
+│   │   │   ├── admin/    # Admin-specific components
+│   │   │   ├── chairperson/ # Chairperson-specific components
+│   │   │   └── student/  # Student-specific components
+│   │   ├── shared/       # Common shared components
+│   │   └── ui/           # Base UI components (shadcn/ui)
 │   ├── lib/              # Utility functions and configurations
+│   ├── hooks/            # Custom React hooks
+│   ├── contexts/         # React context providers
+│   ├── types/            # TypeScript type definitions
 │   └── services/         # API service layers
 ├── docs/                 # Documentation files
 │   ├── STUDENT_USER_MANUAL.md
@@ -319,14 +379,15 @@ The system supports PostgreSQL with Prisma ORM. For production, consider:
 ## 📚 Documentation
 
 ### **User Manuals**
-- **[Student User Manual](STUDENT_USER_MANUAL.md)**: Comprehensive guide for student features
-- **[Admin User Manual](ADMIN_USER_MANUAL.md)**: Administrative interface documentation
-- **[Chairperson User Manual](Chairperson_Role_User_Manual.md)**: Faculty management guide
+- **[Student User Manual](docs/user-manuals/STUDENT_USER_MANUAL.md)**: Comprehensive guide for student features
+- **[Admin User Manual](docs/user-manuals/ADMIN_README.md)**: Administrative interface documentation
+- **[Chairperson User Manual](docs/user-manuals/Chairperson_Role_User_Manual.md)**: Faculty management guide
 
 ### **Technical Documentation**
-- **[Architecture Analysis](ARCHITECTURE_ANALYSIS.md)**: System design and implementation details
-- **[API Documentation](prisma/api_specification.md)**: Backend API reference
-- **[Database Schema](prisma/enhanced_schema.prisma)**: Complete database structure
+- **[Architecture Analysis](docs/architecture/ARCHITECTURE_ANALYSIS.md)**: System design and implementation details
+- **[API Documentation](docs/api/COMPREHENSIVE_API_AUDIT.md)**: Backend API reference
+- **[Database Schema](prisma/schema.prisma)**: Complete database structure
+- **[Implementation Guides](docs/implementation/)**: Detailed implementation documentation
 
 ---
 
@@ -345,10 +406,44 @@ The system supports PostgreSQL with Prisma ORM. For production, consider:
 - **ESLint**: Follow the project's ESLint configuration
 - **Component Structure**: Use functional components with hooks
 - **API Design**: Follow RESTful principles for new endpoints
+- **Testing**: Write unit tests for new features (recommended)
+- **Documentation**: Update relevant documentation with code changes
+
+### **Development Guidelines**
+- Use the role-specific component structure in `/src/components/role-specific/`
+- Follow the established naming conventions for consistency
+- Ensure responsive design for all new UI components
+- Implement proper error handling and user feedback
+- Use TypeScript strictly - avoid `any` types where possible
 
 ---
 
-## 👥 Team
+## �️ Roadmap
+
+### **Upcoming Features**
+- **📱 Mobile App**: React Native mobile application
+- **🔔 Real-time Notifications**: Push notifications for important updates
+- **📧 Email Integration**: Automated email notifications and reports
+- **🤖 AI-Powered Recommendations**: Course recommendation engine
+- **📊 Advanced Analytics**: Detailed reporting and insights dashboard
+- **🔗 API Integrations**: Third-party system integrations
+- **🌍 Internationalization**: Multi-language support
+
+### **Technical Improvements**
+- **🧪 Testing Suite**: Comprehensive unit and integration tests
+- **🔒 Enhanced Security**: Advanced authentication and authorization
+- **⚡ Performance Optimization**: Further speed and efficiency improvements
+- **📱 PWA Support**: Progressive Web App capabilities
+- **🔄 Real-time Sync**: Live data synchronization across devices
+
+### **Version History**
+- **v0.1.0** (Current) - Core functionality with role-based access
+- **v0.2.0** (Planned) - Enhanced reporting and mobile responsiveness
+- **v1.0.0** (Target) - Production-ready with full feature set
+
+---
+
+## �👥 Team
 
 ### **Core Contributors**
 - **Somavatey Heng** - Lead Developer & Project Manager
@@ -360,7 +455,32 @@ Special thanks to all contributors who have helped improve EduTrack through bug 
 
 ---
 
-## 📄 License
+## � Performance & Scalability
+
+### **Optimization Features**
+- **Turbopack Integration**: Lightning-fast development builds with Next.js 15
+- **SWR Data Fetching**: Intelligent caching and background revalidation
+- **Progressive Enhancement**: Features unlock based on authentication level
+- **Lazy Loading**: Components and routes loaded on demand
+- **Optimized Images**: Next.js automatic image optimization
+
+### **Scalability Considerations**
+- **Role-Based Access Control**: Efficient permission management
+- **Database Indexing**: Optimized queries for large datasets
+- **API Rate Limiting**: Built-in protection against abuse
+- **Caching Strategy**: Multiple layers of caching for performance
+- **Modular Architecture**: Easy to scale individual components
+
+### **Production Recommendations**
+- **Database**: Use connection pooling for high traffic
+- **CDN**: Deploy static assets via CDN for global performance
+- **Monitoring**: Implement application performance monitoring
+- **Backup**: Regular database backups and disaster recovery
+- **Security**: SSL/TLS encryption and security headers
+
+---
+
+## �📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
@@ -375,9 +495,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### **Common Issues & Solutions**
 - **Database Connection**: Verify PostgreSQL is running and credentials are correct
-- **Import Errors**: Check CSV/Excel file format and column headers
-- **Authentication**: Ensure NEXTAUTH_SECRET is set and URL is correct
+- **Import Errors**: Check CSV/Excel file format and column headers match expected schema
+- **Authentication**: Ensure NEXTAUTH_SECRET is set and NEXTAUTH_URL is correct
+- **Build Errors**: Run `pnpm install` to ensure all dependencies are installed
+- **Component Import Issues**: Check file paths and component exports
 - **Performance**: Consider connection pooling for high-traffic deployments
+
+### **Development Notes**
+- Use **PNPM** for consistent dependency management
+- Follow the **role-specific component structure** for better organization
+- Run `pnpm run build` to verify there are no build errors before deployment
+- Use TypeScript strictly - all new components should be properly typed
 
 ---
 

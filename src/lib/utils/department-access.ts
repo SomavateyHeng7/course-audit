@@ -1,5 +1,5 @@
 // Department access validation middleware
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/database/prisma';
 import { auth } from '@/app/api/auth/[...nextauth]/authOptions';
 import { authOptions } from '@/app/api/auth/[...nextauth]/authOptions';
 

@@ -14,8 +14,8 @@ import {
   type ValidationResult,
   type CurriculumProgress,
   type CourseRecommendation
-} from "@/lib/courseValidation";
-import { parseExcelFile, type CourseData } from "@/components/excel/ExcelUtils";
+} from "@/lib/validation/courseValidation";
+import { parseExcelFile, type CourseData } from "@/components/features/excel/ExcelUtils";
 import { 
   CheckCircle, 
   AlertTriangle, 

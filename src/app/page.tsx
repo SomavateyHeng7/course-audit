@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Footer from '@/components/shared/footer';
-import Navbar from '@/components/shared/navbar';
-import { ThemeProvider } from '@/components/theme-provider';
-import SEO from '@/components/SEO';
+import Footer from '@/components/common/shared/footer';
+import Navbar from '@/components/common/shared/navbar';
+import { ThemeProvider } from '@/components/common/theme-provider';
+import SEO from '@/components/common/SEO';
 import { image } from 'html2canvas/dist/types/css/types/image';
 
 export default function Home() {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { auth } from '@/lib/auth/auth';
+import { prisma } from '@/lib/database/prisma';
 
 // DELETE /api/courses/[courseId]/corequisites/[corequisiteRelationId] - Remove specific corequisite
 export async function DELETE(

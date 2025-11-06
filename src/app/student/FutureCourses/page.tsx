@@ -16,12 +16,12 @@ import {
 } from 'lucide-react';
 
 // Import chairperson components
-import { PageHeader } from '@/components/chairperson/PageHeader';
-import { SearchBar } from '@/components/chairperson/SearchBar';
-import { DataTable } from '@/components/chairperson/DataTable';
-import { LoadingSpinner } from '@/components/chairperson/LoadingSpinner';
-import { StatCard } from '@/components/chairperson/StatCard';
-import { Pagination } from '@/components/chairperson/Pagination';
+import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
+import { SearchBar } from '@/components/role-specific/chairperson/SearchBar';
+import { DataTable } from '@/components/role-specific/chairperson/DataTable';
+import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
+import { StatCard } from '@/components/role-specific/chairperson/StatCard';
+import { Pagination } from '@/components/role-specific/chairperson/Pagination';
 
 interface Course {
   id: string;

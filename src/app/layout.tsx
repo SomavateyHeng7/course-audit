@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Montserrat, Playfair_Display, Inter } from 'next/font/google';
-import { SessionProvider } from '@/components/providers/SessionProvider';
+import { SessionProvider } from '@/components/common/providers/SessionProvider';
 import { CourseManagementProvider } from '@/app/contexts/CourseManagementContext';
 import { ToastProvider } from '@/hooks/useToast';
 import ConditionalLayout from '@/components/layout/ConditionalLayout';

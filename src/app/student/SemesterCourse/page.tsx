@@ -6,12 +6,12 @@ import { Calendar, Clock, User, Book, ChevronDown, Search } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
 
 // Import chairperson components
-import { PageHeader } from '@/components/chairperson/PageHeader';
-import { SearchBar } from '@/components/chairperson/SearchBar';
-import { DataTable } from '@/components/chairperson/DataTable';
-import { EmptyState } from '@/components/chairperson/EmptyState';
-import { LoadingSpinner } from '@/components/chairperson/LoadingSpinner';
-import { StatCard } from '@/components/chairperson/StatCard';
+import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
+import { SearchBar } from '@/components/role-specific/chairperson/SearchBar';
+import { DataTable } from '@/components/role-specific/chairperson/DataTable';
+import { EmptyState } from '@/components/role-specific/chairperson/EmptyState';
+import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
+import { StatCard } from '@/components/role-specific/chairperson/StatCard';
 
 interface CourseSchedule {
   id: string;

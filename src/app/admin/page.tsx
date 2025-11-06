@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, Building2, GraduationCap, TrendingUp, BookOpen, Award } from 'lucide-react';
-import RoleManagement from '@/components/admin/RoleManagement';
-import DepartmentManagement from '@/components/admin/DepartmentManagement';
-import FacultyManagement from '@/components/admin/FacultyManagement';
+import RoleManagement from '@/components/role-specific/admin/RoleManagement';
+import DepartmentManagement from '@/components/role-specific/admin/DepartmentManagement';
+import FacultyManagement from '@/components/role-specific/admin/FacultyManagement';
 
 interface DashboardStats {
   overview: {

@@ -15,10 +15,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import StudentTranscriptImport from '@/components/student/StudentTranscriptImport';
-import UnmatchedCoursesSection, { UnmatchedCourse } from '@/components/student/UnmatchedCoursesSection';
-import FreeElectiveManager, { FreeElectiveCourse } from '@/components/student/FreeElectiveManager';
-import { type CourseData } from '@/components/excel/ExcelUtils';
+import StudentTranscriptImport from '@/components/role-specific/student/StudentTranscriptImport';
+import UnmatchedCoursesSection, { UnmatchedCourse } from '@/components/role-specific/student/UnmatchedCoursesSection';
+import FreeElectiveManager, { FreeElectiveCourse } from '@/components/role-specific/student/FreeElectiveManager';
+import { type CourseData } from '@/components/features/excel/ExcelUtils';
 
 // Define CourseStatus for data entry page - includes planning status for course planner compatibility
 interface CourseStatus {

@@ -1,7 +1,7 @@
 // Session management for anonymous students
 // Handles course data persistence across browser sessions
 
-import { type CourseData } from '@/components/excel/ExcelUtils';
+import { type CourseData } from '@/components/features/excel/ExcelUtils';
 
 export interface AnonymousSession {
   id: string;

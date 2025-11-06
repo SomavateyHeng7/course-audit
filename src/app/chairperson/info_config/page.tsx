@@ -8,7 +8,7 @@ import { blacklistApi, type BlacklistData, type BlacklistCourse } from '@/servic
 import { concentrationApi, type ConcentrationData, type ConcentrationCourse } from '@/services/concentrationApi';
 import { facultyLabelApi } from '@/services/facultyLabelApi';
 import { courseTypesApi, type CourseTypeData } from '@/services/courseTypesApi';
-import { formatCreatedDate } from "@/lib/dateformat";
+import { formatCreatedDate } from "@/lib/ui/dateformat";
 import { useToastHelpers } from '@/hooks/useToast';
 
 interface Course {

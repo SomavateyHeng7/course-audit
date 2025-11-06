@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { ExcelData } from '@/components/excel/ExcelUtils';
+import { ExcelData } from '@/components/features/excel/ExcelUtils';
 import SessionManager from '../services/SessionManager';
 
 interface CourseManagementContextType {

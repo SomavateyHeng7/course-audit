@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/database/prisma';
+import { auth } from '@/lib/auth/auth';
 
 // GET /api/faculty/concentration-label - Get the concentration label for the current user's faculty
 export async function GET() {

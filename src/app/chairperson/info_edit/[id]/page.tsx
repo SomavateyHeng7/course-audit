@@ -3,11 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { FaEdit, FaTrash, FaBook, FaGavel, FaGraduationCap, FaStar, FaBan } from 'react-icons/fa';
-import CoursesTab from '@/components/curriculum/CoursesTab';
-import ConstraintsTab from '@/components/curriculum/ConstraintsTab';
-import ElectiveRulesTab from '@/components/curriculum/ElectiveRulesTab';
-import ConcentrationsTab from '@/components/curriculum/ConcentrationsTab';
-import BlacklistTab from '@/components/curriculum/BlacklistTab';
+import CoursesTab from '@/components/features/curriculum/CoursesTab';
+import ConstraintsTab from '@/components/features/curriculum/ConstraintsTab';
+import ElectiveRulesTab from '@/components/features/curriculum/ElectiveRulesTab';
+import ConcentrationsTab from '@/components/features/curriculum/ConcentrationsTab';
+import BlacklistTab from '@/components/features/curriculum/BlacklistTab';
 import { facultyLabelApi } from '@/services/facultyLabelApi';
 import { useToastHelpers } from '@/hooks/useToast';
 

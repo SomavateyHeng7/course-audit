@@ -12,7 +12,7 @@ import {
   validateCourseData, 
   type CourseData, 
   type TranscriptParseResult 
-} from '@/components/excel/ExcelUtils';
+} from '@/components/features/excel/ExcelUtils';
 import { UnmatchedCourse } from './UnmatchedCoursesSection';
 import { FreeElectiveCourse } from './FreeElectiveManager';
 
