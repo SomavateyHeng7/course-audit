@@ -3,7 +3,7 @@ import { Montserrat, Playfair_Display, Inter } from 'next/font/google';
 import { SessionProvider } from '@/components/common/providers/SessionProvider';
 import { CourseManagementProvider } from '@/app/contexts/CourseManagementContext';
 import { ToastProvider } from '@/hooks/useToast';
-import ConditionalLayout from '@/components/layout/ConditionalLayout';
+import ConditionalLayout from '@/components/common/layout/ConditionalLayout';
 import './globals.css';
 
 const montserrat = Montserrat({

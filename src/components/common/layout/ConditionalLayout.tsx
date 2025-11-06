@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import Sidebar from '@/components/layout/Sidebar';
+import Sidebar from '@/components/common/layout/Sidebar';
 import { ThemeProvider } from '@/components/common/theme-provider';
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
 

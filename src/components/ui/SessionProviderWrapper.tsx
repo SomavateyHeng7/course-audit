@@ -2,7 +2,7 @@
 
 import { ThemeProvider } from '@/components/common/theme-provider';
 import { CourseManagementProvider } from '@/app/contexts/CourseManagementContext';
-import Sidebar from '@/components/layout/Sidebar';
+import Sidebar from '@/components/common/layout/Sidebar';
 import { usePathname } from 'next/navigation';
 
 export default function SessionProviderWrapper({
