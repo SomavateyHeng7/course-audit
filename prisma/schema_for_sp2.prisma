@@ -1,0 +1,562 @@
+// ============================================================================
+// SP2 TEST SCHEMA - Curriculum-Specific Course Category Assignments
+// ============================================================================
+// This schema adds curriculum-level scoping to DepartmentCourseType assignments
+// Key Changes:
+// 1. Added curriculumId to DepartmentCourseType model
+// 2. Changed unique constraint from [courseId, departmentId] to [courseId, departmentId, curriculumId]
+// 3. Added curriculum relation to DepartmentCourseType
+// 4. Added departmentCourseTypes reverse relation to Curriculum
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  resetToken            String? // For password reset
+  resetTokenExpiry      DateTime? // For password reset
+  id                    String                 @id @default(cuid())
+  email                 String                 @unique
+  password              String
+  name                  String
+  role                  Role                   @default(CHAIRPERSON)
+  facultyId             String
+  departmentId          String // 🆕 Required department association
+  advisorId             String?
+  gpa                   Float?
+  credits               Int?
+  scholarshipHour       Int?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  auditLogs             AuditLog[]
+  blacklists            Blacklist[]            @relation("BlacklistCreator")
+  concentrations        Concentration[]        @relation("ConcentrationCreator")
+  curricula             Curriculum[]           @relation("CurriculumCreator")
+  courseTypeAssignments DepartmentCourseType[] @relation("CourseTypeAssignments")
+  studentCourses        StudentCourse[]
+  advisor               User?                  @relation("AdvisorStudent", fields: [advisorId], references: [id])
+  students              User[]                 @relation("AdvisorStudent")
+  faculty               Faculty                @relation(fields: [facultyId], references: [id])
+  department            Department             @relation(fields: [departmentId], references: [id]) // 🆕 Department relation
+
+  @@index([departmentId]) // 🆕 Performance index for department-based queries
+  @@index([facultyId]) // 🆕 Performance index for faculty-based queries
+  @@index([role]) // 🆕 Performance index for role-based queries
+  @@map("users")
+}
+
+model Faculty {
+  id                 String       @id @default(cuid())
+  name               String
+  code               String       @unique
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  concentrationLabel String       @default("Concentrations")
+  curricula          Curriculum[]
+  departments        Department[]
+  users              User[]
+
+  @@map("faculties")
+}
+
+model Department {
+  id                    String                 @id @default(cuid())
+  name                  String
+  code                  String
+  facultyId             String
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  blacklists            Blacklist[]
+  concentrations        Concentration[]
+  courseTypes           CourseType[]
+  curricula             Curriculum[]
+  departmentCourseTypes DepartmentCourseType[]
+  users                 User[] // 🆕 Reverse relation to users
+  faculty               Faculty                @relation(fields: [facultyId], references: [id])
+
+  @@unique([code, facultyId])
+  @@map("departments")
+}
+
+model Curriculum {
+  id                       String                    @id @default(cuid())
+  name                     String
+  year                     String
+  version                  String                    @default("1.0")
+  description              String?
+  startId                  String
+  endId                    String
+  isActive                 Boolean                   @default(true)
+  departmentId             String
+  facultyId                String
+  createdById              String
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  auditLogs                AuditLog[]
+  createdBy                User                      @relation("CurriculumCreator", fields: [createdById], references: [id])
+  department               Department                @relation(fields: [departmentId], references: [id])
+  faculty                  Faculty                   @relation(fields: [facultyId], references: [id])
+  curriculumBlacklists     CurriculumBlacklist[]
+  curriculumConcentrations CurriculumConcentration[]
+  curriculumConstraints    CurriculumConstraint[]
+  curriculumCourses        CurriculumCourse[]
+  electiveRules            ElectiveRule[]
+  departmentCourseTypes    DepartmentCourseType[] // 🔥 SP2 CHANGE: Added reverse relation for curriculum-specific course type assignments
+
+  @@unique([year, startId, endId, departmentId])
+  @@map("curricula")
+}
+
+model Course {
+  id                     String                 @id @default(cuid())
+  code                   String                 @unique
+  name                   String
+  credits                Int
+  creditHours            String
+  description            String?
+  requiresPermission     Boolean                @default(false)
+  summerOnly             Boolean                @default(false)
+  requiresSeniorStanding Boolean                @default(false)
+  minCreditThreshold     Int?
+  isActive               Boolean                @default(true)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  auditLogs              AuditLog[]
+  blacklistCourses       BlacklistCourse[]
+  concentrationCourses   ConcentrationCourse[]
+  dependentCorequisites  CourseCorequisite[]    @relation("DependentCorequisites")
+  corequisites           CourseCorequisite[]    @relation("CourseCorequisites")
+  prerequisites          CoursePrerequisite[]   @relation("CoursePrerequisites")
+  dependentCourses       CoursePrerequisite[]   @relation("DependentCourses")
+  curriculumCourses      CurriculumCourse[]
+  departmentCourseTypes  DepartmentCourseType[]
+  studentCourses         StudentCourse[]
+
+  @@index([code])
+  @@index([name])
+  @@map("courses")
+}
+
+// ============================================================================
+// 🔥 SP2 ENHANCEMENT: CurriculumCourse Model with Rule Overrides
+// ============================================================================
+// Added curriculum-specific course rule overrides for complete flexibility
+// Changes:
+// 1. Added: overrideRequiresPermission (Boolean?, nullable)
+// 2. Added: overrideSummerOnly (Boolean?, nullable)
+// 3. Added: overrideRequiresSeniorStanding (Boolean?, nullable)
+// 4. Added: overrideMinCreditThreshold (Int?, nullable)
+// 5. Added: Relations to curriculum-specific prerequisites
+// 6. Added: Relations to curriculum-specific corequisites
+//
+// Logic: NULL = use Course model defaults, non-NULL = override for this curriculum
+// Example: If overrideSummerOnly is NULL, use course.summerOnly value
+//          If overrideSummerOnly is false/true, use that value instead
+//
+// Impact:
+// - Same course can have different rules in different curricula
+// - Same course can have different prerequisites/corequisites per curriculum
+// - Maintains backward compatibility (NULL = use global defaults)
+// - Consistent with curriculum-specific pattern for course types and elective rules
+// ============================================================================
+model CurriculumCourse {
+  id           String  @id @default(cuid())
+  curriculumId String
+  courseId     String
+  isRequired   Boolean @default(true) // ✅ Already curriculum-specific!
+  semester     String?
+  year         Int?
+  position     Int?
+
+  // 🔥 SP2 ADDITION: Curriculum-specific rule overrides
+  // NULL = use Course model default, non-NULL = override for this curriculum
+  overrideRequiresPermission     Boolean? // Override for requiresPermission
+  overrideSummerOnly             Boolean? // Override for summerOnly
+  overrideRequiresSeniorStanding Boolean? // Override for requiresSeniorStanding
+  overrideMinCreditThreshold     Int? // Override for minCreditThreshold
+
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  curriculum Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  // 🔥 SP2 ADDITION: Curriculum-specific prerequisites and corequisites
+  curriculumPrerequisites         CurriculumCoursePrerequisite[] @relation("CurriculumCoursePrerequisites")
+  dependentCurriculumCourses      CurriculumCoursePrerequisite[] @relation("DependentCurriculumCourses")
+  curriculumCorequisites          CurriculumCourseCorequisite[]  @relation("CurriculumCourseCorequisites")
+  dependentCurriculumCorequisites CurriculumCourseCorequisite[]  @relation("DependentCurriculumCorequisites")
+
+  @@unique([curriculumId, courseId])
+  @@index([curriculumId])
+  @@index([courseId])
+  @@map("curriculum_courses")
+}
+
+model CoursePrerequisite {
+  id             String   @id @default(cuid())
+  courseId       String
+  prerequisiteId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  course         Course   @relation("CoursePrerequisites", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisite   Course   @relation("DependentCourses", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, prerequisiteId])
+  @@index([courseId])
+  @@index([prerequisiteId])
+  @@map("course_prerequisites")
+}
+
+model CourseCorequisite {
+  id            String   @id @default(cuid())
+  courseId      String
+  corequisiteId String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  corequisite   Course   @relation("DependentCorequisites", fields: [corequisiteId], references: [id], onDelete: Cascade)
+  course        Course   @relation("CourseCorequisites", fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, corequisiteId])
+  @@index([courseId])
+  @@index([corequisiteId])
+  @@map("course_corequisites")
+}
+
+// ============================================================================
+// 🔥 SP2 NEW MODEL: CurriculumCoursePrerequisite
+// ============================================================================
+// Curriculum-specific prerequisites that override or supplement global prerequisites
+// This allows different curricula to have different prerequisite requirements
+// for the same course.
+//
+// How it works:
+// - Check CurriculumCoursePrerequisite first (curriculum-specific)
+// - If none exist, fall back to CoursePrerequisite (global)
+// - This gives flexibility while maintaining backward compatibility
+//
+// Example: "Advanced Algorithms" requires "Data Structures" globally,
+//          but in Honors curriculum it also requires "Discrete Math"
+// ============================================================================
+model CurriculumCoursePrerequisite {
+  id                   String           @id @default(cuid())
+  curriculumCourseId   String // The course that has the prerequisite
+  prerequisiteCourseId String // The course that is the prerequisite
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  curriculumCourse     CurriculumCourse @relation("CurriculumCoursePrerequisites", fields: [curriculumCourseId], references: [id], onDelete: Cascade)
+  prerequisiteCourse   CurriculumCourse @relation("DependentCurriculumCourses", fields: [prerequisiteCourseId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumCourseId, prerequisiteCourseId])
+  @@index([curriculumCourseId])
+  @@index([prerequisiteCourseId])
+  @@map("curriculum_course_prerequisites")
+}
+
+// ============================================================================
+// 🔥 SP2 NEW MODEL: CurriculumCourseCorequisite
+// ============================================================================
+// Curriculum-specific corequisites that override or supplement global corequisites
+// This allows different curricula to have different corequisite requirements
+// for the same course.
+//
+// How it works:
+// - Check CurriculumCourseCorequisite first (curriculum-specific)
+// - If none exist, fall back to CourseCorequisite (global)
+// - This gives flexibility while maintaining backward compatibility
+//
+// Example: "Programming Lab" is corequisite with "Programming Theory" in most curricula,
+//          but in accelerated curriculum they can be taken separately
+// ============================================================================
+model CurriculumCourseCorequisite {
+  id                  String           @id @default(cuid())
+  curriculumCourseId  String // The course that has the corequisite
+  corequisiteCourseId String // The course that is the corequisite
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  curriculumCourse    CurriculumCourse @relation("CurriculumCourseCorequisites", fields: [curriculumCourseId], references: [id], onDelete: Cascade)
+  corequisiteCourse   CurriculumCourse @relation("DependentCurriculumCorequisites", fields: [corequisiteCourseId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumCourseId, corequisiteCourseId])
+  @@index([curriculumCourseId])
+  @@index([corequisiteCourseId])
+  @@map("curriculum_course_corequisites")
+}
+
+model CourseType {
+  id                    String                 @id @default(cuid())
+  name                  String
+  color                 String
+  departmentId          String
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  department            Department             @relation(fields: [departmentId], references: [id])
+  departmentCourseTypes DepartmentCourseType[]
+
+  @@unique([name, departmentId])
+  @@map("course_types")
+}
+
+// ============================================================================
+// 🔥 SP2 CRITICAL CHANGE: DepartmentCourseType Model
+// ============================================================================
+// This is the core of the curriculum-specific course category assignment feature
+// Changes from current schema:
+// 1. Added: curriculumId field (String, required)
+// 2. Added: curriculum relation (links to Curriculum model)
+// 3. Changed: Unique constraint from [courseId, departmentId] to [courseId, departmentId, curriculumId]
+// 4. Added: Index on curriculumId for query performance
+//
+// Impact:
+// - Allows same course to have different categories in different curricula within same department
+// - Enables curriculum-specific elective rule categorization
+// - Maintains referential integrity with cascade deletes
+// ============================================================================
+model DepartmentCourseType {
+  id           String     @id @default(cuid())
+  courseId     String
+  departmentId String
+  courseTypeId String
+  curriculumId String // 🔥 SP2 CHANGE: Added curriculum scoping
+  assignedAt   DateTime   @default(now())
+  assignedById String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  assignedBy   User?      @relation("CourseTypeAssignments", fields: [assignedById], references: [id])
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseType   CourseType @relation(fields: [courseTypeId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade) // 🔥 SP2 CHANGE: Added curriculum relation
+
+  @@unique([courseId, departmentId, curriculumId]) // 🔥 SP2 CHANGE: Updated unique constraint to include curriculumId
+  @@index([departmentId])
+  @@index([courseTypeId])
+  @@index([curriculumId]) // 🔥 SP2 CHANGE: Added index for curriculum-based queries
+  @@map("department_course_types")
+}
+
+model ElectiveRule {
+  id              String     @id @default(cuid())
+  curriculumId    String
+  category        String
+  requiredCredits Int
+  description     String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  curriculum      Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumId, category])
+  @@index([curriculumId])
+  @@map("elective_rules")
+}
+
+model Concentration {
+  id                       String                    @id @default(cuid())
+  name                     String
+  description              String?
+  departmentId             String
+  createdById              String
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  auditLogs                AuditLog[]
+  courses                  ConcentrationCourse[]
+  createdBy                User                      @relation("ConcentrationCreator", fields: [createdById], references: [id])
+  department               Department                @relation(fields: [departmentId], references: [id])
+  curriculumConcentrations CurriculumConcentration[]
+
+  @@unique([name, departmentId, createdById])
+  @@index([createdById])
+  @@map("concentrations")
+}
+
+model ConcentrationCourse {
+  id              String        @id @default(cuid())
+  concentrationId String
+  courseId        String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  concentration   Concentration @relation(fields: [concentrationId], references: [id], onDelete: Cascade)
+  course          Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([concentrationId, courseId])
+  @@index([concentrationId])
+  @@index([courseId])
+  @@map("concentration_courses")
+}
+
+model CurriculumConcentration {
+  id              String        @id @default(cuid())
+  curriculumId    String
+  concentrationId String
+  requiredCourses Int
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  concentration   Concentration @relation(fields: [concentrationId], references: [id], onDelete: Cascade)
+  curriculum      Curriculum    @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumId, concentrationId])
+  @@index([curriculumId])
+  @@index([concentrationId])
+  @@map("curriculum_concentrations")
+}
+
+model Blacklist {
+  id                   String                @id @default(cuid())
+  name                 String
+  description          String?
+  departmentId         String
+  createdById          String
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  auditLogs            AuditLog[]
+  courses              BlacklistCourse[]
+  createdBy            User                  @relation("BlacklistCreator", fields: [createdById], references: [id])
+  department           Department            @relation(fields: [departmentId], references: [id])
+  curriculumBlacklists CurriculumBlacklist[]
+
+  @@unique([name, departmentId, createdById])
+  @@index([createdById])
+  @@map("blacklists")
+}
+
+model BlacklistCourse {
+  id          String    @id @default(cuid())
+  blacklistId String
+  courseId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  blacklist   Blacklist @relation(fields: [blacklistId], references: [id], onDelete: Cascade)
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([blacklistId, courseId])
+  @@index([blacklistId])
+  @@index([courseId])
+  @@map("blacklist_courses")
+}
+
+model CurriculumBlacklist {
+  id           String     @id @default(cuid())
+  curriculumId String
+  blacklistId  String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  blacklist    Blacklist  @relation(fields: [blacklistId], references: [id], onDelete: Cascade)
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumId, blacklistId])
+  @@index([curriculumId])
+  @@index([blacklistId])
+  @@map("curriculum_blacklists")
+}
+
+model CurriculumConstraint {
+  id           String                   @id @default(cuid())
+  curriculumId String
+  type         CurriculumConstraintType
+  name         String
+  description  String?
+  isRequired   Boolean                  @default(true)
+  config       Json?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  curriculum   Curriculum               @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumId, type, name])
+  @@index([curriculumId])
+  @@map("curriculum_constraints")
+}
+
+model StudentCourse {
+  id        String              @id @default(cuid())
+  studentId String
+  courseId  String
+  status    StudentCourseStatus
+  grade     String?
+  semester  String?
+  year      Int?
+  credits   Int?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  course    Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student   User                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([studentId])
+  @@index([courseId])
+  @@map("student_courses")
+}
+
+model AuditLog {
+  id              String         @id @default(cuid())
+  userId          String
+  entityType      String
+  entityId        String
+  action          AuditAction
+  changes         Json?
+  description     String?
+  curriculumId    String?
+  courseId        String?
+  concentrationId String?
+  blacklistId     String?
+  createdAt       DateTime       @default(now())
+  blacklist       Blacklist?     @relation(fields: [blacklistId], references: [id])
+  concentration   Concentration? @relation(fields: [concentrationId], references: [id])
+  course          Course?        @relation(fields: [courseId], references: [id])
+  curriculum      Curriculum?    @relation(fields: [curriculumId], references: [id])
+  user            User           @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([curriculumId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+enum Role {
+  STUDENT
+  ADVISOR
+  CHAIRPERSON
+  SUPER_ADMIN
+}
+
+enum CurriculumConstraintType {
+  MINIMUM_GPA
+  SENIOR_STANDING
+  TOTAL_CREDITS
+  CATEGORY_CREDITS
+  CUSTOM
+}
+
+enum StudentCourseStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  DROPPED
+  PENDING
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  ASSIGN
+  UNASSIGN
+  IMPORT
+  EXPORT
+}
