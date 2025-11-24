@@ -1,3 +1,11 @@
+// ============================================================================
+// Curriculum-Specific Course Category Assignments (core schema updates only)
+// ============================================================================
+// Notes:
+// - DepartmentCourseType includes curriculumId to scope course categories per curriculum
+// - Additional curriculum-level override tables will be introduced in a later migration
+// ============================================================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,15 +16,15 @@ datasource db {
 }
 
 model User {
-  resetToken            String?                // For password reset
-  resetTokenExpiry      DateTime?              // For password reset
+  resetToken            String? // For password reset
+  resetTokenExpiry      DateTime? // For password reset
   id                    String                 @id @default(cuid())
   email                 String                 @unique
   password              String
   name                  String
   role                  Role                   @default(CHAIRPERSON)
   facultyId             String
-  departmentId          String                 // 🆕 Required department association
+  departmentId          String // 🆕 Required department association
   advisorId             String?
   gpa                   Float?
   credits               Int?
@@ -35,8 +43,8 @@ model User {
   department            Department             @relation(fields: [departmentId], references: [id]) // 🆕 Department relation
 
   @@index([departmentId]) // 🆕 Performance index for department-based queries
-  @@index([facultyId])    // 🆕 Performance index for faculty-based queries
-  @@index([role])         // 🆕 Performance index for role-based queries
+  @@index([facultyId]) // 🆕 Performance index for faculty-based queries
+  @@index([role]) // 🆕 Performance index for role-based queries
   @@map("users")
 }
 
@@ -66,7 +74,7 @@ model Department {
   courseTypes           CourseType[]
   curricula             Curriculum[]
   departmentCourseTypes DepartmentCourseType[]
-  users                 User[]                 // 🆕 Reverse relation to users
+  users                 User[] // 🆕 Reverse relation to users
   faculty               Faculty                @relation(fields: [facultyId], references: [id])
 
   @@unique([code, facultyId])
@@ -74,28 +82,29 @@ model Department {
 }
 
 model Curriculum {
-  id                       String                    @id @default(cuid())
+  id                       String                 @id @default(cuid())
   name                     String
   year                     String
-  version                  String                    @default("1.0")
+  version                  String                 @default("1.0")
   description              String?
   startId                  String
   endId                    String
-  isActive                 Boolean                   @default(true)
+  isActive                 Boolean                @default(true)
   departmentId             String
   facultyId                String
   createdById              String
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
   auditLogs                AuditLog[]
-  createdBy                User                      @relation("CurriculumCreator", fields: [createdById], references: [id])
-  department               Department                @relation(fields: [departmentId], references: [id])
-  faculty                  Faculty                   @relation(fields: [facultyId], references: [id])
+  createdBy                User                   @relation("CurriculumCreator", fields: [createdById], references: [id])
+  department               Department             @relation(fields: [departmentId], references: [id])
+  faculty                  Faculty                @relation(fields: [facultyId], references: [id])
   curriculumBlacklists     CurriculumBlacklist[]
   curriculumConcentrations CurriculumConcentration[]
   curriculumConstraints    CurriculumConstraint[]
   curriculumCourses        CurriculumCourse[]
   electiveRules            ElectiveRule[]
+  departmentCourseTypes    DepartmentCourseType[]
 
   @@unique([year, startId, endId, departmentId])
   @@map("curricula")
@@ -131,18 +140,49 @@ model Course {
   @@map("courses")
 }
 
+// ============================================================================
+// 🔥 SP2 ENHANCEMENT: CurriculumCourse Model with Rule Overrides
+// ============================================================================
+// Added curriculum-specific course rule overrides for complete flexibility
+// Changes:
+// 1. Added: overrideRequiresPermission (Boolean?, nullable)
+// 2. Added: overrideSummerOnly (Boolean?, nullable)
+// 3. Added: overrideRequiresSeniorStanding (Boolean?, nullable)
+// 4. Added: overrideMinCreditThreshold (Int?, nullable)
+// 5. Added: Relations to curriculum-specific prerequisites
+// 6. Added: Relations to curriculum-specific corequisites
+//
+// Logic: NULL = use Course model defaults, non-NULL = override for this curriculum
+// Example: If overrideSummerOnly is NULL, use course.summerOnly value
+//          If overrideSummerOnly is false/true, use that value instead
+//
+// Impact:
+// - Same course can have different rules in different curricula
+// - Same course can have different prerequisites/corequisites per curriculum
+// - Maintains backward compatibility (NULL = use global defaults)
+// - Consistent with curriculum-specific pattern for course types and elective rules
+// ============================================================================
 model CurriculumCourse {
-  id           String     @id @default(cuid())
+  id           String   @id @default(cuid())
   curriculumId String
   courseId     String
-  isRequired   Boolean    @default(true)
+  isRequired   Boolean  @default(true)
   semester     String?
   year         Int?
   position     Int?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  // Curriculum-specific course rule overrides (NULL = use Course defaults)
+  overrideRequiresPermission     Boolean?
+  overrideSummerOnly             Boolean?
+  overrideRequiresSeniorStanding Boolean?
+  overrideMinCreditThreshold     Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   curriculum   Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  curriculumPrerequisites         CurriculumCoursePrerequisite[] @relation("CurriculumCoursePrerequisites")
+  dependentCurriculumCourses      CurriculumCoursePrerequisite[] @relation("DependentCurriculumCourses")
+  curriculumCorequisites          CurriculumCourseCorequisite[]  @relation("CurriculumCourseCorequisites")
+  dependentCurriculumCorequisites CurriculumCourseCorequisite[]  @relation("DependentCurriculumCorequisites")
 
   @@unique([curriculumId, courseId])
   @@index([curriculumId])
@@ -180,6 +220,51 @@ model CourseCorequisite {
   @@map("course_corequisites")
 }
 
+// ============================================================================
+// 🔥 SP2 NEW MODEL: CurriculumCoursePrerequisite
+// ============================================================================
+// Curriculum-specific prerequisites that override or supplement global prerequisites
+// This allows different curricula to have different prerequisite requirements
+// for the same course.
+//
+// How it works:
+// - Check CurriculumCoursePrerequisite first (curriculum-specific)
+// - If none exist, fall back to CoursePrerequisite (global)
+// - This gives flexibility while maintaining backward compatibility
+//
+// Example: "Advanced Algorithms" requires "Data Structures" globally,
+//          but in Honors curriculum it also requires "Discrete Math"
+// ============================================================================
+model CurriculumCoursePrerequisite {
+  id                   String           @id @default(cuid())
+  curriculumCourseId   String
+  prerequisiteCourseId String
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  curriculumCourse     CurriculumCourse @relation("CurriculumCoursePrerequisites", fields: [curriculumCourseId], references: [id], onDelete: Cascade)
+  prerequisiteCourse   CurriculumCourse @relation("DependentCurriculumCourses", fields: [prerequisiteCourseId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumCourseId, prerequisiteCourseId])
+  @@index([curriculumCourseId])
+  @@index([prerequisiteCourseId])
+  @@map("curriculum_course_prerequisites")
+}
+
+model CurriculumCourseCorequisite {
+  id                  String           @id @default(cuid())
+  curriculumCourseId  String
+  corequisiteCourseId String
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  curriculumCourse    CurriculumCourse @relation("CurriculumCourseCorequisites", fields: [curriculumCourseId], references: [id], onDelete: Cascade)
+  corequisiteCourse   CurriculumCourse @relation("DependentCurriculumCorequisites", fields: [corequisiteCourseId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumCourseId, corequisiteCourseId])
+  @@index([curriculumCourseId])
+  @@index([corequisiteCourseId])
+  @@map("curriculum_course_corequisites")
+}
+
 model CourseType {
   id                    String                 @id @default(cuid())
   name                  String
@@ -194,11 +279,27 @@ model CourseType {
   @@map("course_types")
 }
 
+// ============================================================================
+// 🔥 SP2 CRITICAL CHANGE: DepartmentCourseType Model
+// ============================================================================
+// This is the core of the curriculum-specific course category assignment feature
+// Changes from current schema:
+// 1. Added: curriculumId field (String, required)
+// 2. Added: curriculum relation (links to Curriculum model)
+// 3. Changed: Unique constraint from [courseId, departmentId] to [courseId, departmentId, curriculumId]
+// 4. Added: Index on curriculumId for query performance
+//
+// Impact:
+// - Allows same course to have different categories in different curricula within same department
+// - Enables curriculum-specific elective rule categorization
+// - Maintains referential integrity with cascade deletes
+// ============================================================================
 model DepartmentCourseType {
   id           String     @id @default(cuid())
   courseId     String
   departmentId String
   courseTypeId String
+  curriculumId String // 🔥 SP2 CHANGE: Added curriculum scoping
   assignedAt   DateTime   @default(now())
   assignedById String?
   createdAt    DateTime   @default(now())
@@ -207,10 +308,12 @@ model DepartmentCourseType {
   course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
   courseType   CourseType @relation(fields: [courseTypeId], references: [id], onDelete: Cascade)
   department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade) // 🔥 SP2 CHANGE: Added curriculum relation
 
-  @@unique([courseId, departmentId])
+  @@unique([courseId, departmentId, curriculumId]) // 🔥 SP2 CHANGE: Updated unique constraint to include curriculumId
   @@index([departmentId])
   @@index([courseTypeId])
+  @@index([curriculumId]) // 🔥 SP2 CHANGE: Added index for curriculum-based queries
   @@map("department_course_types")
 }
 

@@ -65,6 +65,36 @@ export async function GET(
         curriculumCourses: {
           include: {
             course: true,
+            curriculumPrerequisites: {
+              include: {
+                prerequisiteCourse: {
+                  include: {
+                    course: {
+                      select: {
+                        id: true,
+                        code: true,
+                        name: true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            curriculumCorequisites: {
+              include: {
+                corequisiteCourse: {
+                  include: {
+                    course: {
+                      select: {
+                        id: true,
+                        code: true,
+                        name: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           orderBy: [
             { year: 'asc' },
@@ -129,7 +159,8 @@ export async function GET(
     const courseTypeAssignments = await prisma.departmentCourseType.findMany({
       where: {
         courseId: { in: courseIds },
-        departmentId: curriculum.departmentId
+        departmentId: curriculum.departmentId,
+        curriculumId: curriculum.id
       },
       include: {
         courseType: true
@@ -149,13 +180,35 @@ export async function GET(
     // Enhance curriculum courses with course type information
     const enhancedCurriculum = {
       ...curriculum,
-      curriculumCourses: curriculum.curriculumCourses.map(cc => ({
-        ...cc,
-        course: {
-          ...cc.course,
-          courseType: courseTypeMap.get(cc.course.id) || null
-        }
-      }))
+      curriculumCourses: curriculum.curriculumCourses.map(cc => {
+        const curriculumPrereqs = (cc.curriculumPrerequisites ?? [])
+          .map(prereq => prereq.prerequisiteCourse?.course)
+          .filter((course): course is { id: string; code: string; name: string | null } => Boolean(course?.id && course?.code))
+          .map(course => ({
+            id: course.id,
+            code: course.code,
+            name: course.name,
+          }));
+
+        const curriculumCoreqs = (cc.curriculumCorequisites ?? [])
+          .map(coreq => coreq.corequisiteCourse?.course)
+          .filter((course): course is { id: string; code: string; name: string | null } => Boolean(course?.id && course?.code))
+          .map(course => ({
+            id: course.id,
+            code: course.code,
+            name: course.name,
+          }));
+
+        return {
+          ...cc,
+          curriculumPrerequisites: curriculumPrereqs,
+          curriculumCorequisites: curriculumCoreqs,
+          course: {
+            ...cc.course,
+            courseType: courseTypeMap.get(cc.course.id) || null,
+          }
+        };
+      })
     };
 
     // Log audit event

@@ -8,6 +8,7 @@ const bulkAssignSchema = z.object({
   courseIds: z.array(z.string().min(1)),
   courseTypeId: z.string().min(1),
   departmentId: z.string().min(1),
+  curriculumId: z.string().min(1),
 });
 
 // POST /api/course-types/assign - Bulk assign course types to courses
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { courseIds, courseTypeId, departmentId } = bulkAssignSchema.parse(body);
+    const { courseIds, courseTypeId, departmentId, curriculumId } = bulkAssignSchema.parse(body);
 
     // Get user's faculty and verify department access
     const user = await prisma.user.findUnique({
@@ -75,6 +76,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verify curriculum exists within department and user has access
+    const curriculum = await prisma.curriculum.findFirst({
+      where: {
+        id: curriculumId,
+        departmentId,
+        facultyId: user.facultyId
+      },
+      select: {
+        id: true,
+        name: true,
+        year: true
+      }
+    });
+
+    if (!curriculum) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'Curriculum not found or inaccessible' } },
+        { status: 404 }
+      );
+    }
+
     // Verify all courses exist
     const courses = await prisma.course.findMany({
       where: {
@@ -96,7 +118,8 @@ export async function POST(request: NextRequest) {
       await tx.departmentCourseType.deleteMany({
         where: {
           courseId: { in: courseIds },
-          departmentId: departmentId
+          departmentId,
+          curriculumId
         }
       });
 
@@ -106,6 +129,7 @@ export async function POST(request: NextRequest) {
           courseId,
           departmentId,
           courseTypeId,
+          curriculumId,
           assignedById: session.user.id
         }))
       });
@@ -122,6 +146,8 @@ export async function POST(request: NextRequest) {
             courseTypeId,
             courseTypeName: courseType.name,
             departmentId,
+            curriculumId,
+            curriculumName: curriculum.name,
             courseCount: courseIds.length,
             courseIds
           }

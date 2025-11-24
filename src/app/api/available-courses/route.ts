@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
                 },
                 departmentCourseTypes: {
                   where: {
-                    departmentId: departmentId
+                    departmentId: departmentId,
+                    curriculumId: curriculumId
                   },
                   include: {
                     courseType: true
@@ -50,6 +51,32 @@ export async function GET(request: NextRequest) {
                             course: true
                           }
                         }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            curriculumPrerequisites: {
+              include: {
+                prerequisiteCourse: {
+                  include: {
+                    course: {
+                      select: {
+                        code: true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            curriculumCorequisites: {
+              include: {
+                corequisiteCourse: {
+                  include: {
+                    course: {
+                      select: {
+                        code: true
                       }
                     }
                   }
@@ -71,25 +98,27 @@ export async function GET(request: NextRequest) {
     // Transform the data to match our AvailableCourse interface
     const availableCourses = curriculum.curriculumCourses.map(currCourse => {
       const course = currCourse.course;
-      
-      // Get course category from departmentCourseTypes with fallback logic
+
       let category = 'Unassigned';
       if (course.departmentCourseTypes && course.departmentCourseTypes.length > 0) {
         category = course.departmentCourseTypes[0].courseType?.name || 'Unassigned';
-        console.log(`✅ Course ${course.code}: Found departmentCourseType - ${category}`);
-      } else {
-        console.log(`⚠️ Course ${course.code}: No departmentCourseTypes found, using fallback`);
-        // Fallback categorization for courses not in the curriculum catalog
-        // All courses without departmentCourseTypes should be categorized as 'Unassigned' for consistency
-        category = 'Unassigned';
-        console.log(`🔄 Course ${course.code}: Applied fallback category - ${category}`);
       }
 
-      // Extract prerequisites
-      const prerequisites = course.prerequisites?.map(prereq => prereq.prerequisite.code) || [];
-      
-      // Extract corequisites
-      const corequisites = course.corequisites?.map(coreq => coreq.corequisite.code) || [];
+      const curriculumPrereqs = currCourse.curriculumPrerequisites?.map(prereq => prereq.prerequisiteCourse?.course?.code).filter(Boolean) ?? [];
+      const curriculumCoreqs = currCourse.curriculumCorequisites?.map(coreq => coreq.corequisiteCourse?.course?.code).filter(Boolean) ?? [];
+
+      const prerequisites = curriculumPrereqs.length > 0
+        ? curriculumPrereqs
+        : course.prerequisites?.map(prereq => prereq.prerequisite.code) || [];
+
+      const corequisites = curriculumCoreqs.length > 0
+        ? curriculumCoreqs
+        : course.corequisites?.map(coreq => coreq.corequisite.code) || [];
+
+      const requiresPermission = currCourse.overrideRequiresPermission ?? course.requiresPermission ?? false;
+      const summerOnly = currCourse.overrideSummerOnly ?? course.summerOnly ?? false;
+      const requiresSeniorStanding = currCourse.overrideRequiresSeniorStanding ?? course.requiresSeniorStanding ?? false;
+      const minCreditThreshold = currCourse.overrideMinCreditThreshold ?? course.minCreditThreshold ?? null;
 
       // Extract banned combinations (from blacklists)
       const bannedWith: string[] = [];
@@ -121,10 +150,10 @@ export async function GET(request: NextRequest) {
         category,
         level,
         // Course flags for special requirements
-        requiresPermission: course.requiresPermission || false,
-        summerOnly: course.summerOnly || false,
-        requiresSeniorStanding: course.requiresSeniorStanding || false,
-        minCreditThreshold: course.minCreditThreshold || null,
+        requiresPermission,
+        summerOnly,
+        requiresSeniorStanding,
+        minCreditThreshold,
       };
     });
 
@@ -134,7 +163,8 @@ export async function GET(request: NextRequest) {
       where: {
         departmentCourseTypes: {
           some: {
-            departmentId: departmentId
+            departmentId: departmentId,
+            curriculumId: curriculumId
           }
         }
       },
@@ -151,7 +181,8 @@ export async function GET(request: NextRequest) {
         },
         departmentCourseTypes: {
           where: {
-            departmentId: departmentId
+            departmentId: departmentId,
+            curriculumId: curriculumId
           },
           include: {
             courseType: true

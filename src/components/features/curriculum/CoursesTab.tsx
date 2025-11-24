@@ -5,6 +5,7 @@ import { FaEdit, FaTrash, FaInfoCircle, FaTags, FaLayerGroup } from 'react-icons
 
 interface Course {
   id: string;
+  curriculumCourseId?: string;
   code: string;
   title: string;
   credits: number;
@@ -16,6 +17,24 @@ interface Course {
     name: string;
     color: string;
   } | null;
+  curriculumPrerequisites?: Array<{ id?: string; code: string; name?: string | null }>;
+  curriculumCorequisites?: Array<{ id?: string; code: string; name?: string | null }>;
+  requiresPermission?: boolean;
+  summerOnly?: boolean;
+  requiresSeniorStanding?: boolean;
+  minCreditThreshold?: number | null;
+  baseRequiresPermission?: boolean;
+  baseSummerOnly?: boolean;
+  baseRequiresSeniorStanding?: boolean;
+  baseMinCreditThreshold?: number | null;
+  hasPermissionOverride?: boolean;
+  hasSummerOnlyOverride?: boolean;
+  hasSeniorStandingOverride?: boolean;
+  hasMinCreditOverride?: boolean;
+  overrideRequiresPermission?: boolean | null;
+  overrideSummerOnly?: boolean | null;
+  overrideRequiresSeniorStanding?: boolean | null;
+  overrideMinCreditThreshold?: number | null;
 }
 
 interface CoursesTabProps {
@@ -69,6 +88,11 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
   };
 
   const assignCourseTypes = async (courseIds: string[], courseTypeId: string) => {
+    if (!departmentId || !curriculumId) {
+      console.error('Cannot assign course types without department and curriculum context');
+      return;
+    }
+
     setIsAssigning(true);
     try {
       const response = await fetch('/api/course-types/assign', {
@@ -79,7 +103,8 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
         body: JSON.stringify({
           courseIds,
           courseTypeId,
-          departmentId
+          departmentId,
+          curriculumId
         }),
       });
 
@@ -125,6 +150,91 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
 
   const clearSelection = () => {
     setSelectedCourses([]);
+  };
+
+  const renderCurriculumRules = (course: Course) => {
+    const prerequisiteCodes = (course.curriculumPrerequisites ?? [])
+      .map(prereq => prereq?.code?.trim())
+      .filter((code): code is string => Boolean(code));
+
+    const corequisiteCodes = (course.curriculumCorequisites ?? [])
+      .map(coreq => coreq?.code?.trim())
+      .filter((code): code is string => Boolean(code));
+
+    const baseRequiresPermission = course.baseRequiresPermission ?? false;
+    const finalRequiresPermission = course.requiresPermission ?? false;
+    const showPermission = course.hasPermissionOverride || baseRequiresPermission || finalRequiresPermission;
+    const permissionOrigin = course.hasPermissionOverride ? 'Curriculum override' : 'Course default';
+
+    const baseSummerOnly = course.baseSummerOnly ?? false;
+    const finalSummerOnly = course.summerOnly ?? false;
+    const showSummer = course.hasSummerOnlyOverride || baseSummerOnly || finalSummerOnly;
+    const summerOrigin = course.hasSummerOnlyOverride ? 'Curriculum override' : 'Course default';
+
+    const baseSeniorStanding = course.baseRequiresSeniorStanding ?? false;
+    const finalSeniorStanding = course.requiresSeniorStanding ?? false;
+    const showSenior = course.hasSeniorStandingOverride || baseSeniorStanding || finalSeniorStanding || course.hasMinCreditOverride;
+    const seniorOrigin = (course.hasSeniorStandingOverride || course.hasMinCreditOverride) ? 'Curriculum override' : 'Course default';
+    const creditThreshold = course.minCreditThreshold ?? course.baseMinCreditThreshold ?? null;
+
+    const flagBadges: Array<{ text: string; highlight: boolean }> = [];
+
+    if (showPermission) {
+      flagBadges.push({
+        text: `Permission ${finalRequiresPermission ? 'required' : 'not required'} • ${permissionOrigin === 'Curriculum override' ? 'Curriculum' : 'Course'}`,
+        highlight: Boolean(course.hasPermissionOverride)
+      });
+    }
+
+    if (showSummer) {
+      flagBadges.push({
+        text: `${finalSummerOnly ? 'Summer only' : 'All terms'} • ${summerOrigin === 'Curriculum override' ? 'Curriculum' : 'Course'}`,
+        highlight: Boolean(course.hasSummerOnlyOverride)
+      });
+    }
+
+    if (showSenior) {
+      const standingText = finalSeniorStanding
+        ? `Senior standing${creditThreshold ? ` (${creditThreshold}+ credits)` : ''}`
+        : 'Senior standing not required';
+      flagBadges.push({
+        text: `${standingText} • ${seniorOrigin === 'Curriculum override' ? 'Curriculum' : 'Course'}`,
+        highlight: Boolean(course.hasSeniorStandingOverride || course.hasMinCreditOverride)
+      });
+    }
+
+    if (!prerequisiteCodes.length && !corequisiteCodes.length && !flagBadges.length) {
+      return <span className="text-xs text-gray-400 dark:text-gray-500">No curriculum-specific rules</span>;
+    }
+
+    return (
+      <div className="flex flex-col gap-1">
+        {prerequisiteCodes.length > 0 && (
+          <div className="text-xs text-foreground">
+            <span className="font-semibold text-gray-600 dark:text-gray-300">Prereq:</span>{' '}
+            <span className="text-gray-600 dark:text-gray-300">{prerequisiteCodes.join(', ')}</span>
+          </div>
+        )}
+        {corequisiteCodes.length > 0 && (
+          <div className="text-xs text-foreground">
+            <span className="font-semibold text-gray-600 dark:text-gray-300">Coreq:</span>{' '}
+            <span className="text-gray-600 dark:text-gray-300">{corequisiteCodes.join(', ')}</span>
+          </div>
+        )}
+        {flagBadges.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {flagBadges.map((badge, idx) => (
+              <span
+                key={`${badge.text}-${idx}`}
+                className={`text-[10px] leading-tight px-2 py-1 rounded-full border ${badge.highlight ? 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-300 dark:bg-amber-900/30 dark:text-amber-200' : 'border-gray-200 bg-gray-100 text-gray-600 dark:border-border dark:bg-gray-800/60 dark:text-gray-300'}`}
+              >
+                {badge.text}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const filteredCourses = courses.filter(course =>
@@ -215,6 +325,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Credits</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Credit Hours</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Category</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold text-primary">Curriculum Rules</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Description</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Actions</th>
             </tr>
@@ -256,6 +367,9 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                       <span className="text-gray-400 dark:text-gray-500">No Category Assigned</span>
                     )}
                   </td>
+                  <td className="px-6 py-4 text-sm text-left text-foreground">
+                    {renderCurriculumRules(course)}
+                  </td>
                   <td className="px-6 py-4 text-center">
                     {course.description ? (
                       <button
@@ -292,7 +406,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={9} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                   <div className="flex flex-col items-center">
                     <svg className="w-12 h-12 mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />

@@ -87,7 +87,8 @@ export async function GET(
             credits: true,
             departmentCourseTypes: {
               where: {
-                departmentId: curriculum.departmentId
+                departmentId: curriculum.departmentId,
+                curriculumId
               },
               select: {
                 courseType: {

@@ -284,15 +284,31 @@ export async function DELETE(
     }
 
     // Check if course type is in use by any course assignments
-    const assignmentsUsingType = await prisma.departmentCourseType.findFirst({
+    const assignmentsUsingType = await prisma.departmentCourseType.findMany({
       where: {
-        courseTypeId: params.id
+        courseTypeId: params.id,
+        departmentId: existingCourseType.departmentId
+      },
+      include: {
+        curriculum: {
+          select: {
+            id: true,
+            name: true,
+            year: true
+          }
+        }
       }
     });
 
-    if (assignmentsUsingType) {
+    if (assignmentsUsingType.length > 0) {
+      const curriculaSummaries = assignmentsUsingType
+        .map(assignment => assignment.curriculum)
+        .filter((curriculum): curriculum is { id: string; name: string; year: string } => Boolean(curriculum))
+        .map(curriculum => `${curriculum.name} (${curriculum.year})`);
+      const uniqueCurricula = [...new Set(curriculaSummaries)];
+
       return NextResponse.json(
-        { error: { code: 'CONFLICT', message: 'Cannot delete course type that is currently assigned to courses' } },
+        { error: { code: 'CONFLICT', message: `Cannot delete course type while it is used by curricula: ${uniqueCurricula.join(', ') || 'Unknown curricula'}` } },
         { status: 409 }
       );
     }

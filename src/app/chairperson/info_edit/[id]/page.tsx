@@ -11,6 +11,18 @@ import BlacklistTab from '@/components/features/curriculum/BlacklistTab';
 import { facultyLabelApi } from '@/services/facultyLabelApi';
 import { useToastHelpers } from '@/hooks/useToast';
 
+interface CurriculumCourseMeta {
+  curriculumCourseId: string;
+  courseId: string;
+  courseCode: string;
+  curriculumPrerequisites: Array<{ id?: string; code: string; name?: string | null }>;
+  curriculumCorequisites: Array<{ id?: string; code: string; name?: string | null }>;
+  overrideRequiresPermission?: boolean | null;
+  overrideSummerOnly?: boolean | null;
+  overrideRequiresSeniorStanding?: boolean | null;
+  overrideMinCreditThreshold?: number | null;
+}
+
 export default function EditCurriculum() {
   const params = useParams();
   const curriculumId = params.id as string;
@@ -136,25 +148,107 @@ export default function EditCurriculum() {
     electiveCredits: curriculum.curriculumCourses?.filter((cc: any) => !cc.isRequired).reduce((total: number, cc: any) => total + cc.course.credits, 0) || 0,
   } : { totalCredits: 0, requiredCore: 0, electiveCredits: 0 };
 
-  const coursesData = curriculum?.curriculumCourses?.map((cc: any) => ({
-    id: cc.course.id,
-    code: cc.course.code,
-    title: cc.course.name,
-    credits: cc.course.credits,
-    creditHours: cc.course.creditHours || '3-0-6',
-    type: cc.course.category || '',
-    description: cc.course.description || '',
-    courseType: cc.course.courseType || null, // Add course type information
-    year: cc.year,
-    semester: cc.semester,
-    isRequired: cc.isRequired,
-  })) || [];
+  const curriculumCourseMeta: CurriculumCourseMeta[] = [];
+
+  const coursesData = (curriculum?.curriculumCourses ?? []).map((cc: any) => {
+    const normalizedPrereqs = (cc.curriculumPrerequisites ?? []).map((pr: any) => ({
+      id: pr?.id ?? pr?.courseId ?? pr?.course?.id,
+      code: pr?.code ?? pr?.course?.code ?? '',
+      name: pr?.name ?? pr?.course?.name ?? null
+    })).filter((pr: any) => pr.code);
+
+    const normalizedCoreqs = (cc.curriculumCorequisites ?? []).map((coreq: any) => ({
+      id: coreq?.id ?? coreq?.courseId ?? coreq?.course?.id,
+      code: coreq?.code ?? coreq?.course?.code ?? '',
+      name: coreq?.name ?? coreq?.course?.name ?? null
+    })).filter((coreq: any) => coreq.code);
+
+    const overrideRequiresPermission = cc.overrideRequiresPermission;
+    const overrideSummerOnly = cc.overrideSummerOnly;
+    const overrideRequiresSeniorStanding = cc.overrideRequiresSeniorStanding;
+    const overrideMinCreditThreshold = cc.overrideMinCreditThreshold;
+
+    const hasPermissionOverride = overrideRequiresPermission !== null && overrideRequiresPermission !== undefined;
+    const hasSummerOnlyOverride = overrideSummerOnly !== null && overrideSummerOnly !== undefined;
+    const hasSeniorStandingOverride = overrideRequiresSeniorStanding !== null && overrideRequiresSeniorStanding !== undefined;
+    const hasMinCreditOverride = overrideMinCreditThreshold !== null && overrideMinCreditThreshold !== undefined;
+
+    const baseRequiresPermission = Boolean(cc.course.requiresPermission);
+    const baseSummerOnly = Boolean(cc.course.summerOnly);
+    const baseRequiresSeniorStanding = Boolean(cc.course.requiresSeniorStanding);
+    const baseMinCreditThreshold = cc.course.minCreditThreshold ?? null;
+
+    const requiresPermission = hasPermissionOverride ? Boolean(overrideRequiresPermission) : baseRequiresPermission;
+    const summerOnly = hasSummerOnlyOverride ? Boolean(overrideSummerOnly) : baseSummerOnly;
+    const requiresSeniorStanding = hasSeniorStandingOverride ? Boolean(overrideRequiresSeniorStanding) : baseRequiresSeniorStanding;
+    const minCreditThreshold = hasMinCreditOverride ? overrideMinCreditThreshold : baseMinCreditThreshold;
+
+    curriculumCourseMeta.push({
+      curriculumCourseId: cc.id,
+      courseId: cc.course.id,
+      courseCode: cc.course.code,
+      curriculumPrerequisites: normalizedPrereqs,
+      curriculumCorequisites: normalizedCoreqs,
+      overrideRequiresPermission,
+      overrideSummerOnly,
+      overrideRequiresSeniorStanding,
+      overrideMinCreditThreshold
+    });
+
+    return {
+      id: cc.course.id,
+      curriculumCourseId: cc.id,
+      code: cc.course.code,
+      title: cc.course.name,
+      credits: cc.course.credits,
+      creditHours: cc.course.creditHours || '3-0-6',
+      type: cc.course.category || '',
+      description: cc.course.description || '',
+      courseType: cc.course.courseType || null, // Add course type information
+      year: cc.year,
+      semester: cc.semester,
+      isRequired: cc.isRequired,
+      curriculumPrerequisites: normalizedPrereqs,
+      curriculumCorequisites: normalizedCoreqs,
+      requiresPermission,
+      summerOnly,
+      requiresSeniorStanding,
+      minCreditThreshold,
+      baseRequiresPermission,
+      baseSummerOnly,
+      baseRequiresSeniorStanding,
+      baseMinCreditThreshold,
+      hasPermissionOverride,
+      hasSummerOnlyOverride,
+      hasSeniorStandingOverride,
+      hasMinCreditOverride,
+      overrideRequiresPermission,
+      overrideSummerOnly,
+      overrideRequiresSeniorStanding,
+      overrideMinCreditThreshold
+    };
+  });
 
   const allCourses = coursesData.map((course: any) => ({
     id: course.id,
     code: course.code,
     name: course.title,
-    credits: course.credits
+    credits: course.credits,
+    curriculumPrerequisites: course.curriculumPrerequisites,
+    curriculumCorequisites: course.curriculumCorequisites,
+    requiresPermission: course.requiresPermission,
+    summerOnly: course.summerOnly,
+    requiresSeniorStanding: course.requiresSeniorStanding,
+    minCreditThreshold: course.minCreditThreshold,
+    baseRequiresPermission: course.baseRequiresPermission,
+    baseSummerOnly: course.baseSummerOnly,
+    baseRequiresSeniorStanding: course.baseRequiresSeniorStanding,
+    baseMinCreditThreshold: course.baseMinCreditThreshold,
+    hasPermissionOverride: course.hasPermissionOverride,
+    hasSummerOnlyOverride: course.hasSummerOnlyOverride,
+    hasSeniorStandingOverride: course.hasSeniorStandingOverride,
+    hasMinCreditOverride: course.hasMinCreditOverride,
+    curriculumCourseId: course.curriculumCourseId
   }));
 
   // Navigation functions
@@ -282,7 +376,8 @@ export default function EditCurriculum() {
           body: JSON.stringify({
             courseIds: [editingCourse.id],
             courseTypeId: editingCourse.selectedCourseTypeId,
-            departmentId: curriculum.departmentId
+            departmentId: curriculum.departmentId,
+            curriculumId: curriculum.id
           }),
         });
 
@@ -681,7 +776,11 @@ export default function EditCurriculum() {
               }}
             />
           )}          {activeTab === "Constraints" && (
-            <ConstraintsTab courses={allCourses} curriculumId={curriculumId} />
+            <ConstraintsTab
+              courses={allCourses}
+              curriculumId={curriculumId}
+              curriculumCourses={curriculumCourseMeta}
+            />
           )}
 
           {activeTab === "Elective Rules" && (

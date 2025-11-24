@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { courseConstraintsApi } from '@/services/courseConstraintsApi';
 
 interface Course {
@@ -8,11 +8,39 @@ interface Course {
   code: string;
   name: string;
   credits?: number;
+  curriculumPrerequisites?: Array<{ id?: string; code: string; name?: string | null }>;
+  curriculumCorequisites?: Array<{ id?: string; code: string; name?: string | null }>;
+  requiresPermission?: boolean;
+  summerOnly?: boolean;
+  requiresSeniorStanding?: boolean;
+  minCreditThreshold?: number | null;
+  baseRequiresPermission?: boolean;
+  baseSummerOnly?: boolean;
+  baseRequiresSeniorStanding?: boolean;
+  baseMinCreditThreshold?: number | null;
+  hasPermissionOverride?: boolean;
+  hasSummerOnlyOverride?: boolean;
+  hasSeniorStandingOverride?: boolean;
+  hasMinCreditOverride?: boolean;
+  curriculumCourseId?: string;
 }
 
 interface ConstraintsTabProps {
   courses: Course[];
   curriculumId?: string;
+  curriculumCourses?: CurriculumCourseMeta[];
+}
+
+interface CurriculumCourseMeta {
+  curriculumCourseId: string;
+  courseId: string;
+  courseCode: string;
+  curriculumPrerequisites: Array<{ id?: string; code: string; name?: string | null }>;
+  curriculumCorequisites: Array<{ id?: string; code: string; name?: string | null }>;
+  overrideRequiresPermission?: boolean | null;
+  overrideSummerOnly?: boolean | null;
+  overrideRequiresSeniorStanding?: boolean | null;
+  overrideMinCreditThreshold?: number | null;
 }
 
 interface CourseConstraints {
@@ -28,7 +56,7 @@ interface CourseConstraintFlags {
   minCreditThreshold?: number;
 }
 
-export default function ConstraintsTab({ courses, curriculumId }: ConstraintsTabProps) {
+export default function ConstraintsTab({ courses, curriculumId, curriculumCourses }: ConstraintsTabProps) {
   console.log('ConstraintsTab initialized with curriculumId:', curriculumId);
   
   const [courseSearch, setCourseSearch] = useState('');
@@ -67,6 +95,22 @@ export default function ConstraintsTab({ courses, curriculumId }: ConstraintsTab
     const found = courses.find(course => getCourseIdentifier(course) === selectedCourse);
     return found || { id: '', code: 'No course selected', name: 'Please select a course' };
   };
+
+  const selectedCourseData = selectedCourse
+    ? courses.find(course => getCourseIdentifier(course) === selectedCourse) ?? null
+    : null;
+
+  const selectedCourseId = selectedCourseData?.id ?? null;
+  const selectedCourseCode = selectedCourseData?.code ?? null;
+
+  const selectedCurriculumCourse = useMemo(() => {
+    if (!curriculumCourses) return undefined;
+    return curriculumCourses.find(entry => {
+      if (selectedCourseId && entry.courseId === selectedCourseId) return true;
+      if (selectedCourseCode && entry.courseCode === selectedCourseCode) return true;
+      return false;
+    });
+  }, [curriculumCourses, selectedCourseId, selectedCourseCode]);
 
   // Set default selected course when courses are available
   useEffect(() => {
@@ -452,6 +496,120 @@ export default function ConstraintsTab({ courses, curriculumId }: ConstraintsTab
     }
   };
 
+  const basePrereqCount = constraints.prerequisites.length;
+  const curriculumPrereqCount = selectedCurriculumCourse?.curriculumPrerequisites?.length ?? 0;
+  const totalPrereqCount = basePrereqCount + curriculumPrereqCount;
+
+  const baseCoreqCount = constraints.corequisites.length;
+  const curriculumCoreqCount = selectedCurriculumCourse?.curriculumCorequisites?.length ?? 0;
+  const totalCoreqCount = baseCoreqCount + curriculumCoreqCount;
+
+  const curriculumBannedCount = (constraints.bannedCombinations as any[]).filter(item => item?.type === 'curriculumConstraint').length;
+  const baseBannedCount = (constraints.bannedCombinations as any[]).filter(item => item?.type !== 'curriculumConstraint').length;
+  const totalBannedCount = constraints.bannedCombinations.length;
+
+  const overrideRequiresPermission = selectedCurriculumCourse?.overrideRequiresPermission;
+  const overrideSummerOnly = selectedCurriculumCourse?.overrideSummerOnly;
+  const overrideRequiresSeniorStanding = selectedCurriculumCourse?.overrideRequiresSeniorStanding;
+  const overrideMinCreditThreshold = selectedCurriculumCourse?.overrideMinCreditThreshold;
+
+  const finalRequiresPermission = overrideRequiresPermission !== null && overrideRequiresPermission !== undefined
+    ? Boolean(overrideRequiresPermission)
+    : courseFlags.requiresPermission;
+
+  const finalSummerOnly = overrideSummerOnly !== null && overrideSummerOnly !== undefined
+    ? Boolean(overrideSummerOnly)
+    : courseFlags.summerOnly;
+
+  const finalRequiresSeniorStanding = overrideRequiresSeniorStanding !== null && overrideRequiresSeniorStanding !== undefined
+    ? Boolean(overrideRequiresSeniorStanding)
+    : courseFlags.requiresSeniorStanding;
+
+  const finalMinCreditThreshold = overrideMinCreditThreshold !== null && overrideMinCreditThreshold !== undefined
+    ? overrideMinCreditThreshold
+    : courseFlags.minCreditThreshold;
+
+  const finalPermissionOrigin = overrideRequiresPermission !== null && overrideRequiresPermission !== undefined
+    ? 'Curriculum override'
+    : 'Course default';
+
+  const finalSummerOrigin = overrideSummerOnly !== null && overrideSummerOnly !== undefined
+    ? 'Curriculum override'
+    : 'Course default';
+
+  const finalSeniorOrigin = (overrideRequiresSeniorStanding !== null && overrideRequiresSeniorStanding !== undefined) || (overrideMinCreditThreshold !== null && overrideMinCreditThreshold !== undefined)
+    ? 'Curriculum override'
+    : 'Course default';
+
+  const overrideSummary: string[] = [];
+  if (overrideRequiresPermission !== null && overrideRequiresPermission !== undefined) {
+    overrideSummary.push(`Permission requirement ${overrideRequiresPermission ? 'enforced' : 'removed'} for this curriculum.`);
+  }
+  if (overrideSummerOnly !== null && overrideSummerOnly !== undefined) {
+    overrideSummary.push(`Availability set to ${overrideSummerOnly ? 'Summer session only' : 'all terms'} for this curriculum.`);
+  }
+  if (overrideRequiresSeniorStanding !== null && overrideRequiresSeniorStanding !== undefined) {
+    overrideSummary.push(`Senior standing ${overrideRequiresSeniorStanding ? 'required' : 'not required'} for this curriculum.`);
+  }
+  if (overrideMinCreditThreshold !== null && overrideMinCreditThreshold !== undefined) {
+    overrideSummary.push(`Minimum credit threshold adjusted to ${overrideMinCreditThreshold} credits.`);
+  }
+
+  const displayConstraints = {
+    prerequisites: [
+      ...constraints.prerequisites.map(course => ({
+        key: `course-${course.id ?? course.code}`,
+        code: course.code,
+        name: course.name,
+        source: 'Course default',
+        isCurriculum: false,
+        raw: course,
+      })),
+      ...(selectedCurriculumCourse?.curriculumPrerequisites ?? []).map(pr => ({
+        key: `curriculum-${pr.id ?? pr.code}`,
+        code: pr.code,
+        name: pr.name,
+        source: 'Curriculum override',
+        isCurriculum: true,
+        raw: pr,
+      }))
+    ],
+    corequisites: [
+      ...constraints.corequisites.map(course => ({
+        key: `course-${course.id ?? course.code}`,
+        code: course.code,
+        name: course.name,
+        source: 'Course default',
+        isCurriculum: false,
+        raw: course,
+      })),
+      ...(selectedCurriculumCourse?.curriculumCorequisites ?? []).map(coreq => ({
+        key: `curriculum-${coreq.id ?? coreq.code}`,
+        code: coreq.code,
+        name: coreq.name,
+        source: 'Curriculum override',
+        isCurriculum: true,
+        raw: coreq,
+      }))
+    ],
+    bannedCombinations: (constraints.bannedCombinations as any[])
+      .map(item => {
+        const isCurriculum = item?.type === 'curriculumConstraint';
+        const code = isCurriculum ? item?.otherCourse?.code ?? item?.code : item?.code;
+        const name = isCurriculum ? item?.otherCourse?.name ?? item?.description ?? '' : item?.name;
+        if (!code) return null;
+        return {
+          key: `${isCurriculum ? 'curriculum' : 'course'}-${code}`,
+          code,
+          name,
+          source: isCurriculum ? 'Curriculum override' : 'Course default',
+          isCurriculum,
+          raw: item,
+        };
+      })
+      .filter((entry): entry is { key: string; code: string; name?: string; source: string; isCurriculum: boolean; raw: any } => Boolean(entry))
+  };
+
   return (
     <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-xl p-8">
       <style jsx>{`
@@ -635,22 +793,28 @@ export default function ConstraintsTab({ courses, curriculumId }: ConstraintsTab
                     <div className="font-semibold text-blue-700 dark:text-blue-300 mb-1 flex items-center justify-center gap-1">
                        Prerequisites
                     </div>
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{constraints.prerequisites.length}</div>
-                    
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalPrereqCount}</div>
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Course {basePrereqCount} • Curriculum {curriculumPrereqCount}
+                    </div>
                   </div>
                   <div className="group hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg p-2 transition-colors">
                     <div className="font-semibold text-red-700 dark:text-red-300 mb-1 flex items-center justify-center gap-1">
                        Banned
                     </div>
-                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{constraints.bannedCombinations.length}</div>
-                    
+                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{totalBannedCount}</div>
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Course {baseBannedCount} • Curriculum {curriculumBannedCount}
+                    </div>
                   </div>
                   <div className="group hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg p-2 transition-colors">
                     <div className="font-semibold text-primary mb-1 flex items-center justify-center gap-1">
                        Co-requisites
                     </div>
-                    <div className="text-2xl font-bold text-primary">{constraints.corequisites.length}</div>
-                    
+                    <div className="text-2xl font-bold text-primary">{totalCoreqCount}</div>
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Course {baseCoreqCount} • Curriculum {curriculumCoreqCount}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -675,36 +839,41 @@ export default function ConstraintsTab({ courses, curriculumId }: ConstraintsTab
             
             {/* Current Constraints Display */}
             <div className="space-y-4 mb-6">
-              {Object.entries(constraints).map(([type, courseList]) => (
+              {Object.entries(displayConstraints).map(([type, courseList]) => (
                 <div key={type}>
                   <h5 className="font-semibold mb-2 text-foreground">{getConstraintTypeLabel(type)}</h5>
                   <div className="flex flex-wrap gap-2">
                     {courseList.length > 0 ? (
                       courseList.map((item: any, idx: number) => {
-                        // Handle different constraint structures
-                        const course = item.otherCourse || item; // For curriculum constraints vs regular course constraints
-                        const displayCode = course.code || course.id || 'Unknown';
-                        const displayName = course.name || 'Unknown Course';
-                        const itemKey = item.id || course.id || idx;
-                        
+                        const displayCode = item.code || `Unknown-${idx}`;
+                        const displayName = item.name || 'Unknown Course';
+                        const itemKey = item.key || `${item.source}-${displayCode}-${idx}`;
+
                         return (
                           <div key={itemKey} className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${getConstraintColor(type)} group hover:shadow-sm transition-all`}>
                             <span className="font-medium">{displayCode}</span>
                             <span className="text-xs opacity-75">({displayName.split(' ').slice(0, 2).join(' ')})</span>
-                            <button 
-                              suppressHydrationWarning
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (window.confirm(`Remove ${displayCode} from ${getConstraintTypeLabel(type).toLowerCase()}?`)) {
-                                  handleRemoveConstraint(type, item);
-                                }
-                              }}
-                              disabled={saving}
-                              className="text-current hover:text-red-500 dark:hover:text-red-400 text-base font-bold disabled:opacity-50 ml-1 hover:scale-110 transition-all"
-                              title={`Remove ${displayCode} from ${getConstraintTypeLabel(type).toLowerCase()}`}
-                            >
-                              ×
-                            </button>
+                            <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${item.isCurriculum ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-200'}`}>
+                              {item.source}
+                            </span>
+                            {!item.isCurriculum ? (
+                              <button 
+                                suppressHydrationWarning
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Remove ${displayCode} from ${getConstraintTypeLabel(type).toLowerCase()}?`)) {
+                                    handleRemoveConstraint(type, item.raw);
+                                  }
+                                }}
+                                disabled={saving}
+                                className="text-current hover:text-red-500 dark:hover:text-red-400 text-base font-bold disabled:opacity-50 ml-1 hover:scale-110 transition-all"
+                                title={`Remove ${displayCode} from ${getConstraintTypeLabel(type).toLowerCase()}`}
+                              >
+                                ×
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-gray-600 dark:text-gray-300 ml-1">Managed in curriculum</span>
+                            )}
                           </div>
                         );
                       })
@@ -805,10 +974,27 @@ export default function ConstraintsTab({ courses, curriculumId }: ConstraintsTab
             </h4>
             
             <div className="space-y-4">
+              {overrideSummary.length > 0 && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-400/40 rounded-lg text-amber-800 dark:text-amber-100 text-sm">
+                  <p className="font-semibold">Curriculum overrides in effect</p>
+                  <ul className="mt-2 space-y-1 text-xs list-disc list-inside">
+                    {overrideSummary.map(message => (
+                      <li key={message}>{message}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-200/80">
+                    Base course settings below update the default behaviour for other curricula.
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-center justify-between p-3 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg">
                 <div>
                   <div className="font-semibold text-foreground">Chairperson Permission Required</div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">Students need special approval to enroll</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Final status: {finalRequiresPermission ? 'Permission required' : 'Permission not required'} ({finalPermissionOrigin})
+                  </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
@@ -826,6 +1012,9 @@ export default function ConstraintsTab({ courses, curriculumId }: ConstraintsTab
                 <div>
                   <div className="font-semibold text-foreground">Summer Session Only</div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">Course can only be taken during summer sessions</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Final status: {finalSummerOnly ? 'Summer only' : 'Available all terms'} ({finalSummerOrigin})
+                  </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
@@ -843,6 +1032,11 @@ export default function ConstraintsTab({ courses, curriculumId }: ConstraintsTab
                 <div>
                   <div className="font-semibold text-foreground">Senior Standing Required</div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">Student must be a senior with specified credit threshold</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Final status: {finalRequiresSeniorStanding
+                      ? `Senior standing required${finalMinCreditThreshold ? ` (${finalMinCreditThreshold}+ credits)` : ''}`
+                      : 'Senior standing not required'} ({finalSeniorOrigin})
+                  </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
@@ -869,7 +1063,7 @@ export default function ConstraintsTab({ courses, curriculumId }: ConstraintsTab
                       min="0"
                       max="200"
                       step="1"
-                      value={courseFlags.minCreditThreshold || 90}
+                      value={courseFlags.minCreditThreshold ?? finalMinCreditThreshold ?? 90}
                       onChange={(e) => handleFlagChange('minCreditThreshold', parseInt(e.target.value) || 90)}
                       disabled={flagSaving}
                       className="flex-1 border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm disabled:opacity-50"
