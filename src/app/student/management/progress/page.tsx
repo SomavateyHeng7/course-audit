@@ -1171,7 +1171,16 @@ export default function ProgressPage() {
     console.log('🔍 DEBUG: Final category stats:', categoryStats);
   }
   
-  const totalCreditsRequired = 132; // Replace with real value from curriculum when available
+  const totalCreditsRequired = (() => {
+    if (typeof curriculumData?.totalCreditsRequired === 'number' && curriculumData.totalCreditsRequired > 0) {
+      return curriculumData.totalCreditsRequired;
+    }
+    if (typeof curriculumProgress?.totalCreditsRequired === 'number' && curriculumProgress.totalCreditsRequired > 0) {
+      return curriculumProgress.totalCreditsRequired;
+    }
+    return 120;
+  })();
+
   const percent = totalCreditsRequired ? Math.round((earnedCredits / totalCreditsRequired) * 100) : 0;
   const projectedPercent = totalCreditsRequired ? Math.round(((earnedCredits + plannedCredits) / totalCreditsRequired) * 100) : 0;
   const gpa = totalGpaCredits > 0 ? (totalGradePoints / totalGpaCredits).toFixed(2) : 'N/A';

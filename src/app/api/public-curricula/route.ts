@@ -140,6 +140,7 @@ export async function GET(request: NextRequest) {
         year: curriculum.year,
         version: curriculum.version,
         description: curriculum.description,
+        totalCreditsRequired: curriculum.totalCreditsRequired,
         startId: curriculum.startId,
         endId: curriculum.endId,
         department: curriculum.department,

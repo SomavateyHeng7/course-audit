@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, year, departmentId, startId, endId, courses } = await req.json();
+    const { name, year, departmentId, startId, endId, courses, totalCreditsRequired } = await req.json();
 
     // Validate input
     if (!name || !year || !departmentId || !startId || !endId || !courses) {
@@ -86,6 +86,12 @@ export async function POST(req: Request) {
     }
 
     // Create curriculum with courses
+    const resolvedTotalCreditsRequired = typeof totalCreditsRequired === 'number'
+      ? totalCreditsRequired
+      : Array.isArray(courses)
+        ? courses.reduce((sum: number, course: any) => sum + (course.credits || 0), 0)
+        : 0;
+
     const curriculum = await prisma.curriculum.create({
       data: {
         name: name,
@@ -95,6 +101,7 @@ export async function POST(req: Request) {
         departmentId: departmentId,
         facultyId: session.user.faculty.id,
         createdById: session.user.id,
+        totalCreditsRequired: resolvedTotalCreditsRequired,
         curriculumCourses: {
           create: courses.map((course: any, index: number) => ({
             course: {

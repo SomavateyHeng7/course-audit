@@ -13,6 +13,7 @@ const createCurriculumSchema = z.object({
   endId: z.string().min(1, 'End ID is required'),
   departmentId: z.string().min(1, 'Department ID is required'),
   facultyId: z.string().min(1, 'Faculty ID is required'),
+  totalCreditsRequired: z.coerce.number({ invalid_type_error: 'Total credits must be a number' }).min(0, 'Total credits must be non-negative').default(0),
   // Course data from Excel upload
   courses: z.array(z.object({
     code: z.string().min(1, 'Course code is required'),
@@ -390,6 +391,7 @@ export async function POST(request: NextRequest) {
           description: validatedData.description,
           startId: validatedData.startId,
           endId: validatedData.endId,
+          totalCreditsRequired: validatedData.totalCreditsRequired ?? 0,
           departmentId: validatedData.departmentId,
           facultyId: validatedData.facultyId,
           createdById: session.user.id,

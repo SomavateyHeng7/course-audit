@@ -87,6 +87,7 @@ model Curriculum {
   year                     String
   version                  String                 @default("1.0")
   description              String?
+  totalCreditsRequired     Int                    @default(0)
   startId                  String
   endId                    String
   isActive                 Boolean                @default(true)

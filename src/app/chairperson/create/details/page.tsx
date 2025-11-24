@@ -225,6 +225,7 @@ export default function CurriculumDetails() {
         description: `Curriculum containing ${courses.length} courses`,
         startId: curriculumInfo.idStart,
         endId: curriculumInfo.idEnd,
+        totalCreditsRequired: Number(curriculumInfo.totalCredits) || 0,
         departmentId: selectedDepartmentId,
         facultyId: session.user.faculty.id,
         courses: courses.map((course, index) => ({

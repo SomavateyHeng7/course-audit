@@ -73,7 +73,8 @@ export interface CourseInfo {
 export interface CurriculumData {
   id: string;
   name: string;
-  totalCredits: number;
+  totalCreditsRequired?: number;
+  totalCredits?: number;
 }
 
 export interface ConstraintData {
@@ -216,8 +217,8 @@ export async function calculateCurriculumProgress(
     const requirements = [
       {
         name: 'Minimum Credit Hours',
-        satisfied: totalCreditsCompleted >= (curriculum.totalCredits || 120),
-        details: `${totalCreditsCompleted}/${curriculum.totalCredits || 120} credits completed`
+        satisfied: totalCreditsCompleted >= (curriculum.totalCreditsRequired ?? curriculum.totalCredits ?? 120),
+        details: `${totalCreditsCompleted}/${curriculum.totalCreditsRequired ?? curriculum.totalCredits ?? 120} credits completed`
       },
       {
         name: 'Core Course Requirements',
@@ -232,7 +233,7 @@ export async function calculateCurriculumProgress(
     ];
 
     return {
-      totalCreditsRequired: curriculum.totalCredits || 120,
+      totalCreditsRequired: curriculum.totalCreditsRequired ?? curriculum.totalCredits ?? 120,
       totalCreditsCompleted,
       totalCreditsInProgress,
       categoryProgress,
