@@ -74,17 +74,38 @@ export const authOptions = {
   ],
   callbacks: {
     async jwt({ token, user }: any) {
+      // Always ensure we return a valid object to prevent jwt.sign(null) errors
+      const baseToken = (token && typeof token === 'object') ? token : {};
+      const nextToken: Record<string, unknown> = { ...baseToken };
+
       if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.faculty = user.faculty;
-        token.departmentId = user.departmentId;
-        token.advisorId = user.advisorId;
+        nextToken.id = user.id;
+        nextToken.role = user.role;
+        nextToken.faculty = user.faculty;
+        nextToken.departmentId = user.departmentId;
+        nextToken.advisorId = user.advisorId;
       }
-      return token;
+
+      // Ensure token always has required JWT fields
+      if (!nextToken.iat) {
+        nextToken.iat = Math.floor(Date.now() / 1000);
+      }
+      if (!nextToken.exp) {
+        nextToken.exp = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
+      }
+
+      return nextToken;
     },
     async session({ session, token }: any) {
-      if (session.user) {
+      // Ensure session.user exists before assigning
+      if (!session) {
+        session = { user: {} };
+      }
+      if (!session.user) {
+        session.user = {};
+      }
+
+      if (token && typeof token === 'object') {
         session.user.id = token.id as string;
         session.user.role = token.role;
         session.user.faculty = token.faculty;           // { id, name, code }

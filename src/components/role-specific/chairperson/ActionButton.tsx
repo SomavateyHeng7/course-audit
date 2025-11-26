@@ -11,7 +11,7 @@ import {
 
 interface ActionButtonProps {
   icon: React.ReactNode;
-  onClick: () => void;
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
   variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
   tooltip?: string;
@@ -19,6 +19,7 @@ interface ActionButtonProps {
   loading?: boolean;
   className?: string;
   hideTextOnMobile?: boolean;
+  stopPropagation?: boolean;
   children?: React.ReactNode;
 }
 
@@ -32,6 +33,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   loading = false,
   className = "",
   hideTextOnMobile = false,
+  stopPropagation = false,
   children
 }) => {
   const sizeClasses = {
@@ -40,9 +42,21 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
     lg: 'h-10 w-10 p-0'
   };
 
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (stopPropagation) {
+      event.stopPropagation();
+    }
+
+    if (disabled || loading) {
+      return;
+    }
+
+    onClick?.(event);
+  };
+
   const buttonContent = (
     <Button
-      onClick={onClick}
+      onClick={handleClick}
       variant={variant}
       disabled={disabled || loading}
       className={`

@@ -264,13 +264,14 @@ const ChairpersonPage: React.FC = () => {
             {
               key: 'actions',
               label: 'Actions',
-              className: 'w-40',
+              className: 'w-40 text-right',
               render: (curriculum: Curriculum) => (
-                <div className="flex gap-2">
+                <div className="flex gap-2 justify-end">
                   <ActionButton
                     variant="ghost"
                     size="sm"
                     onClick={() => router.push(`/chairperson/info_edit/${curriculum.id}`)}
+                    stopPropagation
                     icon={<Info size={14} />}
                     tooltip="View Details"
                   />
@@ -278,6 +279,7 @@ const ChairpersonPage: React.FC = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDeleteCurriculum(curriculum.id, curriculum.name)}
+                    stopPropagation
                     icon={<Trash2 size={14} />}
                     tooltip="Delete Curriculum"
                     className="text-destructive hover:text-destructive"

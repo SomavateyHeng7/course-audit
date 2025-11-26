@@ -55,6 +55,7 @@ export function DataTable<T extends Record<string, any>>({
 }: DataTableProps<T>) {
   const visibleColumns = columns.filter(col => !col.hideOnMobile);
   const mobileColumns = columns.filter(col => col.hideOnMobile);
+  const desktopGridTemplate = columns.map(() => 'minmax(0, 1fr)').join(' ');
 
   if (loading) {
     return (
@@ -92,12 +93,14 @@ export function DataTable<T extends Record<string, any>>({
       <Card className="overflow-hidden">
         {/* Desktop Table Header */}
         <div className="hidden lg:block">
-          <div className="grid gap-4 p-4 border-b border-border bg-muted/50 font-medium text-sm text-muted-foreground">
-            {columns.map((column, index) => (
-              <div 
-                key={String(column.key)} 
+          <div
+            className="grid gap-4 p-4 border-b border-border bg-muted/50 font-medium text-sm text-muted-foreground"
+            style={{ gridTemplateColumns: desktopGridTemplate }}
+          >
+            {columns.map((column) => (
+              <div
+                key={String(column.key)}
                 className={column.className || 'flex-1'}
-                style={{ gridColumn: index + 1 }}
               >
                 {column.label}
               </div>
@@ -116,7 +119,7 @@ export function DataTable<T extends Record<string, any>>({
                 transition-colors
               `}
               style={{ 
-                gridTemplateColumns: columns.map(col => col.className || '1fr').join(' ') 
+                gridTemplateColumns: desktopGridTemplate 
               }}
               onClick={() => onRowClick?.(item, index)}
             >
@@ -157,7 +160,10 @@ export function DataTable<T extends Record<string, any>>({
 
                   {/* Desktop Grid Layout */}
                   {columns.map((column) => (
-                    <div key={String(column.key)} className="hidden lg:block">
+                    <div
+                      key={String(column.key)}
+                      className={`hidden lg:block ${column.className || ''}`.trim()}
+                    >
                       {column.render ? column.render(item, index) : item[column.key]}
                     </div>
                   ))}

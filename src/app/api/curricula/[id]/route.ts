@@ -3,6 +3,50 @@ import { auth } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
 
+type FacultyDepartmentCacheEntry = {
+  departments: string[];
+  timestamp: number;
+};
+
+const facultyDepartmentCache = new Map<string, FacultyDepartmentCacheEntry>();
+const CACHE_DURATION_MS = 5 * 60 * 1000;
+
+async function getFacultyDepartmentIds(userId: string): Promise<string[]> {
+  const cached = facultyDepartmentCache.get(userId);
+  if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION_MS) {
+    return cached.departments;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      department: {
+        select: {
+          faculty: {
+            select: {
+              departments: {
+                select: { id: true }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!user?.department?.faculty) {
+    throw new Error('User department or faculty not found');
+  }
+
+  const departmentIds = user.department.faculty.departments.map((dept) => dept.id);
+  facultyDepartmentCache.set(userId, {
+    departments: departmentIds,
+    timestamp: Date.now()
+  });
+
+  return departmentIds;
+}
+
 // Validation schema for curriculum updates
 const updateCurriculumSchema = z.object({
   name: z.string().min(1, 'Curriculum name is required').optional(),
@@ -35,21 +79,7 @@ export async function GET(
     }
 
     // Get user's accessible departments (faculty-wide access)
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { 
-        faculty: { include: { departments: true } }
-      }
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: { code: 'USER_NOT_FOUND', message: 'User not found' } },
-        { status: 404 }
-      );
-    }
-
-    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
+    const accessibleDepartmentIds = await getFacultyDepartmentIds(session.user.id);
 
     const curriculum = await prisma.curriculum.findFirst({
       where: {
@@ -261,21 +291,7 @@ export async function PUT(
     const validatedData = updateCurriculumSchema.parse(body);
 
     // Get user's accessible departments (faculty-wide access)
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { 
-        faculty: { include: { departments: true } }
-      }
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: { code: 'USER_NOT_FOUND', message: 'User not found' } },
-        { status: 404 }
-      );
-    }
-
-    const accessibleDepartmentIds = user.faculty.departments.map(dept => dept.id);
+    const accessibleDepartmentIds = await getFacultyDepartmentIds(session.user.id);
 
     // Check if curriculum exists and user has access to it
     const existingCurriculum = await prisma.curriculum.findFirst({

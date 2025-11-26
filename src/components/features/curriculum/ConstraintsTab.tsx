@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { courseConstraintsApi } from '@/services/courseConstraintsApi';
+import { curriculumCourseConstraintsApi } from '@/services/curriculumCourseConstraintsApi';
 
 interface Course {
   id: string;
@@ -43,6 +44,15 @@ interface CurriculumCourseMeta {
   overrideMinCreditThreshold?: number | null;
 }
 
+interface CurriculumCourseRelation {
+  id: string;
+  curriculumCourseId: string;
+  courseId: string;
+  code: string;
+  name: string | null;
+  credits: number | null;
+}
+
 interface CourseConstraints {
   prerequisites: Course[];
   corequisites: Course[];
@@ -64,6 +74,64 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
   const [constraintType, setConstraintType] = useState('prerequisites');
   const [selectedConstraintCourse, setSelectedConstraintCourse] = useState('');
   const [constraintCourseSearch, setConstraintCourseSearch] = useState('');
+
+  const [curriculumPrerequisitesState, setCurriculumPrerequisitesState] = useState<CurriculumCourseRelation[]>([]);
+  const [curriculumCorequisitesState, setCurriculumCorequisitesState] = useState<CurriculumCourseRelation[]>([]);
+
+  const getCourseIdentifier = (course: Course) => course.curriculumCourseId || course.id || course.code;
+
+  // Resolve the selected course, falling back to curriculum metadata if the main list changes.
+  const resolveCourseData = (identifier: string | null | undefined): Course | null => {
+    if (!identifier) {
+      return null;
+    }
+
+    const courseMatch = courses.find(course => String(getCourseIdentifier(course)) === String(identifier));
+    if (courseMatch) {
+      return courseMatch;
+    }
+
+    const metaMatch = curriculumCourses?.find(meta =>
+      meta.curriculumCourseId === identifier ||
+      meta.courseId === identifier ||
+      meta.courseCode === identifier
+    );
+
+    if (metaMatch) {
+      return {
+        id: metaMatch.courseId,
+        code: metaMatch.courseCode,
+        name: metaMatch.courseCode,
+        curriculumPrerequisites: metaMatch.curriculumPrerequisites,
+        curriculumCorequisites: metaMatch.curriculumCorequisites,
+        curriculumCourseId: metaMatch.curriculumCourseId,
+      };
+    }
+
+    return null;
+  };
+
+  const selectedCourseData = resolveCourseData(selectedCourse);
+
+  const getSelectedCourseData = (): Course =>
+    selectedCourseData ?? {
+      id: '',
+      code: selectedCourse ? String(selectedCourse) : 'UNKNOWN',
+      name: 'Unknown Course',
+      curriculumPrerequisites: [],
+      curriculumCorequisites: [],
+      curriculumCourseId: selectedCourse ? String(selectedCourse) : undefined,
+    };
+
+  const selectedCurriculumCourseId: string | null = selectedCourseData?.curriculumCourseId
+    ?? (selectedCourseData
+      ? curriculumCourses?.find((meta) => {
+          if (selectedCourseData.id) {
+            return meta.courseId === selectedCourseData.id;
+          }
+          return meta.courseCode === selectedCourseData.code;
+        })?.curriculumCourseId ?? null
+      : null);
   
   // Real constraint data from backend
   const [constraints, setConstraints] = useState<CourseConstraints>({
@@ -85,40 +153,19 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
   const [error, setError] = useState<string | null>(null);
   const [flagSaving, setFlagSaving] = useState(false);
 
-  // Helper function to get course identifier (use id if available, otherwise use code)
-  const getCourseIdentifier = (course: Course) => {
-    return course.id || course.code;
-  };
+  const [overrideFlags, setOverrideFlags] = useState({
+    overrideRequiresPermission: null as boolean | null,
+    overrideSummerOnly: null as boolean | null,
+    overrideRequiresSeniorStanding: null as boolean | null,
+    overrideMinCreditThreshold: null as number | null,
+  });
 
-  const getSelectedCourseData = () => {
-    if (!selectedCourse) return { id: '', code: 'No course selected', name: 'Please select a course' };
-    const found = courses.find(course => getCourseIdentifier(course) === selectedCourse);
-    return found || { id: '', code: 'No course selected', name: 'Please select a course' };
-  };
-
-  const selectedCourseData = selectedCourse
-    ? courses.find(course => getCourseIdentifier(course) === selectedCourse) ?? null
-    : null;
-
-  const selectedCourseId = selectedCourseData?.id ?? null;
-  const selectedCourseCode = selectedCourseData?.code ?? null;
-
-  const selectedCurriculumCourse = useMemo(() => {
-    if (!curriculumCourses) return undefined;
-    return curriculumCourses.find(entry => {
-      if (selectedCourseId && entry.courseId === selectedCourseId) return true;
-      if (selectedCourseCode && entry.courseCode === selectedCourseCode) return true;
-      return false;
-    });
-  }, [curriculumCourses, selectedCourseId, selectedCourseCode]);
-
-  // Set default selected course when courses are available
-  useEffect(() => {
-    if (courses.length > 0 && !selectedCourse) {
-      // Don't auto-select any course initially
-      // setSelectedCourse(courses[0].id);
-    }
-  }, [courses, selectedCourse]);
+  const [mergedFlags, setMergedFlags] = useState({
+    requiresPermission: false,
+    summerOnly: false,
+    requiresSeniorStanding: false,
+    minCreditThreshold: null as number | null,
+  });
 
   // Load constraints when selected course changes
   useEffect(() => {
@@ -129,84 +176,109 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
 
   const loadConstraints = async () => {
     if (!selectedCourse) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Get the actual course data to find the real ID
       const selectedCourseData = getSelectedCourseData();
-      
+
       if (!selectedCourseData.id) {
         setError('Course ID is missing. Cannot load constraints without proper course ID.');
         return;
       }
-      
-      // Load all constraints for the selected course
+
+      setOverrideFlags({
+        overrideRequiresPermission: null,
+        overrideSummerOnly: null,
+        overrideRequiresSeniorStanding: null,
+        overrideMinCreditThreshold: null,
+      });
+      setMergedFlags({
+        requiresPermission: false,
+        summerOnly: false,
+        requiresSeniorStanding: false,
+        minCreditThreshold: null,
+      });
+      setCurriculumPrerequisitesState([]);
+      setCurriculumCorequisitesState([]);
+
       const constraintsData = await courseConstraintsApi.getConstraints(selectedCourseData.id);
-      
-      // Load curriculum-level banned combinations
+
       let bannedCombinations: any[] = constraintsData.bannedCombinations || [];
       if (curriculumId) {
         try {
           const curriculumResponse = await fetch(`/api/curricula/${curriculumId}/constraints`);
           if (curriculumResponse.ok) {
             const curriculumData = await curriculumResponse.json();
-            console.log('Loaded curriculum constraints:', curriculumData);
-            
-            // Access the constraints array from the response
             const curriculumConstraints = curriculumData.constraints || [];
-            
-            // Filter for banned combinations that involve this course
+
             const curriculumBannedCombinations = curriculumConstraints
-              .filter((constraint: any) => {
-                console.log('Checking constraint:', constraint);
-                return constraint.type === 'CUSTOM' && 
-                       constraint.config?.type === 'banned_combination' &&
-                       constraint.config?.courses?.some((course: any) => course.id === selectedCourseData.id);
-              })
+              .filter((constraint: any) =>
+                constraint.type === 'CUSTOM' &&
+                constraint.config?.type === 'banned_combination' &&
+                constraint.config?.courses?.some((course: any) => course.id === selectedCourseData.id)
+              )
               .map((constraint: any) => {
                 const otherCourse = constraint.config.courses.find((course: any) => course.id !== selectedCourseData.id);
-                console.log('Mapping banned combination:', { constraint, otherCourse });
                 return {
                   id: constraint.id,
                   type: 'curriculumConstraint',
-                  otherCourse: otherCourse,
+                  otherCourse,
                   constraintName: constraint.name,
                   description: constraint.description,
-                  // Add these for display compatibility
                   code: otherCourse?.code || 'Unknown',
                   name: otherCourse?.name || 'Unknown Course'
                 };
               });
-            
-            console.log('Filtered curriculum banned combinations:', curriculumBannedCombinations);
-            
-            // Combine course-level and curriculum-level banned combinations
+
             bannedCombinations = [...bannedCombinations, ...curriculumBannedCombinations];
           }
         } catch (err) {
           console.warn('Could not load curriculum constraints:', err);
         }
       }
-      
+
       setConstraints({
         prerequisites: constraintsData.prerequisites || [],
         corequisites: constraintsData.corequisites || [],
-        bannedCombinations: bannedCombinations,
+        bannedCombinations,
       });
-      
-      setCourseFlags(constraintsData.flags || {
+
+      const baseFlags = constraintsData.flags || {
         requiresPermission: false,
         summerOnly: false,
         requiresSeniorStanding: false,
         minCreditThreshold: 90,
+      };
+
+      setCourseFlags(baseFlags);
+      setMergedFlags({
+        requiresPermission: baseFlags.requiresPermission,
+        summerOnly: baseFlags.summerOnly,
+        requiresSeniorStanding: baseFlags.requiresSeniorStanding,
+        minCreditThreshold: baseFlags.minCreditThreshold ?? null,
       });
+
+      if (curriculumId && selectedCurriculumCourseId) {
+        try {
+          const curriculumConstraintData = await curriculumCourseConstraintsApi.getConstraints(
+            curriculumId,
+            selectedCurriculumCourseId
+          );
+
+          setOverrideFlags(curriculumConstraintData.overrideFlags);
+          setMergedFlags(curriculumConstraintData.mergedFlags);
+          setCurriculumPrerequisitesState(curriculumConstraintData.curriculumPrerequisites || []);
+          setCurriculumCorequisitesState(curriculumConstraintData.curriculumCorequisites || []);
+        } catch (err) {
+          console.warn('Could not load curriculum course overrides:', err);
+        }
+      }
     } catch (err) {
       console.error('Error loading constraints:', err);
       setError(err instanceof Error ? err.message : 'Failed to load constraints');
-      
-      // Reset to empty state on error
+
       setConstraints({
         prerequisites: [],
         corequisites: [],
@@ -218,6 +290,20 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
         requiresSeniorStanding: false,
         minCreditThreshold: 90,
       });
+      setOverrideFlags({
+        overrideRequiresPermission: null,
+        overrideSummerOnly: null,
+        overrideRequiresSeniorStanding: null,
+        overrideMinCreditThreshold: null,
+      });
+      setMergedFlags({
+        requiresPermission: false,
+        summerOnly: false,
+        requiresSeniorStanding: false,
+        minCreditThreshold: null,
+      });
+      setCurriculumPrerequisitesState([]);
+      setCurriculumCorequisitesState([]);
     } finally {
       setLoading(false);
     }
@@ -237,72 +323,77 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
 
   const handleAddConstraint = async () => {
     if (!selectedConstraintCourse || !selectedCourse) {
-      console.log('Missing required fields:', { selectedConstraintCourse, selectedCourse });
       return;
     }
-    
+
     setSaving(true);
     setError(null);
-    
+
     try {
-      // Get the actual course data to find the real ID
       const selectedCourseData = getSelectedCourseData();
       const constraintCourseData = courses.find(c => getCourseIdentifier(c) === selectedConstraintCourse);
-      
-      console.log('Adding constraint:', {
-        selectedCourse,
-        selectedCourseData,
-        selectedConstraintCourse,
-        constraintCourseData,
-        constraintType
-      });
-      
+
       if (!selectedCourseData.id || !constraintCourseData?.id) {
-        const errorMsg = 'Course IDs are missing. Cannot add constraints without proper course IDs.';
-        console.error(errorMsg, { selectedCourseData, constraintCourseData });
-        setError(errorMsg);
+        setError('Course IDs are missing. Cannot add constraints without proper course IDs.');
         return;
       }
-      
-      if (constraintType === 'prerequisites') {
-        console.log('Adding prerequisite:', selectedCourseData.id, '->', constraintCourseData.id);
-        await courseConstraintsApi.addPrerequisite(selectedCourseData.id, constraintCourseData.id);
-      } else if (constraintType === 'corequisites') {
-        console.log('Adding corequisite:', selectedCourseData.id, '<->', constraintCourseData.id);
-        await courseConstraintsApi.addCorequisite(selectedCourseData.id, constraintCourseData.id);
-      } else if (constraintType === 'bannedCombinations') {
-        // Handle banned combinations at curriculum level
-        console.log('Entered bannedCombinations branch');
-        console.log('curriculumId check:', curriculumId);
-        
-        if (!curriculumId) {
-          const errorMsg = 'Curriculum ID is missing. Cannot add banned combinations without curriculum ID.';
-          console.error(errorMsg);
-          setError(errorMsg);
+
+      if (constraintType === 'prerequisites' || constraintType === 'corequisites') {
+        if (!curriculumId || !selectedCurriculumCourseId) {
+          setError('Curriculum mapping not available for the selected course.');
           return;
         }
-        
-        console.log('Adding banned combination:', selectedCourseData.id, '<X>', constraintCourseData.id);
-        console.log('Current curriculumId:', curriculumId);
-        
-        try {
-          console.log('About to call addBannedCombination...');
-          const result = await addBannedCombination(curriculumId, selectedCourseData.id, constraintCourseData.id);
-          console.log('Banned combination added successfully via addBannedCombination:', result);
-        } catch (bannedErr) {
-          console.error('Error in addBannedCombination:', bannedErr);
-          throw bannedErr; // Re-throw to be caught by main try-catch
+
+        const targetCurriculumCourseId = constraintCourseData.curriculumCourseId
+          || curriculumCourses?.find(entry => entry.courseId === constraintCourseData.id)?.curriculumCourseId
+          || null;
+
+        if (!targetCurriculumCourseId) {
+          setError('Selected course is not part of this curriculum.');
+          return;
         }
+
+        if (targetCurriculumCourseId === selectedCurriculumCourseId) {
+          setError('A course cannot reference itself. Choose a different course.');
+          return;
+        }
+
+        if (constraintType === 'prerequisites') {
+          console.log('Adding prerequisite:', { curriculumId, selectedCurriculumCourseId, targetCurriculumCourseId });
+          const prerequisite = await curriculumCourseConstraintsApi.addPrerequisite(
+            curriculumId as string,
+            selectedCurriculumCourseId as string,
+            targetCurriculumCourseId
+          );
+          setCurriculumPrerequisitesState(prev => [...prev, prerequisite]);
+        } else {
+          console.log('Adding corequisite:', { curriculumId, selectedCurriculumCourseId, targetCurriculumCourseId });
+          const corequisite = await curriculumCourseConstraintsApi.addCorequisite(
+            curriculumId as string,
+            selectedCurriculumCourseId as string,
+            targetCurriculumCourseId
+          );
+          setCurriculumCorequisitesState(prev => [...prev, corequisite]);
+        }
+      } else if (constraintType === 'bannedCombinations') {
+        if (!curriculumId) {
+          setError('Curriculum ID is missing. Cannot add banned combinations without curriculum ID.');
+          return;
+        }
+
+        await addBannedCombination(curriculumId, selectedCourseData.id, constraintCourseData.id);
+        await loadConstraints();
       }
-      
+
       setSelectedConstraintCourse('');
       setConstraintCourseSearch('');
-      // Reload constraints to get updated data
-      await loadConstraints();
-      console.log('Constraint added successfully');
-    } catch (err) {
-      console.error('Error adding constraint:', err);
-      setError(err instanceof Error ? err.message : 'Failed to add constraint');
+    } catch (err: any) {
+      // Handle duplicate constraint errors gracefully
+      if (err?.message?.includes('already exists') || err?.message?.includes('DUPLICATE')) {
+        setError('This constraint already exists for this course.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to add constraint');
+      }
     } finally {
       setSaving(false);
     }
@@ -364,118 +455,156 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
     return data;
   };
 
-  const handleRemoveConstraint = async (type: string, course: Course | any) => {
+  const handleRemoveConstraint = async (type: string, item: any) => {
     if (!selectedCourse) return;
-    
+
     setSaving(true);
     setError(null);
-    
+
     try {
-      // Get the actual course data to find the real ID
-      const selectedCourseData = getSelectedCourseData();
-      
-      if (!selectedCourseData.id) {
-        setError('Course ID is missing. Cannot remove constraints without proper course ID.');
+      if ((type === 'prerequisites' || type === 'corequisites') && (!curriculumId || !selectedCurriculumCourseId)) {
+        setError('Curriculum mapping not available for the selected course.');
         return;
       }
-      
+
       if (type === 'prerequisites') {
-        // Find the prerequisite relation by course ID
-        const prerequisites = await courseConstraintsApi.getPrerequisites(selectedCourseData.id);
-        const relation = prerequisites.find(p => p.prerequisite.id === course.id);
-        if (relation) {
-          await courseConstraintsApi.removePrerequisite(selectedCourseData.id, relation.id);
+        if (!item?.id) {
+          setError('Unable to identify prerequisite relation for removal.');
+          return;
         }
+
+        await curriculumCourseConstraintsApi.removePrerequisite(
+          curriculumId as string,
+          selectedCurriculumCourseId as string,
+          item.id
+        );
+
+        setCurriculumPrerequisitesState(prev => prev.filter(relation => relation.id !== item.id));
       } else if (type === 'corequisites') {
-        // Find the corequisite relation by course ID
-        const corequisites = await courseConstraintsApi.getCorequisites(selectedCourseData.id);
-        const relation = corequisites.find(c => c.corequisite.id === course.id);
-        if (relation) {
-          await courseConstraintsApi.removeCorequisite(selectedCourseData.id, relation.id);
+        if (!item?.id) {
+          setError('Unable to identify co-requisite relation for removal.');
+          return;
         }
+
+        await curriculumCourseConstraintsApi.removeCorequisite(
+          curriculumId as string,
+          selectedCurriculumCourseId as string,
+          item.id
+        );
+
+        setCurriculumCorequisitesState(prev => prev.filter(relation => relation.id !== item.id));
       } else if (type === 'bannedCombinations') {
-        // Handle curriculum-level banned combinations
-        if (course.type === 'curriculumConstraint' && course.id && curriculumId) {
-          const response = await fetch(`/api/curricula/${curriculumId}/constraints/${course.id}`, {
+        if (item?.type === 'curriculumConstraint' && item?.id && curriculumId) {
+          const response = await fetch(`/api/curricula/${curriculumId}/constraints/${item.id}`, {
             method: 'DELETE',
           });
-          
+
           if (!response.ok) {
             const data = await response.json();
             throw new Error(data.error?.message || 'Failed to remove banned combination');
           }
+
+          await loadConstraints();
         }
-        // Course-level banned combinations would be handled differently if they existed
       }
-      
-      // Reload constraints to get updated data
-      await loadConstraints();
     } catch (err) {
-      console.error('Error removing constraint:', err);
       setError(err instanceof Error ? err.message : 'Failed to remove constraint');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSaveConstraints = async () => {
-    if (!selectedCourse) return;
-    
-    setSaving(true);
-    setError(null);
-    
-    try {
-      // Get the actual course data to find the real ID
-      const selectedCourseData = getSelectedCourseData();
-      
-      if (!selectedCourseData.id) {
-        setError('Course ID is missing. Cannot save constraints without proper course ID.');
-        return;
-      }
-      
-      // Save course flags
-      await courseConstraintsApi.updateConstraintFlags(selectedCourseData.id, courseFlags);
-      
-      // Show success (you might want to add a toast notification here)
-      console.log('Constraints saved successfully');
-    } catch (err) {
-      console.error('Error saving constraints:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save constraints');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Auto-save function for flags
-  const autoSaveFlags = async (newFlags: CourseConstraintFlags) => {
-    if (!selectedCourse) return;
-    
-    setFlagSaving(true);
-    
-    try {
-      const selectedCourseData = getSelectedCourseData();
-      
-      if (!selectedCourseData.id) {
-        console.error('Course ID is missing. Cannot save flags.');
-        return;
-      }
-      
-      console.log('Auto-saving flags for course:', selectedCourseData.id, newFlags);
-      await courseConstraintsApi.updateConstraintFlags(selectedCourseData.id, newFlags);
-      console.log('Flags auto-saved successfully');
-    } catch (err) {
-      console.error('Error auto-saving flags:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save flag changes');
-    } finally {
-      setFlagSaving(false);
-    }
-  };
-
-  // Handle flag changes with auto-save
+  // Handle curriculum-level flag overrides with auto-save
   const handleFlagChange = (flagName: keyof CourseConstraintFlags, value: any) => {
-    const newFlags = { ...courseFlags, [flagName]: value };
-    setCourseFlags(newFlags);
-    autoSaveFlags(newFlags);
+    console.log('handleFlagChange called:', { flagName, value, curriculumId, selectedCurriculumCourseId });
+    
+    if (!curriculumId || !selectedCurriculumCourseId) {
+      setError('Curriculum mapping not available for the selected course.');
+      return;
+    }
+
+    setFlagSaving(true);
+    setError(null);
+
+    const updates: Partial<typeof overrideFlags> = {};
+
+    if (flagName === 'requiresPermission') {
+      const boolValue = Boolean(value);
+      const normalized = boolValue === courseFlags.requiresPermission ? null : boolValue;
+      if (normalized !== overrideFlags.overrideRequiresPermission) {
+        updates.overrideRequiresPermission = normalized;
+      }
+    } else if (flagName === 'summerOnly') {
+      const boolValue = Boolean(value);
+      const normalized = boolValue === courseFlags.summerOnly ? null : boolValue;
+      if (normalized !== overrideFlags.overrideSummerOnly) {
+        updates.overrideSummerOnly = normalized;
+      }
+    } else if (flagName === 'requiresSeniorStanding') {
+      const boolValue = Boolean(value);
+      const normalized = boolValue === courseFlags.requiresSeniorStanding ? null : boolValue;
+      if (normalized !== overrideFlags.overrideRequiresSeniorStanding) {
+        updates.overrideRequiresSeniorStanding = normalized;
+      }
+    } else if (flagName === 'minCreditThreshold') {
+      let safeValue: number | null;
+      if (value === null || value === undefined) {
+        safeValue = null;
+      } else if (typeof value === 'number') {
+        safeValue = Number.isFinite(value) ? value : null;
+      } else {
+        const parsed = parseInt(value, 10);
+        safeValue = Number.isFinite(parsed) ? parsed : null;
+      }
+      const baseThreshold = courseFlags.minCreditThreshold ?? null;
+      const normalized = safeValue === baseThreshold ? null : safeValue;
+      if (normalized !== overrideFlags.overrideMinCreditThreshold) {
+        updates.overrideMinCreditThreshold = normalized;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      setFlagSaving(false);
+      return;
+    }
+
+    const previousOverrides = { ...overrideFlags };
+    const previousMerged = { ...mergedFlags };
+
+    const nextOverrideState = { ...overrideFlags, ...updates };
+    const nextMergedState = {
+      requiresPermission: nextOverrideState.overrideRequiresPermission ?? courseFlags.requiresPermission,
+      summerOnly: nextOverrideState.overrideSummerOnly ?? courseFlags.summerOnly,
+      requiresSeniorStanding: nextOverrideState.overrideRequiresSeniorStanding ?? courseFlags.requiresSeniorStanding,
+      minCreditThreshold: nextOverrideState.overrideMinCreditThreshold ?? courseFlags.minCreditThreshold ?? null,
+    };
+
+    setOverrideFlags(nextOverrideState);
+    setMergedFlags(nextMergedState);
+
+    console.log('Calling updateOverrides with:', { curriculumId, selectedCurriculumCourseId, updates });
+
+    curriculumCourseConstraintsApi
+      .updateOverrides(curriculumId as string, selectedCurriculumCourseId as string, updates)
+      .then((response) => {
+        console.log('updateOverrides response:', response);
+        setOverrideFlags(response);
+        setMergedFlags({
+          requiresPermission: response.overrideRequiresPermission ?? courseFlags.requiresPermission,
+          summerOnly: response.overrideSummerOnly ?? courseFlags.summerOnly,
+          requiresSeniorStanding: response.overrideRequiresSeniorStanding ?? courseFlags.requiresSeniorStanding,
+          minCreditThreshold: response.overrideMinCreditThreshold ?? courseFlags.minCreditThreshold ?? null,
+        });
+      })
+      .catch((err) => {
+        console.error('updateOverrides error:', err);
+        setOverrideFlags(previousOverrides);
+        setMergedFlags(previousMerged);
+        setError(err instanceof Error ? err.message : 'Failed to save flag changes');
+      })
+      .finally(() => {
+        setFlagSaving(false);
+      });
   };
 
   const getConstraintTypeLabel = (type: string) => {
@@ -497,21 +626,21 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
   };
 
   const basePrereqCount = constraints.prerequisites.length;
-  const curriculumPrereqCount = selectedCurriculumCourse?.curriculumPrerequisites?.length ?? 0;
+  const curriculumPrereqCount = curriculumPrerequisitesState.length;
   const totalPrereqCount = basePrereqCount + curriculumPrereqCount;
 
   const baseCoreqCount = constraints.corequisites.length;
-  const curriculumCoreqCount = selectedCurriculumCourse?.curriculumCorequisites?.length ?? 0;
+  const curriculumCoreqCount = curriculumCorequisitesState.length;
   const totalCoreqCount = baseCoreqCount + curriculumCoreqCount;
 
   const curriculumBannedCount = (constraints.bannedCombinations as any[]).filter(item => item?.type === 'curriculumConstraint').length;
   const baseBannedCount = (constraints.bannedCombinations as any[]).filter(item => item?.type !== 'curriculumConstraint').length;
   const totalBannedCount = constraints.bannedCombinations.length;
 
-  const overrideRequiresPermission = selectedCurriculumCourse?.overrideRequiresPermission;
-  const overrideSummerOnly = selectedCurriculumCourse?.overrideSummerOnly;
-  const overrideRequiresSeniorStanding = selectedCurriculumCourse?.overrideRequiresSeniorStanding;
-  const overrideMinCreditThreshold = selectedCurriculumCourse?.overrideMinCreditThreshold;
+  const overrideRequiresPermission = overrideFlags.overrideRequiresPermission;
+  const overrideSummerOnly = overrideFlags.overrideSummerOnly;
+  const overrideRequiresSeniorStanding = overrideFlags.overrideRequiresSeniorStanding;
+  const overrideMinCreditThreshold = overrideFlags.overrideMinCreditThreshold;
 
   const finalRequiresPermission = overrideRequiresPermission !== null && overrideRequiresPermission !== undefined
     ? Boolean(overrideRequiresPermission)
@@ -565,8 +694,8 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
         isCurriculum: false,
         raw: course,
       })),
-      ...(selectedCurriculumCourse?.curriculumPrerequisites ?? []).map(pr => ({
-        key: `curriculum-${pr.id ?? pr.code}`,
+      ...curriculumPrerequisitesState.map(pr => ({
+        key: `curriculum-${pr.id}`,
         code: pr.code,
         name: pr.name,
         source: 'Curriculum override',
@@ -583,8 +712,8 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
         isCurriculum: false,
         raw: course,
       })),
-      ...(selectedCurriculumCourse?.curriculumCorequisites ?? []).map(coreq => ({
-        key: `curriculum-${coreq.id ?? coreq.code}`,
+      ...curriculumCorequisitesState.map(coreq => ({
+        key: `curriculum-${coreq.id}`,
         code: coreq.code,
         name: coreq.name,
         source: 'Curriculum override',
@@ -856,23 +985,23 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
                             <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${item.isCurriculum ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-200'}`}>
                               {item.source}
                             </span>
-                            {!item.isCurriculum ? (
+                            {item.isCurriculum ? (
                               <button 
                                 suppressHydrationWarning
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (window.confirm(`Remove ${displayCode} from ${getConstraintTypeLabel(type).toLowerCase()}?`)) {
+                                  if (window.confirm(`Remove curriculum override ${displayCode}?`)) {
                                     handleRemoveConstraint(type, item.raw);
                                   }
                                 }}
                                 disabled={saving}
                                 className="text-current hover:text-red-500 dark:hover:text-red-400 text-base font-bold disabled:opacity-50 ml-1 hover:scale-110 transition-all"
-                                title={`Remove ${displayCode} from ${getConstraintTypeLabel(type).toLowerCase()}`}
+                                title={`Remove curriculum override for ${displayCode}`}
                               >
                                 ×
                               </button>
                             ) : (
-                              <span className="text-[10px] text-gray-600 dark:text-gray-300 ml-1">Managed in curriculum</span>
+                              <span className="text-[10px] text-gray-600 dark:text-gray-300 ml-1">Course default</span>
                             )}
                           </div>
                         );
@@ -983,7 +1112,7 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
                     ))}
                   </ul>
                   <p className="mt-2 text-xs text-amber-700 dark:text-amber-200/80">
-                    Base course settings below update the default behaviour for other curricula.
+                    Edits below apply only to this curriculum; base course defaults stay unchanged.
                   </p>
                 </div>
               )}
@@ -999,7 +1128,7 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
                     type="checkbox" 
-                    checked={courseFlags.requiresPermission}
+                    checked={finalRequiresPermission}
                     onChange={(e) => handleFlagChange('requiresPermission', e.target.checked)}
                     disabled={flagSaving}
                     className="sr-only peer" 
@@ -1019,7 +1148,7 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
                     type="checkbox" 
-                    checked={courseFlags.summerOnly}
+                    checked={finalSummerOnly}
                     onChange={(e) => handleFlagChange('summerOnly', e.target.checked)}
                     disabled={flagSaving}
                     className="sr-only peer" 
@@ -1041,7 +1170,7 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
                     type="checkbox" 
-                    checked={courseFlags.requiresSeniorStanding}
+                    checked={finalRequiresSeniorStanding}
                     onChange={(e) => handleFlagChange('requiresSeniorStanding', e.target.checked)}
                     disabled={flagSaving}
                     className="sr-only peer" 
@@ -1051,7 +1180,7 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
               </div>
               
               {/* Credit Threshold Input - shown when Senior Standing is disabled so user can set it before enabling */}
-              {!courseFlags.requiresSeniorStanding && (
+              {!finalRequiresSeniorStanding && (
                 <div className="p-3 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg">
                   <div className="mb-3">
                     <div className="font-semibold text-foreground">Minimum Credit Threshold</div>
@@ -1063,8 +1192,15 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
                       min="0"
                       max="200"
                       step="1"
-                      value={courseFlags.minCreditThreshold ?? finalMinCreditThreshold ?? 90}
-                      onChange={(e) => handleFlagChange('minCreditThreshold', parseInt(e.target.value) || 90)}
+                      value={overrideMinCreditThreshold ?? courseFlags.minCreditThreshold ?? ''}
+                      onChange={(e) => {
+                        const rawValue = e.target.value;
+                        const parsedValue = rawValue === '' ? null : Number.parseInt(rawValue, 10);
+                        const sanitizedValue = typeof parsedValue === 'number' && !Number.isNaN(parsedValue)
+                          ? parsedValue
+                          : null;
+                        handleFlagChange('minCreditThreshold', sanitizedValue);
+                      }}
                       disabled={flagSaving}
                       className="flex-1 border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground text-sm disabled:opacity-50"
                       placeholder="90"

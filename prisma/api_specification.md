@@ -915,6 +915,214 @@ Remove course from curriculum.
 }
 ```
 
+Curriculum-specific overrides and relationships for assigned courses:
+
+### GET /api/curricula/[id]/courses/[curriculumCourseId]/constraints
+Get curriculum-specific overrides, prerequisites, and co-requisites for a course. Chairperson role required.
+
+**Response:**
+```json
+{
+  "success": true,
+  "curriculumCourse": {
+    "id": "curriculum_course_id",
+    "curriculumId": "curriculum_id",
+    "courseId": "course_id",
+    "courseCode": "CS101",
+    "courseName": "Introduction to Computer Science",
+    "curriculumName": "B.S. Computer Science"
+  },
+  "baseFlags": {
+    "requiresPermission": false,
+    "summerOnly": false,
+    "requiresSeniorStanding": true,
+    "minCreditThreshold": 90
+  },
+  "overrideFlags": {
+    "overrideRequiresPermission": null,
+    "overrideSummerOnly": null,
+    "overrideRequiresSeniorStanding": false,
+    "overrideMinCreditThreshold": 60
+  },
+  "mergedFlags": {
+    "requiresPermission": false,
+    "summerOnly": false,
+    "requiresSeniorStanding": false,
+    "minCreditThreshold": 60
+  },
+  "basePrerequisites": [
+    {
+      "courseId": "base_course_id",
+      "code": "CS100",
+      "name": "Foundations of CS"
+    }
+  ],
+  "baseCorequisites": [
+    {
+      "courseId": "co_course_id",
+      "code": "CS111",
+      "name": "Programming Lab"
+    }
+  ],
+  "curriculumPrerequisites": [
+    {
+      "id": "relation_id",
+      "curriculumCourseId": "target_curriculum_course_id",
+      "courseId": "target_course_id",
+      "code": "CS115",
+      "name": "Web Fundamentals",
+      "credits": 3
+    }
+  ],
+  "curriculumCorequisites": [
+    {
+      "id": "relation_id",
+      "curriculumCourseId": "target_curriculum_course_id",
+      "courseId": "target_course_id",
+      "code": "CS116",
+      "name": "UX Studio",
+      "credits": 2
+    }
+  ]
+}
+```
+
+### PUT /api/curricula/[id]/courses/[curriculumCourseId]/constraints
+Update curriculum-specific override flags for a course. Provide at least one override field; omit or set to `null` to inherit base behaviour.
+
+**Request:**
+```json
+{
+  "overrideRequiresPermission": false,
+  "overrideSummerOnly": null,
+  "overrideRequiresSeniorStanding": false,
+  "overrideMinCreditThreshold": 60
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "overrides": {
+    "overrideRequiresPermission": false,
+    "overrideSummerOnly": null,
+    "overrideRequiresSeniorStanding": false,
+    "overrideMinCreditThreshold": 60
+  }
+}
+```
+
+### GET /api/curricula/[id]/courses/[curriculumCourseId]/prerequisites
+Get curriculum-specific prerequisite relations for a course.
+
+**Response:**
+```json
+{
+  "success": true,
+  "prerequisites": [
+    {
+      "id": "relation_id",
+      "curriculumCourseId": "target_curriculum_course_id",
+      "courseId": "target_course_id",
+      "code": "CS115",
+      "name": "Web Fundamentals",
+      "credits": 3
+    }
+  ]
+}
+```
+
+### POST /api/curricula/[id]/courses/[curriculumCourseId]/prerequisites
+Create a curriculum-specific prerequisite relation. One of `targetCurriculumCourseId` or `targetCourseId` must reference another course within the same curriculum.
+
+**Request:**
+```json
+{
+  "targetCurriculumCourseId": "target_curriculum_course_id"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "prerequisite": {
+    "id": "relation_id",
+    "curriculumCourseId": "target_curriculum_course_id",
+    "courseId": "target_course_id",
+    "code": "CS115",
+    "name": "Web Fundamentals",
+    "credits": 3
+  }
+}
+```
+
+### DELETE /api/curricula/[id]/courses/[curriculumCourseId]/prerequisites/[relationId]
+Remove a curriculum-specific prerequisite relation.
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+### GET /api/curricula/[id]/courses/[curriculumCourseId]/corequisites
+Get curriculum-specific co-requisite relations for a course.
+
+**Response:**
+```json
+{
+  "success": true,
+  "corequisites": [
+    {
+      "id": "relation_id",
+      "curriculumCourseId": "target_curriculum_course_id",
+      "courseId": "target_course_id",
+      "code": "CS116",
+      "name": "UX Studio",
+      "credits": 2
+    }
+  ]
+}
+```
+
+### POST /api/curricula/[id]/courses/[curriculumCourseId]/corequisites
+Create a curriculum-specific co-requisite relation. One of `targetCurriculumCourseId` or `targetCourseId` must reference another course within the same curriculum.
+
+**Request:**
+```json
+{
+  "targetCurriculumCourseId": "target_curriculum_course_id"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "corequisite": {
+    "id": "relation_id",
+    "curriculumCourseId": "target_curriculum_course_id",
+    "courseId": "target_course_id",
+    "code": "CS116",
+    "name": "UX Studio",
+    "credits": 2
+  }
+}
+```
+
+### DELETE /api/curricula/[id]/courses/[curriculumCourseId]/corequisites/[relationId]
+Remove a curriculum-specific co-requisite relation.
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
 ## 7. Curriculum Constraints Endpoints
 
 ### GET /api/curricula/[id]/constraints
