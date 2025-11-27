@@ -753,58 +753,27 @@ export default function ProgressPage() {
     if (typeof window !== 'undefined') {
       console.log('🔍 DEBUG: Found curriculum courses, processing...');
     }
-    
-    // Get department course types mapping from the curriculum
-    const departmentCourseTypes = curriculumData?.departmentCourseTypes || {};
-    
-    if (typeof window !== 'undefined') {
-      console.log('🔍 DEBUG: Department course types mapping:', departmentCourseTypes);
-    }
-    
-    // Transform real curriculum data into the format we need
+
     const coursesByCategory: { [category: string]: { code: string; title: string; credits: number }[] } = {};
-    
+
     curriculumData.curriculumCourses.forEach((course: any, index: number) => {
       if (typeof window !== 'undefined') {
         console.log(`🔍 DEBUG: Processing course ${index}:`, {
           fullCourse: course,
           courseObj: course.course,
-          departmentCourseTypes: course.course?.departmentCourseTypes,
-          directDepartmentCourseType: course.departmentCourseType,
-          hasDirectType: !!course.departmentCourseType,
-          hasNestedTypes: !!course.course?.departmentCourseTypes,
-          nestedTypesLength: course.course?.departmentCourseTypes?.length || 0,
-          rawCredits: course.course.credits
+          apiCategory: course.course?.category,
+          rawCredits: course.course?.credits,
+          creditHours: course.course?.creditHours
         });
       }
-      
-      // Use the curriculum-specific department course type mapping
-      let category = 'Unassigned';
-      
-      // Method 1: Direct departmentCourseType with curriculum mapping
-      if (course.departmentCourseType?.name) {
-        const departmentTypeName = course.departmentCourseType.name;
-        category = departmentCourseTypes[departmentTypeName] || departmentTypeName || 'Unassigned';
-        if (typeof window !== 'undefined') {
-          console.log(`🔍 Method 1 - Direct type: ${departmentTypeName} -> Mapped to: ${category}`);
-        }
-      }
-      // Method 2: From nested departmentCourseTypes array with curriculum mapping
-      else if (course.course?.departmentCourseTypes?.length > 0) {
-        const firstType = course.course.departmentCourseTypes[0];
-        const departmentTypeName = firstType.courseType?.name || firstType.name;
-        category = departmentCourseTypes[departmentTypeName] || departmentTypeName || 'Unassigned';
-        if (typeof window !== 'undefined') {
-          console.log(`🔍 Method 2 - Nested type: ${departmentTypeName} -> Mapped to: ${category}`, firstType);
-        }
-      }
-      
-      const parsedCredits = parseCredits(course.course.credits);
-      
+
+      const category = course.course?.category || 'Unassigned';
+      const parsedCredits = parseCredits(course.course?.credits ?? course.course?.creditHours ?? 0);
+
       if (typeof window !== 'undefined') {
-        console.log(`🔍 Final: ${course.course.code} -> Category: ${category}, Credits: ${course.course.credits} -> ${parsedCredits}`);
+        console.log(`🔍 Final: ${course.course?.code} -> Category: ${category}, Credits: ${course.course?.credits} -> ${parsedCredits}`);
       }
-      
+
       if (!coursesByCategory[category]) {
         coursesByCategory[category] = [];
       }
@@ -814,7 +783,7 @@ export default function ProgressPage() {
         credits: parsedCredits
       });
     });
-    
+
     if (typeof window !== 'undefined') {
       console.log('🔍 DEBUG: Built coursesByCategory:', coursesByCategory);
     }

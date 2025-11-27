@@ -130,7 +130,9 @@ export async function GET(
         const requiresSeniorStanding = currCourse.overrideRequiresSeniorStanding ?? course.requiresSeniorStanding ?? false;
         const minCreditThreshold = currCourse.overrideMinCreditThreshold ?? course.minCreditThreshold ?? null;
 
-        const category = course.departmentCourseTypes?.[0]?.courseType?.name || 'Unassigned';
+        const category = course.departmentCourseTypes
+          ?.find(typeAssignment => typeAssignment.curriculumId === curriculum.id)
+          ?.courseType?.name || 'Unassigned';
 
         return {
           id: currCourse.id,

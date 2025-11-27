@@ -607,7 +607,7 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
           raw: item,
         };
       })
-      .filter((entry): entry is { key: string; code: string; name?: string; source: string; isCurriculum: boolean; raw: any } => Boolean(entry))
+        .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
   };
 
   return (

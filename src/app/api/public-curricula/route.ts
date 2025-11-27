@@ -1,5 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/database/prisma';
+
+const curriculumInclude = Prisma.validator<Prisma.CurriculumInclude>()({
+  department: true,
+  faculty: true,
+  curriculumCourses: {
+    include: {
+      course: {
+        include: {
+          departmentCourseTypes: {
+            include: {
+              courseType: true,
+            },
+          },
+          prerequisites: {
+            include: {
+              prerequisite: true,
+            },
+          },
+          corequisites: {
+            include: {
+              corequisite: true,
+            },
+          },
+        },
+      },
+      curriculumPrerequisites: {
+        include: {
+          prerequisiteCourse: {
+            include: {
+              course: {
+                select: {
+                  code: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      curriculumCorequisites: {
+        include: {
+          corequisiteCourse: {
+            include: {
+              course: {
+                select: {
+                  code: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  curriculumConstraints: true,
+  electiveRules: true,
+});
+
+type CurriculumWithRelations = Prisma.CurriculumGetPayload<{
+  include: typeof curriculumInclude;
+}>;
 
 // GET /api/public-curricula - List all active curricula and their courses (public/student access)
 export async function GET(request: NextRequest) {
@@ -10,72 +71,14 @@ export async function GET(request: NextRequest) {
     const year = searchParams.get('year');
     const curriculumId = searchParams.get('curriculumId');
 
-    const where: any = { isActive: true };
+    const where: Prisma.CurriculumWhereInput = { isActive: true };
     if (facultyId) where.facultyId = facultyId;
     if (departmentId) where.departmentId = departmentId;
     if (year) where.year = year;
     if (curriculumId) where.id = curriculumId;
-
-    const curricula = await prisma.curriculum.findMany({
+    const curricula: CurriculumWithRelations[] = await prisma.curriculum.findMany({
       where,
-      include: {
-        department: true,
-        faculty: true,
-        curriculumCourses: {
-          include: { 
-            course: {
-              include: {
-                departmentCourseTypes: {
-                  where: {
-                    curriculumId: { not: null }
-                  },
-                  include: {
-                    courseType: true,
-                  },
-                },
-                prerequisites: {
-                  include: {
-                    prerequisite: true,
-                  },
-                },
-                corequisites: {
-                  include: {
-                    corequisite: true,
-                  },
-                },
-              },
-            },
-            curriculumPrerequisites: {
-              include: {
-                prerequisiteCourse: {
-                  include: {
-                    course: {
-                      select: {
-                        code: true
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            curriculumCorequisites: {
-              include: {
-                corequisiteCourse: {
-                  include: {
-                    course: {
-                      select: {
-                        code: true
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-        },
-        curriculumConstraints: true,
-        electiveRules: true,
-      },
+      include: curriculumInclude,
       orderBy: { updatedAt: 'desc' },
     });
 
