@@ -161,7 +161,7 @@ export default function EnhancedProgressPage() {
   };
 
   const handleBackToDataEntry = () => {
-    router.push('/management/data-entry');
+    router.push('/student/management/data-entry');
   };
 
   if (loading) {

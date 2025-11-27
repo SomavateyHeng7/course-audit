@@ -25,7 +25,7 @@ export default function ManagementPage() {
   const [error, setError] = useState<string>("")
 
   const handleManualEntry = () => {
-    router.push("/management/data-entry")
+    router.push("/student/management/data-entry")
   }
 
   const quickActions = [

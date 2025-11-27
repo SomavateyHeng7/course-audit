@@ -152,6 +152,7 @@ interface CompletedCourseData {
   freeElectives: { code: string; title: string; credits: number }[];
   actualDepartmentId?: string; // Real department ID from curriculum data
   electiveRules?: any[]; // Rules for elective credit requirements
+  curriculumCreditsRequired?: number; // Persisted total credit requirement
 }
 
 interface PlannedCourse {
@@ -263,6 +264,10 @@ export default function ProgressPage() {
                   console.log('Step 6: Found curriculum data:', curriculum);
                 }
                 setCurriculumData(curriculum);
+                setCompletedData(prev => ({
+                  ...prev,
+                  curriculumCreditsRequired: curriculum.totalCreditsRequired ?? curriculum.totalCredits ?? prev.curriculumCreditsRequired,
+                }));
               } else {
                 if (typeof window !== 'undefined') {
                   console.log('Step 6: No curriculum found with ID:', parsedData!.selectedCurriculum);
@@ -1147,6 +1152,9 @@ export default function ProgressPage() {
     if (typeof curriculumProgress?.totalCreditsRequired === 'number' && curriculumProgress.totalCreditsRequired > 0) {
       return curriculumProgress.totalCreditsRequired;
     }
+    if (typeof completedData?.curriculumCreditsRequired === 'number' && completedData.curriculumCreditsRequired > 0) {
+      return completedData.curriculumCreditsRequired;
+    }
     return 120;
   })();
 
@@ -1531,7 +1539,7 @@ export default function ProgressPage() {
         <div className="flex justify-between items-center mb-4">
           <button
             className="border border-input bg-background text-foreground px-4 py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground transition text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            onClick={() => router.push('/management/course-planning')}
+            onClick={() => router.push('/student/management/course-planning')}
           >
             <ArrowLeft size={16} />
             Back to Course Planner
@@ -1539,7 +1547,7 @@ export default function ProgressPage() {
           
           <button
             className="border border-input bg-background text-foreground px-4 py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => router.push('/management/data-entry')}
+            onClick={() => router.push('/student/management/data-entry')}
           >
             Course Entry
           </button>
@@ -1570,7 +1578,7 @@ export default function ProgressPage() {
               Please go to the Course Entry page first to set up your curriculum and add completed courses.
             </p>
             <button
-              onClick={() => router.push('/management/data-entry')}
+              onClick={() => router.push('/student/management/data-entry')}
               className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium transition"
             >
               Go to Course Entry

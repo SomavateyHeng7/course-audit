@@ -132,6 +132,8 @@ export default function DataEntryPage() {
     department: any; 
     faculty: any;
     curriculumCourses?: any[];
+    totalCreditsRequired?: number;
+    totalCredits?: number;
   }>>([]);
   const [concentrations, setConcentrations] = useState<Array<{
     id: string;
@@ -267,7 +269,8 @@ export default function DataEntryPage() {
         selectedConcentration,
         freeElectives,
         actualDepartmentId: actualDeptId, // Add the real department ID
-        electiveRules // Add elective rules for Free Elective credit requirements
+        electiveRules, // Add elective rules for Free Elective credit requirements
+        curriculumCreditsRequired: selectedCurriculumData?.totalCreditsRequired ?? selectedCurriculumData?.totalCredits ?? null,
       };
       localStorage.setItem('studentAuditData', JSON.stringify(dataToSave));
       
@@ -427,7 +430,7 @@ export default function DataEntryPage() {
   };
 
   const handleBackToManagement = () => {
-    router.push('/management');
+    router.push('/student/management');
   };
 
   // Dynamic curriculum courses state
@@ -1351,7 +1354,7 @@ export default function DataEntryPage() {
             {/* <Button 
               variant="default"
               className="bg-sky-500 hover:bg-sky-500/90 text-white min-w-[180px] shadow-sm"
-              onClick={() => router.push('/management/progress')}
+              onClick={() => router.push('/student/management/progress')}
             >
               <BarChart2 className="w-4 h-4 mr-2" />
               Show Progress
