@@ -128,8 +128,7 @@ export default function DataEntryPage() {
   const [curricula, setCurricula] = useState<Array<{ 
     id: string; 
     name: string; 
-    departmentId: string; 
-    department: any; 
+    department?: { id: string } | null; 
     faculty: any;
     curriculumCourses?: any[];
     totalCreditsRequired?: number;
@@ -488,6 +487,7 @@ export default function DataEntryPage() {
           // Find the selected curriculum from our curricula data
           const selectedCurriculumData = curricula.find(c => c.id === selectedCurriculum);
           console.log('🔍 DEBUG: Selected curriculum data:', selectedCurriculumData);
+          const departmentId = selectedCurriculumData?.department?.id || selectedDepartment;
           
           if (selectedCurriculumData && selectedCurriculumData.curriculumCourses) {
             console.log('🔍 DEBUG: Found curriculum courses, processing...');
@@ -500,15 +500,16 @@ export default function DataEntryPage() {
               console.log('Course debug:', {
                 code: course.code,
                 name: course.name,
-                departmentCourseTypes: course.departmentCourseTypes,
+                apiCategory: course.category,
+                credits: course.credits,
+                creditHours: course.creditHours,
+                departmentId,
               });
               
-              // Find the course type for this curriculum's department
-              const departmentCourseType = course.departmentCourseTypes?.find(
-                (dct: any) => dct.departmentId === selectedCurriculumData.departmentId
-              );
-              
-              const category = departmentCourseType?.courseType?.name || 'Unassigned';
+              const category = course.category || 'Unassigned';
+              const credits = typeof course.credits === 'number'
+                ? course.credits
+                : (typeof course.creditHours === 'number' ? course.creditHours : 0);
               
               if (!grouped[category]) {
                 grouped[category] = [];
@@ -517,7 +518,7 @@ export default function DataEntryPage() {
               grouped[category].push({
                 code: course.code,
                 title: course.name,
-                credits: course.credits
+                credits,
               });
             });
             

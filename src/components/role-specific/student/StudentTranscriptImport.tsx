@@ -168,17 +168,13 @@ export default function StudentTranscriptImport({
 
       console.log('Raw curriculum courses:', curriculumCourses.length);
       
-      // Add curriculum courses using their departmentCourseTypes for categorization
+      // Add curriculum courses using category provided by API response
       curriculumCourses.forEach((currCourse: any) => {
         const course = currCourse.course;
         if (course) {
-          // Use the first departmentCourseType name as the category
-          let category = 'Unassigned';
-          if (course.departmentCourseTypes && course.departmentCourseTypes.length > 0) {
-            category = course.departmentCourseTypes[0].courseType?.name || 'Unassigned';
-          }
+          const category = course.category || 'Unassigned';
           
-          console.log(`Course ${course.code}: departmentCourseTypes = ${JSON.stringify(course.departmentCourseTypes)}, category = ${category}`);
+          console.log(`Course ${course.code}: category = ${category}`);
           
           courses.push({
             code: course.code,
