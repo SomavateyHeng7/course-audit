@@ -128,10 +128,11 @@ export default function DataEntryPage() {
   const [curricula, setCurricula] = useState<Array<{ 
     id: string; 
     name: string; 
-    departmentId: string; 
-    department: any; 
+    department?: { id: string } | null; 
     faculty: any;
     curriculumCourses?: any[];
+    totalCreditsRequired?: number;
+    totalCredits?: number;
   }>>([]);
   const [concentrations, setConcentrations] = useState<Array<{
     id: string;
@@ -267,7 +268,8 @@ export default function DataEntryPage() {
         selectedConcentration,
         freeElectives,
         actualDepartmentId: actualDeptId, // Add the real department ID
-        electiveRules // Add elective rules for Free Elective credit requirements
+        electiveRules, // Add elective rules for Free Elective credit requirements
+        curriculumCreditsRequired: selectedCurriculumData?.totalCreditsRequired ?? selectedCurriculumData?.totalCredits ?? null,
       };
       localStorage.setItem('studentAuditData', JSON.stringify(dataToSave));
       
@@ -427,7 +429,7 @@ export default function DataEntryPage() {
   };
 
   const handleBackToManagement = () => {
-    router.push('/management');
+    router.push('/student/management');
   };
 
   // Dynamic curriculum courses state
@@ -485,6 +487,7 @@ export default function DataEntryPage() {
           // Find the selected curriculum from our curricula data
           const selectedCurriculumData = curricula.find(c => c.id === selectedCurriculum);
           console.log('🔍 DEBUG: Selected curriculum data:', selectedCurriculumData);
+          const departmentId = selectedCurriculumData?.department?.id || selectedDepartment;
           
           if (selectedCurriculumData && selectedCurriculumData.curriculumCourses) {
             console.log('🔍 DEBUG: Found curriculum courses, processing...');
@@ -497,15 +500,16 @@ export default function DataEntryPage() {
               console.log('Course debug:', {
                 code: course.code,
                 name: course.name,
-                departmentCourseTypes: course.departmentCourseTypes,
+                apiCategory: course.category,
+                credits: course.credits,
+                creditHours: course.creditHours,
+                departmentId,
               });
               
-              // Find the course type for this curriculum's department
-              const departmentCourseType = course.departmentCourseTypes?.find(
-                (dct: any) => dct.departmentId === selectedCurriculumData.departmentId
-              );
-              
-              const category = departmentCourseType?.courseType?.name || 'Unassigned';
+              const category = course.category || 'Unassigned';
+              const credits = typeof course.credits === 'number'
+                ? course.credits
+                : (typeof course.creditHours === 'number' ? course.creditHours : 0);
               
               if (!grouped[category]) {
                 grouped[category] = [];
@@ -514,7 +518,7 @@ export default function DataEntryPage() {
               grouped[category].push({
                 code: course.code,
                 title: course.name,
-                credits: course.credits
+                credits,
               });
             });
             
@@ -1351,7 +1355,7 @@ export default function DataEntryPage() {
             {/* <Button 
               variant="default"
               className="bg-sky-500 hover:bg-sky-500/90 text-white min-w-[180px] shadow-sm"
-              onClick={() => router.push('/management/progress')}
+              onClick={() => router.push('/student/management/progress')}
             >
               <BarChart2 className="w-4 h-4 mr-2" />
               Show Progress

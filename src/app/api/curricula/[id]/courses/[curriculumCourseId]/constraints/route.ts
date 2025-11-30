@@ -11,6 +11,42 @@ type FacultyDepartmentCacheEntry = {
 const facultyDepartmentCache = new Map<string, FacultyDepartmentCacheEntry>();
 const CACHE_DURATION_MS = 5 * 60 * 1000;
 
+function serializeError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    };
+  }
+
+  if (error && typeof error === 'object') {
+    try {
+      return JSON.parse(JSON.stringify(error));
+    } catch (serializationError) {
+      return { message: 'Failed to serialize error object', serializationError: String(serializationError) };
+    }
+  }
+
+  return { message: String(error) };
+}
+
+function logError(payload: { message: string; error: unknown; context?: Record<string, unknown> }) {
+  const logPayload = {
+    ...payload,
+    error: serializeError(payload.error)
+  };
+
+  try {
+    console.error(logPayload);
+  } catch (loggingError) {
+    console.log('Logging failure in curriculum course constraints route', {
+      loggingError: serializeError(loggingError),
+      originalPayload: logPayload
+    });
+  }
+}
+
 async function getFacultyDepartmentIds(userId: string): Promise<string[]> {
   const cached = facultyDepartmentCache.get(userId);
   if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION_MS) {
@@ -47,11 +83,11 @@ async function getFacultyDepartmentIds(userId: string): Promise<string[]> {
   return departmentIds;
 }
 
-async function getCurriculumCourse<TInclude extends object>(
+async function getCurriculumCourse<TSelect extends object>(
   curriculumId: string,
   curriculumCourseId: string,
   facultyDepartmentIds: string[],
-  include: TInclude
+  select: TSelect
 ) {
   return prisma.curriculumCourse.findFirst({
     where: {
@@ -63,7 +99,7 @@ async function getCurriculumCourse<TInclude extends object>(
         }
       }
     },
-    include
+    select
   });
 }
 
@@ -90,7 +126,10 @@ export async function GET(
   try {
     session = await auth();
   } catch (authError) {
-    console.error('Auth error in GET constraints:', authError);
+    logError({
+      message: 'Auth error in GET constraints',
+      error: authError
+    });
     return NextResponse.json(
       { error: { code: 'AUTH_ERROR', message: 'Authentication service error' } },
       { status: 500 }
@@ -116,8 +155,13 @@ export async function GET(
     const facultyDepartmentIds = await getFacultyDepartmentIds(session.user.id);
 
     const curriculumCourse = await getCurriculumCourse(curriculumId, curriculumCourseId, facultyDepartmentIds, {
+      id: true,
       curriculumId: true,
       courseId: true,
+      overrideRequiresPermission: true,
+      overrideSummerOnly: true,
+      overrideRequiresSeniorStanding: true,
+      overrideMinCreditThreshold: true,
       curriculum: {
         select: {
           id: true,
@@ -136,7 +180,7 @@ export async function GET(
           requiresSeniorStanding: true,
           minCreditThreshold: true,
           prerequisites: {
-            include: {
+            select: {
               prerequisite: {
                 select: {
                   id: true,
@@ -147,7 +191,7 @@ export async function GET(
             }
           },
           corequisites: {
-            include: {
+            select: {
               corequisite: {
                 select: {
                   id: true,
@@ -159,12 +203,9 @@ export async function GET(
           }
         }
       },
-      overrideRequiresPermission: true,
-      overrideSummerOnly: true,
-      overrideRequiresSeniorStanding: true,
-      overrideMinCreditThreshold: true,
       curriculumPrerequisites: {
-        include: {
+        select: {
+          id: true,
           prerequisiteCourse: {
             select: {
               id: true,
@@ -182,7 +223,8 @@ export async function GET(
         }
       },
       curriculumCorequisites: {
-        include: {
+        select: {
+          id: true,
           corequisiteCourse: {
             select: {
               id: true,
@@ -278,7 +320,11 @@ export async function GET(
       curriculumCorequisites
     });
   } catch (error) {
-    console.error('Error fetching curriculum course constraints:', error);
+    logError({
+      message: 'Error fetching curriculum course constraints',
+      error,
+      context: { location: 'GET handler' }
+    });
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch curriculum course constraints' } },
       { status: 500 }
@@ -294,7 +340,10 @@ export async function PUT(
   try {
     session = await auth();
   } catch (authError) {
-    console.error('Auth error in PUT constraints:', authError);
+    logError({
+      message: 'Auth error in PUT constraints',
+      error: authError
+    });
     return NextResponse.json(
       { error: { code: 'AUTH_ERROR', message: 'Authentication service error' } },
       { status: 500 }
@@ -323,8 +372,6 @@ export async function PUT(
     const facultyDepartmentIds = await getFacultyDepartmentIds(session.user.id);
 
     const curriculumCourse = await getCurriculumCourse(curriculumId, curriculumCourseId, facultyDepartmentIds, {
-      id: true,
-      curriculumId: true,
       courseId: true,
       curriculum: {
         select: {
@@ -333,7 +380,8 @@ export async function PUT(
       },
       course: {
         select: {
-          code: true
+          code: true,
+          id: true
         }
       },
       overrideRequiresPermission: true,
@@ -393,7 +441,10 @@ export async function PUT(
       );
     }
 
-    console.error('Error updating curriculum course overrides:', error);
+    logError({
+      message: 'Error updating curriculum course overrides',
+      error
+    });
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'Failed to update curriculum course overrides' } },
       { status: 500 }
