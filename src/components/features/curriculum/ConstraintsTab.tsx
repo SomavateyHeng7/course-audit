@@ -725,7 +725,9 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
       .map(item => {
         const isCurriculum = item?.type === 'curriculumConstraint';
         const code = isCurriculum ? item?.otherCourse?.code ?? item?.code : item?.code;
-        const name = isCurriculum ? item?.otherCourse?.name ?? item?.description ?? '' : item?.name;
+        const name = (isCurriculum
+          ? item?.otherCourse?.name ?? item?.description
+          : item?.name) ?? '';
         if (!code) return null;
         return {
           key: `${isCurriculum ? 'curriculum' : 'course'}-${code}`,
@@ -736,7 +738,7 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
           raw: item,
         };
       })
-      .filter((entry): entry is { key: string; code: string; name?: string; source: string; isCurriculum: boolean; raw: any } => Boolean(entry))
+      .filter((entry): entry is { key: string; code: string; name: string; source: string; isCurriculum: boolean; raw: any } => Boolean(entry))
   };
 
   return (
