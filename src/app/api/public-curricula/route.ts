@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
               include: {
                 departmentCourseTypes: {
                   where: {
-                    curriculumId: { not: null }
+                    curriculumId: { not: undefined }
                   },
                   include: {
                     courseType: true,

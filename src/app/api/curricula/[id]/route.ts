@@ -213,7 +213,7 @@ export async function GET(
       curriculumCourses: curriculum.curriculumCourses.map(cc => {
         const curriculumPrereqs = (cc.curriculumPrerequisites ?? [])
           .map(prereq => prereq.prerequisiteCourse?.course)
-          .filter((course): course is { id: string; code: string; name: string } => Boolean(course?.id && course?.code && typeof course?.name === "string"))
+          .filter((course): course is { id: string; code: string; name: string | null } => Boolean(course?.id && course?.code))
           .map(course => ({
             id: course.id,
             code: course.code,
@@ -222,7 +222,7 @@ export async function GET(
 
         const curriculumCoreqs = (cc.curriculumCorequisites ?? [])
           .map(coreq => coreq.corequisiteCourse?.course)
-          .filter((course): course is { id: string; code: string; name: string } => Boolean(course?.id && course?.code && typeof course?.name === "string"))
+          .filter((course): course is { id: string; code: string; name: string | null } => Boolean(course?.id && course?.code))
           .map(course => ({
             id: course.id,
             code: course.code,
