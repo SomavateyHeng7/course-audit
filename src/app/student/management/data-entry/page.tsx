@@ -94,7 +94,7 @@ const statusColorClasses: Record<'not_completed' | 'completed' | 'failed' | 'wit
 };
 
 // Move gradeOptions to module scope so it is accessible everywhere
-const gradeOptions: string[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'S'];
+const gradeOptions: string[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F','W','TR','I','S','U'];
 
 export default function DataEntryPage() {
   const router = useRouter();

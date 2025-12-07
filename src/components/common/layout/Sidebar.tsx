@@ -89,16 +89,16 @@ const chairpersonNavigationItems = [
     href: '/chairperson/info_config',
     icon: Settings,
   },
-  {
-    name: 'Tentative Schedule',
-    href: '/chairperson/TentativeSchedule',
-    icon: CalendarClock,
-  },
-  {
-    name: 'Student',
-    href: '/chairperson/StudentCheckList',
-    icon: UserCheck,
-  }
+  // {
+  //   name: 'Tentative Schedule',
+  //   href: '/chairperson/TentativeSchedule',
+  //   icon: CalendarClock,
+  // },
+  // {
+  //   name: 'Student',
+  //   href: '/chairperson/StudentCheckList',
+  //   icon: UserCheck,
+  // }
   
 ];
 

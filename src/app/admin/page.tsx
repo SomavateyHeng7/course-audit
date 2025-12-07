@@ -7,6 +7,7 @@ import { Users, Building2, GraduationCap, TrendingUp, BookOpen, Award } from 'lu
 import RoleManagement from '@/components/role-specific/admin/RoleManagement';
 import DepartmentManagement from '@/components/role-specific/admin/DepartmentManagement';
 import FacultyManagement from '@/components/role-specific/admin/FacultyManagement';
+import { getDashboardStats } from '@/lib/api/laravel';
 
 interface DashboardStats {
   overview: {
@@ -46,18 +47,13 @@ export default function AdminDashboard() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/admin/dashboard/stats');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch dashboard data');
-        }
-        
-        const data = await response.json();
+        // Use Laravel backend API
+        const data = await getDashboardStats();
         setDashboardData(data);
         setError(null);
       } catch (err) {
         console.error('Dashboard data fetch error:', err);
-        setError('Failed to load dashboard data');
+        setError('Failed to load dashboard data from Laravel backend');
         // Fallback to mock data
         setDashboardData({
           overview: {
