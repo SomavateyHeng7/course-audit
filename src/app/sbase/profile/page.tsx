@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { API_BASE } from '@/lib/api/laravel';
 
 export default function StudentProfile() {
   const { data: session, status } = useSession();
@@ -20,7 +21,9 @@ export default function StudentProfile() {
       const userRole = String(session.user.role);
       if (userRole !== "CHAIRPERSON" && userRole !== "SUPER_ADMIN") return;
       try {
-        const res = await fetch("/api/student-profile");
+        const res = await fetch(`${API_BASE}/api/student-profile`, {
+          credentials: 'include',
+        });
         if (res.ok) {
           const data = await res.json();
           setSelectedAdvisor(data.advisorInfo?.name || selectedAdvisor);
@@ -36,9 +39,10 @@ export default function StudentProfile() {
 
   const handleSave = async () => {
     try {
-      const res = await fetch("/api/student-profile", {
+      const res = await fetch(`${API_BASE}/api/student-profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify({
           advisorName: selectedAdvisor,
         }),

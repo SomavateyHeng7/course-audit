@@ -8,6 +8,7 @@ import {
   Users,
   GraduationCap
 } from 'lucide-react';
+import { getDepartments, getFaculties, deleteDepartment } from '@/lib/api/laravel';
 
 interface Department {
   id: string;
@@ -43,17 +44,9 @@ export default function DepartmentManagement() {
 
   const fetchDepartments = async () => {
     try {
-      const response = await fetch('/api/departments');
-      console.log('Departments API response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Departments data received:', data);
-        setDepartments(data.departments);
-      } else {
-        const errorData = await response.json();
-        console.error('Departments API error:', response.status, errorData);
-      }
+      const data = await getDepartments();
+      console.log('Departments data received from Laravel:', data);
+      setDepartments(data);
     } catch (error) {
       console.error('Error fetching departments:', error);
     } finally {
@@ -63,17 +56,9 @@ export default function DepartmentManagement() {
 
   const fetchFaculties = async () => {
     try {
-      const response = await fetch('/api/faculties');
-      console.log('Faculties API response status in dept management:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Faculties data received in dept management:', data);
-        setFaculties(data.faculties);
-      } else {
-        const errorData = await response.json();
-        console.error('Faculties API error in dept management:', response.status, errorData);
-      }
+      const data = await getFaculties();
+      console.log('Faculties data received from Laravel in dept management:', data);
+      setFaculties(data);
     } catch (error) {
       console.error('Error fetching faculties:', error);
     }
@@ -83,13 +68,8 @@ export default function DepartmentManagement() {
     if (!confirm('Are you sure you want to delete this department?')) return;
 
     try {
-      const response = await fetch(`/api/departments/${departmentId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchDepartments();
-      }
+      await deleteDepartment(Number(departmentId));
+      fetchDepartments();
     } catch (error) {
       console.error('Error deleting department:', error);
     }

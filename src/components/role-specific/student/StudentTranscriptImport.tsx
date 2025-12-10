@@ -13,6 +13,7 @@ import {
   type CourseData, 
   type TranscriptParseResult 
 } from '@/components/features/excel/ExcelUtils';
+import { API_BASE } from '@/lib/api/laravel';
 import { UnmatchedCourse } from './UnmatchedCoursesSection';
 import { FreeElectiveCourse } from './FreeElectiveManager';
 
@@ -148,7 +149,9 @@ export default function StudentTranscriptImport({
   const fetchCurriculumStructure = async (): Promise<CurriculumCourse[]> => {
     try {
       // Fetch curriculum data from public API (includes constraints and courses)
-      const response = await fetch(`/api/public-curricula?curriculumId=${curriculumId}`);
+      const response = await fetch(`${API_BASE}/api/public-curricula?curriculumId=${curriculumId}`, {
+        credentials: 'include',
+      });
 
       if (!response.ok) {
         throw new Error('Failed to fetch curriculum data');
@@ -205,7 +208,9 @@ export default function StudentTranscriptImport({
       // NOTE: This endpoint may require authentication
       // Currently using curriculum data instead of this function
       const coursePromises = courseCodes.map(async (code) => {
-        const response = await fetch(`/api/courses?departmentId=${departmentId}&code=${code}`);
+        const response = await fetch(`${API_BASE}/api/courses?departmentId=${departmentId}&code=${code}`, {
+          credentials: 'include',
+        });
         if (response.ok) {
           const courses = await response.json();
           return courses.find((c: any) => c.code === code);
@@ -242,7 +247,9 @@ export default function StudentTranscriptImport({
    */
   const fetchElectiveRules = async () => {
     try {
-      const response = await fetch(`/api/public-curricula?curriculumId=${curriculumId}`);
+      const response = await fetch(`${API_BASE}/api/public-curricula?curriculumId=${curriculumId}`, {
+        credentials: 'include',
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch curriculum data');
       }

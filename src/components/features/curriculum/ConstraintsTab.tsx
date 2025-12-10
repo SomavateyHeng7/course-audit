@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { courseConstraintsApi } from '@/services/courseConstraintsApi';
 import { curriculumCourseConstraintsApi } from '@/services/curriculumCourseConstraintsApi';
+import { API_BASE } from '@/lib/api/laravel';
 
 interface Course {
   id: string;
@@ -208,7 +209,9 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
       let bannedCombinations: any[] = constraintsData.bannedCombinations || [];
       if (curriculumId) {
         try {
-          const curriculumResponse = await fetch(`/api/curricula/${curriculumId}/constraints`);
+          const curriculumResponse = await fetch(`${API_BASE}/curricula/${curriculumId}/constraints`, {
+            credentials: 'include'
+          });
           if (curriculumResponse.ok) {
             const curriculumData = await curriculumResponse.json();
             const curriculumConstraints = curriculumData.constraints || [];
@@ -429,14 +432,15 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
       config: config
     };
     
-    console.log('Making POST request to:', `/api/curricula/${curriculumId}/constraints`);
+    console.log('Making POST request to:', `${API_BASE}/api/curricula/${curriculumId}/constraints`);
     console.log('Request body:', JSON.stringify(requestBody, null, 2));
     
-    const response = await fetch(`/api/curricula/${curriculumId}/constraints`, {
+    const response = await fetch(`${API_BASE}/api/curricula/${curriculumId}/constraints`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify(requestBody),
     });
 
@@ -495,8 +499,9 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
         setCurriculumCorequisitesState(prev => prev.filter(relation => relation.id !== item.id));
       } else if (type === 'bannedCombinations') {
         if (item?.type === 'curriculumConstraint' && item?.id && curriculumId) {
-          const response = await fetch(`/api/curricula/${curriculumId}/constraints/${item.id}`, {
+          const response = await fetch(`${API_BASE}/curricula/${curriculumId}/constraints/${item.id}`, {
             method: 'DELETE',
+            credentials: 'include'
           });
 
           if (!response.ok) {

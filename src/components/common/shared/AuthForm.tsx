@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { API_BASE } from '@/lib/api/laravel';
 
 interface Faculty {
   id: string;
@@ -43,7 +44,9 @@ export default function AuthForm() {
       }
       
       // Fetch user session to get role information
-      const response = await fetch('/api/auth/session');
+      const response = await fetch(`${API_BASE}/api/auth/session`, {
+        credentials: 'include',
+      });
       const session = await response.json();
       
       // Redirect based on user role

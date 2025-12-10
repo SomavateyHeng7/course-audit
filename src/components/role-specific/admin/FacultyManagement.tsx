@@ -14,6 +14,7 @@ import {
   Building2,
   BookOpen
 } from 'lucide-react';
+import { getFaculties, createFaculty, updateFaculty, deleteFaculty } from '@/lib/api/laravel';
 
 interface Faculty {
   id: string;
@@ -49,25 +50,13 @@ export default function FacultyManagement() {
 
   const fetchFaculties = async () => {
     try {
-      const response = await fetch('/api/faculties');
-      console.log('Faculties API response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Faculties data received:', data);
-        setFaculties(data.faculties);
-      } else {
-        const errorData = await response.json();
-        console.error('Faculties API error:', response.status, errorData);
-        setToast({ 
-          message: `Failed to fetch faculties: ${errorData.error || 'Unknown error'}`, 
-          type: 'error' 
-        });
-      }
-    } catch (error) {
+      const data = await getFaculties();
+      console.log('Faculties data received from Laravel:', data);
+      setFaculties(data);
+    } catch (error: any) {
       console.error('Error fetching faculties:', error);
       setToast({ 
-        message: 'Network error while fetching faculties', 
+        message: error.message || 'Failed to fetch faculties', 
         type: 'error' 
       });
     } finally {
@@ -79,23 +68,14 @@ export default function FacultyManagement() {
     e.preventDefault();
     setCreateLoading(true);
     try {
-      const response = await fetch('/api/faculties', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        setShowCreateModal(false);
-        setFormData({ name: '', code: '' });
-        fetchFaculties();
-        setToast({ message: 'Faculty created successfully!', type: 'success' });
-      } else {
-        setToast({ message: 'Failed to create faculty.', type: 'error' });
-      }
-    } catch (error) {
+      await createFaculty(formData);
+      setShowCreateModal(false);
+      setFormData({ name: '', code: '' });
+      fetchFaculties();
+      setToast({ message: 'Faculty created successfully!', type: 'success' });
+    } catch (error: any) {
       console.error('Error creating faculty:', error);
-      setToast({ message: 'Error creating faculty.', type: 'error' });
+      setToast({ message: error.message || 'Error creating faculty.', type: 'error' });
     } finally {
       setCreateLoading(false);
       setTimeout(() => setToast(null), 3000);
@@ -107,21 +87,13 @@ export default function FacultyManagement() {
     if (!editingFaculty) return;
     setUpdateLoading(true);
     try {
-      const response = await fetch(`/api/faculties/${editingFaculty.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      if (response.ok) {
-        setToast({ message: 'Faculty updated successfully!', type: 'success' });
-        setEditingFaculty(null);
-        setFormData({ name: '', code: '' });
-        fetchFaculties();
-      } else {
-        setToast({ message: 'Failed to update faculty.', type: 'error' });
-      }
-    } catch (error) {
-      setToast({ message: 'Error updating faculty.', type: 'error' });
+      await updateFaculty(Number(editingFaculty.id), formData);
+      setToast({ message: 'Faculty updated successfully!', type: 'success' });
+      setEditingFaculty(null);
+      setFormData({ name: '', code: '' });
+      fetchFaculties();
+    } catch (error: any) {
+      setToast({ message: error.message || 'Error updating faculty.', type: 'error' });
       console.error('Error updating faculty:', error);
     } finally {
       setUpdateLoading(false);

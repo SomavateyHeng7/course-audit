@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useState, createContext, useContext, useRef, useEffect } from 'react';
 import { useToastHelpers } from '@/hooks/useToast';
+import { getPublicCurricula, getPublicFaculties, getPublicDepartments, API_BASE } from '@/lib/api/laravel';
 
 import * as XLSX from 'xlsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -165,14 +166,12 @@ export default function DataEntryPage() {
     const fetchData = async () => {
       try {
         // Fetch all curricula (public endpoint)
-        const currResponse = await fetch('/api/public-curricula');
-        const currData = await currResponse.json();
+        const currData = await getPublicCurricula();
         const fetchedCurricula = currData.curricula || [];
         setCurricula(fetchedCurricula);
 
         // Fetch faculties (public endpoint)
-        const facultyResponse = await fetch('/api/public-faculties');
-        const facultyData = await facultyResponse.json();
+        const facultyData = await getPublicFaculties();
         const fetchedFaculties = facultyData.faculties || [];
         setFacultyOptions(fetchedFaculties.map((f: any) => ({ 
           value: f.id, 
@@ -180,8 +179,7 @@ export default function DataEntryPage() {
         })));
 
         // Fetch departments (public endpoint)
-        const deptResponse = await fetch('/api/public-departments');
-        const deptData = await deptResponse.json();
+        const deptData = await getPublicDepartments();
         const fetchedDepartments = deptData.departments || [];
         setAllDepartments(fetchedDepartments);
 
@@ -223,25 +221,21 @@ export default function DataEntryPage() {
           departmentId: departmentId
         });
 
-        const concResponse = await fetch(`/api/public-concentrations?curriculumId=${selectedCurriculum}&departmentId=${departmentId}`);
+        const concResponse = await fetch(`${API_BASE}/public-concentrations?curriculumId=${selectedCurriculum}&departmentId=${departmentId}`, {
+          credentials: 'include'
+        });
         const concData = await concResponse.json();
         
         console.log('🔍 DEBUG: Concentration API response:', concData);
         
-        if (concResponse.ok) {
-          const fetchedConcentrations = concData.concentrations || [];
-          console.log('🔍 DEBUG: Fetched concentrations:', fetchedConcentrations);
-          setConcentrations(fetchedConcentrations);
+        const fetchedConcentrations = concData.concentrations || [];
+        console.log('🔍 DEBUG: Fetched concentrations:', fetchedConcentrations);
+        setConcentrations(fetchedConcentrations);
           
-          // Auto-select "general" concentration if not already selected
-          if (!selectedConcentration) {
-            console.log('🔍 DEBUG: Auto-selecting general concentration');
-            setSelectedConcentration('general');
-          }
-        } else {
-          console.error('Failed to fetch concentrations:', concData.error);
-          warning('Could not load all concentrations. Some options may be missing.');
-          setConcentrations([]);
+        // Auto-select "general" concentration if not already selected
+        if (!selectedConcentration) {
+          console.log('🔍 DEBUG: Auto-selecting general concentration');
+          setSelectedConcentration('general');
         }
 
       } catch (error) {

@@ -1,4 +1,5 @@
 // API service for concentration management
+import { API_BASE } from '@/lib/api/laravel';
 
 export interface ConcentrationCourse {
   id: string;
@@ -59,8 +60,9 @@ export interface RemoveCoursesRequest {
 export const concentrationApi = {
   // Get all concentrations
   async getConcentrations(): Promise<ConcentrationData[]> {
-    const response = await fetch('/api/concentrations', {
+    const response = await fetch(`${API_BASE}/concentrations`, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -76,8 +78,9 @@ export const concentrationApi = {
 
   // Get specific concentration
   async getConcentration(id: string): Promise<ConcentrationData> {
-    const response = await fetch(`/api/concentrations/${id}`, {
+    const response = await fetch(`${API_BASE}/concentrations/${id}`, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -93,8 +96,9 @@ export const concentrationApi = {
 
   // Create new concentration
   async createConcentration(data: CreateConcentrationRequest): Promise<ConcentrationData> {
-    const response = await fetch('/api/concentrations', {
+    const response = await fetch(`${API_BASE}/concentrations`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -111,8 +115,9 @@ export const concentrationApi = {
 
   // Update concentration
   async updateConcentration(id: string, data: UpdateConcentrationRequest): Promise<ConcentrationData> {
-    const response = await fetch(`/api/concentrations/${id}`, {
+    const response = await fetch(`${API_BASE}/concentrations/${id}`, {
       method: 'PUT',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -129,8 +134,9 @@ export const concentrationApi = {
 
   // Delete concentration
   async deleteConcentration(id: string): Promise<{ message: string }> {
-    const response = await fetch(`/api/concentrations/${id}`, {
+    const response = await fetch(`${API_BASE}/concentrations/${id}`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -146,8 +152,9 @@ export const concentrationApi = {
 
   // Get courses in concentration
   async getConcentrationCourses(id: string): Promise<ConcentrationCoursesResponse> {
-    const response = await fetch(`/api/concentrations/${id}/courses`, {
+    const response = await fetch(`${API_BASE}/concentrations/${id}/courses`, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -163,8 +170,9 @@ export const concentrationApi = {
 
   // Add courses to concentration
   async addCoursesToConcentration(id: string, data: AddCoursesRequest): Promise<ConcentrationCoursesResponse> {
-    const response = await fetch(`/api/concentrations/${id}/courses`, {
+    const response = await fetch(`${API_BASE}/concentrations/${id}/courses`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -181,8 +189,9 @@ export const concentrationApi = {
 
   // Remove courses from concentration
   async removeCoursesFromConcentration(id: string, data: RemoveCoursesRequest): Promise<ConcentrationCoursesResponse> {
-    const response = await fetch(`/api/concentrations/${id}/courses`, {
+    const response = await fetch(`${API_BASE}/concentrations/${id}/courses`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -360,7 +369,9 @@ export const concentrationApi = {
 export const curriculumConcentrationApi = {
   // Get concentrations assigned to a curriculum
   getCurriculumConcentrations: async (curriculumId: string) => {
-    const response = await fetch(`/api/curricula/${curriculumId}/concentrations`);
+    const response = await fetch(`${API_BASE}/curricula/${curriculumId}/concentrations`, {
+      credentials: 'include'
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch curriculum concentrations');
     }
@@ -370,8 +381,9 @@ export const curriculumConcentrationApi = {
 
   // Add concentration to curriculum
   addCurriculumConcentration: async (curriculumId: string, concentrationId: string, requiredCourses: number = 1) => {
-    const response = await fetch(`/api/curricula/${curriculumId}/concentrations`, {
+    const response = await fetch(`${API_BASE}/curricula/${curriculumId}/concentrations`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -391,8 +403,9 @@ export const curriculumConcentrationApi = {
 
   // Update concentration requirement count
   updateCurriculumConcentration: async (curriculumId: string, concentrationId: string, requiredCourses: number) => {
-    const response = await fetch(`/api/curricula/${curriculumId}/concentrations/${concentrationId}`, {
+    const response = await fetch(`${API_BASE}/curricula/${curriculumId}/concentrations/${concentrationId}`, {
       method: 'PUT',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -411,8 +424,9 @@ export const curriculumConcentrationApi = {
 
   // Remove concentration from curriculum
   removeCurriculumConcentration: async (curriculumId: string, concentrationId: string) => {
-    const response = await fetch(`/api/curricula/${curriculumId}/concentrations/${concentrationId}`, {
+    const response = await fetch(`${API_BASE}/curricula/${curriculumId}/concentrations/${concentrationId}`, {
       method: 'DELETE',
+      credentials: 'include'
     });
     
     if (!response.ok) {

@@ -6,7 +6,7 @@
  */
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const API_BASE = `${API_URL}/api`;
+export const API_BASE = `${API_URL}/api`;
 
 interface LoginCredentials {
   email: string;
@@ -118,6 +118,13 @@ export async function getPublicCurricula() {
 export async function getPublicCurriculum(id: string | number) {
   const response = await fetch(`${API_BASE}/public-curricula/${id}`);
   if (!response.ok) throw new Error('Failed to fetch curriculum');
+  return response.json();
+}
+
+// Public Courses (No auth required)
+export async function getPublicCourses() {
+  const response = await fetch(`${API_BASE}/public-courses`);
+  if (!response.ok) throw new Error('Failed to fetch public courses');
   return response.json();
 }
 

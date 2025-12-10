@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { User, BarChart3, Calendar, Save, Search, Users, BookOpen, Award, GraduationCap } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
+import { API_BASE } from '@/lib/api/laravel';
 
 // Import chairperson components
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
@@ -108,7 +109,9 @@ const StudentManagementPage: React.FC = () => {
   const loadStudents = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/students');
+      const response = await fetch(`${API_BASE}/students`, {
+        credentials: 'include'
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -128,7 +131,9 @@ const StudentManagementPage: React.FC = () => {
   const loadAcademicProgress = async (studentId: string) => {
     try {
       setLoadingProgress(true);
-      const response = await fetch(`/api/students/${studentId}/progress`);
+      const response = await fetch(`${API_BASE}/students/${studentId}/progress`, {
+        credentials: 'include'
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -148,7 +153,9 @@ const StudentManagementPage: React.FC = () => {
   const loadPlannedCourses = async (studentId: string) => {
     try {
       setLoadingCourses(true);
-      const response = await fetch(`/api/students/${studentId}/planned-courses`);
+      const response = await fetch(`${API_BASE}/students/${studentId}/planned-courses`, {
+        credentials: 'include'
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -186,8 +193,9 @@ const StudentManagementPage: React.FC = () => {
     try {
       setLoading(true);
       
-      const response = await fetch(`/api/students/${selectedStudent.id}/update`, {
+      const response = await fetch(`${API_BASE}/students/${selectedStudent.id}/update`, {
         method: 'PUT',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToastHelpers } from '@/hooks/useToast';
+import { API_BASE } from '@/lib/api/laravel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -256,7 +257,9 @@ export default function CoursePlanningPage() {
       setLoading(true);
       // Use actualDepartmentId if available, fall back to selectedDepartment
       const departmentId = dataEntryContext.actualDepartmentId || dataEntryContext.selectedDepartment;
-      const response = await fetch(`/api/available-courses?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${departmentId}`);
+      const response = await fetch(`${API_BASE}/available-courses?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${departmentId}`, {
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch available courses');
       }
@@ -381,7 +384,9 @@ export default function CoursePlanningPage() {
     });
     
     try {
-      const response = await fetch(`/api/public-concentrations?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${actualDepartmentId}`);
+      const response = await fetch(`${API_BASE}/public-concentrations?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${actualDepartmentId}`, {
+        credentials: 'include'
+      });
       console.log('🔍 DEBUG: Course Planning - API response status:', response.status);
       
       if (!response.ok) {
@@ -438,7 +443,9 @@ export default function CoursePlanningPage() {
     if (!dataEntryContext) return;
     
     try {
-      const response = await fetch(`/api/public-curricula/${dataEntryContext.selectedCurriculum}/blacklists`);
+      const response = await fetch(`${API_BASE}/public-curricula/${dataEntryContext.selectedCurriculum}/blacklists`, {
+        credentials: 'include'
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch blacklisted courses');

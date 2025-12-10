@@ -1,5 +1,5 @@
 // API service for faculty concentration label management
-const API_BASE = '/api';
+import { API_BASE } from '@/lib/api/laravel';
 
 export interface FacultyLabelResponse {
   facultyId: string;
@@ -26,6 +26,7 @@ export const facultyLabelApi = {
   async getConcentrationLabel(): Promise<FacultyLabelResponse> {
     const response = await fetch(`${API_BASE}/faculty/concentration-label`, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -43,6 +44,7 @@ export const facultyLabelApi = {
   async updateConcentrationLabel(data: UpdateLabelRequest): Promise<UpdateLabelResponse> {
     const response = await fetch(`${API_BASE}/faculty/concentration-label`, {
       method: 'PUT',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },

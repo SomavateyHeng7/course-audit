@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useToastHelpers } from '@/hooks/useToast';
+import { getDepartments, API_BASE } from '@/lib/api/laravel';
 
 interface ParsedCourse {
   code: string;
@@ -77,36 +78,31 @@ export default function CurriculumDetails() {
   const fetchDepartments = async () => {
     try {
       console.log('Fetching departments...');
-      const response = await fetch('/api/departments');
-      const result = await response.json();
+      const departments = await getDepartments();
       
-      console.log('Departments response:', { status: response.status, result });
+      console.log('Departments response:', { departments });
       
-      if (response.ok && result.departments) {
-        console.log('Setting departments:', result.departments);
-        setDepartments(result.departments);
-        
-        // 🆕 Smart default: Auto-select user's department if available
-        if (session?.user?.departmentId) {
-          const userDepartment = result.departments.find((dept: any) => dept.id === session.user.departmentId);
-          if (userDepartment) {
-            console.log('Auto-selecting user department:', userDepartment.name);
-            setSelectedDepartmentId(session.user.departmentId);
-            fetchCourseTypes(session.user.departmentId);
-            return;
-          }
+      console.log('Setting departments:', departments);
+      setDepartments(departments);
+      
+      // 🆕 Smart default: Auto-select user's department if available
+      if (session?.user?.departmentId) {
+        const userDepartment = departments.find((dept: any) => dept.id === session.user.departmentId);
+        if (userDepartment) {
+          console.log('Auto-selecting user department:', userDepartment.name);
+          setSelectedDepartmentId(session.user.departmentId);
+          fetchCourseTypes(session.user.departmentId);
+          return;
         }
-        
-        // Fallback: Auto-select first department if only one exists
-        if (result.departments.length === 1) {
-          console.log('Auto-selecting single department:', result.departments[0].id);
-          setSelectedDepartmentId(result.departments[0].id);
-          fetchCourseTypes(result.departments[0].id);
-        } else if (result.departments.length > 1) {
-          console.log('Multiple departments found, user needs to select one');
-        }
-      } else {
-        console.error('Failed to fetch departments:', result.error);
+      }
+      
+      // Fallback: Auto-select first department if only one exists
+      if (departments.length === 1) {
+        console.log('Auto-selecting single department:', departments[0].id);
+        setSelectedDepartmentId(departments[0].id);
+        fetchCourseTypes(departments[0].id);
+      } else if (departments.length > 1) {
+        console.log('Multiple departments found, user needs to select one');
       }
     } catch (error) {
       console.error('Error fetching departments:', error);
@@ -123,10 +119,12 @@ export default function CurriculumDetails() {
     }
 
     try {
-      const url = `/api/course-types?departmentId=${departmentId}`;
+      const url = `${API_BASE}/api/course-types?departmentId=${departmentId}`;
       console.log('Fetching course types from:', url);
       
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include',
+      });
       const result = await response.json();
       
       console.log('Course types response:', { status: response.status, result });
@@ -253,8 +251,9 @@ export default function CurriculumDetails() {
       console.log('- First course:', payload.courses[0]);
       console.log('- Full payload:', JSON.stringify(payload, null, 2));
 
-      const response = await fetch('/api/curricula', {
+      const response = await fetch(`${API_BASE}/curricula`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },

@@ -1,4 +1,6 @@
 // API service for elective rules management
+import { API_BASE } from '@/lib/api/laravel';
+
 export interface ElectiveRule {
   id: string;
   curriculumId: string;
@@ -47,11 +49,13 @@ export interface UpdateElectiveSettingsRequest {
 }
 
 class ElectiveRulesApi {
-  private baseUrl = '/api/curricula';
+  private baseUrl = `${API_BASE}/curricula`;
 
   // Get all elective rules for a curriculum
   async getElectiveRules(curriculumId: string): Promise<ElectiveRulesData> {
-    const response = await fetch(`${this.baseUrl}/${curriculumId}/elective-rules`);
+    const response = await fetch(`${this.baseUrl}/${curriculumId}/elective-rules`, {
+      credentials: 'include'
+    });
     const data = await response.json();
     
     if (!response.ok) {
@@ -68,6 +72,7 @@ class ElectiveRulesApi {
   ): Promise<ElectiveRule> {
     const response = await fetch(`${this.baseUrl}/${curriculumId}/elective-rules`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -91,6 +96,7 @@ class ElectiveRulesApi {
   ): Promise<ElectiveRule> {
     const response = await fetch(`${this.baseUrl}/${curriculumId}/elective-rules/${ruleId}`, {
       method: 'PUT',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -110,6 +116,7 @@ class ElectiveRulesApi {
   async deleteElectiveRule(curriculumId: string, ruleId: string): Promise<void> {
     const response = await fetch(`${this.baseUrl}/${curriculumId}/elective-rules/${ruleId}`, {
       method: 'DELETE',
+      credentials: 'include'
     });
 
     const data = await response.json();
@@ -126,6 +133,7 @@ class ElectiveRulesApi {
   ): Promise<void> {
     const response = await fetch(`${this.baseUrl}/${curriculumId}/elective-rules/settings`, {
       method: 'PUT',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },

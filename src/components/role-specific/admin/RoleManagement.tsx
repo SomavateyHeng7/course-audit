@@ -9,6 +9,7 @@ import {
   UserCheck,
   GraduationCap
 } from 'lucide-react';
+import { getUsers, deleteUser } from '@/lib/api/laravel';
 
 interface User {
   id: string;
@@ -45,11 +46,8 @@ export default function RoleManagement() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/admin/users');
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users);
-      }
+      const data = await getUsers();
+      setUsers(data);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -61,13 +59,8 @@ export default function RoleManagement() {
     if (!confirm('Are you sure you want to delete this user?')) return;
 
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchUsers();
-      }
+      await deleteUser(Number(userId));
+      fetchUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
     }

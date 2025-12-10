@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaInfoCircle, FaTags, FaLayerGroup } from 'react-icons/fa';
+import { API_BASE } from '@/lib/api/laravel';
 
 interface Course {
   id: string;
@@ -75,7 +76,9 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
     
     setIsLoadingCourseTypes(true);
     try {
-      const response = await fetch(`/api/course-types?departmentId=${departmentId}`);
+      const response = await fetch(`${API_BASE}/course-types?departmentId=${departmentId}`, {
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         setCourseTypes(data.courseTypes || []);
@@ -95,11 +98,12 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
 
     setIsAssigning(true);
     try {
-      const response = await fetch('/api/course-types/assign', {
+      const response = await fetch(`${API_BASE}/api/course-types/assign`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           courseIds,
           courseTypeId,

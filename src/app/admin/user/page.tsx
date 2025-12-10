@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Users, Plus, Edit, Trash2, Shield, UserCheck, GraduationCap } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
+import { API_BASE } from '@/lib/api/laravel';
 
 interface User {
   id: string;
@@ -68,7 +69,9 @@ export default function RoleManagement() {
   // ✅ fetch faculties once
   useEffect(() => {
     setFacultiesLoading(true);
-    fetch('/api/faculties')
+    fetch(`${API_BASE}/api/faculties`, {
+      credentials: 'include',
+    })
       .then((res) => res.json())
       .then((data) => setFaculties(data.faculties || []))
       .catch(() => setFaculties([]))
@@ -79,7 +82,9 @@ export default function RoleManagement() {
   useEffect(() => {
     if (formData.facultyId) {
       setFacultyLoading(true);
-      fetch(`/api/departments?facultyId=${formData.facultyId}`)
+      fetch(`${API_BASE}/api/departments?facultyId=${formData.facultyId}`, {
+        credentials: 'include',
+      })
         .then((res) => res.json())
         .then((data) => setDepartments(data.departments || []))
         .catch(() => setDepartments([]))
@@ -95,7 +100,9 @@ export default function RoleManagement() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/admin/users');
+      const response = await fetch(`${API_BASE}/api/admin/users`, {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users);
@@ -118,9 +125,10 @@ export default function RoleManagement() {
     setCreateSuccess('');
     try {
       const { confirmPassword, ...submitData } = formData;
-      const response = await fetch('/api/admin/users', {
+      const response = await fetch(`${API_BASE}/api/admin/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(submitData),
       });
       if (response.ok) {
@@ -156,9 +164,10 @@ export default function RoleManagement() {
     setUpdateLoading(true);
     try {
       const { confirmPassword, ...submitData } = formData;
-      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
+      const response = await fetch(`${API_BASE}/api/admin/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(submitData),
       });
       if (response.ok) {
@@ -236,7 +245,10 @@ export default function RoleManagement() {
                   if (!deleteUserId) return;
                   setCreateLoading(true);
                   try {
-                    const response = await fetch(`/api/admin/users/${deleteUserId}`, { method: 'DELETE' });
+                    const response = await fetch(`${API_BASE}/api/admin/users/${deleteUserId}`, { 
+                      method: 'DELETE',
+                      credentials: 'include',
+                    });
                     if (response.ok) {
                       success('User deleted successfully!');
                       fetchUsers();

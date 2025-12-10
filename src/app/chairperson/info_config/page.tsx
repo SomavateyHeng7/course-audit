@@ -10,6 +10,7 @@ import { facultyLabelApi } from '@/services/facultyLabelApi';
 import { courseTypesApi, type CourseTypeData } from '@/services/courseTypesApi';
 import { formatCreatedDate } from "@/lib/ui/dateformat";
 import { useToastHelpers } from '@/hooks/useToast';
+import { API_BASE } from '@/lib/api/laravel';
 
 interface Course {
   code: string;
@@ -298,7 +299,9 @@ export default function InfoConfig() {
 
     try {
       setSearchLoading(true);
-      const response = await fetch(`/api/courses/search?q=${encodeURIComponent(query)}&limit=20`);
+      const response = await fetch(`${API_BASE}/api/courses/search?q=${encodeURIComponent(query)}&limit=20`, {
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         throw new Error('Failed to search courses');
@@ -790,11 +793,12 @@ export default function InfoConfig() {
           });
 
           // Add courses via the dedicated course endpoint using direct fetch
-          const addCoursesResponse = await fetch(`/api/concentrations/${newConcentrationData.id}/courses`, {
+          const addCoursesResponse = await fetch(`${API_BASE}/api/concentrations/${newConcentrationData.id}/courses`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({ courses: coursesForAPI }),
           });
 
@@ -841,8 +845,9 @@ export default function InfoConfig() {
           // Remove courses that are no longer in the list
           if (coursesToRemove.length > 0) {
             for (const courseId of coursesToRemove) {
-              await fetch(`/api/concentrations/${editingConcentration.id}/courses?courseId=${courseId}`, {
+              await fetch(`${API_BASE}/api/concentrations/${editingConcentration.id}/courses?courseId=${courseId}`, {
                 method: 'DELETE',
+                credentials: 'include',
               });
             }
           }
@@ -868,11 +873,12 @@ export default function InfoConfig() {
               };
             });
 
-            const addCoursesResponse = await fetch(`/api/concentrations/${editingConcentration.id}/courses`, {
+            const addCoursesResponse = await fetch(`${API_BASE}/api/concentrations/${editingConcentration.id}/courses`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
+              credentials: 'include',
               body: JSON.stringify({ courses: coursesForAPI }),
             });
 

@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Trash2, Info, Plus, BookOpen, Users, Calendar, Settings } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
+import { API_BASE } from '@/lib/api/laravel';
 
 // Import chairperson components
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
@@ -74,7 +75,9 @@ const ChairpersonPage: React.FC = () => {
         limit: '10',
       });
 
-      const response = await fetch(`/api/curricula?${params}`);
+      const response = await fetch(`${API_BASE}/curricula?${params}`, {
+        credentials: 'include'
+      });
       const data = await response.json();
 
       if (response.ok) {
@@ -110,8 +113,9 @@ const ChairpersonPage: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`/api/curricula/${curriculumId}`, {
+      const response = await fetch(`${API_BASE}/curricula/${curriculumId}`, {
         method: 'DELETE',
+        credentials: 'include'
       });
 
       if (response.ok) {

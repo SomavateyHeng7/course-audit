@@ -1,4 +1,15 @@
 // API service for blacklist management
+// Now using Laravel backend
+import { 
+  getBlacklists as laravelGetBlacklists,
+  getBlacklist as laravelGetBlacklist,
+  createBlacklist as laravelCreateBlacklist,
+  updateBlacklist as laravelUpdateBlacklist,
+  deleteBlacklist as laravelDeleteBlacklist
+} from '@/lib/api/laravel';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = `${API_URL}/api`;
 export interface BlacklistCourse {
   id: string;
   code: string;
@@ -45,49 +56,22 @@ export interface BlacklistsResponse {
 }
 
 class BlacklistApi {
-  private baseUrl = '/api/blacklists';
+  private baseUrl = `${API_BASE}/blacklists`;
 
   // Get all blacklists for the user's department
   async getBlacklists(): Promise<BlacklistsResponse> {
-    const response = await fetch(this.baseUrl);
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'Failed to fetch blacklists');
-    }
-    
-    return data;
+    const blacklists = await laravelGetBlacklists();
+    return { blacklists };
   }
 
   // Get specific blacklist
   async getBlacklist(id: string): Promise<BlacklistData> {
-    const response = await fetch(`${this.baseUrl}/${id}`);
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'Failed to fetch blacklist');
-    }
-    
-    return data.blacklist;
+    return await laravelGetBlacklist(Number(id));
   }
 
   // Create new blacklist
   async createBlacklist(blacklistData: CreateBlacklistRequest): Promise<BlacklistData> {
-    const response = await fetch(this.baseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(blacklistData),
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'Failed to create blacklist');
-    }
-    
-    return data.blacklist;
+    return await laravelCreateBlacklist(blacklistData);
   }
 
   // Update blacklist
@@ -95,34 +79,12 @@ class BlacklistApi {
     id: string,
     blacklistData: UpdateBlacklistRequest
   ): Promise<BlacklistData> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(blacklistData),
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'Failed to update blacklist');
-    }
-    
-    return data.blacklist;
+    return await laravelUpdateBlacklist(Number(id), blacklistData);
   }
 
   // Delete blacklist
   async deleteBlacklist(id: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
-      method: 'DELETE',
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'Failed to delete blacklist');
-    }
+    await laravelDeleteBlacklist(Number(id));
   }
 
   // Helper method to parse CSV file content for blacklist courses
@@ -218,14 +180,13 @@ class BlacklistApi {
       for (const code of courseCodes) {
         try {
           // Search in existing courses
-          const response = await fetch(`/api/courses?search=${encodeURIComponent(code)}&limit=100`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-          
-          let foundInCourses = false;
+          const response = await fetch(`${API_BASE}/courses?search=${encodeURIComponent(code)}&limit=100`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+            });          let foundInCourses = false;
           
           if (response.ok) {
             const data = await response.json();
@@ -249,11 +210,12 @@ class BlacklistApi {
           
           // If not found in courses, search in blacklist courses
           if (!foundInCourses) {
-            const blacklistResponse = await fetch(`/api/blacklists/courses/search?code=${encodeURIComponent(code)}`, {
+            const blacklistResponse = await fetch(`${API_BASE}/blacklists/courses/search?code=${encodeURIComponent(code)}`, {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
               },
+              credentials: 'include',
             });
             
             if (blacklistResponse.ok) {
@@ -320,11 +282,12 @@ class BlacklistApi {
 
       console.log('Sending course data to bulk create:', courseData);
 
-      const response = await fetch('/api/courses/bulk-create', {
+      const response = await fetch(`${API_BASE}/courses/bulk-create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           courses: courseData
         }),

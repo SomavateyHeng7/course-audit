@@ -10,6 +10,7 @@ import ConcentrationsTab from '@/components/features/curriculum/ConcentrationsTa
 import BlacklistTab from '@/components/features/curriculum/BlacklistTab';
 import { facultyLabelApi } from '@/services/facultyLabelApi';
 import { useToastHelpers } from '@/hooks/useToast';
+import { API_BASE } from '@/lib/api/laravel';
 
 interface CurriculumCourseMeta {
   curriculumCourseId: string;
@@ -84,7 +85,9 @@ export default function EditCurriculum() {
     const fetchCurriculum = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/curricula/${curriculumId}`);
+        const response = await fetch(`${API_BASE}/api/curricula/${curriculumId}`, {
+          credentials: 'include',
+        });
         
         if (!response.ok) {
           throw new Error('Failed to fetch curriculum');
@@ -126,7 +129,9 @@ export default function EditCurriculum() {
       
       setIsLoadingCourseTypes(true);
       try {
-        const response = await fetch(`/api/course-types?departmentId=${curriculum.departmentId}`);
+        const response = await fetch(`${API_BASE}/course-types?departmentId=${curriculum.departmentId}`, {
+          credentials: 'include'
+        });
         if (response.ok) {
           const data = await response.json();
           setCourseTypes(data.courseTypes || []);
@@ -348,11 +353,12 @@ export default function EditCurriculum() {
 
     try {
       // First, update the course basic information
-      const courseResponse = await fetch(`/api/courses/${editingCourse.id}`, {
+      const courseResponse = await fetch(`${API_BASE}/api/courses/${editingCourse.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           name: editingCourse.title,
           credits: editingCourse.credits,
@@ -368,11 +374,12 @@ export default function EditCurriculum() {
 
       // Then, handle course type assignment if a course type is selected
       if (editingCourse.selectedCourseTypeId && curriculum?.departmentId) {
-        const assignResponse = await fetch('/api/course-types/assign', {
+        const assignResponse = await fetch(`${API_BASE}/api/course-types/assign`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include',
           body: JSON.stringify({
             courseIds: [editingCourse.id],
             courseTypeId: editingCourse.selectedCourseTypeId,
@@ -426,8 +433,9 @@ export default function EditCurriculum() {
 
   const handleDeleteCourse = async (courseId: string) => {
     try {
-      const response = await fetch(`/api/curricula/${curriculumId}/courses?courseId=${courseId}`, {
+      const response = await fetch(`${API_BASE}/curricula/${curriculumId}/courses?courseId=${courseId}`, {
         method: 'DELETE',
+        credentials: 'include'
       });
 
       const data = await response.json();
@@ -461,7 +469,9 @@ export default function EditCurriculum() {
       if (search) params.append('search', search);
       params.append('limit', '50');
       
-      const response = await fetch(`/api/courses?${params.toString()}`);
+      const response = await fetch(`${API_BASE}/courses?${params.toString()}`, {
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         setAvailableCourses(data.courses || []);
@@ -518,11 +528,12 @@ export default function EditCurriculum() {
         courseToAdd = selectedCourse;
       } else if (showAddCourseForm && newCourse.code && newCourse.title) {
         // Create new course first
-        const createResponse = await fetch('/api/courses', {
+        const createResponse = await fetch(`${API_BASE}/api/courses`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include',
           body: JSON.stringify({
             code: newCourse.code,
             name: newCourse.title,
@@ -546,11 +557,12 @@ export default function EditCurriculum() {
       }
 
       // Add the course to the curriculum
-      const addToCurriculumResponse = await fetch(`/api/curricula/${curriculumId}/courses`, {
+      const addToCurriculumResponse = await fetch(`${API_BASE}/api/curricula/${curriculumId}/courses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           courseId,
           isRequired: courseAssignment.isRequired,
@@ -765,7 +777,9 @@ export default function EditCurriculum() {
               onRefreshCurriculum={async () => {
                 // Refetch curriculum data
                 try {
-                  const response = await fetch(`/api/curricula/${curriculumId}`);
+                  const response = await fetch(`${API_BASE}/curricula/${curriculumId}`, {
+                    credentials: 'include'
+                  });
                   if (response.ok) {
                     const data = await response.json();
                     setCurriculum(data.curriculum);

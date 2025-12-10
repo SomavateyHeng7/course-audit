@@ -1,4 +1,5 @@
 // API service for curriculum blacklist management
+import { API_BASE } from '@/lib/api/laravel';
 
 export interface CurriculumBlacklistCourse {
   id: string;
@@ -59,7 +60,9 @@ export interface RemoveBlacklistResponse {
 class CurriculumBlacklistApi {
   // Get curriculum blacklists (both available and assigned)
   async getCurriculumBlacklists(curriculumId: string): Promise<CurriculumBlacklistsResponse> {
-    const response = await fetch(`/api/curricula/${curriculumId}/blacklists`);
+    const response = await fetch(`${API_BASE}/curricula/${curriculumId}/blacklists`, {
+      credentials: 'include'
+    });
     const data = await response.json();
     
     if (!response.ok) {
@@ -74,8 +77,9 @@ class CurriculumBlacklistApi {
     curriculumId: string,
     request: AssignBlacklistRequest
   ): Promise<AssignBlacklistResponse> {
-    const response = await fetch(`/api/curricula/${curriculumId}/blacklists`, {
+    const response = await fetch(`${API_BASE}/curricula/${curriculumId}/blacklists`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -96,8 +100,9 @@ class CurriculumBlacklistApi {
     curriculumId: string,
     blacklistId: string
   ): Promise<RemoveBlacklistResponse> {
-    const response = await fetch(`/api/curricula/${curriculumId}/blacklists/${blacklistId}`, {
+    const response = await fetch(`${API_BASE}/curricula/${curriculumId}/blacklists/${blacklistId}`, {
       method: 'DELETE',
+      credentials: 'include'
     });
 
     const data = await response.json();

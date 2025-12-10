@@ -6,6 +6,7 @@ import { useRef, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToastHelpers } from '@/hooks/useToast';
 import { curriculumBlacklistApi, type CurriculumBlacklistsResponse } from '@/services/curriculumBlacklistApi';
+import { getPublicCurricula, API_BASE } from '@/lib/api/laravel';
 import { AlertTriangle, ArrowLeft, Download, ChevronDown, BookOpen, Calendar, Plus, Target, Award, Clock } from "lucide-react";
 import { GiGraduateCap } from "react-icons/gi";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -252,8 +253,7 @@ export default function ProgressPage() {
               console.log('Step 4: Fetching curriculum for ID:', parsedData.selectedCurriculum);
             }
             try {
-              const response = await fetch('/api/public-curricula');
-              const data = await response.json();
+              const data = await getPublicCurricula();
               if (typeof window !== 'undefined') {
                 console.log('Step 5: API response:', data);
               }
@@ -362,8 +362,7 @@ export default function ProgressPage() {
       }
       
       // Find the department ID from curriculum data
-      const response = await fetch('/api/public-curricula');
-      const curriculaData = await response.json();
+      const curriculaData = await getPublicCurricula();
       const currentCurriculum = curriculaData.curricula?.find((c: any) => c.id === data.selectedCurriculum);
       
       if (!currentCurriculum?.department?.id) {
@@ -374,7 +373,9 @@ export default function ProgressPage() {
       }
 
       // Fetch concentrations
-      const concResponse = await fetch(`/api/public-concentrations?curriculumId=${data.selectedCurriculum}&departmentId=${currentCurriculum.department.id}`);
+      const concResponse = await fetch(`${API_BASE}/public-concentrations?curriculumId=${data.selectedCurriculum}&departmentId=${currentCurriculum.department.id}`, {
+        credentials: 'include'
+      });
       const concData = await concResponse.json();
       
       if (concResponse.ok && concData.concentrations) {
@@ -442,7 +443,9 @@ export default function ProgressPage() {
       }
       
       // Use public API endpoint instead of protected one
-      const response = await fetch(`/api/public-curricula/${curriculumId}/blacklists`);
+      const response = await fetch(`${API_BASE}/public-curricula/${curriculumId}/blacklists`, {
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error(`Failed to fetch blacklists: ${response.status}`);
       }
@@ -539,7 +542,9 @@ export default function ProgressPage() {
       }
       
       const departmentId = completedData.actualDepartmentId || completedData.selectedDepartment;
-      const response = await fetch(`/api/available-courses?curriculumId=${selectedCurriculum}&departmentId=${departmentId}`);
+      const response = await fetch(`${API_BASE}/available-courses?curriculumId=${selectedCurriculum}&departmentId=${departmentId}`, {
+        credentials: 'include'
+      });
       const data = await response.json();
       
       if (response.ok && data.courses) {

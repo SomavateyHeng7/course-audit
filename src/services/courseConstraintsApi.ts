@@ -1,5 +1,6 @@
 // Course constraints API service
 // Handles all constraint-related API calls for courses
+import { API_BASE } from '@/lib/api/laravel';
 
 export interface Course {
   id: string;
@@ -48,11 +49,13 @@ export interface ApiResponse<T> {
 }
 
 class CourseConstraintsApi {
-  private baseUrl = '/api/courses';
+  private baseUrl = `${API_BASE}/courses`;
 
   // Get all constraints for a course
   async getConstraints(courseId: string): Promise<CourseConstraints> {
-    const response = await fetch(`${this.baseUrl}/${courseId}/constraints`);
+    const response = await fetch(`${this.baseUrl}/${courseId}/constraints`, {
+      credentials: 'include'
+    });
     const data = await response.json();
     
     if (!response.ok) {
@@ -69,6 +72,7 @@ class CourseConstraintsApi {
   ): Promise<void> {
     const response = await fetch(`${this.baseUrl}/${courseId}/constraints`, {
       method: 'PUT',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -84,7 +88,9 @@ class CourseConstraintsApi {
 
   // Get prerequisites for a course
   async getPrerequisites(courseId: string): Promise<Prerequisite[]> {
-    const response = await fetch(`${this.baseUrl}/${courseId}/prerequisites`);
+    const response = await fetch(`${this.baseUrl}/${courseId}/prerequisites`, {
+      credentials: 'include'
+    });
     const data = await response.json();
     
     if (!response.ok) {
@@ -98,6 +104,7 @@ class CourseConstraintsApi {
   async addPrerequisite(courseId: string, prerequisiteId: string): Promise<Prerequisite> {
     const response = await fetch(`${this.baseUrl}/${courseId}/prerequisites`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -119,6 +126,7 @@ class CourseConstraintsApi {
       `${this.baseUrl}/${courseId}/prerequisites/${prerequisiteRelationId}`,
       {
         method: 'DELETE',
+        credentials: 'include'
       }
     );
 
@@ -131,7 +139,9 @@ class CourseConstraintsApi {
 
   // Get corequisites for a course
   async getCorequisites(courseId: string): Promise<Corequisite[]> {
-    const response = await fetch(`${this.baseUrl}/${courseId}/corequisites`);
+    const response = await fetch(`${this.baseUrl}/${courseId}/corequisites`, {
+      credentials: 'include'
+    });
     const data = await response.json();
     
     if (!response.ok) {
@@ -145,6 +155,7 @@ class CourseConstraintsApi {
   async addCorequisite(courseId: string, corequisiteId: string): Promise<Corequisite> {
     const response = await fetch(`${this.baseUrl}/${courseId}/corequisites`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -166,6 +177,7 @@ class CourseConstraintsApi {
       `${this.baseUrl}/${courseId}/corequisites/${corequisiteRelationId}`,
       {
         method: 'DELETE',
+        credentials: 'include'
       }
     );
 

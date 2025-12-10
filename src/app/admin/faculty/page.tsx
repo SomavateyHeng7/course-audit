@@ -14,6 +14,7 @@ import {
   Building2,
   BookOpen
 } from 'lucide-react';
+import { API_BASE } from '@/lib/api/laravel';
 
 interface Faculty {
   id: string;
@@ -49,7 +50,9 @@ export default function FacultyManagement() {
 
   const fetchFaculties = async () => {
     try {
-      const response = await fetch('/api/faculties');
+      const response = await fetch(`${API_BASE}/api/faculties`, {
+        credentials: 'include',
+      });
       console.log('Faculties API response status:', response.status);
       
       if (response.ok) {
@@ -79,9 +82,10 @@ export default function FacultyManagement() {
     e.preventDefault();
     setCreateLoading(true);
     try {
-      const response = await fetch('/api/faculties', {
+      const response = await fetch(`${API_BASE}/api/faculties`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(formData),
       });
 
@@ -107,9 +111,10 @@ export default function FacultyManagement() {
     if (!editingFaculty) return;
     setUpdateLoading(true);
     try {
-      const response = await fetch(`/api/faculties/${editingFaculty.id}`, {
+      const response = await fetch(`${API_BASE}/api/faculties/${editingFaculty.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(formData),
       });
       if (response.ok) {
@@ -192,7 +197,10 @@ export default function FacultyManagement() {
                   if (!deleteFacultyId) return;
                   setDeleteLoading(true);
                   try {
-                    const response = await fetch(`/api/faculties/${deleteFacultyId}`, { method: 'DELETE' });
+                    const response = await fetch(`${API_BASE}/api/faculties/${deleteFacultyId}`, { 
+                      method: 'DELETE',
+                      credentials: 'include',
+                    });
                     if (response.ok) {
                       setToast({ message: 'Faculty deleted successfully!', type: 'success' });
                       fetchFaculties();

@@ -13,6 +13,7 @@ import {
   Calendar,
   Clock
 } from 'lucide-react';
+import { getPublicFaculties, getPublicDepartments } from '@/lib/api/laravel';
 
 interface Faculty {
   id: string;
@@ -38,10 +39,8 @@ export default function StudentPage() {
   useEffect(() => {
     const fetchFaculties = async () => {
       try {
-        const response = await fetch('/api/public-faculties');
-        if (!response.ok) throw new Error('Failed to fetch faculties');
-        const data = await response.json();
-        setFaculties(data.faculties);
+        const data = await getPublicFaculties();
+        setFaculties(data);
       } catch (error) {
         console.error('Error fetching faculties:', error);
       }
@@ -49,10 +48,8 @@ export default function StudentPage() {
 
     const fetchDepartments = async () => {
       try {
-        const response = await fetch('/api/public-departments');
-        if (!response.ok) throw new Error('Failed to fetch departments');
-        const data = await response.json();
-        setDepartments(data.departments);
+        const data = await getPublicDepartments();
+        setDepartments(data);
       } catch (error) {
         console.error('Error fetching departments:', error);
       }

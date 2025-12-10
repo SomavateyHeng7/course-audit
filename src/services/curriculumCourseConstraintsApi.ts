@@ -1,3 +1,5 @@
+import { API_BASE } from '@/lib/api/laravel';
+
 export interface CurriculumCourseSummary {
   id: string;
   curriculumId: string;
@@ -52,14 +54,16 @@ export interface CurriculumConstraintResponse {
 
 class CurriculumCourseConstraintsApi {
   private buildBaseUrl(curriculumId: string, curriculumCourseId: string) {
-    return `/api/curricula/${curriculumId}/courses/${curriculumCourseId}`;
+    return `${API_BASE}/curricula/${curriculumId}/courses/${curriculumCourseId}`;
   }
 
   async getConstraints(
     curriculumId: string,
     curriculumCourseId: string
   ): Promise<CurriculumConstraintResponse> {
-    const response = await fetch(`${this.buildBaseUrl(curriculumId, curriculumCourseId)}/constraints`);
+    const response = await fetch(`${this.buildBaseUrl(curriculumId, curriculumCourseId)}/constraints`, {
+      credentials: 'include'
+    });
     const data = await response.json();
 
     if (!response.ok) {
@@ -76,6 +80,7 @@ class CurriculumCourseConstraintsApi {
   ): Promise<CurriculumConstraintFlags> {
     const response = await fetch(`${this.buildBaseUrl(curriculumId, curriculumCourseId)}/constraints`, {
       method: 'PUT',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
       },
@@ -98,6 +103,7 @@ class CurriculumCourseConstraintsApi {
   ) {
     const response = await fetch(`${this.buildBaseUrl(curriculumId, curriculumCourseId)}/prerequisites`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
       },
@@ -119,7 +125,8 @@ class CurriculumCourseConstraintsApi {
     relationId: string
   ) {
     const response = await fetch(`${this.buildBaseUrl(curriculumId, curriculumCourseId)}/prerequisites/${relationId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      credentials: 'include'
     });
 
     if (!response.ok) {
@@ -135,6 +142,7 @@ class CurriculumCourseConstraintsApi {
   ) {
     const response = await fetch(`${this.buildBaseUrl(curriculumId, curriculumCourseId)}/corequisites`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
       },
@@ -156,7 +164,8 @@ class CurriculumCourseConstraintsApi {
     relationId: string
   ) {
     const response = await fetch(`${this.buildBaseUrl(curriculumId, curriculumCourseId)}/corequisites/${relationId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      credentials: 'include'
     });
 
     if (!response.ok) {

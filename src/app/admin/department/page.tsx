@@ -13,6 +13,7 @@ import {
   Users,
   GraduationCap
 } from 'lucide-react';
+import { API_BASE } from '@/lib/api/laravel';
 
 interface Department {
   id: string;
@@ -66,7 +67,9 @@ export default function DepartmentManagement() {
 
   const fetchDepartments = async () => {
     try {
-      const response = await fetch('/api/departments');
+      const response = await fetch(`${API_BASE}/api/departments`, {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         setDepartments(data.departments);
@@ -80,7 +83,9 @@ export default function DepartmentManagement() {
 
   const fetchFaculties = async () => {
     try {
-      const response = await fetch('/api/faculties');
+      const response = await fetch(`${API_BASE}/api/faculties`, {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         setFaculties(data.faculties);
@@ -95,9 +100,10 @@ export default function DepartmentManagement() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/departments', {
+      const response = await fetch(`${API_BASE}/api/departments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(formData),
       });
 
@@ -127,9 +133,10 @@ export default function DepartmentManagement() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`/api/departments/${editingDepartment.id}`, {
+      const response = await fetch(`${API_BASE}/api/departments/${editingDepartment.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(formData),
       });
 
@@ -215,7 +222,10 @@ export default function DepartmentManagement() {
                   if (!deleteDepartmentId) return;
                   setDeleteLoading(true);
                   try {
-                    const response = await fetch(`/api/departments/${deleteDepartmentId}`, { method: 'DELETE' });
+                    const response = await fetch(`${API_BASE}/api/departments/${deleteDepartmentId}`, { 
+                      method: 'DELETE',
+                      credentials: 'include',
+                    });
                     if (response.ok) {
                       setToast({ message: 'Department deleted successfully!', type: 'success' });
                       fetchDepartments();

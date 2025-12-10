@@ -1,6 +1,8 @@
 // Course validation and recommendation engine
 // Integrates with curriculum constraints, elective rules, and blacklists
 
+import { getPublicCurriculum, getPublicCourses, API_BASE } from '@/lib/api/laravel';
+
 export interface CourseRecommendation {
   courseCode: string;
   courseName: string;
@@ -345,28 +347,32 @@ async function generateRecommendations(
 
 // Helper functions for API calls
 async function fetchCurriculum(curriculumId: string): Promise<CurriculumData> {
-  const response = await fetch(`/api/public-curricula/${curriculumId}`);
-  if (!response.ok) throw new Error('Failed to fetch curriculum');
-  const data = await response.json();
+  const data = await getPublicCurriculum(parseInt(curriculumId));
   return data.curriculum;
 }
 
 async function fetchConstraints(curriculumId: string): Promise<ConstraintData[]> {
-  const response = await fetch(`/api/public-curricula/${curriculumId}/constraints`);
+  const response = await fetch(`${API_BASE}/api/public-curricula/${curriculumId}/constraints`, {
+    credentials: 'include'
+  });
   if (!response.ok) throw new Error('Failed to fetch constraints');
   const data = await response.json();
   return data.constraints;
 }
 
 async function fetchElectiveRules(curriculumId: string): Promise<ElectiveRuleData[]> {
-  const response = await fetch(`/api/public-curricula/${curriculumId}/elective-rules`);
+  const response = await fetch(`${API_BASE}/api/public-curricula/${curriculumId}/elective-rules`, {
+    credentials: 'include'
+  });
   if (!response.ok) throw new Error('Failed to fetch elective rules');
   const data = await response.json();
   return data.electiveRules;
 }
 
 async function fetchBlacklists(curriculumId: string): Promise<BlacklistData[]> {
-  const response = await fetch(`/api/public-curricula/${curriculumId}/blacklists`);
+  const response = await fetch(`${API_BASE}/api/public-curricula/${curriculumId}/blacklists`, {
+    credentials: 'include'
+  });
   if (!response.ok) throw new Error('Failed to fetch blacklists');
   const data = await response.json();
   return data.blacklists;
@@ -375,16 +381,17 @@ async function fetchBlacklists(curriculumId: string): Promise<BlacklistData[]> {
 async function fetchCourses(departmentId: string, curriculumId?: string): Promise<CourseInfo[]> {
   // If we have both IDs, use the available-courses endpoint which includes departmentCourseTypes
   if (curriculumId && departmentId) {
-    const response = await fetch(`/api/available-courses?curriculumId=${curriculumId}&departmentId=${departmentId}`);
+    const response = await fetch(`${API_BASE}/api/available-courses?curriculumId=${curriculumId}&departmentId=${departmentId}`, {
+      credentials: 'include'
+    });
     if (!response.ok) throw new Error('Failed to fetch available courses');
     const data = await response.json();
     return data.courses || [];
   }
   
-  // Fallback to the general courses endpoint (legacy support)
-  const response = await fetch(`/api/courses?departmentId=${departmentId}`);
-  if (!response.ok) throw new Error('Failed to fetch courses');
-  return response.json();
+  // Use public courses endpoint
+  const courses = await getPublicCourses();
+  return courses.filter((c: any) => c.departmentId === parseInt(departmentId));
 }
 
 // Validation helper functions
