@@ -8,6 +8,7 @@ import { getPublicCurricula, getPublicFaculties, getPublicDepartments, API_BASE 
 
 import * as XLSX from 'xlsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { BarChart2, Calendar, ChevronDown, ArrowLeft } from 'lucide-react';
 import { FaTrash } from 'react-icons/fa';
 import {
@@ -25,6 +26,7 @@ import { type CourseData } from '@/components/features/excel/ExcelUtils';
 interface CourseStatus {
   status: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning';
   grade?: string;
+  plannedSemester?: string; // Format: "1/2026" or "2/2026"
 }
 
 interface ProgressContextType {
@@ -69,32 +71,7 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Move these to module scope so StatusDropdown can use them - includes planning status
-const statusLabels: Record<'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning', string> = {
-  not_completed: 'Not Completed',
-  completed: 'Completed',
-  failed: 'Failed',
-  withdrawn: 'Withdrawn',
-  planning: 'Planning',
-};
-const statusOptions: { value: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning'; label: string }[] = [
-  { value: 'completed', label: 'Completed' },
-  { value: 'failed', label: 'Failed' },
-  { value: 'withdrawn', label: 'Withdrawn' },
-  { value: 'not_completed', label: 'Not Completed' },
-  { value: 'planning', label: 'Planning' },
-];
-
-// Add a helper for status color classes - includes planning status
-const statusColorClasses: Record<'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning', string> = {
-  not_completed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  completed: 'bg-green-200 text-green-800 dark:bg-green-700 dark:text-green-200',
-  failed: 'bg-red-200 text-red-800 dark:bg-red-700 dark:text-red-200',
-  withdrawn: 'bg-yellow-200 text-yellow-800 dark:bg-yellow-600 dark:text-yellow-100',
-  planning: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
-};
-
-// Move gradeOptions to module scope so it is accessible everywhere
+// Grade options for student data entry
 const gradeOptions: string[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F','W','TR','I','S','U'];
 
 export default function DataEntryPage() {
@@ -763,34 +740,47 @@ export default function DataEntryPage() {
                                     <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                                   </div>
                                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                                    <StatusDropdown
-                                      code={course.code}
-                                      status={completedCourses[course.code]?.status || 'not_completed'}
-                                      setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                        ...prev,
-                                        [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
-                                      }))}
-                                    />
-                                    {completedCourses[course.code]?.status === 'completed' && (
-                                      <Select
-                                        value={completedCourses[course.code]?.grade || ''}
-                                        onValueChange={value => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                                    <Select
+                                      value={completedCourses[course.code]?.grade || 'Planning'}
+                                      onValueChange={value => {
+                                        const newStatus = value === 'Planning' ? 'planning' : (value === 'F' || value === 'W') ? 'failed' : 'completed';
+                                        setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
                                           ...prev,
                                           [course.code]: {
-                                            ...prev[course.code],
-                                            grade: value
+                                            status: newStatus,
+                                            grade: value === 'Planning' ? '' : value,
+                                            plannedSemester: value === 'Planning' ? prev[course.code]?.plannedSemester : undefined
                                           }
-                                        }))}
-                                      >
-                                        <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
-                                          <SelectValue placeholder="Grade" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {gradeOptions.map((g: string) => (
-                                            <SelectItem key={g} value={g}>{g}</SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
+                                        }));
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
+                                        <SelectValue placeholder="Select Grade" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Planning">Planning</SelectItem>
+                                        {gradeOptions.map((g: string) => (
+                                          <SelectItem key={g} value={g}>{g}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    {completedCourses[course.code]?.status === 'planning' && (
+                                      <Input
+                                        type="text"
+                                        placeholder="e.g., 1/2026"
+                                        value={completedCourses[course.code]?.plannedSemester || ''}
+                                        onChange={e => {
+                                          const semester = e.target.value;
+                                          setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                                            ...prev,
+                                            [course.code]: {
+                                              ...prev[course.code],
+                                              plannedSemester: semester
+                                            }
+                                          }));
+                                        }}
+                                        className="w-28 border border-input rounded-lg px-3 py-2 text-sm"
+                                      />
                                     )}
                                   </div>
                                 </div>
@@ -810,34 +800,47 @@ export default function DataEntryPage() {
                               <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                             </div>
                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                              <StatusDropdown
-                                code={course.code}
-                                status={completedCourses[course.code]?.status || 'not_completed'}
-                                setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                  ...prev,
-                                  [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
-                                }))}
-                              />
-                              {completedCourses[course.code]?.status === 'completed' && (
-                                <Select
-                                  value={completedCourses[course.code]?.grade || ''}
-                                  onValueChange={value => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                              <Select
+                                value={completedCourses[course.code]?.grade || 'Planning'}
+                                onValueChange={value => {
+                                  const newStatus = value === 'Planning' ? 'planning' : (value === 'F' || value === 'W') ? 'failed' : 'completed';
+                                  setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
                                     ...prev,
                                     [course.code]: {
-                                      ...prev[course.code],
-                                      grade: value
+                                      status: newStatus,
+                                      grade: value === 'Planning' ? '' : value,
+                                      plannedSemester: value === 'Planning' ? prev[course.code]?.plannedSemester : undefined
                                     }
-                                  }))}
-                                >
-                                  <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
-                                    <SelectValue placeholder="Grade" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {gradeOptions.map((g: string) => (
-                                      <SelectItem key={g} value={g}>{g}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                  }));
+                                }}
+                              >
+                                <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
+                                  <SelectValue placeholder="Select Grade" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Planning">Planning</SelectItem>
+                                  {gradeOptions.map((g: string) => (
+                                    <SelectItem key={g} value={g}>{g}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {completedCourses[course.code]?.status === 'planning' && (
+                                <Input
+                                  type="text"
+                                  placeholder="e.g., 1/2026"
+                                  value={completedCourses[course.code]?.plannedSemester || ''}
+                                  onChange={e => {
+                                    const semester = e.target.value;
+                                    setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                                      ...prev,
+                                      [course.code]: {
+                                        ...prev[course.code],
+                                        plannedSemester: semester
+                                      }
+                                    }));
+                                  }}
+                                  className="w-28 border border-input rounded-lg px-3 py-2 text-sm"
+                                />
                               )}
                             </div>
                           </div>
@@ -874,34 +877,47 @@ export default function DataEntryPage() {
                             <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                           </div>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                            <StatusDropdown
-                              code={course.code}
-                              status={completedCourses[course.code]?.status || 'not_completed'}
-                              setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                ...prev,
-                                [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
-                              }))}
-                            />
-                            {completedCourses[course.code]?.status === 'completed' && (
-                              <Select
-                                value={completedCourses[course.code]?.grade || ''}
-                                onValueChange={value => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                            <Select
+                              value={completedCourses[course.code]?.grade || 'Planning'}
+                              onValueChange={value => {
+                                const newStatus = value === 'Planning' ? 'planning' : (value === 'F' || value === 'W') ? 'failed' : 'completed';
+                                setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
                                   ...prev,
                                   [course.code]: {
-                                    ...prev[course.code],
-                                    grade: value
+                                    status: newStatus,
+                                    grade: value === 'Planning' ? '' : value,
+                                    plannedSemester: value === 'Planning' ? prev[course.code]?.plannedSemester : undefined
                                   }
-                                }))}
-                              >
-                                <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
-                                  <SelectValue placeholder="Grade" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {gradeOptions.map((g: string) => (
-                                    <SelectItem key={g} value={g}>{g}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                }));
+                              }}
+                            >
+                              <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
+                                <SelectValue placeholder="Select Grade" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Planning">Planning</SelectItem>
+                                {gradeOptions.map((g: string) => (
+                                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {completedCourses[course.code]?.status === 'planning' && (
+                              <Input
+                                type="text"
+                                placeholder="e.g., 1/2026"
+                                value={completedCourses[course.code]?.plannedSemester || ''}
+                                onChange={e => {
+                                  const semester = e.target.value;
+                                  setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                                    ...prev,
+                                    [course.code]: {
+                                      ...prev[course.code],
+                                      plannedSemester: semester
+                                    }
+                                  }));
+                                }}
+                                className="w-28 border border-input rounded-lg px-3 py-2 text-sm"
+                              />
                             )}
                           </div>
                         </div>
@@ -940,34 +956,47 @@ export default function DataEntryPage() {
                           <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                          <StatusDropdown
-                            code={course.code}
-                            status={completedCourses[course.code]?.status || 'not_completed'}
-                            setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                              ...prev,
-                              [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
-                            }))}
-                          />
-                          {completedCourses[course.code]?.status === 'completed' && (
-                            <Select
-                              value={completedCourses[course.code]?.grade || ''}
-                              onValueChange={value => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                          <Select
+                            value={completedCourses[course.code]?.grade || 'Planning'}
+                            onValueChange={value => {
+                              const newStatus = value === 'Planning' ? 'planning' : (value === 'F' || value === 'W') ? 'failed' : 'completed';
+                              setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
                                 ...prev,
                                 [course.code]: {
-                                  ...prev[course.code],
-                                  grade: value
+                                  status: newStatus,
+                                  grade: value === 'Planning' ? '' : value,
+                                  plannedSemester: value === 'Planning' ? prev[course.code]?.plannedSemester : undefined
                                 }
-                              }))}
-                            >
-                              <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
-                                <SelectValue placeholder="Grade" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {gradeOptions.map((g: string) => (
-                                  <SelectItem key={g} value={g}>{g}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              }));
+                            }}
+                          >
+                            <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
+                              <SelectValue placeholder="Select Grade" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Planning">Planning</SelectItem>
+                              {gradeOptions.map((g: string) => (
+                                <SelectItem key={g} value={g}>{g}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {completedCourses[course.code]?.status === 'planning' && (
+                            <Input
+                              type="text"
+                              placeholder="e.g., 1/2026"
+                              value={completedCourses[course.code]?.plannedSemester || ''}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                const semester = e.target.value;
+                                setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                                  ...prev,
+                                  [course.code]: {
+                                    ...prev[course.code],
+                                    plannedSemester: semester
+                                  }
+                                }));
+                              }}
+                              className="w-28 border border-input rounded-lg px-3 py-2 text-sm"
+                            />
                           )}
                         </div>
                       </div>
@@ -1003,34 +1032,47 @@ export default function DataEntryPage() {
                           <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                          <StatusDropdown
-                            code={course.code}
-                            status={completedCourses[course.code]?.status || 'not_completed'}
-                            setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                              ...prev,
-                              [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
-                            }))}
-                          />
-                          {completedCourses[course.code]?.status === 'completed' && (
-                            <Select
-                              value={completedCourses[course.code]?.grade || ''}
-                              onValueChange={value => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                          <Select
+                            value={completedCourses[course.code]?.grade || 'Planning'}
+                            onValueChange={value => {
+                              const newStatus = value === 'Planning' ? 'planning' : (value === 'F' || value === 'W') ? 'failed' : 'completed';
+                              setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
                                 ...prev,
                                 [course.code]: {
-                                  ...prev[course.code],
-                                  grade: value
+                                  status: newStatus,
+                                  grade: value === 'Planning' ? '' : value,
+                                  plannedSemester: value === 'Planning' ? prev[course.code]?.plannedSemester : undefined
                                 }
-                              }))}
-                            >
-                              <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
-                                <SelectValue placeholder="Grade" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {gradeOptions.map((g: string) => (
-                                  <SelectItem key={g} value={g}>{g}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              }));
+                            }}
+                          >
+                            <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
+                              <SelectValue placeholder="Select Grade" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Planning">Planning</SelectItem>
+                              {gradeOptions.map((g: string) => (
+                                <SelectItem key={g} value={g}>{g}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {completedCourses[course.code]?.status === 'planning' && (
+                            <Input
+                              type="text"
+                              placeholder="e.g., 1/2026"
+                              value={completedCourses[course.code]?.plannedSemester || ''}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                const semester = e.target.value;
+                                setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                                  ...prev,
+                                  [course.code]: {
+                                    ...prev[course.code],
+                                    plannedSemester: semester
+                                  }
+                                }));
+                              }}
+                              className="w-28 border border-input rounded-lg px-3 py-2 text-sm"
+                            />
                           )}
                         </div>
                       </div>
@@ -1458,34 +1500,47 @@ function FreeElectiveAddButton() {
                 <span className="text-sm text-muted-foreground">{course.credits} credits</span>
               </div>
               <div className="flex flex-row items-center gap-3 mt-2 sm:mt-0">
-                <StatusDropdown
-                  code={course.code}
-                  status={completedCourses[course.code]?.status || 'not_completed'}
-                  setStatus={status => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                    ...prev,
-                    [course.code]: { ...prev[course.code], status, ...(status !== 'completed' ? { grade: '' } : {}) }
-                  }))}
-                />
-                {completedCourses[course.code]?.status === 'completed' && (
-                  <Select
-                    value={completedCourses[course.code]?.grade || ''}
-                    onValueChange={value => setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                <Select
+                  value={completedCourses[course.code]?.grade || 'Planning'}
+                  onValueChange={value => {
+                    const newStatus = value === 'Planning' ? 'planning' : (value === 'F' || value === 'W') ? 'failed' : 'completed';
+                    setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
                       ...prev,
                       [course.code]: {
-                        ...prev[course.code],
-                        grade: value
+                        status: newStatus,
+                        grade: value === 'Planning' ? '' : value,
+                        plannedSemester: value === 'Planning' ? prev[course.code]?.plannedSemester : undefined
                       }
-                    }))}
-                  >
-                    <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
-                      <SelectValue placeholder="Grade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {gradeOptions.map((g: string) => (
-                        <SelectItem key={g} value={g}>{g}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
+                    <SelectValue placeholder="Select Grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Planning">Planning</SelectItem>
+                    {gradeOptions.map((g: string) => (
+                      <SelectItem key={g} value={g}>{g}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {completedCourses[course.code]?.status === 'planning' && (
+                  <Input
+                    type="text"
+                    placeholder="e.g., 1/2026"
+                    value={completedCourses[course.code]?.plannedSemester || ''}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      const semester = e.target.value;
+                      setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
+                        ...prev,
+                        [course.code]: {
+                          ...prev[course.code],
+                          plannedSemester: semester
+                        }
+                      }));
+                    }}
+                    className="w-28 border border-input rounded-lg px-3 py-2 text-sm"
+                  />
                 )}
                 <button
                   type="button"
@@ -1497,45 +1552,6 @@ function FreeElectiveAddButton() {
                 </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StatusDropdown({ code, status, setStatus }: { code: string; status: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning'; setStatus: (status: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning') => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !(ref.current as HTMLDivElement).contains(e.target as Node)) setOpen(false);
-    }
-    if (open) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        className={`flex items-center gap-2 px-3 py-1 border border-border rounded-md text-sm font-medium focus:outline-none hover:opacity-80 transition-all duration-200 ${statusColorClasses[status]}`}
-        onClick={() => setOpen(v => !v)}
-      >
-        {statusLabels[status]}
-        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-      </button>
-      {open && (
-        <div className="absolute z-10 mt-1 w-48 bg-background border border-border rounded-md shadow-lg">
-          {statusOptions.map((opt: { value: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning'; label: string }) => (
-            <button
-              key={opt.value}
-              className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors ${status === opt.value ? `font-bold ${statusColorClasses[opt.value]}` : 'text-foreground'}`}
-              onClick={() => { setStatus(opt.value); setOpen(false); }}
-              type="button"
-            >
-              {opt.label}
-            </button>
           ))}
         </div>
       )}

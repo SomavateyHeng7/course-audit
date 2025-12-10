@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Trash2, Save, BookOpen, Calendar, Users, ArrowLeft } from 'lucide-react';
+import { Search, Plus, Trash2, Save, BookOpen, Calendar, Users, ArrowLeft, Upload, FileSpreadsheet, X } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
 import CourseDetailForm from '@/components/features/schedule/CourseDetailForm';
+import * as XLSX from 'xlsx';
 
 // Import chairperson components
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
@@ -25,6 +26,11 @@ interface Course {
   credits: number;
   description?: string;
   category?: string;
+  section?: string;
+  day?: string;
+  time?: string;
+  instructor?: string;
+  seatLimit?: number;
 }
 
 interface ScheduleData {
@@ -53,6 +59,10 @@ const TentativeSchedulePage: React.FC = () => {
 
   const [showCourseDetailModal, setShowCourseDetailModal] = useState(false);
   const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<Course | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [showUploadPreview, setShowUploadPreview] = useState(false);
+  const [uploadedCourses, setUploadedCourses] = useState<Course[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -121,6 +131,92 @@ const TentativeSchedulePage: React.FC = () => {
       courses: prev.courses.filter(c => c.id !== id)
     }));
     success('Course removed');
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+      showError('Please upload a valid Excel file (.xlsx or .xls)');
+      return;
+    }
+
+    setUploadedFile(file);
+    setLoading(true);
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+      // Map Excel columns to Course interface
+      const courses: Course[] = jsonData.map((row, index) => {
+        const course = row['Course'] || row['course'];
+        const courseName = row['Course Name'] || row['course name'] || row['CourseName'] || row['name'];
+        const section = row['Section'] || row['section'];
+        const day = row['Day'] || row['day'];
+        const time = row['Time'] || row['time'];
+        const instructor = row['Instructor Name'] || row['instructor'] || row['Instructor'];
+        const seatLimit = row['Seat Limit'] || row['seat limit'] || row['SeatLimit'];
+
+        if (!course || !courseName) {
+          warning(`Row ${index + 1}: Missing required fields (Course or Course Name)`);
+        }
+
+        return {
+          id: `upload-${index}-${Date.now()}`,
+          code: course || '',
+          name: courseName || '',
+          credits: 3, // Default value
+          section: section || '',
+          day: day || '',
+          time: time || '',
+          instructor: instructor || '',
+          seatLimit: seatLimit ? parseInt(seatLimit) : undefined,
+          category: 'Uploaded'
+        };
+      }).filter(course => course.code && course.name);
+
+      if (courses.length === 0) {
+        showError('No valid courses found in the Excel file. Please check the format.');
+        setUploadedFile(null);
+        return;
+      }
+
+      setUploadedCourses(courses);
+      setShowUploadPreview(true);
+      success(`Successfully parsed ${courses.length} courses from Excel file`);
+    } catch (error) {
+      console.error('Error parsing Excel file:', error);
+      showError('Failed to parse Excel file. Please check the file format.');
+      setUploadedFile(null);
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleApplyUploadedCourses = () => {
+    setSchedule(prev => ({
+      ...prev,
+      courses: [...prev.courses, ...uploadedCourses]
+    }));
+    success(`Added ${uploadedCourses.length} courses from Excel file`);
+    setShowUploadPreview(false);
+    setUploadedCourses([]);
+    setUploadedFile(null);
+  };
+
+  const handleCancelUpload = () => {
+    setShowUploadPreview(false);
+    setUploadedCourses([]);
+    setUploadedFile(null);
   };
 
   const handleSaveSchedule = async () => {
@@ -232,6 +328,37 @@ const TentativeSchedulePage: React.FC = () => {
                     onChange={e => setSchedule(prev => ({ ...prev, version: e.target.value }))}
                     placeholder="e.g., 1.0"
                   />
+                </div>
+                
+                {/* Excel Upload Section */}
+                <div className="pt-4 border-t">
+                  <Label className="mb-2 block">Upload Excel File</Label>
+                  <div className="text-xs text-muted-foreground mb-3">
+                    Required: Course, Course Name, Section, Day, Time<br />
+                    Optional: Instructor Name, Seat Limit
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="excel-upload"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary hover:bg-primary/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Upload size={16} />
+                    {loading ? 'Processing...' : 'Choose Excel File'}
+                  </button>
+                  {uploadedFile && (
+                    <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
+                      <FileSpreadsheet size={12} />
+                      {uploadedFile.name}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -354,7 +481,7 @@ const TentativeSchedulePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Course Detail Modal */}
       <CourseDetailForm
         isOpen={showCourseDetailModal}
         courseName={selectedCourseForDetail?.name}
@@ -362,6 +489,77 @@ const TentativeSchedulePage: React.FC = () => {
         onSave={handleCourseDetailSave}
         onCancel={() => setShowCourseDetailModal(false)}
       />
+
+      {/* Upload Preview Modal */}
+      {showUploadPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b">
+              <div>
+                <h3 className="text-lg font-semibold">Excel Upload Preview</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Review {uploadedCourses.length} courses before adding to schedule
+                </p>
+              </div>
+              <button
+                onClick={handleCancelUpload}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left p-3 font-medium">#</th>
+                      <th className="text-left p-3 font-medium">Course</th>
+                      <th className="text-left p-3 font-medium">Course Name</th>
+                      <th className="text-left p-3 font-medium">Section</th>
+                      <th className="text-left p-3 font-medium">Day</th>
+                      <th className="text-left p-3 font-medium">Time</th>
+                      <th className="text-left p-3 font-medium">Instructor</th>
+                      <th className="text-left p-3 font-medium">Seats</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {uploadedCourses.map((course, index) => (
+                      <tr key={course.id} className="border-b hover:bg-muted/50">
+                        <td className="p-3 text-sm">{index + 1}</td>
+                        <td className="p-3 text-sm font-medium">{course.code}</td>
+                        <td className="p-3 text-sm">{course.name}</td>
+                        <td className="p-3 text-sm">{course.section || '-'}</td>
+                        <td className="p-3 text-sm">{course.day || '-'}</td>
+                        <td className="p-3 text-sm">{course.time || '-'}</td>
+                        <td className="p-3 text-sm">{course.instructor || '-'}</td>
+                        <td className="p-3 text-sm">{course.seatLimit || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-end gap-3 p-6 border-t bg-muted/30">
+              <button
+                onClick={handleCancelUpload}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApplyUploadedCourses}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
+              >
+                <Plus size={16} />
+                Add {uploadedCourses.length} Courses to Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
