@@ -137,18 +137,34 @@ export async function getPublicConcentrations() {
 // ===== PROTECTED ENDPOINTS (Auth required) =====
 
 /**
+ * Helper to get CSRF token from cookie
+ */
+function getCsrfTokenFromCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  
+  const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+  if (match) {
+    return decodeURIComponent(match[1]);
+  }
+  return null;
+}
+
+/**
  * Generic authenticated request helper
  */
 async function authenticatedRequest(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<any> {
+  const csrfToken = getCsrfTokenFromCookie();
+  
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     credentials: 'include',
     headers: {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
+      ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
       ...options.headers,
     },
   });

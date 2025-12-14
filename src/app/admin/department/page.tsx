@@ -67,7 +67,7 @@ export default function DepartmentManagement() {
 
   const fetchDepartments = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/departments`, {
+      const response = await fetch(`${API_BASE}/departments`, {
         credentials: 'include',
       });
       if (response.ok) {
@@ -83,7 +83,7 @@ export default function DepartmentManagement() {
 
   const fetchFaculties = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/faculties`, {
+      const response = await fetch(`${API_BASE}/faculties`, {
         credentials: 'include',
       });
       if (response.ok) {
@@ -100,7 +100,7 @@ export default function DepartmentManagement() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/departments`, {
+      const response = await fetch(`${API_BASE}/departments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -133,7 +133,7 @@ export default function DepartmentManagement() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/departments/${editingDepartment.id}`, {
+      const response = await fetch(`${API_BASE}/departments/${editingDepartment.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -222,7 +222,7 @@ export default function DepartmentManagement() {
                   if (!deleteDepartmentId) return;
                   setDeleteLoading(true);
                   try {
-                    const response = await fetch(`${API_BASE}/api/departments/${deleteDepartmentId}`, { 
+                    const response = await fetch(`${API_BASE}/departments/${deleteDepartmentId}`, { 
                       method: 'DELETE',
                       credentials: 'include',
                     });

@@ -50,7 +50,7 @@ export default function FacultyManagement() {
 
   const fetchFaculties = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/faculties`, {
+      const response = await fetch(`${API_BASE}/faculties`, {
         credentials: 'include',
       });
       console.log('Faculties API response status:', response.status);
@@ -82,7 +82,7 @@ export default function FacultyManagement() {
     e.preventDefault();
     setCreateLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/faculties`, {
+      const response = await fetch(`${API_BASE}/faculties`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -111,7 +111,7 @@ export default function FacultyManagement() {
     if (!editingFaculty) return;
     setUpdateLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/faculties/${editingFaculty.id}`, {
+      const response = await fetch(`${API_BASE}/faculties/${editingFaculty.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -197,7 +197,7 @@ export default function FacultyManagement() {
                   if (!deleteFacultyId) return;
                   setDeleteLoading(true);
                   try {
-                    const response = await fetch(`${API_BASE}/api/faculties/${deleteFacultyId}`, { 
+                    const response = await fetch(`${API_BASE}/faculties/${deleteFacultyId}`, { 
                       method: 'DELETE',
                       credentials: 'include',
                     });

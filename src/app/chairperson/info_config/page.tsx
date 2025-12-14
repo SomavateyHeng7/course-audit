@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from '@/contexts/SanctumAuthContext';
 import { useRouter } from "next/navigation";
 import { FaEye, FaUpload, FaFileExcel, FaEdit, FaTrash, FaPlus, FaInfoCircle } from 'react-icons/fa';
 import { blacklistApi, type BlacklistData, type BlacklistCourse } from '@/services/blacklistApi';
@@ -72,7 +72,7 @@ const mockBlacklists: Blacklist[] = [
 
 export default function InfoConfig() {
   // Authentication hooks - MUST be at the top
-  const { data: session, status } = useSession();
+  const { user } = useAuth();
   const router = useRouter();
 
   // Toast notifications - MUST be before conditional returns
@@ -133,46 +133,43 @@ export default function InfoConfig() {
 
   // Authentication check - AFTER all hooks are declared
   useEffect(() => {
-    if (status === 'loading') return; // Still loading
-
-    if (!session) {
+    if (!user) {
       router.push('/auth');
       return;
     }
-
-    if (session.user.role !== 'CHAIRPERSON') {
+    if (user.role !== 'CHAIRPERSON') {
       router.push('/dashboard');
       return;
     }
-  }, [session, status, router]);
+  }, [user, router]);
 
   // Load blacklists on component mount - only if authenticated
   useEffect(() => {
-    if (session && session.user.role === 'CHAIRPERSON') {
+    if (user && user.role === 'CHAIRPERSON') {
       loadBlacklists();
     }
-  }, [session]);
+  }, [user]);
 
   // Load concentrations on component mount - only if authenticated
   useEffect(() => {
-    if (session && session.user.role === 'CHAIRPERSON') {
+    if (user && user.role === 'CHAIRPERSON') {
       loadConcentrations();
     }
-  }, [session]);
+  }, [user]);
 
   // Load concentration title on component mount - only if authenticated
   useEffect(() => {
-    if (session && session.user.role === 'CHAIRPERSON') {
+    if (user && user.role === 'CHAIRPERSON') {
       loadConcentrationTitle();
     }
-  }, [session]);
+  }, [user]);
 
   // Load course types on component mount - only if authenticated
   useEffect(() => {
-    if (session && session.user.role === 'CHAIRPERSON') {
+    if (user && user.role === 'CHAIRPERSON') {
       loadCourseTypes();
     }
-  }, [session]);
+  }, [user]);
 
   // Trigger search when courseSearch changes - with debounce
   useEffect(() => {
@@ -187,20 +184,8 @@ export default function InfoConfig() {
     return () => clearTimeout(delayDebounceFn);
   }, [courseSearch]);
 
-  // Show loading while checking authentication
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Don't render if not authenticated or not chairperson
-  if (!session || session.user.role !== 'CHAIRPERSON') {
+  if (!user || user.role !== 'CHAIRPERSON') {
     return null;
   }
 
@@ -209,7 +194,7 @@ export default function InfoConfig() {
       setLoading(true);
       setError(null);
       const response = await blacklistApi.getBlacklists();
-      setBlacklists(response.blacklists);
+      setBlacklists(Array.isArray(response.blacklists) ? response.blacklists : []);
     } catch (err) {
       console.error('Error loading blacklists:', err);
       setError(err instanceof Error ? err.message : 'Failed to load blacklists');
@@ -223,7 +208,7 @@ export default function InfoConfig() {
       setLoading(true);
       setError(null);
       const response = await concentrationApi.getConcentrations();
-      setConcentrations(response || []);
+      setConcentrations(Array.isArray(response) ? response : []);
     } catch (err) {
       console.error('Error loading concentrations:', err);
       setError(err instanceof Error ? err.message : 'Failed to load concentrations');
@@ -626,9 +611,9 @@ export default function InfoConfig() {
           color: newType.color
         });
 
-        setCourseTypes(courseTypes.map(type => 
+        setCourseTypes(Array.isArray(courseTypes) ? courseTypes.map(type => 
           type.id === editingType.id ? updatedType : type
-        ));
+        ) : [updatedType]);
         setIsEditTypeModalOpen(false);
         setEditingType(null);
         setNewType({ name: '', color: '#6366f1' });
@@ -1034,7 +1019,7 @@ export default function InfoConfig() {
               </div>
 
               <div className="space-y-2 sm:space-y-3">
-                {blacklists.map((blacklist) => (
+                {Array.isArray(blacklists) && blacklists.map((blacklist) => (
                   <div
                     key={blacklist.id}
                     className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors space-y-2 sm:space-y-0"
@@ -1078,7 +1063,7 @@ export default function InfoConfig() {
                   </div>
                 ))}
                 
-                {blacklists.length === 0 && (
+                {(!Array.isArray(blacklists) || blacklists.length === 0) && (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     <div className="flex flex-col items-center">
                       <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
@@ -1112,7 +1097,7 @@ export default function InfoConfig() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
-                {courseTypes.map((type) => (
+                {Array.isArray(courseTypes) && courseTypes.map((type) => (
                   <div
                     key={type.id}
                     className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"

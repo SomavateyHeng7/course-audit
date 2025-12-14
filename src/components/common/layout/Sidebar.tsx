@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { signOut, useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/SanctumAuthContext';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -108,12 +108,12 @@ export default function Sidebar() {
   const [mounted, setMounted] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const { isCollapsed, toggleSidebar } = useSidebar();
-  const { data: session } = useSession();
+  const { user, logout } = useAuth();
 
   // Determine navigation items based on user role
-  const navigationItems = session?.user?.role === 'CHAIRPERSON' 
+  const navigationItems = user?.role === 'CHAIRPERSON' 
     ? chairpersonNavigationItems 
-    : session?.user?.role === 'SUPER_ADMIN'
+    : user?.role === 'SUPER_ADMIN'
     ? adminNavigationItems
     : defaultNavigationItems;
 
@@ -129,30 +129,10 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try {
-      // For anonymous users (no session), just clear storage and redirect
-      if (!session?.user) {
-        // Clear any local/session storage for anonymous users
-        localStorage.clear();
-        sessionStorage.clear();
-        
-        // Redirect to landing page
-        window.location.href = '/';
-        return;
-      }
-      
-      // For authenticated users, use the full signOut process
-      // Clear any local/session storage
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Sign out with redirect to landing page
-      await signOut({
-        callbackUrl: '/',
-        redirect: true,
-      });
+      await logout();
+      window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
-      // Fallback: force redirect to landing page
       window.location.href = '/';
     }
   };
@@ -254,7 +234,7 @@ export default function Sidebar() {
                     transition={{ duration: 0.2 }}
                     className="text-sm font-medium text-primary dark:text-primary text-center"
                   >
-                    {session?.user?.name || 'User'}
+                    {user?.name || 'User'}
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -325,7 +305,7 @@ export default function Sidebar() {
               onClick={handleLogout}
               variant="ghost"
               className="w-full justify-center px-3 py-2 text-muted-foreground hover:bg-red-100/60 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300 transition-all duration-200"
-              title={session?.user ? "Log Out" : "Clear Data"}
+              title={user ? "Log Out" : "Clear Data"}
             >
               <LogOut className="h-5 w-5 flex-shrink-0" />
             </Button>
@@ -339,7 +319,7 @@ export default function Sidebar() {
               <motion.span
                 initial={{ opacity: 1, x: 0 }}
               >
-                {session?.user ? "Log Out" : "Clear Data"}
+                {user ? "Log Out" : "Clear Data"}
               </motion.span>
             </Button>          )}
         </div>

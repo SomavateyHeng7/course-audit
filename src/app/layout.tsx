@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Montserrat, Playfair_Display, Inter } from 'next/font/google';
-import { SessionProvider } from '@/components/common/providers/SessionProvider';
+import { SanctumAuthProvider } from '@/contexts/SanctumAuthContext';
 import { CourseManagementProvider } from '@/app/contexts/CourseManagementContext';
 import { ToastProvider } from '@/hooks/useToast';
 import ConditionalLayout from '@/components/common/layout/ConditionalLayout';
@@ -44,13 +44,13 @@ export default function RootLayout({
       </head>
       <body className={`${montserrat.variable} ${playfair.variable} ${inter.variable} font-sans antialiased`}>
         <ToastProvider>
-          <SessionProvider>
+          <SanctumAuthProvider>
             <CourseManagementProvider>
               <ConditionalLayout>
                 {children}
               </ConditionalLayout>
             </CourseManagementProvider>
-          </SessionProvider>
+          </SanctumAuthProvider>
         </ToastProvider>
       </body>
     </html>

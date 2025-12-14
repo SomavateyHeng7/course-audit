@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Users, Plus, Edit, Trash2, Shield, UserCheck, GraduationCap } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
-import { API_BASE } from '@/lib/api/laravel';
+import { getUsers, createUser, updateUser, deleteUser, getFaculties, getDepartments } from '@/lib/api/laravel';
 
 interface User {
   id: string;
@@ -69,10 +69,7 @@ export default function RoleManagement() {
   // ✅ fetch faculties once
   useEffect(() => {
     setFacultiesLoading(true);
-    fetch(`${API_BASE}/api/faculties`, {
-      credentials: 'include',
-    })
-      .then((res) => res.json())
+    getFaculties()
       .then((data) => setFaculties(data.faculties || []))
       .catch(() => setFaculties([]))
       .finally(() => setFacultiesLoading(false));
@@ -82,12 +79,24 @@ export default function RoleManagement() {
   useEffect(() => {
     if (formData.facultyId) {
       setFacultyLoading(true);
-      fetch(`${API_BASE}/api/departments?facultyId=${formData.facultyId}`, {
-        credentials: 'include',
-      })
-        .then((res) => res.json())
-        .then((data) => setDepartments(data.departments || []))
-        .catch(() => setDepartments([]))
+      getDepartments()
+        .then((data) => {
+          console.log('Departments data received:', data);
+          // Filter departments by faculty_id (backend uses snake_case)
+          if (data.departments) {
+            const filtered = data.departments.filter((d: any) => 
+              d.faculty_id == formData.facultyId || d.facultyId == formData.facultyId
+            );
+            console.log('Filtered departments:', filtered);
+            setDepartments(filtered);
+          } else {
+            setDepartments([]);
+          }
+        })
+        .catch((error) => {
+          console.error('Error fetching departments:', error);
+          setDepartments([]);
+        })
         .finally(() => setFacultyLoading(false));
     } else {
       setDepartments([]);
@@ -100,13 +109,8 @@ export default function RoleManagement() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/admin/users`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users);
-      }
+      const data = await getUsers();
+      setUsers(data.users);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -125,27 +129,10 @@ export default function RoleManagement() {
     setCreateSuccess('');
     try {
       const { confirmPassword, ...submitData } = formData;
-      const response = await fetch(`${API_BASE}/api/admin/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(submitData),
-      });
-      if (response.ok) {
-        success('User created successfully!');
-        setShowCreateModal(false);
-        setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
-        fetchUsers();
-      } else {
-        const data = await response.json();
-        if (data?.error && data?.details) {
-          showError(`Cannot create user: ${data.error}. Details: ${JSON.stringify(data.details)}`);
-        } else if (data?.error) {
-          showError(`Failed to create user: ${data.error}`);
-        } else {
-          showError('Failed to create user.');
-        }
-      }
+      await createUser(submitData);
+      success('User created successfully!');
+      setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+      fetchUsers();
     } catch (error) {
       showError('Error creating user.');
       console.error('Error creating user:', error);
@@ -164,27 +151,11 @@ export default function RoleManagement() {
     setUpdateLoading(true);
     try {
       const { confirmPassword, ...submitData } = formData;
-      const response = await fetch(`${API_BASE}/api/admin/users/${editingUser.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(submitData),
-      });
-      if (response.ok) {
-        success('User updated successfully!');
-        setEditingUser(null);
-        setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
-        fetchUsers();
-      } else {
-        const data = await response.json();
-        if (data?.error && data?.details) {
-          showError(`Cannot update user: ${data.error}. Details: ${JSON.stringify(data.details)}`);
-        } else if (data?.error) {
-          showError(`Failed to update user: ${data.error}`);
-        } else {
-          showError('Failed to update user.');
-        }
-      }
+      await updateUser(editingUser.id, submitData);
+      success('User updated successfully!');
+      setEditingUser(null);
+      setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+      fetchUsers();
     } catch (error) {
       showError('Error updating user.');
       console.error('Error updating user:', error);
@@ -245,30 +216,15 @@ export default function RoleManagement() {
                   if (!deleteUserId) return;
                   setCreateLoading(true);
                   try {
-                    const response = await fetch(`${API_BASE}/api/admin/users/${deleteUserId}`, { 
-                      method: 'DELETE',
-                      credentials: 'include',
-                    });
-                    if (response.ok) {
-                      success('User deleted successfully!');
-                      fetchUsers();
-                    } else {
-                      const data = await response.json();
-                      if (data?.error && data?.details) {
-                        showError(`Cannot delete user: ${data.error}. Details: ${JSON.stringify(data.details)}`);
-                      } else if (data?.error) {
-                        showError(`Failed to delete user: ${data.error}`);
-                      } else {
-                        showError('Failed to delete user.');
-                      }
-                    }
+                    await deleteUser(deleteUserId);
+                    success('User deleted successfully!');
+                    fetchUsers();
                   } catch (error) {
                     showError('Error deleting user.');
                   } finally {
                     setCreateLoading(false);
                     setShowDeleteModal(false);
                     setDeleteUserId(null);
-
                   }
                 }}
               >

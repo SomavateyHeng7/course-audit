@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from '@/contexts/SanctumAuthContext';
 import { useRouter } from "next/navigation";
 import { Trash2, Info, Plus, BookOpen, Users, Calendar, Settings } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
@@ -54,7 +54,7 @@ interface PaginationInfo {
 
 const ChairpersonPage: React.FC = () => {
   const { success, error: showError, warning, info } = useToastHelpers();
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const router = useRouter();
   const [curricula, setCurricula] = useState<Curriculum[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,10 +94,10 @@ const ChairpersonPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (session?.user) {
+    if (user) {
       fetchCurricula();
     }
-  }, [session]);
+  }, [user]);
 
   const handleSearch = () => {
     fetchCurricula(searchTerm, 1);
@@ -143,6 +143,14 @@ const ChairpersonPage: React.FC = () => {
   const activeCurricula = curricula.filter(c => c.isActive).length;
   const totalCourses = curricula.reduce((sum, c) => sum + c._count.curriculumCourses, 0);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
@@ -162,7 +170,7 @@ const ChairpersonPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <StatCard
             title="Total Curricula"
-            value={pagination.total}
+            value={pagination?.total || 0}
             subtitle="Academic programs"
             icon={<BookOpen size={20} />}
           />
@@ -179,8 +187,8 @@ const ChairpersonPage: React.FC = () => {
             icon={<BookOpen size={20} />}
           />
           <StatCard
-            title={`Page ${pagination.page}`}
-            value={`${pagination.totalPages} Pages`}
+            title={`Page ${pagination?.page || 1}`}
+            value={`${pagination?.totalPages || 1} Pages`}
             subtitle="Pagination info"
             icon={<Info size={20} />}
           />
@@ -198,7 +206,7 @@ const ChairpersonPage: React.FC = () => {
             />
             
             <div className="text-sm text-muted-foreground">
-              {curricula.length} of {pagination.total} curricula
+              {curricula.length} of {pagination?.total || 0} curricula
             </div>
           </div>
         </div>
@@ -294,10 +302,10 @@ const ChairpersonPage: React.FC = () => {
           ]}
           loading={loading}
           pagination={{
-            currentPage: pagination.page,
-            totalPages: pagination.totalPages,
-            totalItems: pagination.total,
-            itemsPerPage: pagination.limit,
+            currentPage: pagination?.page || 1,
+            totalPages: pagination?.totalPages || 1,
+            totalItems: pagination?.total || 0,
+            itemsPerPage: pagination?.limit || 10,
             onPageChange: handlePageChange,
             onItemsPerPageChange: (newLimit) => {
               setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));

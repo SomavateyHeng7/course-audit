@@ -1,28 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { signIn } from 'next-auth/react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { API_BASE } from '@/lib/api/laravel';
-
-interface Faculty {
-  id: string;
-  name: string;
-  code: string;
-}
-
-interface Department {
-  id: string;
-  name: string;
-  code: string;
-  facultyId: string;
-}
+import { useAuth } from '@/contexts/SanctumAuthContext';
+import { login as sanctumLogin } from '@/lib/auth/sanctum';
 
 export default function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
+
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -33,31 +22,27 @@ export default function AuthForm() {
     const password = formData.get('password') as string;
 
     try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      });
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
+      // Call the sanctum login directly to get the user data
+      const { user } = await sanctumLogin(email, password);
       
-      // Fetch user session to get role information
-      const response = await fetch(`${API_BASE}/api/auth/session`, {
-        credentials: 'include',
-      });
-      const session = await response.json();
+      // Also update the context
+      await login(email, password);
       
       // Redirect based on user role
-      if (session?.user?.role === 'CHAIRPERSON') {
-        router.push('/chairperson');
-      } else {
+      if (user.role === 'SUPER_ADMIN') {
         router.push('/admin');
+      } else if (user.role === 'CHAIRPERSON') {
+        router.push('/chairperson');
+      } else if (user.role === 'ADVISOR') {
+        router.push('/dashboard');
+      } else if (user.role === 'STUDENT') {
+        router.push('/student');
+      } else {
+        router.push('/dashboard');
       }
       router.refresh();
-    } catch {
-      setError('An error occurred. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }

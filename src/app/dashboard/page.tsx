@@ -1,25 +1,25 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/SanctumAuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === 'loading') return; // Still loading
+    if (isLoading) return; // Still loading
 
-    if (!session) {
+    if (!user) {
       router.push('/auth');
       return;
     }    // Redirect based on user role or preferences
     // For now, redirect to management
     router.push('/management');
-  }, [session, status, router]);
+  }, [user, isLoading, router]);
 
-  if (status === 'loading') {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
