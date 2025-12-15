@@ -69,11 +69,13 @@ export const concentrationApi = {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({}));
       throw new Error(error.error?.message || 'Failed to fetch concentrations');
     }
 
-    return response.json();
+    const data = await response.json();
+    // Handle both direct array and wrapped response
+    return Array.isArray(data) ? data : (data.concentrations || []);
   },
 
   // Get specific concentration

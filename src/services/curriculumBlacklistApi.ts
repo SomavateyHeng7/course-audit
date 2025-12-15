@@ -63,13 +63,24 @@ class CurriculumBlacklistApi {
     const response = await fetch(`${API_BASE}/curricula/${curriculumId}/blacklists`, {
       credentials: 'include'
     });
-    const data = await response.json();
     
     if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
       throw new Error(data.error?.message || 'Failed to fetch curriculum blacklists');
     }
+
+    const data = await response.json();
     
-    return data;
+    // Ensure arrays are always returned even if backend doesn't return them
+    return {
+      availableBlacklists: Array.isArray(data.availableBlacklists) ? data.availableBlacklists : [],
+      assignedBlacklists: Array.isArray(data.curriculumBlacklists) ? data.curriculumBlacklists : (Array.isArray(data.assignedBlacklists) ? data.assignedBlacklists : []),
+      stats: data.stats || {
+        totalAvailable: data.availableBlacklists?.length || 0,
+        totalAssigned: (data.curriculumBlacklists?.length || data.assignedBlacklists?.length || 0),
+        totalBlacklistedCourses: 0
+      }
+    };
   }
 
   // Assign blacklist to curriculum

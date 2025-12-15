@@ -36,7 +36,7 @@ export async function getCsrfCookie(): Promise<void> {
 }
 
 // Helper to get CSRF token from cookie
-function getCsrfTokenFromCookie(): string | null {
+export function getCsrfTokenFromCookie(): string | null {
   if (typeof document === 'undefined') return null;
   
   const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
@@ -90,19 +90,29 @@ export async function logout(): Promise<void> {
 
 // Get current user
 export async function getUser(): Promise<User> {
-  const response = await fetch(`${API_URL}/api/user`, {
-    method: 'GET',
-    credentials: 'include',
-    headers: {
-      'Accept': 'application/json',
-    },
-  });
+  try {
+    const response = await fetch(`${API_URL}/api/user`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch user');
+    if (!response.ok) {
+      // Don't throw error for 401, just return null-like response
+      if (response.status === 401) {
+        console.log('User not authenticated - 401 response');
+        throw new Error('Unauthenticated');
+      }
+      throw new Error(`Failed to fetch user: ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    throw error;
   }
-
-  return response.json();
 }
 
 // Token management

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { FaEdit, FaTrash, FaBook, FaGavel, FaGraduationCap, FaStar, FaBan } from 'react-icons/fa';
 import CoursesTab from '@/components/features/curriculum/CoursesTab';
 import ConstraintsTab from '@/components/features/curriculum/ConstraintsTab';
@@ -26,6 +26,7 @@ interface CurriculumCourseMeta {
 
 export default function EditCurriculum() {
   const params = useParams();
+  const router = useRouter();
   const curriculumId = params.id as string;
   const { success, error: showError } = useToastHelpers();
   
@@ -34,6 +35,10 @@ export default function EditCurriculum() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [concentrationTitle, setConcentrationTitle] = useState('Concentrations');
+  
+  // Delete Curriculum State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeletingCurriculum, setIsDeletingCurriculum] = useState(false);
   
   // Dynamic tabs based on concentration title
   const tabs = [
@@ -85,18 +90,30 @@ export default function EditCurriculum() {
     const fetchCurriculum = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(`${API_BASE}/api/curricula/${curriculumId}`, {
+        console.log('Fetching curriculum with ID:', curriculumId);
+        const response = await fetch(`${API_BASE}/curricula/${curriculumId}`, {
           credentials: 'include',
         });
         
+        console.log('Response status:', response.status);
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch curriculum');
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Error fetching curriculum:', errorData);
+          throw new Error(errorData.error?.message || 'Failed to fetch curriculum');
         }
         
         const data = await response.json();
+        console.log('Curriculum data received:', data);
         setCurriculum(data.curriculum);
+        
+        if (!data.curriculum) {
+          throw new Error('No curriculum data returned from server');
+        }
       } catch (err) {
+        console.error('Error in fetchCurriculum:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
+        showError(err instanceof Error ? err.message : 'Failed to load curriculum');
       } finally {
         setIsLoading(false);
       }
@@ -353,7 +370,7 @@ export default function EditCurriculum() {
 
     try {
       // First, update the course basic information
-      const courseResponse = await fetch(`${API_BASE}/api/courses/${editingCourse.id}`, {
+      const courseResponse = await fetch(`${API_BASE}/courses/${editingCourse.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -374,7 +391,7 @@ export default function EditCurriculum() {
 
       // Then, handle course type assignment if a course type is selected
       if (editingCourse.selectedCourseTypeId && curriculum?.departmentId) {
-        const assignResponse = await fetch(`${API_BASE}/api/course-types/assign`, {
+        const assignResponse = await fetch(`${API_BASE}/course-types/assign`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -528,7 +545,7 @@ export default function EditCurriculum() {
         courseToAdd = selectedCourse;
       } else if (showAddCourseForm && newCourse.code && newCourse.title) {
         // Create new course first
-        const createResponse = await fetch(`${API_BASE}/api/courses`, {
+        const createResponse = await fetch(`${API_BASE}/courses`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -557,7 +574,7 @@ export default function EditCurriculum() {
       }
 
       // Add the course to the curriculum
-      const addToCurriculumResponse = await fetch(`${API_BASE}/api/curricula/${curriculumId}/courses`, {
+      const addToCurriculumResponse = await fetch(`${API_BASE}/curricula/${curriculumId}/courses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -604,6 +621,32 @@ export default function EditCurriculum() {
       setIsAddingCourse(false);
     }
   };
+
+  const handleDeleteCurriculum = async () => {
+    setIsDeletingCurriculum(true);
+    try {
+      const response = await fetch(`${API_BASE}/curricula/${curriculumId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || 'Failed to delete curriculum');
+      }
+
+      success('Curriculum deleted successfully!');
+      // Redirect to curriculum list page
+      router.push('/chairperson/curriculum');
+    } catch (error) {
+      console.error('Error deleting curriculum:', error);
+      showError(error instanceof Error ? error.message : 'Failed to delete curriculum. Please try again.');
+    } finally {
+      setIsDeletingCurriculum(false);
+      setIsDeleteModalOpen(false);
+    }
+  };
+  
   return (
     <div className="flex min-h-screen bg-white dark:bg-background">
       {/* Sidebar is assumed to be rendered by layout */}
@@ -642,15 +685,17 @@ export default function EditCurriculum() {
                   <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
                     Manage all aspects of your curriculum from courses to constraints
                   </p>
-                  <div className="hidden lg:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600">
-                      Ctrl
-                    </kbd>
-                    <span>+</span>
-                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600">
-                      ← →
-                    </kbd>
-                    <span>to navigate</span>
+                  <div className="flex items-center gap-2">
+                    <div className="hidden lg:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600">
+                        Ctrl
+                      </kbd>
+                      <span>+</span>
+                      <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600">
+                        ← →
+                      </kbd>
+                      <span>to navigate</span>
+                    </div>
                   </div>
                 </div>
             {/* Tabs */}
@@ -1250,6 +1295,78 @@ export default function EditCurriculum() {
                   <>
                     <span className="hidden xs:inline">Add Course</span>
                     <span className="xs:hidden">Add</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete Curriculum Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-2 sm:p-4">
+          <div className="bg-white dark:bg-card rounded-lg sm:rounded-xl p-4 sm:p-6 lg:p-8 w-full max-w-xs sm:max-w-md border border-gray-200 dark:border-border shadow-2xl">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">Delete Curriculum</h3>
+              <button
+                suppressHydrationWarning
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeletingCurriculum}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 touch-manipulation disabled:opacity-50"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <FaTrash className="w-8 h-8 text-red-600 dark:text-red-400" />
+                </div>
+              </div>
+              <p className="text-center text-gray-700 dark:text-gray-300 mb-2 font-medium">
+                Are you sure you want to delete this curriculum?
+              </p>
+              <p className="text-center text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <strong className="text-red-600 dark:text-red-400">{curriculum?.name}</strong>
+              </p>
+              <p className="text-center text-xs text-gray-500 dark:text-gray-400 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                ⚠️ This action cannot be undone. All associated courses, constraints, elective rules, concentrations, and blacklists will be permanently deleted.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <button
+                suppressHydrationWarning
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeletingCurriculum}
+                className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base touch-manipulation"
+              >
+                Cancel
+              </button>
+              <button
+                suppressHydrationWarning
+                onClick={handleDeleteCurriculum}
+                disabled={isDeletingCurriculum}
+                className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base touch-manipulation"
+              >
+                {isDeletingCurriculum ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="hidden xs:inline">Deleting...</span>
+                    <span className="xs:hidden">...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaTrash className="mr-2 w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline">Delete Permanently</span>
+                    <span className="xs:hidden">Delete</span>
                   </>
                 )}
               </button>

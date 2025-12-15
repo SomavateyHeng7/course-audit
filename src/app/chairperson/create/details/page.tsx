@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/SanctumAuthContext';
 import { useToastHelpers } from '@/hooks/useToast';
-import { getDepartments, API_BASE } from '@/lib/api/laravel';
+import { getDepartments, createCurriculum, API_BASE } from '@/lib/api/laravel';
 
 interface ParsedCourse {
   code: string;
@@ -27,7 +27,7 @@ interface CurriculumInfo {
 
 export default function CurriculumDetails() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const { success, error: showError, warning, info } = useToastHelpers();
   const [courses, setCourses] = useState<ParsedCourse[]>([]);
   const [curriculumInfo, setCurriculumInfo] = useState<CurriculumInfo | null>(null);
@@ -63,10 +63,10 @@ export default function CurriculumDetails() {
     }
 
     // Fetch departments for user's faculty
-    if (session?.user?.faculty?.id) {
+    if (user?.faculty?.id) {
       fetchDepartments();
     }
-  }, [router, session]);
+  }, [router, user]);
 
   // Fetch course types when department changes
   useEffect(() => {
@@ -78,30 +78,33 @@ export default function CurriculumDetails() {
   const fetchDepartments = async () => {
     try {
       console.log('Fetching departments...');
-      const departments = await getDepartments();
+      const result = await getDepartments();
       
-      console.log('Departments response:', { departments });
+      // Extract departments array from response
+      const departmentsArray = Array.isArray(result) ? result : (result.departments || []);
       
-      console.log('Setting departments:', departments);
-      setDepartments(departments);
+      console.log('Departments response:', { result, departmentsArray });
+      
+      console.log('Setting departments:', departmentsArray);
+      setDepartments(departmentsArray);
       
       // 🆕 Smart default: Auto-select user's department if available
-      if (session?.user?.departmentId) {
-        const userDepartment = departments.find((dept: any) => dept.id === session.user.departmentId);
+      if (user?.department_id) {
+        const userDepartment = departmentsArray.find((dept: any) => dept.id === user.department_id);
         if (userDepartment) {
           console.log('Auto-selecting user department:', userDepartment.name);
-          setSelectedDepartmentId(session.user.departmentId);
-          fetchCourseTypes(session.user.departmentId);
+          setSelectedDepartmentId(user.department_id);
+          fetchCourseTypes(user.department_id);
           return;
         }
       }
       
       // Fallback: Auto-select first department if only one exists
-      if (departments.length === 1) {
-        console.log('Auto-selecting single department:', departments[0].id);
-        setSelectedDepartmentId(departments[0].id);
-        fetchCourseTypes(departments[0].id);
-      } else if (departments.length > 1) {
+      if (departmentsArray.length === 1) {
+        console.log('Auto-selecting single department:', departmentsArray[0].id);
+        setSelectedDepartmentId(departmentsArray[0].id);
+        fetchCourseTypes(departmentsArray[0].id);
+      } else if (departmentsArray.length > 1) {
         console.log('Multiple departments found, user needs to select one');
       }
     } catch (error) {
@@ -119,7 +122,7 @@ export default function CurriculumDetails() {
     }
 
     try {
-      const url = `${API_BASE}/api/course-types?departmentId=${departmentId}`;
+      const url = `${API_BASE}/course-types?departmentId=${departmentId}`;
       console.log('Fetching course types from:', url);
       
       const response = await fetch(url, {
@@ -208,8 +211,9 @@ export default function CurriculumDetails() {
       return;
     }
 
-    if (!session?.user?.faculty?.id) {
-      showError('User faculty information not available');
+
+    if (!curriculumInfo.year || curriculumInfo.year.trim() === "") {
+      showError('Curriculum year is required.');
       return;
     }
 
@@ -225,7 +229,7 @@ export default function CurriculumDetails() {
         endId: curriculumInfo.idEnd,
         totalCreditsRequired: Number(curriculumInfo.totalCredits) || 0,
         departmentId: selectedDepartmentId,
-        facultyId: session.user.faculty.id,
+        facultyId: user.faculty.id,
         courses: courses.map((course, index) => ({
           code: course.code,
           name: course.title, // Map title to name
@@ -251,42 +255,7 @@ export default function CurriculumDetails() {
       console.log('- First course:', payload.courses[0]);
       console.log('- Full payload:', JSON.stringify(payload, null, 2));
 
-      const response = await fetch(`${API_BASE}/curricula`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-      
-      // Check if response has content before parsing JSON
-      const responseText = await response.text();
-      console.log('Response text:', responseText);
-      
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError);
-        console.error('Response was:', responseText);
-        throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
-      }
-
-      if (!response.ok) {
-        const errorData = result.error || result;
-        if (errorData.code === 'DUPLICATE_CURRICULUM') {
-          showError(
-            `${errorData.message}\n\nExisting curriculum: ${errorData.existingCurriculum?.name || 'Unknown'}\nPlease use a different year or ID range.`
-          );
-          return; // Don't throw error, just show message and return
-        } else {
-          throw new Error(errorData.message || `HTTP ${response.status}: ${errorData || 'Failed to create curriculum'}`);
-        }
-      }
+      const result = await createCurriculum(payload);
 
       console.log('Curriculum created successfully:', result);
       
@@ -369,7 +338,7 @@ export default function CurriculumDetails() {
             <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4">Department Selection</h2>
             
             {/* Smart Default Info */}
-            {session?.user?.departmentId && (
+            {user?.department_id && (
               <div className="mb-4 p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-4 h-4 text-blue-600 dark:text-blue-400">ℹ️</div>
@@ -377,7 +346,7 @@ export default function CurriculumDetails() {
                 </div>
                 <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">
                   Creating curriculum for <strong>
-                    {departments.find(d => d.id === session.user.departmentId)?.name || 'Your Department'}
+                    {departments.find(d => d.id === user.department_id)?.name || 'Your Department'}
                   </strong>. 
                   You can select a different department if needed.
                 </p>
@@ -398,7 +367,7 @@ export default function CurriculumDetails() {
                 {departments.map(dept => (
                   <option key={dept.id} value={dept.id}>
                     {dept.name} ({dept.code})
-                    {session?.user?.departmentId === dept.id ? ' ⭐ Your Department' : ''}
+                    {user?.department_id === dept.id ? ' ⭐ Your Department' : ''}
                   </option>
                 ))}
               </select>
@@ -515,7 +484,7 @@ export default function CurriculumDetails() {
                     
                     return (
                       <div
-                        key={course.code}
+                        key={`${course.code}-${index}`}
                         onClick={() => setSelectedCourse(course.code)}
                         className={`flex gap-2 sm:gap-4 p-2 sm:p-3 border-b border-border cursor-pointer transition-all items-center touch-manipulation ${
                           isSelected 

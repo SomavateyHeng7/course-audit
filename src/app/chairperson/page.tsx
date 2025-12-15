@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { Trash2, Info, Plus, BookOpen, Users, Calendar, Settings } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
 import { API_BASE } from '@/lib/api/laravel';
+import { getCsrfCookie, getCsrfTokenFromCookie } from '@/lib/auth/sanctum';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 // Import chairperson components
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
@@ -23,17 +25,19 @@ interface Curriculum {
   year: string;
   version: string;
   description?: string;
-  startId: string;
-  endId: string;
+  startId?: string;
+  endId?: string;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  created_at?: string;  // Backend snake_case
+  updated_at?: string;  // Backend snake_case
   department: {
     id: string;
     name: string;
     code: string;
   };
-  faculty: {
+  faculty?: {
     id: string;
     name: string;
     code: string;
@@ -65,6 +69,11 @@ const ChairpersonPage: React.FC = () => {
     limit: 10,
     totalPages: 0,
   });
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    curriculumId: string | null;
+    curriculumName: string | null;
+  }>({ open: false, curriculumId: null, curriculumName: null });
 
   const fetchCurricula = async (search: string = '', page: number = 1) => {
     try {
@@ -107,15 +116,29 @@ const ChairpersonPage: React.FC = () => {
     fetchCurricula(searchTerm, newPage);
   };
 
-  const handleDeleteCurriculum = async (curriculumId: string, curriculumName: string) => {
-    if (!confirm(`Are you sure you want to delete the curriculum "${curriculumName}"? This action cannot be undone.`)) {
-      return;
-    }
+  const handleDeleteClick = (curriculumId: string, curriculumName: string) => {
+    setConfirmDialog({ open: true, curriculumId, curriculumName });
+  };
+
+  const handleDeleteConfirm = async () => {
+    const { curriculumId, curriculumName } = confirmDialog;
+    if (!curriculumId || !curriculumName) return;
 
     try {
+      // Get CSRF cookie first
+      await getCsrfCookie();
+
+      // Get CSRF token
+      const csrfToken = getCsrfTokenFromCookie();
+
       const response = await fetch(`${API_BASE}/curricula/${curriculumId}`, {
         method: 'DELETE',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+        }
       });
 
       if (response.ok) {
@@ -123,8 +146,23 @@ const ChairpersonPage: React.FC = () => {
         fetchCurricula(searchTerm, pagination.page);
         success(`Curriculum "${curriculumName}" has been deleted successfully.`);
       } else {
-        const data = await response.json();
-        showError(`Failed to delete curriculum: ${data.error?.message || 'Unknown error'}`);
+        let errorMessage = 'Unknown error';
+        
+        // Try to parse JSON error response
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          errorMessage = data.error?.message || data.message || 'Unknown error';
+        } else {
+          // Handle non-JSON responses (like 419 CSRF errors)
+          if (response.status === 419) {
+            errorMessage = 'Session expired. Please refresh the page and try again.';
+          } else {
+            errorMessage = `Server error (${response.status})`;
+          }
+        }
+        
+        showError(`Failed to delete curriculum: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Error deleting curriculum:', error);
@@ -132,8 +170,11 @@ const ChairpersonPage: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -269,7 +310,7 @@ const ChairpersonPage: React.FC = () => {
               hideOnMobile: true,
               render: (curriculum: Curriculum) => (
                 <span className="text-sm text-muted-foreground">
-                  {formatDate(curriculum.updatedAt)}
+                  {formatDate(curriculum.updated_at || curriculum.updatedAt)}
                 </span>
               )
             },
@@ -290,7 +331,7 @@ const ChairpersonPage: React.FC = () => {
                   <ActionButton
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDeleteCurriculum(curriculum.id, curriculum.name)}
+                    onClick={() => handleDeleteClick(curriculum.id, curriculum.name)}
                     stopPropagation
                     icon={<Trash2 size={14} />}
                     tooltip="Delete Curriculum"
@@ -326,6 +367,17 @@ const ChairpersonPage: React.FC = () => {
           onRowClick={(curriculum) => router.push(`/chairperson/info_edit/${curriculum.id}`)}
         />
       </div>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ open, curriculumId: null, curriculumName: null })}
+        title="Delete Curriculum"
+        description={`Are you sure you want to delete the curriculum "${confirmDialog.curriculumName}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteConfirm}
+        variant="destructive"
+      />
     </div>
   );
 };

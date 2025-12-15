@@ -18,6 +18,10 @@ export default function CreateCurriculumPage() {
   const router = useRouter();
   const { success, error } = useToastHelpers();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleClose = useCallback(() => {
+    router.back();
+  }, [router]);
   
   // State for form inputs
   const [curriculumName, setCurriculumName] = useState('');
@@ -356,10 +360,20 @@ export default function CreateCurriculumPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 sm:px-6">
-        <div className="w-full max-w-5xl mx-auto bg-card rounded-xl sm:rounded-2xl border border-border p-4 sm:p-8 lg:p-12">
+        <div className="relative w-full max-w-5xl mx-auto bg-card rounded-xl sm:rounded-2xl border border-border p-4 sm:p-8 lg:p-12">
           <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 lg:gap-12">
             {/* Form Section */}
-            <div className="w-full lg:w-[400px]">              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-6 sm:mb-8 lg:mb-10 text-foreground">Create Curriculum</h1>
+            <div className="w-full lg:w-[400px]">              
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-6 sm:mb-8 lg:mb-10 text-foreground">Create Curriculum</h1>
+              <button
+                  type="button"
+                  onClick={handleClose}
+                  aria-label="Close"
+                  className="absolute top-4 right-4 sm:top-6 sm:right-6 text-muted-foreground hover:text-foreground transition text-xl font-medium"
+                >
+                  X
+                </button>
+
               <form onSubmit={handleSubmit} className="flex flex-col gap-4 sm:gap-6">
                 <div>
                   <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">Curriculum Name</label>

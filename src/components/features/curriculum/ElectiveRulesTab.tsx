@@ -49,7 +49,7 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
       const data = await electiveRulesApi.getElectiveRules(curriculumId);
       
       // Convert curriculum courses to our format
-      const courses: ElectiveCourse[] = data.curriculumCourses.map(course => ({
+      const courses: ElectiveCourse[] = (data.curriculumCourses || []).map(course => ({
         id: course.id,
         code: course.code,
         name: course.name,
