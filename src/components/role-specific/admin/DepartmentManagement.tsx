@@ -19,10 +19,9 @@ interface Department {
     name: string;
     code: string;
   } | null;
-  _count?: {
-    users: number;
-    curricula: number;
-  };
+  usersCount?: number;
+  curriculaCount?: number;
+  concentrationsCount?: number;
   createdAt: string;
 }
 
@@ -46,7 +45,7 @@ export default function DepartmentManagement() {
     try {
       const data = await getDepartments();
       console.log('Departments data received from Laravel:', data);
-      setDepartments(data);
+      setDepartments(data.departments || []);
     } catch (error) {
       console.error('Error fetching departments:', error);
     } finally {
@@ -58,7 +57,7 @@ export default function DepartmentManagement() {
     try {
       const data = await getFaculties();
       console.log('Faculties data received from Laravel in dept management:', data);
-      setFaculties(data);
+      setFaculties(data.faculties || []);
     } catch (error) {
       console.error('Error fetching faculties:', error);
     }
@@ -133,11 +132,11 @@ export default function DepartmentManagement() {
                   <div className="flex gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-1">
                       <Users className="h-4 w-4" />
-                      {department._count?.users || 0}
+                      {department.usersCount || 0}
                     </div>
                     <div className="flex items-center gap-1">
                       <GraduationCap className="h-4 w-4" />
-                      {department._count?.curricula || 0}
+                      {department.curriculaCount || 0}
                     </div>
                   </div>
                 </div>

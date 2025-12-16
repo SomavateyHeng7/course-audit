@@ -61,6 +61,7 @@ class BlacklistApi {
   // Get all blacklists for the user's department
   async getBlacklists(): Promise<BlacklistsResponse> {
     const blacklists = await laravelGetBlacklists();
+    console.log('Fetched blacklists:', blacklists);
     return { blacklists };
   }
 

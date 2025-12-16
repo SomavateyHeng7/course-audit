@@ -20,11 +20,9 @@ interface Faculty {
   id: string;
   name: string;
   code: string;
-  _count?: {
-    users: number;
-    departments: number;
-    curricula: number;
-  };
+  usersCount?: number;
+  departmentsCount?: number;
+  curriculaCount?: number;
   createdAt: string;
 }
 
@@ -288,15 +286,15 @@ export default function FacultyManagement() {
                   <div className="flex gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-1">
                       <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span>{faculty._count?.users || 0}</span>
+                      <span>{faculty.usersCount || 0}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Building2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span>{faculty._count?.departments || 0}</span>
+                      <span>{faculty.departmentsCount || 0}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <BookOpen className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span>{faculty._count?.curricula || 0}</span>
+                      <span>{faculty.curriculaCount || 0}</span>
                     </div>
                   </div>
                   <div className="flex gap-1">

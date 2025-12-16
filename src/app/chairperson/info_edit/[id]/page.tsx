@@ -29,17 +29,17 @@ export default function EditCurriculum() {
   const router = useRouter();
   const curriculumId = params.id as string;
   const { success, error: showError } = useToastHelpers();
-  
+
   // State for curriculum data
   const [curriculum, setCurriculum] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [concentrationTitle, setConcentrationTitle] = useState('Concentrations');
-  
+
   // Delete Curriculum State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeletingCurriculum, setIsDeletingCurriculum] = useState(false);
-  
+
   // Dynamic tabs based on concentration title
   const tabs = [
     { name: "Courses", icon: FaBook },
@@ -48,7 +48,7 @@ export default function EditCurriculum() {
     { name: concentrationTitle, icon: FaStar },
     { name: "Blacklist", icon: FaBan }
   ];
-  
+
   // UI State
   const [activeTab, setActiveTab] = useState("Courses");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -62,7 +62,7 @@ export default function EditCurriculum() {
     type: '',
     description: ''
   });
-  
+
   // Course search and selection state
   const [courseSearch, setCourseSearch] = useState('');
   const [availableCourses, setAvailableCourses] = useState<any[]>([]);
@@ -74,15 +74,15 @@ export default function EditCurriculum() {
     semester: '1',
     isRequired: true
   });
-  
+
   // Course Types State
   const [courseTypes, setCourseTypes] = useState<any[]>([]);
   const [isLoadingCourseTypes, setIsLoadingCourseTypes] = useState(false);
-  
+
   // Add Course Loading State
   const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch curriculum data
@@ -90,28 +90,33 @@ export default function EditCurriculum() {
     const fetchCurriculum = async () => {
       try {
         setIsLoading(true);
-        console.log('Fetching curriculum with ID:', curriculumId);
         const response = await fetch(`${API_BASE}/curricula/${curriculumId}`, {
           credentials: 'include',
         });
-        
-        console.log('Response status:', response.status);
-        
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          console.error('Error fetching curriculum:', errorData);
           throw new Error(errorData.error?.message || 'Failed to fetch curriculum');
         }
-        
+
         const data = await response.json();
-        console.log('Curriculum data received:', data);
-        setCurriculum(data.curriculum);
-        
+
+        // Normalize keys for frontend (snake_case to camelCase)
+        const normalizedCurriculum = {
+          ...data.curriculum,
+          curriculumCourses: data.curriculum.curriculum_courses || [],
+          curriculumConstraints: data.curriculum.curriculum_constraints || [],
+          curriculumBlacklists: data.curriculum.curriculum_blacklists || [],
+          curriculumConcentrations: data.curriculum.curriculum_concentrations || [],
+          // add more mappings if needed
+        };
+
+        setCurriculum(normalizedCurriculum);
+
         if (!data.curriculum) {
           throw new Error('No curriculum data returned from server');
         }
       } catch (err) {
-        console.error('Error in fetchCurriculum:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
         showError(err instanceof Error ? err.message : 'Failed to load curriculum');
       } finally {
@@ -131,7 +136,6 @@ export default function EditCurriculum() {
         const response = await facultyLabelApi.getConcentrationLabel();
         setConcentrationTitle(response.concentrationLabel);
       } catch (err) {
-        console.error('Error loading concentration title:', err);
         // Keep default title if loading fails
       }
     };
@@ -143,7 +147,7 @@ export default function EditCurriculum() {
   useEffect(() => {
     const fetchCourseTypes = async () => {
       if (!curriculum?.departmentId) return;
-      
+
       setIsLoadingCourseTypes(true);
       try {
         const response = await fetch(`${API_BASE}/course-types?departmentId=${curriculum.departmentId}`, {
@@ -154,7 +158,7 @@ export default function EditCurriculum() {
           setCourseTypes(data.courseTypes || []);
         }
       } catch (error) {
-        console.error('Error fetching course types:', error);
+        // ignore
       } finally {
         setIsLoadingCourseTypes(false);
       }
@@ -226,7 +230,7 @@ export default function EditCurriculum() {
       creditHours: cc.course.creditHours || '3-0-6',
       type: cc.course.category || '',
       description: cc.course.description || '',
-      courseType: cc.course.courseType || null, // Add course type information
+      courseType: cc.course.courseType || null,
       year: cc.year,
       semester: cc.semester,
       isRequired: cc.isRequired,
@@ -295,10 +299,11 @@ export default function EditCurriculum() {
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Only handle keyboard nav when not in form inputs
-      if (event.target instanceof HTMLInputElement || 
-          event.target instanceof HTMLTextAreaElement || 
-          event.target instanceof HTMLSelectElement) {
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement
+      ) {
         return;
       }
 

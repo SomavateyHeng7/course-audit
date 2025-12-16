@@ -121,15 +121,8 @@ export default function DataEntryPage() {
 
   // Dynamic faculty and department options from API
   const [facultyOptions, setFacultyOptions] = useState<{ value: string; label: string }[]>([]);
-  const [allDepartments, setAllDepartments] = useState<{ id: string; name: string; code: string; facultyId: string }[]>([]);
+  const [departmentOptions, setDepartmentOptions] = useState<{ value: string; label: string }[]>([]);
   const [selectedFaculty, setSelectedFaculty] = useState('');
-
-  // Computed department options based on selected faculty
-  const departmentOptions = selectedFaculty 
-    ? allDepartments
-        .filter(dept => dept.facultyId === selectedFaculty)
-        .map(dept => ({ value: dept.id, label: dept.name }))
-    : [];
 
   // New state for enhanced transcript import
   const [unmatchedCourses, setUnmatchedCourses] = useState<UnmatchedCourse[]>([]);
@@ -138,7 +131,7 @@ export default function DataEntryPage() {
   const [electiveRules, setElectiveRules] = useState<any[]>([]);
   const [assignedFreeElectiveCodes, setAssignedFreeElectiveCodes] = useState<Set<string>>(new Set());
 
-  // Fetch data on component mount
+  // Fetch curricula and faculties on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -154,14 +147,7 @@ export default function DataEntryPage() {
           value: f.id, 
           label: f.name 
         })));
-
-        // Fetch departments (public endpoint)
-        const deptData = await getPublicDepartments();
-        const fetchedDepartments = deptData.departments || [];
-        setAllDepartments(fetchedDepartments);
-
-        // Don't fetch concentrations here - wait until curriculum is selected
-
+        // Don't fetch departments here - wait until faculty is selected
       } catch (error) {
         console.error('Error fetching data:', error);
         showError('Failed to load initial data. Please refresh the page.');
@@ -169,9 +155,31 @@ export default function DataEntryPage() {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
+
+  // Fetch departments when faculty changes
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      if (!selectedFaculty) {
+        setDepartmentOptions([]);
+        return;
+      }
+      try {
+        const deptData = await getPublicDepartments();
+        const fetchedDepartments = deptData.departments || [];
+        const filtered = fetchedDepartments
+          .filter((dept: any) => dept.facultyId === selectedFaculty)
+          .map((dept: any) => ({ value: dept.id, label: dept.name }));
+        setDepartmentOptions(filtered);
+      } catch (error) {
+        console.error('Error fetching departments:', error);
+        showError('Failed to load departments. Please try again.');
+        setDepartmentOptions([]);
+      }
+    };
+    fetchDepartments();
+  }, [selectedFaculty]);
 
   // Fetch concentrations when curriculum and department are selected
   useEffect(() => {

@@ -20,11 +20,9 @@ interface Faculty {
   id: string;
   name: string;
   code: string;
-  _count?: {
-    users: number;
-    departments: number;
-    curricula: number;
-  };
+  usersCount?: number;
+  departmentsCount?: number;
+  curriculaCount?: number;
   createdAt: string;
 }
 
@@ -52,7 +50,7 @@ export default function FacultyManagement() {
     try {
       const data = await getFaculties();
       console.log('Faculties data received from Laravel:', data);
-      setFaculties(data);
+      setFaculties(data.faculties || []);
     } catch (error: any) {
       console.error('Error fetching faculties:', error);
       setToast({ 
@@ -158,6 +156,24 @@ export default function FacultyManagement() {
                     <p className="text-xs text-gray-500 dark:text-gray-500">
                       Created: {new Date(faculty.createdAt).toLocaleDateString()}
                     </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  {/* Stats Icons */}
+                  <div className="flex items-center gap-4 mr-4">
+                    <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                      <Users className="h-4 w-4" />
+                      <span className="text-sm font-medium">{faculty.usersCount || 0}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                      <Building2 className="h-4 w-4" />
+                      <span className="text-sm font-medium">{faculty.departmentsCount || 0}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                      <BookOpen className="h-4 w-4" />
+                      <span className="text-sm font-medium">{faculty.curriculaCount || 0}</span>
+                    </div>
                   </div>
                 </div>
               </div>

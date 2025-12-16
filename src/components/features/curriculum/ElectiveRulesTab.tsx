@@ -64,8 +64,12 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
       setElectiveRules(data.electiveRules);
       
       // Set categories
-      const allCategories = ['All', ...data.courseCategories];
-      setCategories(allCategories);
+      const categoriesFromApi = Array.isArray(data.courseCategories)
+        ? data.courseCategories
+        : [];
+
+      const allCategories = ['All', ...categoriesFromApi];
+
       
       // Set free elective credits from rules
       const freeElectiveRule = data.electiveRules.find(rule => rule.category.toLowerCase().includes('free'));
