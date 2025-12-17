@@ -52,6 +52,8 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
   const [search, setSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedRulesCourse, setSelectedRulesCourse] = useState<Course | null>(null);
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
   
@@ -208,19 +210,19 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
     }
 
     if (!prerequisiteCodes.length && !corequisiteCodes.length && !flagBadges.length) {
-      return <span className="text-xs text-gray-400 dark:text-gray-500">No curriculum-specific rules</span>;
+      return <span className="text-sm text-gray-500 dark:text-gray-400">No curriculum-specific rules</span>;
     }
 
     return (
       <div className="flex flex-col gap-1">
         {prerequisiteCodes.length > 0 && (
-          <div className="text-xs text-foreground">
+          <div className="text-sm text-foreground">
             <span className="font-semibold text-gray-600 dark:text-gray-300">Prereq:</span>{' '}
             <span className="text-gray-600 dark:text-gray-300">{prerequisiteCodes.join(', ')}</span>
           </div>
         )}
         {corequisiteCodes.length > 0 && (
-          <div className="text-xs text-foreground">
+          <div className="text-sm text-foreground">
             <span className="font-semibold text-gray-600 dark:text-gray-300">Coreq:</span>{' '}
             <span className="text-gray-600 dark:text-gray-300">{corequisiteCodes.join(', ')}</span>
           </div>
@@ -230,7 +232,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
             {flagBadges.map((badge, idx) => (
               <span
                 key={`${badge.text}-${idx}`}
-                className={`text-[10px] leading-tight px-2 py-1 rounded-full border ${badge.highlight ? 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-300 dark:bg-amber-900/30 dark:text-amber-200' : 'border-gray-200 bg-gray-100 text-gray-600 dark:border-border dark:bg-gray-800/60 dark:text-gray-300'}`}
+                className={`text-xs leading-tight px-2 py-1 rounded-full border ${badge.highlight ? 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-300 dark:bg-amber-900/30 dark:text-amber-200' : 'border-gray-200 bg-gray-100 text-gray-600 dark:border-border dark:bg-gray-800/60 dark:text-gray-300'}`}
               >
                 {badge.text}
               </span>
@@ -254,6 +256,16 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedCourse(null);
+  };
+
+  const handleRulesClick = (course: Course) => {
+    setSelectedRulesCourse(course);
+    setIsRulesModalOpen(true);
+  };
+
+  const closeRulesModal = () => {
+    setIsRulesModalOpen(false);
+    setSelectedRulesCourse(null);
   };
 
   const handleDeleteClick = (course: Course) => {
@@ -329,7 +341,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Credits</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Credit Hours</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Category</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-primary">Curriculum Rules</th>
+              <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Curriculum Rules</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Description</th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary">Actions</th>
             </tr>
@@ -371,8 +383,14 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                       <span className="text-gray-400 dark:text-gray-500">No Category Assigned</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-sm text-left text-foreground">
-                    {renderCurriculumRules(course)}
+                  <td className="px-6 py-4 text-center text-sm text-foreground">
+                    <button
+                      onClick={() => handleRulesClick(course)}
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all"
+                      title="View Curriculum Rules"
+                    >
+                      <FaLayerGroup className="w-4 h-4" />
+                    </button>
                   </td>
                   <td className="px-6 py-4 text-center">
                     {course.description ? (
@@ -508,6 +526,48 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
             <div className="flex justify-end mt-6">
               <button
                 onClick={closeModal}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isRulesModalOpen && selectedRulesCourse && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-xl border border-gray-200 dark:border-border shadow-2xl max-h-[80vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-foreground mb-1">
+                  {selectedRulesCourse.code} - {selectedRulesCourse.title}
+                </h3>
+                <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                  <span>Credits: {selectedRulesCourse.credits}</span>
+                  <span>Credit Hours: {selectedRulesCourse.creditHours?.replace(/[\r\n]+/g, '').trim() || 'N/A'}</span>
+                </div>
+              </div>
+              <button
+                onClick={closeRulesModal}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-foreground mb-3">Curriculum Rules</h4>
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border border-gray-200 dark:border-border">
+                {renderCurriculumRules(selectedRulesCourse)}
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={closeRulesModal}
                 className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
               >
                 Close

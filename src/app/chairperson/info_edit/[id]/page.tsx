@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FaEdit, FaTrash, FaBook, FaGavel, FaGraduationCap, FaStar, FaBan } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaBook, FaGavel, FaGraduationCap, FaStar, FaBan, FaLayerGroup } from 'react-icons/fa';
 import CoursesTab from '@/components/features/curriculum/CoursesTab';
 import ConstraintsTab from '@/components/features/curriculum/ConstraintsTab';
 import ElectiveRulesTab from '@/components/features/curriculum/ElectiveRulesTab';
@@ -51,6 +51,7 @@ export default function EditCurriculum() {
 
   // UI State
   const [activeTab, setActiveTab] = useState("Courses");
+  const [showTypeBreakdown, setShowTypeBreakdown] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -84,6 +85,7 @@ export default function EditCurriculum() {
   const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const typeBreakdownRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch curriculum data
   useEffect(() => {
@@ -166,6 +168,22 @@ export default function EditCurriculum() {
 
     fetchCourseTypes();
   }, [curriculum?.departmentId]);
+
+  useEffect(() => {
+    if (!showTypeBreakdown) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (typeBreakdownRef.current && !typeBreakdownRef.current.contains(event.target as Node)) {
+        setShowTypeBreakdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showTypeBreakdown]);
+
 
   // Process curriculum data for display
   const summary = curriculum ? {
@@ -276,6 +294,65 @@ export default function EditCurriculum() {
     hasMinCreditOverride: course.hasMinCreditOverride,
     curriculumCourseId: course.curriculumCourseId
   }));
+
+  const resolvedCourseTypes = (courseTypes && courseTypes.length > 0)
+    ? courseTypes
+    : Array.from(
+        coursesData.reduce((acc: Map<string, any>, course: any) => {
+          if (course.courseType?.id && !acc.has(course.courseType.id)) {
+            acc.set(course.courseType.id, {
+              id: course.courseType.id,
+              name: course.courseType.name,
+              color: course.courseType.color,
+            });
+          }
+          return acc;
+        }, new Map<string, any>()).values()
+      );
+
+  const courseTypeCreditBreakdown = resolvedCourseTypes.map((type: any) => {
+    const totalCredits = coursesData.reduce((sum: number, course: any) => {
+      const courseCredits = typeof course.credits === 'number' ? course.credits : parseFloat(course.credits) || 0;
+      if (course.courseType?.id === type.id) {
+        return sum + courseCredits;
+      }
+      return sum;
+    }, 0);
+
+    return {
+      id: type.id,
+      name: type.name,
+      color: type.color,
+      totalCredits,
+    };
+  });
+
+  const uncategorizedCredits = coursesData.reduce((sum: number, course: any) => {
+    if (!course.courseType) {
+      const courseCredits = typeof course.credits === 'number' ? course.credits : parseFloat(course.credits) || 0;
+      return sum + courseCredits;
+    }
+    return sum;
+  }, 0);
+
+  const creditBreakdownCards = [...courseTypeCreditBreakdown];
+
+  if (uncategorizedCredits > 0) {
+    creditBreakdownCards.push({
+      id: 'uncategorized',
+      name: 'Uncategorized',
+      color: '#4B5563',
+      totalCredits: uncategorizedCredits,
+    });
+  }
+
+  creditBreakdownCards.sort((a, b) => a.name.localeCompare(b.name));
+
+  useEffect(() => {
+    if (showTypeBreakdown && creditBreakdownCards.length === 0) {
+      setShowTypeBreakdown(false);
+    }
+  }, [showTypeBreakdown, creditBreakdownCards.length]);
 
   // Navigation functions
   const goToNextTab = () => {
@@ -802,19 +879,60 @@ export default function EditCurriculum() {
               </div>
             </div>
           </div>          {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-8 mb-6 sm:mb-8">
-            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6 flex flex-col items-center">
-              <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm lg:text-md mb-1 sm:mb-2 text-center">Total Curriculum Credits</span>
-              <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary dark:text-primary/40">{summary.totalCredits} Credits</span>
+          <div className="mb-6 sm:mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-8">
+              <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6 flex flex-col items-center">
+                <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm lg:text-md mb-1 sm:mb-2 text-center">Total Curriculum Credits</span>
+                <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary dark:text-primary/40">{summary.totalCredits} Credits</span>
+              </div>
+              <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6 flex flex-col items-center">
+                <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm lg:text-md mb-1 sm:mb-2 text-center">Required Core Courses</span>
+                <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary dark:text-primary/40">{summary.requiredCore} Credits</span>
+              </div>
+              <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6 flex flex-col items-center sm:col-span-2 lg:col-span-1">
+                <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm lg:text-md mb-1 sm:mb-2 text-center">Elective Credits</span>
+                <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary dark:text-primary/40">{summary.electiveCredits} Credits</span>
+              </div>
             </div>
-            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6 flex flex-col items-center">
-              <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm lg:text-md mb-1 sm:mb-2 text-center">Required Core Courses</span>
-              <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary dark:text-primary/40">{summary.requiredCore} Credits</span>
-            </div>
-            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6 flex flex-col items-center sm:col-span-2 lg:col-span-1">
-              <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm lg:text-md mb-1 sm:mb-2 text-center">Elective Credits</span>
-              <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary dark:text-primary/40">{summary.electiveCredits} Credits</span>
-            </div>
+
+            {creditBreakdownCards.length > 0 && (
+              <div className="mt-4 flex justify-end">
+                <div className="relative" ref={typeBreakdownRef}>
+                  <button
+                    onClick={() => setShowTypeBreakdown((prev) => !prev)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg shadow-sm text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-primary hover:text-primary dark:hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <FaLayerGroup className="h-4 w-4" />
+                    Course Type Credits
+                    <svg className={`h-4 w-4 transition-transform ${showTypeBreakdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {showTypeBreakdown && (
+                    <div className="absolute right-0 z-50 mt-2 w-72 sm:w-[30rem] bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl shadow-xl p-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {creditBreakdownCards.map((card) => (
+                          <div
+                            key={card.id}
+                            className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-lg p-4"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">{card.name}</span>
+                              <span
+                                className="inline-flex h-2 w-2 rounded-full"
+                                style={{ backgroundColor: card.color || '#6366F1' }}
+                              />
+                            </div>
+                            <span className="text-lg font-bold text-primary dark:text-primary/40 block">{card.totalCredits} Credits</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>          {/* Tab Content */}
           {activeTab === "Courses" && (
             <CoursesTab 
