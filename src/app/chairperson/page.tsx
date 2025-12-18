@@ -208,7 +208,7 @@ const ChairpersonPage: React.FC = () => {
         />
 
         {/* Statistics Dashboard */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <StatCard
             title="Total Curricula"
             value={pagination?.total || 0}
@@ -226,12 +226,6 @@ const ChairpersonPage: React.FC = () => {
             value={totalCourses}
             subtitle="Across all programs"
             icon={<BookOpen size={20} />}
-          />
-          <StatCard
-            title={`Page ${pagination?.page || 1}`}
-            value={`${pagination?.totalPages || 1} Pages`}
-            subtitle="Pagination info"
-            icon={<Info size={20} />}
           />
         </div>
 
