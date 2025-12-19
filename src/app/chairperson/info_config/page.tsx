@@ -1,9 +1,21 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from '@/contexts/SanctumAuthContext';
 import { useRouter } from "next/navigation";
-import { FaEye, FaUpload, FaFileExcel, FaEdit, FaTrash, FaPlus, FaInfoCircle } from 'react-icons/fa';
+import {
+  FaFileExcel,
+  FaEdit,
+  FaTrash,
+  FaPlus,
+  FaInfoCircle,
+  FaChevronDown,
+  FaChevronRight,
+  FaLayerGroup,
+  FaSitemap,
+  FaLightbulb,
+  FaListUl
+} from 'react-icons/fa';
 import { blacklistApi, type BlacklistData, type BlacklistCourse } from '@/services/blacklistApi';
 import { concentrationApi, type ConcentrationData, type ConcentrationCourse } from '@/services/concentrationApi';
 import { facultyLabelApi } from '@/services/facultyLabelApi';
@@ -11,6 +23,7 @@ import { courseTypesApi, type CourseTypeData } from '@/services/courseTypesApi';
 import { formatCreatedDate } from "@/lib/ui/dateformat";
 import { useToastHelpers } from '@/hooks/useToast';
 import { API_BASE } from '@/lib/api/laravel';
+import { useConfigFeatureFlags } from '@/hooks/useConfigFeatureFlags';
 
 interface Course {
   code: string;
@@ -25,7 +38,111 @@ interface CourseType {
   id: string;
   name: string;
   color: string;
+  parentId?: string | null;
 }
+
+interface CourseTypeTreeNode extends CourseTypeData {
+  children: CourseTypeTreeNode[];
+  parentId?: string | null;
+}
+
+type ConfigSectionKey = 'blacklists' | 'courseTypes' | 'concentrations' | 'pools';
+
+interface CourseTypeOption {
+  id: string;
+  label: string;
+}
+
+interface NewCourseTypeForm {
+  name: string;
+  color: string;
+  parentId: string | null;
+}
+
+const createEmptyTypeForm = (overrides?: Partial<NewCourseTypeForm>): NewCourseTypeForm => ({
+  name: '',
+  color: '#6366f1',
+  parentId: null,
+  ...overrides
+});
+
+const buildCourseTypeTree = (types: CourseTypeData[]): CourseTypeTreeNode[] => {
+  const nodes = new Map<string, CourseTypeTreeNode>();
+  const roots: CourseTypeTreeNode[] = [];
+
+  types.forEach((type) => {
+    nodes.set(type.id, {
+      ...type,
+      parentId: type.parentId ?? null,
+      children: []
+    });
+  });
+
+  nodes.forEach((node) => {
+    if (node.parentId && nodes.has(node.parentId)) {
+      nodes.get(node.parentId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+
+  const sortNodes = (list: CourseTypeTreeNode[]): CourseTypeTreeNode[] =>
+    [...list]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((node) => ({
+        ...node,
+        children: sortNodes(node.children)
+      }));
+
+  return sortNodes(roots);
+};
+
+const flattenCourseTypeTree = (nodes: CourseTypeTreeNode[], depth = 0): CourseTypeOption[] => {
+  const result: CourseTypeOption[] = [];
+
+  nodes.forEach((node) => {
+    const prefix = depth > 0 ? `${'--'.repeat(depth)} ` : '';
+    result.push({ id: node.id, label: `${prefix}${node.name}` });
+    result.push(...flattenCourseTypeTree(node.children, depth + 1));
+  });
+
+  return result;
+};
+
+const findCourseTypeNode = (nodes: CourseTypeTreeNode[], id: string): CourseTypeTreeNode | null => {
+  for (const node of nodes) {
+    if (node.id === id) {
+      return node;
+    }
+    const child = findCourseTypeNode(node.children, id);
+    if (child) {
+      return child;
+    }
+  }
+  return null;
+};
+
+const collectDescendantIds = (node: CourseTypeTreeNode): string[] => {
+  const ids: string[] = [];
+  node.children.forEach((child) => {
+    ids.push(child.id);
+    ids.push(...collectDescendantIds(child));
+  });
+  return ids;
+};
+
+const calculateTreeDepth = (nodes: CourseTypeTreeNode[], depth = 1): number => {
+  if (nodes.length === 0) {
+    return 0;
+  }
+
+  return nodes.reduce((maxDepth, node) => {
+    if (node.children.length === 0) {
+      return Math.max(maxDepth, depth);
+    }
+    return Math.max(maxDepth, calculateTreeDepth(node.children, depth + 1));
+  }, depth);
+};
 
 // Use CourseTypeData from API instead of local CourseType interface
 
@@ -39,11 +156,11 @@ interface Blacklist {
 }
 
 const defaultCourseTypes: CourseType[] = [
-  { id: '1', name: 'Core', color: '#ef4444' }, // red
-  { id: '2', name: 'Major', color: '#22c55e' }, // green
-  { id: '3', name: 'Major Elective', color: '#eab308' }, // yellow
-  { id: '4', name: 'General Education', color: '#6366f1' }, // indigo
-  { id: '5', name: 'Free Elective', color: '#6b7280' }, // gray
+  { id: '1', name: 'Core', color: '#ef4444', parentId: null }, // red
+  { id: '2', name: 'Major', color: '#22c55e', parentId: null }, // green
+  { id: '3', name: 'Major Elective', color: '#eab308', parentId: null }, // yellow
+  { id: '4', name: 'General Education', color: '#6366f1', parentId: null }, // indigo
+  { id: '5', name: 'Free Elective', color: '#6b7280', parentId: null }, // gray
 ];
 
 // Mock concentrations removed - now using API data
@@ -83,7 +200,16 @@ export default function InfoConfig() {
   const [isAddTypeModalOpen, setIsAddTypeModalOpen] = useState(false);
   const [isEditTypeModalOpen, setIsEditTypeModalOpen] = useState(false);
   const [editingType, setEditingType] = useState<CourseTypeData | null>(null);
-  const [newType, setNewType] = useState({ name: '', color: '#6366f1' });
+  const [newType, setNewType] = useState<NewCourseTypeForm>(createEmptyTypeForm());
+  const [collapsedSections, setCollapsedSections] = useState<Record<ConfigSectionKey, boolean>>({
+    blacklists: false,
+    courseTypes: false,
+    concentrations: false,
+    pools: false
+  });
+  const [expandedTypeIds, setExpandedTypeIds] = useState<Record<string, boolean>>({});
+  const [poolLists] = useState<{ id: string; name: string; courseCount: number; type: 'pool'; updatedAt?: string }[]>([]);
+  const [pools] = useState<{ id: string; name: string; minCredits: number; maxCredits: number; updatedAt?: string }[]>([]);
   
   // Concentration management states
   const [concentrations, setConcentrations] = useState<ConcentrationData[]>([]);
@@ -130,6 +256,60 @@ export default function InfoConfig() {
   // Database courses for search functionality
   const [databaseCourses, setDatabaseCourses] = useState<Course[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const { flags, isLoading: featureFlagsLoading, error: featureFlagError, refresh: refreshFeatureFlags } = useConfigFeatureFlags();
+
+  const hierarchyEnabled = flags.enableHierarchy;
+  const poolsEnabled = flags.enablePools;
+  const genericListsEnabled = flags.enableGenericLists;
+  const legacyBannerVisible = flags.showLegacyBridgeBanner;
+
+  const courseTypeTree = useMemo(() => buildCourseTypeTree(courseTypes), [courseTypes]);
+  const courseTypeOptions = useMemo(() => flattenCourseTypeTree(courseTypeTree), [courseTypeTree]);
+  const courseTypeDepth = useMemo(() => calculateTreeDepth(courseTypeTree), [courseTypeTree]);
+  const disallowedParentIds = useMemo(() => {
+    if (!editingType) {
+      return [] as string[];
+    }
+    const targetNode = findCourseTypeNode(courseTypeTree, editingType.id);
+    if (!targetNode) {
+      return [editingType.id];
+    }
+    return [editingType.id, ...collectDescendantIds(targetNode)];
+  }, [editingType, courseTypeTree]);
+  const courseTypeParentLookup = useMemo(() => {
+    const map = new Map<string, CourseTypeTreeNode>();
+    const walk = (nodes: CourseTypeTreeNode[]) => {
+      nodes.forEach((node) => {
+        map.set(node.id, node);
+        walk(node.children);
+      });
+    };
+    walk(courseTypeTree);
+    return map;
+  }, [courseTypeTree]);
+  const genericListSummaries = useMemo(() => ([
+    {
+      id: 'concentrations',
+      label: 'Concentration Lists',
+      description: 'Curated bundles of electives',
+      count: concentrations.length,
+      type: 'concentration'
+    },
+    {
+      id: 'blacklists',
+      label: 'Blacklists',
+      description: 'Banned or sunset courses',
+      count: blacklists.length,
+      type: 'blacklist'
+    },
+    {
+      id: 'pool-lists',
+      label: 'Pool Lists',
+      description: 'Reusable pools coming soon',
+      count: poolLists.length,
+      type: 'pool'
+    }
+  ]), [blacklists.length, concentrations.length, poolLists.length]);
 
   // Authentication check - AFTER all hooks are declared
   useEffect(() => {
@@ -242,6 +422,9 @@ export default function InfoConfig() {
       setCourseTypes(defaultCourseTypes.map(type => ({
         ...type,
         departmentId: '',
+        parentId: type.parentId ?? null,
+        usageCount: 0,
+        childCount: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       })));
@@ -255,9 +438,13 @@ export default function InfoConfig() {
         try {
           const newType = await courseTypesApi.createCourseType({
             name: defaultType.name,
-            color: defaultType.color
+            color: defaultType.color,
+            parentId: defaultType.parentId ?? null
           });
-          createdTypes.push(newType);
+          createdTypes.push({
+            ...newType,
+            parentId: newType.parentId ?? defaultType.parentId ?? null
+          });
           console.log(`✅ Created default course type: ${defaultType.name}`);
         } catch (err) {
           // If it already exists, skip it silently
@@ -312,6 +499,28 @@ export default function InfoConfig() {
       setSearchLoading(false);
     }
   };
+
+  const toggleSection = useCallback((section: ConfigSectionKey) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  }, []);
+
+  const toggleCourseTypeNode = useCallback((typeId: string, currentState: boolean) => {
+    setExpandedTypeIds(prev => ({
+      ...prev,
+      [typeId]: !currentState
+    }));
+  }, []);
+
+  const handlePoolBuilderPlaceholder = useCallback(() => {
+    warning('Credit Pool builder is coming soon. Backend endpoints need to land before we enable this.');
+  }, [warning]);
+
+  const handleGenericListPlaceholder = useCallback(() => {
+    info('Unified pool lists will reuse concentrations and blacklists once backend support ships.');
+  }, [info]);
 
   // Blacklist management functions
   const handleAddBlacklist = () => {
@@ -543,13 +752,18 @@ export default function InfoConfig() {
   };
 
   // Course type management functions
-  const handleAddType = () => {
+  const handleAddType = (parentId?: string | null) => {
+    setNewType(createEmptyTypeForm({ parentId: parentId ?? null }));
     setIsAddTypeModalOpen(true);
   };
 
   const handleEditType = (type: CourseTypeData) => {
     setEditingType(type);
-    setNewType({ name: type.name, color: type.color });
+    setNewType(createEmptyTypeForm({
+      name: type.name,
+      color: type.color,
+      parentId: type.parentId ?? null
+    }));
     setIsEditTypeModalOpen(true);
   };
 
@@ -581,14 +795,21 @@ export default function InfoConfig() {
         return;
       }
 
-      const newTypeData = await courseTypesApi.createCourseType({
+      const payload = {
         name: newType.name.trim(),
-        color: newType.color
-      });
+        color: newType.color,
+        parentId: newType.parentId ?? null
+      };
 
-      setCourseTypes([...courseTypes, newTypeData]);
+      const newTypeData = await courseTypesApi.createCourseType(payload);
+      const normalizedType: CourseTypeData = {
+        ...newTypeData,
+        parentId: newTypeData.parentId ?? payload.parentId ?? null
+      };
+
+      setCourseTypes([...courseTypes, normalizedType]);
       setIsAddTypeModalOpen(false);
-      setNewType({ name: '', color: '#6366f1' });
+      setNewType(createEmptyTypeForm());
       success('Course type created successfully');
     } catch (error) {
       console.error('Error creating course type:', error);
@@ -606,17 +827,24 @@ export default function InfoConfig() {
           return;
         }
 
-        const updatedType = await courseTypesApi.updateCourseType(editingType.id, {
+        const payload = {
           name: newType.name.trim(),
-          color: newType.color
-        });
+          color: newType.color,
+          parentId: newType.parentId ?? null
+        };
+
+        const updatedType = await courseTypesApi.updateCourseType(editingType.id, payload);
+        const normalizedType: CourseTypeData = {
+          ...updatedType,
+          parentId: updatedType.parentId ?? payload.parentId ?? null
+        };
 
         setCourseTypes(Array.isArray(courseTypes) ? courseTypes.map(type => 
-          type.id === editingType.id ? updatedType : type
-        ) : [updatedType]);
+          type.id === editingType.id ? normalizedType : type
+        ) : [normalizedType]);
         setIsEditTypeModalOpen(false);
         setEditingType(null);
-        setNewType({ name: '', color: '#6366f1' });
+        setNewType(createEmptyTypeForm());
         success('Course type updated successfully');
       } catch (error) {
         console.error('Error updating course type:', error);
@@ -624,6 +852,82 @@ export default function InfoConfig() {
       }
     }
   };
+
+  const renderCourseTypeNode = useCallback((node: CourseTypeTreeNode, depth = 0) => {
+    const isExpanded = expandedTypeIds[node.id] ?? (!node.parentId);
+    const hasChildren = node.children.length > 0;
+    const parentLabel = node.parentId ? courseTypeParentLookup.get(node.parentId)?.name ?? 'Parent' : 'Top level';
+
+    return (
+      <div key={node.id}>
+        <div
+          className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+          style={{ paddingLeft: depth * 16 }}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex h-6 w-6 items-center justify-center">
+              {hasChildren ? (
+                <button
+                  type="button"
+                  onClick={() => toggleCourseTypeNode(node.id, isExpanded)}
+                  className="flex h-6 w-6 items-center justify-center rounded-md border border-transparent text-gray-500 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                  aria-label={isExpanded ? 'Collapse children' : 'Expand children'}
+                >
+                  {isExpanded ? <FaChevronDown className="h-3 w-3" /> : <FaChevronRight className="h-3 w-3" />}
+                </button>
+              ) : (
+                <span className="inline-flex h-3 w-3 rounded-full bg-gray-200 dark:bg-gray-700" aria-hidden="true" />
+              )}
+            </div>
+            <span
+              className="h-2.5 w-2.5 rounded-full border border-gray-200"
+              style={{ backgroundColor: node.color }}
+            ></span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">{node.name}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {node.parentId ? `Child of ${parentLabel}` : 'Top level type'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              {(node.usageCount ?? 0)} uses
+            </span>
+            <button
+              type="button"
+              onClick={() => handleAddType(node.id)}
+              className="p-1.5 text-gray-500 transition-all hover:text-primary dark:text-gray-400 dark:hover:text-primary"
+              title="Add child type"
+            >
+              <FaPlus className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleEditType(node)}
+              className="p-1.5 text-gray-500 transition-all hover:text-primary dark:text-gray-400 dark:hover:text-primary"
+              title="Edit type"
+            >
+              <FaEdit className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDeleteType(node.id)}
+              className="p-1.5 text-gray-500 transition-all hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+              title="Delete type"
+            >
+              <FaTrash className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+        {isExpanded && hasChildren && (
+          <div className="space-y-1">
+            {node.children.map(child => renderCourseTypeNode(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  }, [courseTypeParentLookup, expandedTypeIds, handleAddType, handleDeleteType, handleEditType, toggleCourseTypeNode]);
 
   // Concentration management functions
   const handleEditConcentrationTitle = () => {
@@ -994,149 +1298,228 @@ export default function InfoConfig() {
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-foreground">Configuration</h1>
           </div>
 
+          {featureFlagError && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-900/20 dark:text-amber-50">
+              Unable to sync feature flags. Falling back to environment defaults.
+            </div>
+          )}
+
           {/* Configuration Containers */}
           <div className="space-y-4 sm:space-y-6 lg:space-y-8">
             
             {/* Blacklist */}
             <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 lg:mb-6 space-y-2 sm:space-y-0">
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-foreground mb-1 sm:mb-2">Blacklists</h2>
-                  <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
-                    Manage blacklists of courses that are no longer available or recommended for students.
-                  </p>
-                </div>
-               
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <button
-                  onClick={handleAddBlacklist}
-                  disabled={loading}
-                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs sm:text-sm lg:text-base shrink-0 touch-manipulation"
+                  type="button"
+                  onClick={() => toggleSection('blacklists')}
+                  className="flex flex-1 items-center gap-3 text-left"
                 >
-                  <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:inline">Add Blacklist</span>
-                  <span className="xs:hidden">Add</span>
+                  <span className="rounded-full border border-gray-200 dark:border-gray-700 p-1 text-gray-600 dark:text-gray-300">
+                    {collapsedSections.blacklists ? (
+                      <FaChevronRight className="h-3 w-3" />
+                    ) : (
+                      <FaChevronDown className="h-3 w-3" />
+                    )}
+                  </span>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-foreground">Blacklists</h2>
+                      <span className="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                        {blacklists.length} lists
+                      </span>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
+                      Manage sunset or banned courses while we transition to pool lists.
+                    </p>
+                  </div>
                 </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleAddBlacklist}
+                    disabled={loading}
+                    className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs sm:text-sm lg:text-base shrink-0 touch-manipulation"
+                  >
+                    <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline">Add Blacklist</span>
+                    <span className="xs:hidden">Add</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-2 sm:space-y-3">
-                {Array.isArray(blacklists) && blacklists.map((blacklist) => (
-                  <div
-                    key={blacklist.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors space-y-2 sm:space-y-0"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">{blacklist.name}</h3>
-                        <div className="flex items-center gap-2 sm:gap-4">
-                          <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 shrink-0">
-                            {blacklist.courses.length} courses
-                          </span>
-                          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
+              {!collapsedSections.blacklists && (
+                <div className="mt-4 space-y-2 sm:space-y-3">
+                  {Array.isArray(blacklists) && blacklists.map((blacklist) => (
+                    <div
+                      key={blacklist.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors space-y-2 sm:space-y-0"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                          <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">{blacklist.name}</h3>
+                          <div className="flex items-center gap-2 sm:gap-4">
+                            <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 shrink-0">
+                              {blacklist.courses.length} courses
+                            </span>
+                            <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
                               Created {formatCreatedDate(blacklist.createdAt)}
-                          </span>
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleShowBlacklistInfo(blacklist)}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
-                        title="View Course Details"
-                      >
-                        <FaInfoCircle className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleEditBlacklist(blacklist)}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all"
-                        title="Edit Blacklist"
-                      >
-                        <FaEdit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteBlacklist(blacklist)}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                        title="Delete Blacklist"
-                      >
-                        <FaTrash className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                
-                {(!Array.isArray(blacklists) || blacklists.length === 0) && (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <div className="flex flex-col items-center">
-                      <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                        <FaPlus className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleShowBlacklistInfo(blacklist)}
+                          className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                          title="View Course Details"
+                        >
+                          <FaInfoCircle className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEditBlacklist(blacklist)}
+                          className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all"
+                          title="Edit Blacklist"
+                        >
+                          <FaEdit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBlacklist(blacklist)}
+                          className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                          title="Delete Blacklist"
+                        >
+                          <FaTrash className="w-4 h-4" />
+                        </button>
                       </div>
-                      <p className="text-lg font-medium mb-2 text-foreground">No blacklists created yet</p>
-                      <p className="text-sm text-muted-foreground">Create your first blacklist to get started</p>
                     </div>
-                  </div>
-                )}
-              </div>
+                  ))}
+
+                  {(!Array.isArray(blacklists) || blacklists.length === 0) && (
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                          <FaPlus className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                        </div>
+                        <p className="text-lg font-medium mb-2 text-foreground">No blacklists created yet</p>
+                        <p className="text-sm text-muted-foreground">Create your first blacklist to get started</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Categories (type) */}
             <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
-                <div className="flex-1">
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground mb-2">Course Categories</h2>
-                  <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
-                    Manage course types and categories used in your curriculum.
-                  </p>
-                </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <button
-                  onClick={handleAddType}
-                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs sm:text-sm lg:text-base shrink-0 touch-manipulation"
+                  type="button"
+                  onClick={() => toggleSection('courseTypes')}
+                  className="flex flex-1 items-center gap-3 text-left"
                 >
-                  <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:inline">Add Type</span>
-                  <span className="xs:hidden">Add</span>
+                  <span className="rounded-full border border-gray-200 dark:border-gray-700 p-1 text-gray-600 dark:text-gray-300">
+                    {collapsedSections.courseTypes ? (
+                      <FaChevronRight className="h-3 w-3" />
+                    ) : (
+                      <FaChevronDown className="h-3 w-3" />
+                    )}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <FaSitemap className="h-4 w-4 text-primary" />
+                        <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground">Course Categories</h2>
+                      </div>
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                        {courseTypes.length} types
+                      </span>
+                      {courseTypeDepth > 1 && (
+                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                          {courseTypeDepth} levels
+                        </span>
+                      )}
+                      {featureFlagsLoading && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+                          <span className="h-2 w-2 animate-spin rounded-full border border-amber-700 border-t-transparent"></span>
+                          Syncing flags
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
+                      Build a multi-level taxonomy for course planning and upcoming pool logic.
+                    </p>
+                  </div>
                 </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleAddType()}
+                    className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs sm:text-sm lg:text-base shrink-0 touch-manipulation"
+                  >
+                    <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline">Add Type</span>
+                    <span className="xs:hidden">Add</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
-                {Array.isArray(courseTypes) && courseTypes.map((type) => (
-                  <div
-                    key={type.id}
-                    className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                      <div
-                        className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shrink-0"
-                        style={{ backgroundColor: type.color }}
-                      ></div>
-                      <span className="font-medium text-foreground text-sm sm:text-base truncate">{type.name}</span>
+              {!collapsedSections.courseTypes && (
+                <div className="mt-4 space-y-3">
+                  {hierarchyEnabled ? (
+                    courseTypeTree.length > 0 ? (
+                      <div className="space-y-1 rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-background">
+                        {courseTypeTree.map(node => renderCourseTypeNode(node))}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-gray-300 dark:border-border p-6 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          No course types yet. Use “Add Type” to seed your hierarchy.
+                        </p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-gray-300 dark:border-border p-4 text-sm text-muted-foreground">
+                      <p className="mb-2">
+                        Hierarchy management is behind a feature flag. Enable `NEXT_PUBLIC_ENABLE_CONFIG_HIERARCHY` or refresh once the backend endpoint is ready.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => refreshFeatureFlags()}
+                          className="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-border dark:text-gray-200 dark:hover:bg-gray-800"
+                        >
+                          Refresh Flags
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => info('Hierarchy UI hidden until backend toggle is enabled.')}
+                          className="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-border dark:text-gray-200 dark:hover:bg-gray-800"
+                        >
+                          Learn More
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                      <button
-                        onClick={() => handleEditType(type)}
-                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all touch-manipulation"
-                        title="Edit Type"
-                      >
-                        <FaEdit className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteType(type.id)}
-                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all touch-manipulation"
-                        title="Delete Type"
-                      >
-                        <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Concentrations */}
             <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
-                <div className="flex-1">
-                  <div className="flex flex-col space-y-2">
-                    {isEditConcentrationTitleOpen ? (
-                      <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-1 items-start gap-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('concentrations')}
+                    className="rounded-full border border-gray-200 dark:border-gray-700 p-1 text-gray-600 dark:text-gray-300"
+                  >
+                    {collapsedSections.concentrations ? (
+                      <FaChevronRight className="h-3 w-3" />
+                    ) : (
+                      <FaChevronDown className="h-3 w-3" />
+                    )}
+                  </button>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isEditConcentrationTitleOpen ? (
                         <input
                           type="text"
                           value={concentrationTitle}
@@ -1146,21 +1529,24 @@ export default function InfoConfig() {
                           onKeyDown={(e) => e.key === 'Enter' && handleSaveConcentrationTitle()}
                           autoFocus
                         />
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground">{concentrationTitle}</h2>
-                        <button
-                          onClick={handleEditConcentrationTitle}
-                          className="p-1 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary rounded transition-colors touch-manipulation"
-                          title="Edit Title"
-                        >
-                          <FaEdit className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </button>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground">{concentrationTitle}</h2>
+                          <button
+                            onClick={handleEditConcentrationTitle}
+                            className="p-1 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary rounded transition-colors touch-manipulation"
+                            title="Edit Title"
+                          >
+                            <FaEdit className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                        </div>
+                      )}
+                      <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                        {concentrations.length} lists
+                      </span>
+                    </div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
-                      Manage academic concentrations available in your department.
+                      Manage academic concentrations and staged electives during the migration.
                     </p>
                   </div>
                 </div>
@@ -1175,63 +1561,223 @@ export default function InfoConfig() {
                 </button>
               </div>
 
-              <div className="space-y-2 sm:space-y-3">
-                {concentrations.map((concentration) => (
-                  <div
-                    key={concentration.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors space-y-2 sm:space-y-0"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">{concentration.name}</h3>
-                        <div className="flex items-center gap-2 sm:gap-4">
-                          <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary shrink-0">
-                            {concentration.courses.length} courses
-                          </span>
-                          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
-                            Created {formatCreatedDate(concentration.createdAt)}
-                          </span>
+              {!collapsedSections.concentrations && (
+                <div className="mt-4 space-y-2 sm:space-y-3">
+                  {concentrations.map((concentration) => (
+                    <div
+                      key={concentration.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors space-y-2 sm:space-y-0"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                          <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">{concentration.name}</h3>
+                          <div className="flex items-center gap-2 sm:gap-4">
+                            <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary shrink-0">
+                              {concentration.courses.length} courses
+                            </span>
+                            <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
+                              Created {formatCreatedDate(concentration.createdAt)}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                      <button
-                        onClick={() => handleShowConcentrationInfo(concentration)}
-                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all touch-manipulation"
-                        title="View Course Details"
-                      >
-                        <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleEditConcentration(concentration)}
-                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all touch-manipulation"
-                        title="Edit Concentration"
-                      >
-                        <FaEdit className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteConcentration(concentration.id)}
-                        className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all touch-manipulation"
-                        title="Delete Concentration"
-                      >
-                        <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                
-                {concentrations.length === 0 && (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <div className="flex flex-col items-center">
-                      <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                        <FaPlus className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                        <button
+                          onClick={() => handleShowConcentrationInfo(concentration)}
+                          className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all touch-manipulation"
+                          title="View Course Details"
+                        >
+                          <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEditConcentration(concentration)}
+                          className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg transition-all touch-manipulation"
+                          title="Edit Concentration"
+                        >
+                          <FaEdit className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteConcentration(concentration.id)}
+                          className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all touch-manipulation"
+                          title="Delete Concentration"
+                        >
+                          <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
                       </div>
-                      <p className="text-lg font-medium mb-2 text-foreground">No concentrations created yet</p>
-                      <p className="text-sm text-muted-foreground">Create your first concentration to get started</p>
                     </div>
+                  ))}
+
+                  {concentrations.length === 0 && (
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                          <FaPlus className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                        </div>
+                        <p className="text-lg font-medium mb-2 text-foreground">No concentrations created yet</p>
+                        <p className="text-sm text-muted-foreground">Create your first concentration to get started</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Pools & Lists */}
+            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('pools')}
+                  className="flex flex-1 items-center gap-3 text-left"
+                >
+                  <span className="rounded-full border border-gray-200 dark:border-gray-700 p-1 text-gray-600 dark:text-gray-300">
+                    {collapsedSections.pools ? (
+                      <FaChevronRight className="h-3 w-3" />
+                    ) : (
+                      <FaChevronDown className="h-3 w-3" />
+                    )}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <FaLayerGroup className="h-4 w-4 text-primary" />
+                        <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground">Pools &amp; Lists</h2>
+                      </div>
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                        {pools.length} pools
+                      </span>
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                        {genericListSummaries.reduce((total, summary) => total + summary.count, 0)} lists
+                      </span>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
+                      Stage the upcoming credit-pool builder and generic course lists without blocking existing workflows.
+                    </p>
                   </div>
-                )}
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePoolBuilderPlaceholder}
+                    disabled={!poolsEnabled}
+                    className="flex items-center gap-2 rounded-lg border border-primary px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+                  >
+                    <FaLayerGroup className="h-3.5 w-3.5" />
+                    Launch Builder
+                  </button>
+                </div>
               </div>
+
+              {!collapsedSections.pools && (
+                <div className="mt-4 space-y-4">
+                  {poolsEnabled ? (
+                    <>
+                      <div className="rounded-lg border border-gray-200 dark:border-border p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <h3 className="text-base font-semibold text-foreground">Credit Pools Builder</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Define min/max credit gates and source nodes. Backend endpoints `/credit-pools` &amp; `/curricula/{id}/credit-pools` pending.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handlePoolBuilderPlaceholder}
+                            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary/90"
+                          >
+                            Add Pool
+                          </button>
+                        </div>
+
+                        {pools.length === 0 ? (
+                          <div className="mt-4 rounded-lg border border-dashed border-gray-300 dark:border-border p-4 text-sm text-muted-foreground">
+                            No pools yet. This UI will light up once the backend delivers pool + attachment APIs.
+                          </div>
+                        ) : (
+                          <ul className="mt-4 space-y-3">
+                            {pools.map((pool) => (
+                              <li key={pool.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-3 text-sm">
+                                <div>
+                                  <p className="font-semibold text-foreground">{pool.name}</p>
+                                  <p className="text-muted-foreground">
+                                    {pool.minCredits}-{pool.maxCredits} credit window
+                                  </p>
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  Updated {pool.updatedAt ? formatCreatedDate(pool.updatedAt) : '—'}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+
+                      {genericListsEnabled ? (
+                        <div className="rounded-lg border border-gray-200 dark:border-border p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-2">
+                              <FaListUl className="h-4 w-4 text-primary" />
+                              <h3 className="text-base font-semibold text-foreground">Generic Lists</h3>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleGenericListPlaceholder}
+                              className="rounded-lg border border-primary px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
+                            >
+                              New List
+                            </button>
+                          </div>
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            {genericListSummaries.map((summary) => (
+                              <div key={summary.id} className="rounded-lg border border-gray-200 dark:border-border p-3">
+                                <p className="text-sm font-semibold text-foreground">{summary.label}</p>
+                                <p className="text-xs text-muted-foreground">{summary.description}</p>
+                                <p className="mt-2 text-2xl font-bold text-foreground">{summary.count}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-gray-300 dark:border-border p-4 text-sm text-muted-foreground">
+                          Generic pool lists are off. Flip `NEXT_PUBLIC_ENABLE_CONFIG_GENERIC_LISTS` when backend consolidation is ready.
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-gray-300 dark:border-border p-4 text-sm text-muted-foreground">
+                      Credit pools are gated by the `NEXT_PUBLIC_ENABLE_CONFIG_POOLS` flag until the Laravel endpoints ship. Refresh the flags after the backend handoff.
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => refreshFeatureFlags()}
+                          className="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-border dark:text-gray-200 dark:hover:bg-gray-800"
+                        >
+                          Refresh Flags
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePoolBuilderPlaceholder}
+                          className="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-border dark:text-gray-200 dark:hover:bg-gray-800"
+                        >
+                          Preview UX
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {legacyBannerVisible && (
+                    <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-500/40 dark:bg-amber-900/20 dark:text-amber-100">
+                      <FaLightbulb className="mt-1 h-4 w-4" />
+                      <div>
+                        <p className="font-semibold">Legacy elective rules stay active</p>
+                        <p className="text-sm">
+                          Pools will eventually replace elective rules once migration finishes. For now, continue editing elective criteria in the curriculum tab.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
           </div>
@@ -1830,6 +2376,23 @@ export default function InfoConfig() {
                   />
                 </div>
               </div>
+
+              <div>
+                <label className="block text-xs sm:text-sm font-semibold mb-2 text-foreground">Parent Type (optional)</label>
+                <select
+                  value={newType.parentId ?? ''}
+                  onChange={(e) => setNewType({ ...newType, parentId: e.target.value || null })}
+                  className="w-full border border-gray-300 dark:border-border rounded-lg px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground text-sm"
+                >
+                  <option value="">No parent (top level)</option>
+                  {courseTypeOptions.map(option => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Select a parent to nest this type within your hierarchy.
+                </p>
+              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
@@ -1895,6 +2458,29 @@ export default function InfoConfig() {
                     className="flex-1 border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground transition-colors"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-foreground">Parent Type</label>
+                <select
+                  value={newType.parentId ?? ''}
+                  onChange={(e) => setNewType({ ...newType, parentId: e.target.value || null })}
+                  className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground"
+                >
+                  <option value="">No parent (top level)</option>
+                  {courseTypeOptions.map(option => (
+                    <option
+                      key={option.id}
+                      value={option.id}
+                      disabled={disallowedParentIds.includes(option.id)}
+                    >
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  The selected type cannot become its own parent or the parent of its descendants.
+                </p>
               </div>
             </div>
 

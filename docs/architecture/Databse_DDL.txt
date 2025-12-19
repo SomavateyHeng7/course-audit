@@ -1,0 +1,613 @@
+-- DROP SCHEMA public;
+
+CREATE SCHEMA public AUTHORIZATION postgres;
+
+-- DROP SEQUENCE migrations_id_seq;
+
+CREATE SEQUENCE migrations_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+-- DROP SEQUENCE personal_access_tokens_id_seq;
+
+CREATE SEQUENCE personal_access_tokens_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 9223372036854775807
+	START 1
+	CACHE 1
+	NO CYCLE;-- public.courses definition
+
+-- Drop table
+
+-- DROP TABLE courses;
+
+CREATE TABLE courses (
+	id varchar(255) NOT NULL,
+	code varchar(255) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	credits int4 NOT NULL,
+	credit_hours varchar(255) NOT NULL,
+	description text NULL,
+	requires_permission bool DEFAULT false NOT NULL,
+	summer_only bool DEFAULT false NOT NULL,
+	requires_senior_standing bool DEFAULT false NOT NULL,
+	min_credit_threshold int4 NULL,
+	is_active bool DEFAULT true NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT courses_code_unique UNIQUE (code),
+	CONSTRAINT courses_pkey PRIMARY KEY (id)
+);
+CREATE INDEX courses_code_index ON public.courses USING btree (code);
+CREATE INDEX courses_name_index ON public.courses USING btree (name);
+
+
+-- public.faculties definition
+
+-- Drop table
+
+-- DROP TABLE faculties;
+
+CREATE TABLE faculties (
+	id varchar(255) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	code varchar(255) NOT NULL,
+	concentration_label varchar(255) DEFAULT 'Concentrations'::character varying NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT faculties_code_unique UNIQUE (code),
+	CONSTRAINT faculties_pkey PRIMARY KEY (id)
+);
+
+
+-- public.migrations definition
+
+-- Drop table
+
+-- DROP TABLE migrations;
+
+CREATE TABLE migrations (
+	id serial4 NOT NULL,
+	migration varchar(255) NOT NULL,
+	batch int4 NOT NULL,
+	CONSTRAINT migrations_pkey PRIMARY KEY (id)
+);
+
+
+-- public.personal_access_tokens definition
+
+-- Drop table
+
+-- DROP TABLE personal_access_tokens;
+
+CREATE TABLE personal_access_tokens (
+	id bigserial NOT NULL,
+	tokenable_type varchar(255) NOT NULL,
+	tokenable_id uuid NOT NULL,
+	"name" text NOT NULL,
+	"token" varchar(64) NOT NULL,
+	abilities text NULL,
+	last_used_at timestamp(0) NULL,
+	expires_at timestamp(0) NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT personal_access_tokens_pkey PRIMARY KEY (id),
+	CONSTRAINT personal_access_tokens_token_unique UNIQUE (token)
+);
+CREATE INDEX personal_access_tokens_expires_at_index ON public.personal_access_tokens USING btree (expires_at);
+CREATE INDEX personal_access_tokens_tokenable_type_tokenable_id_index ON public.personal_access_tokens USING btree (tokenable_type, tokenable_id);
+
+
+-- public.sessions definition
+
+-- Drop table
+
+-- DROP TABLE sessions;
+
+CREATE TABLE sessions (
+	id varchar(255) NOT NULL,
+	user_id uuid NULL,
+	ip_address varchar(45) NULL,
+	user_agent text NULL,
+	payload text NOT NULL,
+	last_activity int4 NOT NULL,
+	CONSTRAINT sessions_pkey PRIMARY KEY (id)
+);
+CREATE INDEX sessions_last_activity_index ON public.sessions USING btree (last_activity);
+CREATE INDEX sessions_user_id_index ON public.sessions USING btree (user_id);
+
+
+-- public.system_settings definition
+
+-- Drop table
+
+-- DROP TABLE system_settings;
+
+CREATE TABLE system_settings (
+	id varchar(255) NOT NULL,
+	"key" varchar(255) NOT NULL,
+	value varchar(255) NOT NULL,
+	description text NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT system_settings_key_unique UNIQUE (key),
+	CONSTRAINT system_settings_pkey PRIMARY KEY (id)
+);
+
+
+-- public.course_corequisites definition
+
+-- Drop table
+
+-- DROP TABLE course_corequisites;
+
+CREATE TABLE course_corequisites (
+	id varchar(255) NOT NULL,
+	course_id varchar(255) NOT NULL,
+	corequisite_id varchar(255) NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT course_corequisites_course_id_corequisite_id_unique UNIQUE (course_id, corequisite_id),
+	CONSTRAINT course_corequisites_pkey PRIMARY KEY (id),
+	CONSTRAINT course_corequisites_corequisite_id_foreign FOREIGN KEY (corequisite_id) REFERENCES courses(id) ON DELETE CASCADE,
+	CONSTRAINT course_corequisites_course_id_foreign FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+CREATE INDEX course_corequisites_corequisite_id_index ON public.course_corequisites USING btree (corequisite_id);
+CREATE INDEX course_corequisites_course_id_index ON public.course_corequisites USING btree (course_id);
+
+
+-- public.course_prerequisites definition
+
+-- Drop table
+
+-- DROP TABLE course_prerequisites;
+
+CREATE TABLE course_prerequisites (
+	id varchar(255) NOT NULL,
+	course_id varchar(255) NOT NULL,
+	prerequisite_id varchar(255) NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT course_prerequisites_course_id_prerequisite_id_unique UNIQUE (course_id, prerequisite_id),
+	CONSTRAINT course_prerequisites_pkey PRIMARY KEY (id),
+	CONSTRAINT course_prerequisites_course_id_foreign FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+	CONSTRAINT course_prerequisites_prerequisite_id_foreign FOREIGN KEY (prerequisite_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+CREATE INDEX course_prerequisites_course_id_index ON public.course_prerequisites USING btree (course_id);
+CREATE INDEX course_prerequisites_prerequisite_id_index ON public.course_prerequisites USING btree (prerequisite_id);
+
+
+-- public.departments definition
+
+-- Drop table
+
+-- DROP TABLE departments;
+
+CREATE TABLE departments (
+	id varchar(255) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	code varchar(255) NOT NULL,
+	faculty_id varchar(255) NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT departments_code_faculty_id_unique UNIQUE (code, faculty_id),
+	CONSTRAINT departments_pkey PRIMARY KEY (id),
+	CONSTRAINT departments_faculty_id_foreign FOREIGN KEY (faculty_id) REFERENCES faculties(id)
+);
+
+
+-- public.users definition
+
+-- Drop table
+
+-- DROP TABLE users;
+
+CREATE TABLE users (
+	id varchar(255) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	email varchar(255) NOT NULL,
+	"password" varchar(255) NOT NULL,
+	"role" varchar(255) DEFAULT 'CHAIRPERSON'::character varying NOT NULL,
+	faculty_id varchar(255) NOT NULL,
+	department_id varchar(255) NOT NULL,
+	advisor_id varchar(255) NULL,
+	gpa float8 NULL,
+	credits int4 NULL,
+	scholarship_hour int4 NULL,
+	reset_token varchar(255) NULL,
+	reset_token_expiry timestamp(0) NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT users_email_unique UNIQUE (email),
+	CONSTRAINT users_pkey PRIMARY KEY (id),
+	CONSTRAINT users_role_check CHECK (((role)::text = ANY ((ARRAY['STUDENT'::character varying, 'ADVISOR'::character varying, 'CHAIRPERSON'::character varying, 'SUPER_ADMIN'::character varying])::text[]))),
+	CONSTRAINT users_department_id_foreign FOREIGN KEY (department_id) REFERENCES departments(id),
+	CONSTRAINT users_faculty_id_foreign FOREIGN KEY (faculty_id) REFERENCES faculties(id)
+);
+CREATE INDEX users_department_id_index ON public.users USING btree (department_id);
+CREATE INDEX users_faculty_id_index ON public.users USING btree (faculty_id);
+CREATE INDEX users_role_index ON public.users USING btree (role);
+
+
+-- public.blacklists definition
+
+-- Drop table
+
+-- DROP TABLE blacklists;
+
+CREATE TABLE blacklists (
+	id varchar(255) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	description text NULL,
+	department_id varchar(255) NOT NULL,
+	created_by_id varchar(255) NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT blacklists_name_department_id_created_by_id_unique UNIQUE (name, department_id, created_by_id),
+	CONSTRAINT blacklists_pkey PRIMARY KEY (id),
+	CONSTRAINT blacklists_created_by_id_foreign FOREIGN KEY (created_by_id) REFERENCES users(id),
+	CONSTRAINT blacklists_department_id_foreign FOREIGN KEY (department_id) REFERENCES departments(id)
+);
+CREATE INDEX blacklists_created_by_id_index ON public.blacklists USING btree (created_by_id);
+
+
+-- public.concentrations definition
+
+-- Drop table
+
+-- DROP TABLE concentrations;
+
+CREATE TABLE concentrations (
+	id varchar(255) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	description text NULL,
+	department_id varchar(255) NOT NULL,
+	created_by_id varchar(255) NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT concentrations_name_department_id_created_by_id_unique UNIQUE (name, department_id, created_by_id),
+	CONSTRAINT concentrations_pkey PRIMARY KEY (id),
+	CONSTRAINT concentrations_created_by_id_foreign FOREIGN KEY (created_by_id) REFERENCES users(id),
+	CONSTRAINT concentrations_department_id_foreign FOREIGN KEY (department_id) REFERENCES departments(id)
+);
+CREATE INDEX concentrations_created_by_id_index ON public.concentrations USING btree (created_by_id);
+
+
+-- public.course_types definition
+
+-- Drop table
+
+-- DROP TABLE course_types;
+
+CREATE TABLE course_types (
+	id varchar(255) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	color varchar(255) NOT NULL,
+	department_id varchar(255) NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT course_types_name_department_id_unique UNIQUE (name, department_id),
+	CONSTRAINT course_types_pkey PRIMARY KEY (id),
+	CONSTRAINT course_types_department_id_foreign FOREIGN KEY (department_id) REFERENCES departments(id)
+);
+
+
+-- public.curricula definition
+
+-- Drop table
+
+-- DROP TABLE curricula;
+
+CREATE TABLE curricula (
+	id varchar(255) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	"year" varchar(255) NOT NULL,
+	"version" varchar(255) DEFAULT '1.0'::character varying NOT NULL,
+	description text NULL,
+	start_id varchar(255) NOT NULL,
+	end_id varchar(255) NOT NULL,
+	is_active bool DEFAULT true NOT NULL,
+	department_id varchar(255) NOT NULL,
+	faculty_id varchar(255) NOT NULL,
+	created_by_id varchar(255) NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	total_credits_required int4 DEFAULT 0 NOT NULL,
+	CONSTRAINT curricula_pkey PRIMARY KEY (id),
+	CONSTRAINT curricula_year_start_id_end_id_department_id_unique UNIQUE (year, start_id, end_id, department_id),
+	CONSTRAINT curricula_created_by_id_foreign FOREIGN KEY (created_by_id) REFERENCES users(id),
+	CONSTRAINT curricula_department_id_foreign FOREIGN KEY (department_id) REFERENCES departments(id),
+	CONSTRAINT curricula_faculty_id_foreign FOREIGN KEY (faculty_id) REFERENCES faculties(id)
+);
+
+
+-- public.curriculum_blacklists definition
+
+-- Drop table
+
+-- DROP TABLE curriculum_blacklists;
+
+CREATE TABLE curriculum_blacklists (
+	id varchar(255) NOT NULL,
+	curriculum_id varchar(255) NOT NULL,
+	blacklist_id varchar(255) NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT curriculum_blacklists_curriculum_id_blacklist_id_unique UNIQUE (curriculum_id, blacklist_id),
+	CONSTRAINT curriculum_blacklists_pkey PRIMARY KEY (id),
+	CONSTRAINT curriculum_blacklists_blacklist_id_foreign FOREIGN KEY (blacklist_id) REFERENCES blacklists(id) ON DELETE CASCADE,
+	CONSTRAINT curriculum_blacklists_curriculum_id_foreign FOREIGN KEY (curriculum_id) REFERENCES curricula(id) ON DELETE CASCADE
+);
+CREATE INDEX curriculum_blacklists_blacklist_id_index ON public.curriculum_blacklists USING btree (blacklist_id);
+CREATE INDEX curriculum_blacklists_curriculum_id_index ON public.curriculum_blacklists USING btree (curriculum_id);
+
+
+-- public.curriculum_concentrations definition
+
+-- Drop table
+
+-- DROP TABLE curriculum_concentrations;
+
+CREATE TABLE curriculum_concentrations (
+	id varchar(255) NOT NULL,
+	curriculum_id varchar(255) NOT NULL,
+	concentration_id varchar(255) NOT NULL,
+	required_courses int4 NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT curriculum_concentrations_curriculum_id_concentration_id_unique UNIQUE (curriculum_id, concentration_id),
+	CONSTRAINT curriculum_concentrations_pkey PRIMARY KEY (id),
+	CONSTRAINT curriculum_concentrations_concentration_id_foreign FOREIGN KEY (concentration_id) REFERENCES concentrations(id) ON DELETE CASCADE,
+	CONSTRAINT curriculum_concentrations_curriculum_id_foreign FOREIGN KEY (curriculum_id) REFERENCES curricula(id) ON DELETE CASCADE
+);
+CREATE INDEX curriculum_concentrations_concentration_id_index ON public.curriculum_concentrations USING btree (concentration_id);
+CREATE INDEX curriculum_concentrations_curriculum_id_index ON public.curriculum_concentrations USING btree (curriculum_id);
+
+
+-- public.curriculum_constraints definition
+
+-- Drop table
+
+-- DROP TABLE curriculum_constraints;
+
+CREATE TABLE curriculum_constraints (
+	id varchar(255) NOT NULL,
+	curriculum_id varchar(255) NOT NULL,
+	"type" varchar(255) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	description text NULL,
+	is_required bool DEFAULT true NOT NULL,
+	config json NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT curriculum_constraints_curriculum_id_type_name_unique UNIQUE (curriculum_id, type, name),
+	CONSTRAINT curriculum_constraints_pkey PRIMARY KEY (id),
+	CONSTRAINT curriculum_constraints_type_check CHECK (((type)::text = ANY ((ARRAY['MINIMUM_GPA'::character varying, 'SENIOR_STANDING'::character varying, 'TOTAL_CREDITS'::character varying, 'CATEGORY_CREDITS'::character varying, 'CUSTOM'::character varying])::text[]))),
+	CONSTRAINT curriculum_constraints_curriculum_id_foreign FOREIGN KEY (curriculum_id) REFERENCES curricula(id) ON DELETE CASCADE
+);
+CREATE INDEX curriculum_constraints_curriculum_id_index ON public.curriculum_constraints USING btree (curriculum_id);
+
+
+-- public.curriculum_courses definition
+
+-- Drop table
+
+-- DROP TABLE curriculum_courses;
+
+CREATE TABLE curriculum_courses (
+	id varchar(255) NOT NULL,
+	curriculum_id varchar(255) NOT NULL,
+	course_id varchar(255) NOT NULL,
+	is_required bool DEFAULT true NOT NULL,
+	semester varchar(255) NULL,
+	"year" int4 NULL,
+	"position" int4 NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	override_requires_permission bool NULL,
+	override_summer_only bool NULL,
+	override_requires_senior_standing bool NULL,
+	override_min_credit_threshold int4 NULL,
+	CONSTRAINT curriculum_courses_curriculum_id_course_id_unique UNIQUE (curriculum_id, course_id),
+	CONSTRAINT curriculum_courses_pkey PRIMARY KEY (id),
+	CONSTRAINT curriculum_courses_course_id_foreign FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+	CONSTRAINT curriculum_courses_curriculum_id_foreign FOREIGN KEY (curriculum_id) REFERENCES curricula(id) ON DELETE CASCADE
+);
+CREATE INDEX curriculum_courses_course_id_index ON public.curriculum_courses USING btree (course_id);
+CREATE INDEX curriculum_courses_curriculum_id_index ON public.curriculum_courses USING btree (curriculum_id);
+
+
+-- public.department_course_types definition
+
+-- Drop table
+
+-- DROP TABLE department_course_types;
+
+CREATE TABLE department_course_types (
+	id varchar(255) NOT NULL,
+	course_id varchar(255) NOT NULL,
+	department_id varchar(255) NOT NULL,
+	course_type_id varchar(255) NOT NULL,
+	assigned_at timestamp(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	assigned_by_id varchar(255) NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT department_course_types_course_id_department_id_unique UNIQUE (course_id, department_id),
+	CONSTRAINT department_course_types_pkey PRIMARY KEY (id),
+	CONSTRAINT department_course_types_assigned_by_id_foreign FOREIGN KEY (assigned_by_id) REFERENCES users(id),
+	CONSTRAINT department_course_types_course_id_foreign FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+	CONSTRAINT department_course_types_course_type_id_foreign FOREIGN KEY (course_type_id) REFERENCES course_types(id) ON DELETE CASCADE,
+	CONSTRAINT department_course_types_department_id_foreign FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
+);
+CREATE INDEX department_course_types_course_type_id_index ON public.department_course_types USING btree (course_type_id);
+CREATE INDEX department_course_types_department_id_index ON public.department_course_types USING btree (department_id);
+
+
+-- public.elective_rules definition
+
+-- Drop table
+
+-- DROP TABLE elective_rules;
+
+CREATE TABLE elective_rules (
+	id varchar(255) NOT NULL,
+	curriculum_id varchar(255) NOT NULL,
+	category varchar(255) NOT NULL,
+	required_credits int4 NOT NULL,
+	description text NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT elective_rules_curriculum_id_category_unique UNIQUE (curriculum_id, category),
+	CONSTRAINT elective_rules_pkey PRIMARY KEY (id),
+	CONSTRAINT elective_rules_curriculum_id_foreign FOREIGN KEY (curriculum_id) REFERENCES curricula(id) ON DELETE CASCADE
+);
+CREATE INDEX elective_rules_curriculum_id_index ON public.elective_rules USING btree (curriculum_id);
+
+
+-- public.student_courses definition
+
+-- Drop table
+
+-- DROP TABLE student_courses;
+
+CREATE TABLE student_courses (
+	id varchar(255) NOT NULL,
+	student_id varchar(255) NOT NULL,
+	course_id varchar(255) NOT NULL,
+	status varchar(255) NOT NULL,
+	grade varchar(255) NULL,
+	semester varchar(255) NULL,
+	"year" int4 NULL,
+	credits int4 NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT student_courses_pkey PRIMARY KEY (id),
+	CONSTRAINT student_courses_status_check CHECK (((status)::text = ANY ((ARRAY['IN_PROGRESS'::character varying, 'COMPLETED'::character varying, 'FAILED'::character varying, 'DROPPED'::character varying, 'PENDING'::character varying])::text[]))),
+	CONSTRAINT student_courses_student_id_course_id_unique UNIQUE (student_id, course_id),
+	CONSTRAINT student_courses_course_id_foreign FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+	CONSTRAINT student_courses_student_id_foreign FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX student_courses_course_id_index ON public.student_courses USING btree (course_id);
+CREATE INDEX student_courses_student_id_index ON public.student_courses USING btree (student_id);
+
+
+-- public.audit_logs definition
+
+-- Drop table
+
+-- DROP TABLE audit_logs;
+
+CREATE TABLE audit_logs (
+	id varchar(255) NOT NULL,
+	user_id varchar(255) NOT NULL,
+	entity_type varchar(255) NOT NULL,
+	entity_id varchar(255) NOT NULL,
+	"action" varchar(255) NOT NULL,
+	changes json NULL,
+	description text NULL,
+	curriculum_id varchar(255) NULL,
+	course_id varchar(255) NULL,
+	concentration_id varchar(255) NULL,
+	blacklist_id varchar(255) NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT audit_logs_action_check CHECK (((action)::text = ANY ((ARRAY['CREATE'::character varying, 'UPDATE'::character varying, 'DELETE'::character varying, 'ASSIGN'::character varying, 'UNASSIGN'::character varying, 'IMPORT'::character varying, 'EXPORT'::character varying])::text[]))),
+	CONSTRAINT audit_logs_pkey PRIMARY KEY (id),
+	CONSTRAINT audit_logs_blacklist_id_foreign FOREIGN KEY (blacklist_id) REFERENCES blacklists(id),
+	CONSTRAINT audit_logs_concentration_id_foreign FOREIGN KEY (concentration_id) REFERENCES concentrations(id),
+	CONSTRAINT audit_logs_course_id_foreign FOREIGN KEY (course_id) REFERENCES courses(id),
+	CONSTRAINT audit_logs_curriculum_id_foreign FOREIGN KEY (curriculum_id) REFERENCES curricula(id),
+	CONSTRAINT audit_logs_user_id_foreign FOREIGN KEY (user_id) REFERENCES users(id)
+);
+CREATE INDEX audit_logs_created_at_index ON public.audit_logs USING btree (created_at);
+CREATE INDEX audit_logs_curriculum_id_index ON public.audit_logs USING btree (curriculum_id);
+CREATE INDEX audit_logs_entity_type_entity_id_index ON public.audit_logs USING btree (entity_type, entity_id);
+CREATE INDEX audit_logs_user_id_index ON public.audit_logs USING btree (user_id);
+
+
+-- public.blacklist_courses definition
+
+-- Drop table
+
+-- DROP TABLE blacklist_courses;
+
+CREATE TABLE blacklist_courses (
+	id varchar(255) NOT NULL,
+	blacklist_id varchar(255) NOT NULL,
+	course_id varchar(255) NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT blacklist_courses_blacklist_id_course_id_unique UNIQUE (blacklist_id, course_id),
+	CONSTRAINT blacklist_courses_pkey PRIMARY KEY (id),
+	CONSTRAINT blacklist_courses_blacklist_id_foreign FOREIGN KEY (blacklist_id) REFERENCES blacklists(id) ON DELETE CASCADE,
+	CONSTRAINT blacklist_courses_course_id_foreign FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+CREATE INDEX blacklist_courses_blacklist_id_index ON public.blacklist_courses USING btree (blacklist_id);
+CREATE INDEX blacklist_courses_course_id_index ON public.blacklist_courses USING btree (course_id);
+
+
+-- public.concentration_courses definition
+
+-- Drop table
+
+-- DROP TABLE concentration_courses;
+
+CREATE TABLE concentration_courses (
+	id varchar(255) NOT NULL,
+	concentration_id varchar(255) NOT NULL,
+	course_id varchar(255) NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT concentration_courses_concentration_id_course_id_unique UNIQUE (concentration_id, course_id),
+	CONSTRAINT concentration_courses_pkey PRIMARY KEY (id),
+	CONSTRAINT concentration_courses_concentration_id_foreign FOREIGN KEY (concentration_id) REFERENCES concentrations(id) ON DELETE CASCADE,
+	CONSTRAINT concentration_courses_course_id_foreign FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+CREATE INDEX concentration_courses_concentration_id_index ON public.concentration_courses USING btree (concentration_id);
+CREATE INDEX concentration_courses_course_id_index ON public.concentration_courses USING btree (course_id);
+
+
+-- public.curriculum_course_corequisites definition
+
+-- Drop table
+
+-- DROP TABLE curriculum_course_corequisites;
+
+CREATE TABLE curriculum_course_corequisites (
+	id varchar(255) NOT NULL,
+	curriculum_course_id varchar(255) NOT NULL,
+	corequisite_course_id varchar(255) NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT curriculum_course_corequisites_curriculum_course_id_corequisite UNIQUE (curriculum_course_id, corequisite_course_id),
+	CONSTRAINT curriculum_course_corequisites_pkey PRIMARY KEY (id),
+	CONSTRAINT curriculum_course_corequisites_corequisite_course_id_foreign FOREIGN KEY (corequisite_course_id) REFERENCES curriculum_courses(id) ON DELETE CASCADE,
+	CONSTRAINT curriculum_course_corequisites_curriculum_course_id_foreign FOREIGN KEY (curriculum_course_id) REFERENCES curriculum_courses(id) ON DELETE CASCADE
+);
+CREATE INDEX curriculum_course_corequisites_corequisite_course_id_index ON public.curriculum_course_corequisites USING btree (corequisite_course_id);
+CREATE INDEX curriculum_course_corequisites_curriculum_course_id_index ON public.curriculum_course_corequisites USING btree (curriculum_course_id);
+
+
+-- public.curriculum_course_prerequisites definition
+
+-- Drop table
+
+-- DROP TABLE curriculum_course_prerequisites;
+
+CREATE TABLE curriculum_course_prerequisites (
+	id varchar(255) NOT NULL,
+	curriculum_course_id varchar(255) NOT NULL,
+	prerequisite_course_id varchar(255) NOT NULL,
+	created_at timestamp(0) NULL,
+	updated_at timestamp(0) NULL,
+	CONSTRAINT curriculum_course_prerequisites_curriculum_course_id_prerequisi UNIQUE (curriculum_course_id, prerequisite_course_id),
+	CONSTRAINT curriculum_course_prerequisites_pkey PRIMARY KEY (id),
+	CONSTRAINT curriculum_course_prerequisites_curriculum_course_id_foreign FOREIGN KEY (curriculum_course_id) REFERENCES curriculum_courses(id) ON DELETE CASCADE,
+	CONSTRAINT curriculum_course_prerequisites_prerequisite_course_id_foreign FOREIGN KEY (prerequisite_course_id) REFERENCES curriculum_courses(id) ON DELETE CASCADE
+);
+CREATE INDEX curriculum_course_prerequisites_curriculum_course_id_index ON public.curriculum_course_prerequisites USING btree (curriculum_course_id);
+CREATE INDEX curriculum_course_prerequisites_prerequisite_course_id_index ON public.curriculum_course_prerequisites USING btree (prerequisite_course_id);
