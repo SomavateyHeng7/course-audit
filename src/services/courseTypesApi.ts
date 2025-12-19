@@ -16,16 +16,21 @@ export interface CourseTypeData {
   seeded?: boolean;
   createdAt: string;
   updatedAt: string;
+  parentId?: string | null;
+  usageCount?: number;
+  childCount?: number;
 }
 
 export interface CreateCourseTypeRequest {
   name: string;
   color: string;
+  parentId?: string | null;
 }
 
 export interface UpdateCourseTypeRequest {
   name: string;
   color: string;
+  parentId?: string | null;
 }
 
 export interface CourseTypesResponse {
