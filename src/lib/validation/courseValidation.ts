@@ -110,13 +110,19 @@ export async function validateStudentProgress(
   const recommendations: CourseRecommendation[] = [];
 
   try {
-    // Fetch curriculum data
-    const [curriculum, constraints, electiveRules, blacklists] = await Promise.all([
-      fetchCurriculum(curriculumId),
-      fetchConstraints(curriculumId),
-      fetchElectiveRules(curriculumId),
-      fetchBlacklists(curriculumId)
-    ]);
+    // Fetch curriculum data (includes constraints and electiveRules)
+    const curriculumData = await getPublicCurriculum(parseInt(curriculumId));
+    const curriculum = curriculumData.curriculum;
+    const constraints = curriculum.curriculumConstraints || [];
+    const electiveRules = curriculum.electiveRules || [];
+    
+    // Fetch blacklists separately
+    let blacklists: BlacklistData[] = [];
+    try {
+      blacklists = await fetchBlacklists(curriculumId);
+    } catch (error) {
+      console.warn('Blacklist validation skipped:', error);
+    }
 
     // Validate against constraints
     const constraintValidation = validateConstraints(courses, constraints);
@@ -168,10 +174,9 @@ export async function calculateCurriculumProgress(
   curriculumId: string
 ): Promise<CurriculumProgress> {
   try {
-    const [curriculum, constraints] = await Promise.all([
-      fetchCurriculum(curriculumId),
-      fetchConstraints(curriculumId)
-    ]);
+    const curriculumData = await getPublicCurriculum(parseInt(curriculumId));
+    const curriculum = curriculumData.curriculum;
+    const constraints = curriculum.curriculumConstraints || [];
 
     const completedCourses = courses.filter(c => c.status === 'COMPLETED');
     const inProgressCourses = courses.filter(c => c.status === 'IN_PROGRESS');
@@ -346,31 +351,9 @@ async function generateRecommendations(
 }
 
 // Helper functions for API calls
-async function fetchCurriculum(curriculumId: string): Promise<CurriculumData> {
-  const data = await getPublicCurriculum(parseInt(curriculumId));
-  return data.curriculum;
-}
-
-async function fetchConstraints(curriculumId: string): Promise<ConstraintData[]> {
-  const response = await fetch(`${API_BASE}/api/public-curricula/${curriculumId}/constraints`, {
-    credentials: 'include'
-  });
-  if (!response.ok) throw new Error('Failed to fetch constraints');
-  const data = await response.json();
-  return data.constraints;
-}
-
-async function fetchElectiveRules(curriculumId: string): Promise<ElectiveRuleData[]> {
-  const response = await fetch(`${API_BASE}/api/public-curricula/${curriculumId}/elective-rules`, {
-    credentials: 'include'
-  });
-  if (!response.ok) throw new Error('Failed to fetch elective rules');
-  const data = await response.json();
-  return data.electiveRules;
-}
 
 async function fetchBlacklists(curriculumId: string): Promise<BlacklistData[]> {
-  const response = await fetch(`${API_BASE}/api/public-curricula/${curriculumId}/blacklists`, {
+  const response = await fetch(`${API_BASE}/public-curricula/${curriculumId}/blacklists`, {
     credentials: 'include'
   });
   if (!response.ok) throw new Error('Failed to fetch blacklists');
@@ -381,7 +364,7 @@ async function fetchBlacklists(curriculumId: string): Promise<BlacklistData[]> {
 async function fetchCourses(departmentId: string, curriculumId?: string): Promise<CourseInfo[]> {
   // If we have both IDs, use the available-courses endpoint which includes departmentCourseTypes
   if (curriculumId && departmentId) {
-    const response = await fetch(`${API_BASE}/api/available-courses?curriculumId=${curriculumId}&departmentId=${departmentId}`, {
+    const response = await fetch(`${API_BASE}/available-courses?curriculumId=${curriculumId}&departmentId=${departmentId}`, {
       credentials: 'include'
     });
     if (!response.ok) throw new Error('Failed to fetch available courses');

@@ -206,7 +206,7 @@ export default function DataEntryPage() {
           departmentId: departmentId
         });
 
-        const concResponse = await fetch(`${API_BASE}/public-concentrations?curriculumId=${selectedCurriculum}&departmentId=${departmentId}`, {
+        const concResponse = await fetch(`${API_BASE}/public-concentrations?curriculum_id=${selectedCurriculum}&department_id=${departmentId}`, {
           credentials: 'include'
         });
         const concData = await concResponse.json();
