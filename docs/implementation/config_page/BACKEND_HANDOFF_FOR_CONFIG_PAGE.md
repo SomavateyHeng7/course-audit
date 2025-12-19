@@ -94,3 +94,35 @@ The front-end now calls `GET /api/config/feature-flags` on load. Please expose t
 
 ---
 Ping the frontend team once the endpoints above are available so we can switch from placeholder data to live calls. Let us know if any schema naming deviates from the DDL so we can align the UI bindings.
+
+## 7. Downstream Surfaces (Curriculum Edit + Student Checklist)
+
+- The new **Pools & Lists** tab inside `chairperson/info_edit/[id]` consumes the same `/api/credit-pools` and `/api/course-lists` payloads defined above, but scoped to a single curriculum. Please expose:
+   - `GET /api/curricula/{id}/course-lists` and `GET /api/curricula/{id}/credit-pools` with resolved sources (course types + lists) so the UI can render summaries without extra fan-out.
+   - `POST /api/curricula/{id}/course-lists` and `/credit-pools` variants for attach/update/detach, mirroring the request shapes in Sections 2–3 with `order_index`, `required_credits`, and `max_credits` fields.
+- **Legacy Elective Rules** becomes read-only whenever `enablePools=true`. The flag must therefore be flipped only after the curriculum-level endpoints above are stable to avoid stranding users.
+- The **Student Checklist** screen now expects pool-aware progress data. Extend `GET /students/{id}/progress` (or provide `/students/{id}/progress?withPools=true`) to include:
+
+```json
+{
+   "studentId": "uuid",
+   "totalCredits": 96,
+   "totalCreditsRequired": 132,
+   "pools": [
+      {
+         "poolId": "pool-uuid",
+         "name": "Core Engineering",
+         "requiredCredits": 30,
+         "maxCredits": null,
+         "appliedCredits": 27,
+         "remainingCredits": 3,
+         "lists": [
+            { "courseListId": "list-uuid", "name": "Robotics", "satisfied": false }
+         ]
+      }
+   ]
+}
+```
+
+- Each pool entry should already account for curriculum attachments (including list-based pools) so the frontend can display completion chips without recalculating lineage.
+- Reuse whatever aggregation logic you implement for the config preview so the per-student breakdown and the Pools tab stay in sync.

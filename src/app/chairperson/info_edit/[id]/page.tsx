@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FaEdit, FaTrash, FaBook, FaGavel, FaGraduationCap, FaStar, FaBan, FaLayerGroup } from 'react-icons/fa';
 import CoursesTab from '@/components/features/curriculum/CoursesTab';
@@ -8,8 +8,10 @@ import ConstraintsTab from '@/components/features/curriculum/ConstraintsTab';
 import ElectiveRulesTab from '@/components/features/curriculum/ElectiveRulesTab';
 import ConcentrationsTab from '@/components/features/curriculum/ConcentrationsTab';
 import BlacklistTab from '@/components/features/curriculum/BlacklistTab';
+import PoolsListsTab from '@/components/features/curriculum/PoolsListsTab';
 import { facultyLabelApi } from '@/services/facultyLabelApi';
 import { useToastHelpers } from '@/hooks/useToast';
+import { useConfigFeatureFlags } from '@/hooks/useConfigFeatureFlags';
 import { API_BASE } from '@/lib/api/laravel';
 
 interface CurriculumCourseMeta {
@@ -29,6 +31,8 @@ export default function EditCurriculum() {
   const router = useRouter();
   const curriculumId = params.id as string;
   const { success, error: showError } = useToastHelpers();
+  const { flags } = useConfigFeatureFlags();
+  const poolsEnabled = flags.enablePools;
 
   // State for curriculum data
   const [curriculum, setCurriculum] = useState<any>(null);
@@ -41,16 +45,32 @@ export default function EditCurriculum() {
   const [isDeletingCurriculum, setIsDeletingCurriculum] = useState(false);
 
   // Dynamic tabs based on concentration title
-  const tabs = [
-    { name: "Courses", icon: FaBook },
-    { name: "Constraints", icon: FaGavel },
-    { name: "Elective Rules", icon: FaGraduationCap },
-    { name: concentrationTitle, icon: FaStar },
-    { name: "Blacklist", icon: FaBan }
-  ];
+  const tabs = useMemo(() => {
+    const sequence = [
+      { name: "Courses", icon: FaBook },
+      { name: "Constraints", icon: FaGavel }
+    ];
+
+    if (poolsEnabled) {
+      sequence.push({ name: "Pools & Lists", icon: FaLayerGroup });
+    }
+
+    sequence.push(
+      { name: "Elective Rules", icon: FaGraduationCap },
+      { name: concentrationTitle, icon: FaStar },
+      { name: "Blacklist", icon: FaBan }
+    );
+
+    return sequence;
+  }, [concentrationTitle, poolsEnabled]);
 
   // UI State
   const [activeTab, setActiveTab] = useState("Courses");
+  useEffect(() => {
+    if (!poolsEnabled && activeTab === "Pools & Lists") {
+      setActiveTab("Elective Rules");
+    }
+  }, [poolsEnabled, activeTab]);
   const [showTypeBreakdown, setShowTypeBreakdown] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<any>(null);
@@ -962,6 +982,17 @@ export default function EditCurriculum() {
               courses={allCourses}
               curriculumId={curriculumId}
               curriculumCourses={curriculumCourseMeta}
+            />
+          )}
+
+          {activeTab === "Pools & Lists" && poolsEnabled && (
+            <PoolsListsTab
+              curriculumId={curriculumId}
+              curriculumName={curriculum?.name ?? ''}
+              departmentId={curriculum?.departmentId}
+              courseTypes={courseTypes}
+              courses={coursesData}
+              isLoadingCourseTypes={isLoadingCourseTypes}
             />
           )}
 

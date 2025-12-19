@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { electiveRulesApi, type ElectiveRule, type CurriculumCourse } from '@/services/electiveRulesApi';
+import { useConfigFeatureFlags } from '@/hooks/useConfigFeatureFlags';
 
 interface ElectiveCourse {
   id: string;
@@ -33,15 +34,18 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const { flags } = useConfigFeatureFlags();
+  const poolsEnabled = flags.enablePools;
 
   // Load data from backend
   useEffect(() => {
-    if (curriculumId) {
-      loadElectiveRulesData();
+    if (!curriculumId || poolsEnabled) {
+      return;
     }
-  }, [curriculumId]);
+    void loadElectiveRulesData();
+  }, [curriculumId, poolsEnabled, loadElectiveRulesData]);
 
-  const loadElectiveRulesData = async () => {
+  const loadElectiveRulesData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -90,7 +94,9 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
     } finally {
       setLoading(false);
     }
-  };  const updateCourseRequirement = async (courseIndex: number, requirement: 'Required' | 'Elective') => {
+  }, [curriculumId]);
+
+  const updateCourseRequirement = async (courseIndex: number, requirement: 'Required' | 'Elective') => {
     try {
       setSaving(true);
       setError(null);
@@ -237,6 +243,25 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
     if (!selectedCourse) return null;
     return electiveCourses.find(course => course.code === selectedCourse);
   };
+
+  if (poolsEnabled) {
+    return (
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-6">
+        <div className="flex items-start gap-3">
+          <svg className="w-5 h-5 text-amber-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M11.001 10h2v5h-2zM11 16h2v2h-2z" />
+            <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm.002 16c-.552 0-1-.448-1-1s.448-1 1-1h.01c.552 0 1 .448 1 1s-.448 1-1 .999zM13 15h-2V7h2v8z" />
+          </svg>
+          <div>
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Credit pools takeover in progress</p>
+            <p className="text-sm text-amber-700 dark:text-amber-100/80">
+              Legacy elective rules are read-only while the new Pools &amp; Lists tab manages credit requirements. Review settings there instead.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Loading state
   if (loading) {
