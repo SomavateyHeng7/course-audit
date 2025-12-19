@@ -1602,7 +1602,7 @@ export default function ProgressPage() {
           
           <button
             className="border border-input bg-background text-foreground px-4 py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => router.push('/management/data-entry')}
+            onClick={() => router.push('/student/management/data-entry')}
           >
             Course Entry
           </button>
