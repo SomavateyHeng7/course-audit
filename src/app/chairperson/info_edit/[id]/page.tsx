@@ -33,6 +33,7 @@ export default function EditCurriculum() {
   const { success, error: showError } = useToastHelpers();
   const { flags } = useConfigFeatureFlags();
   const poolsEnabled = flags.enablePools;
+  const poolsTabVisible = poolsEnabled || flags.enableGenericLists;
 
   // State for curriculum data
   const [curriculum, setCurriculum] = useState<any>(null);
@@ -51,7 +52,7 @@ export default function EditCurriculum() {
       { name: "Constraints", icon: FaGavel }
     ];
 
-    if (poolsEnabled) {
+    if (poolsTabVisible) {
       sequence.push({ name: "Pools & Lists", icon: FaLayerGroup });
     }
 
@@ -62,16 +63,16 @@ export default function EditCurriculum() {
     );
 
     return sequence;
-  }, [concentrationTitle, poolsEnabled]);
+  }, [concentrationTitle, poolsTabVisible]);
 
   // UI State
   const [activeTab, setActiveTab] = useState("Courses");
   useEffect(() => {
-    if (!poolsEnabled && activeTab === "Pools & Lists") {
+    if (!poolsTabVisible && activeTab === "Pools & Lists") {
       setActiveTab("Elective Rules");
     }
-  }, [poolsEnabled, activeTab]);
-  const [showTypeBreakdown, setShowTypeBreakdown] = useState(false);
+  }, [poolsTabVisible, activeTab]);
+  const [showCourseCategoryCards, setShowCourseCategoryCards] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -105,7 +106,6 @@ export default function EditCurriculum() {
   const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const typeBreakdownRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch curriculum data
   useEffect(() => {
@@ -188,22 +188,6 @@ export default function EditCurriculum() {
 
     fetchCourseTypes();
   }, [curriculum?.departmentId]);
-
-  useEffect(() => {
-    if (!showTypeBreakdown) {
-      return;
-    }
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (typeBreakdownRef.current && !typeBreakdownRef.current.contains(event.target as Node)) {
-        setShowTypeBreakdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showTypeBreakdown]);
-
 
   // Process curriculum data for display
   const summary = curriculum ? {
@@ -367,12 +351,6 @@ export default function EditCurriculum() {
   }
 
   creditBreakdownCards.sort((a, b) => a.name.localeCompare(b.name));
-
-  useEffect(() => {
-    if (showTypeBreakdown && creditBreakdownCards.length === 0) {
-      setShowTypeBreakdown(false);
-    }
-  }, [showTypeBreakdown, creditBreakdownCards.length]);
 
   // Navigation functions
   const goToNextTab = () => {
@@ -916,41 +894,55 @@ export default function EditCurriculum() {
             </div>
 
             {creditBreakdownCards.length > 0 && (
-              <div className="mt-4 flex justify-end">
-                <div className="relative" ref={typeBreakdownRef}>
+              <div className="mt-4 rounded-2xl border border-gray-200 dark:border-border bg-white dark:bg-card p-4 sm:p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <FaLayerGroup className="text-primary" />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-foreground">Course Category</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Live snapshot of credits per hierarchy node.</p>
+                    </div>
+                  </div>
                   <button
-                    onClick={() => setShowTypeBreakdown((prev) => !prev)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg shadow-sm text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-primary hover:text-primary dark:hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring"
+                    type="button"
+                    onClick={() => setShowCourseCategoryCards((prev) => !prev)}
+                    className="inline-flex items-center gap-2 self-start rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-primary hover:text-primary dark:border-border dark:bg-card dark:text-gray-300"
+                    aria-expanded={showCourseCategoryCards}
                   >
-                    <FaLayerGroup className="h-4 w-4" />
-                    Course Type Credits
-                    <svg className={`h-4 w-4 transition-transform ${showTypeBreakdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {showCourseCategoryCards ? 'Collapse' : 'Expand'}
+                    <svg
+                      className={`h-4 w-4 transition-transform ${showCourseCategoryCards ? '' : 'rotate-180'}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-
-                  {showTypeBreakdown && (
-                    <div className="absolute right-0 z-50 mt-2 w-72 sm:w-[30rem] bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl shadow-xl p-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {creditBreakdownCards.map((card) => (
-                          <div
-                            key={card.id}
-                            className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-lg p-4"
-                          >
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">{card.name}</span>
-                              <span
-                                className="inline-flex h-2 w-2 rounded-full"
-                                style={{ backgroundColor: card.color || '#6366F1' }}
-                              />
-                            </div>
-                            <span className="text-lg font-bold text-primary dark:text-primary/40 block">{card.totalCredits} Credits</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
+                {showCourseCategoryCards && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {creditBreakdownCards.map((card) => (
+                      <div
+                        key={card.id}
+                        className="rounded-xl border border-gray-200 dark:border-border bg-gray-50 dark:bg-gray-900/40 p-4"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{ backgroundColor: card.color || '#6366F1' }}
+                            ></span>
+                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{card.name}</span>
+                          </div>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{card.totalCredits} credits</span>
+                        </div>
+                        <div className="text-2xl font-bold text-primary dark:text-primary/40">{card.totalCredits}</div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Credits mapped to this category</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>          {/* Tab Content */}
@@ -985,7 +977,7 @@ export default function EditCurriculum() {
             />
           )}
 
-          {activeTab === "Pools & Lists" && poolsEnabled && (
+          {activeTab === "Pools & Lists" && poolsTabVisible && (
             <PoolsListsTab
               curriculumId={curriculumId}
               curriculumName={curriculum?.name ?? ''}

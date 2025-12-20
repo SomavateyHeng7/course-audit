@@ -37,14 +37,6 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
   const { flags } = useConfigFeatureFlags();
   const poolsEnabled = flags.enablePools;
 
-  // Load data from backend
-  useEffect(() => {
-    if (!curriculumId || poolsEnabled) {
-      return;
-    }
-    void loadElectiveRulesData();
-  }, [curriculumId, poolsEnabled, loadElectiveRulesData]);
-
   const loadElectiveRulesData = useCallback(async () => {
     try {
       setLoading(true);
@@ -73,6 +65,7 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
         : [];
 
       const allCategories = ['All', ...categoriesFromApi];
+      setCategories(allCategories);
 
       
       // Set free elective credits from rules
@@ -95,6 +88,14 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
       setLoading(false);
     }
   }, [curriculumId]);
+
+  // Load data from backend
+  useEffect(() => {
+    if (!curriculumId || poolsEnabled) {
+      return;
+    }
+    void loadElectiveRulesData();
+  }, [curriculumId, poolsEnabled, loadElectiveRulesData]);
 
   const updateCourseRequirement = async (courseIndex: number, requirement: 'Required' | 'Elective') => {
     try {
