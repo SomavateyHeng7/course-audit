@@ -876,7 +876,8 @@ export default function EditCurriculum() {
                 </div>
               </div>
             </div>
-          </div>          {/* Summary Cards */}
+          </div>          
+          {/* Summary Cards */}
           <div className="mb-6 sm:mb-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-8">
               <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg sm:rounded-xl p-4 sm:p-6 flex flex-col items-center">
