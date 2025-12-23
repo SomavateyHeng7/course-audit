@@ -233,31 +233,36 @@ export default function ProgressPage() {
         if (typeof window !== 'undefined') {
           console.log('Step 2: Raw studentAuditData:', savedCompletedData);
         }
-        
+
         let parsedData: CompletedCourseData | null = null;
-        
+        let curriculumId: string | null = null;
+
         if (savedCompletedData) {
           parsedData = JSON.parse(savedCompletedData);
           if (typeof window !== 'undefined') {
             console.log('Step 3: Parsed studentAuditData:', parsedData);
           }
-          
-          // Only set data if parsedData is not null
-          if (parsedData) {
-            setCompletedData(parsedData);
+
+          // Support both array and object
+          const auditObj = Array.isArray(parsedData) ? parsedData[0] : parsedData;
+          curriculumId = auditObj?.selectedCurriculum || null;
+
+          // Only set data if auditObj is not null
+          if (auditObj) {
+            setCompletedData(auditObj);
           }
-          
+
           // Fetch curriculum data if we have a curriculum ID
-          if (parsedData && parsedData.selectedCurriculum) {
+          if (curriculumId) {
             if (typeof window !== 'undefined') {
-              console.log('Step 4: Fetching curriculum for ID:', parsedData.selectedCurriculum);
+              console.log('Step 4: Fetching curriculum for ID:', curriculumId);
             }
             try {
               const data = await getPublicCurricula();
               if (typeof window !== 'undefined') {
                 console.log('Step 5: API response:', data);
               }
-              const curriculum = data.curricula?.find((c: any) => c.id === parsedData!.selectedCurriculum);
+              const curriculum = data.curricula?.find((c: any) => c.id === curriculumId);
               if (curriculum) {
                 if (typeof window !== 'undefined') {
                   console.log('Step 6: Found curriculum data:', curriculum);
@@ -265,7 +270,7 @@ export default function ProgressPage() {
                 setCurriculumData(curriculum);
               } else {
                 if (typeof window !== 'undefined') {
-                  console.log('Step 6: No curriculum found with ID:', parsedData!.selectedCurriculum);
+                  console.log('Step 6: No curriculum found with ID:', curriculumId);
                   console.log('Available curricula:', data.curricula?.map((c: any) => ({ id: c.id, name: c.name })));
                 }
               }
@@ -285,63 +290,63 @@ export default function ProgressPage() {
           }
         }
         
-        // Load planned courses from course planner
-        const savedCoursePlan = localStorage.getItem('coursePlan');
-        if (typeof window !== 'undefined') {
-          console.log('Step 7: Raw coursePlan:', savedCoursePlan);
-        }
-        
-        if (savedCoursePlan) {
-          const planData = JSON.parse(savedCoursePlan);
-          if (typeof window !== 'undefined') {
-            console.log('Step 8: Parsed coursePlan:', planData);
+          // Load planned courses from course planner
+            const savedCoursePlan = localStorage.getItem('coursePlan');
+            if (typeof window !== 'undefined') {
+              console.log('Step 7: Raw coursePlan:', savedCoursePlan);
+            }
+            
+          if (savedCoursePlan) {
+            const planData = JSON.parse(savedCoursePlan);
+            if (typeof window !== 'undefined') {
+              console.log('Step 8: Parsed coursePlan:', planData);
+            }
+            setPlannedCourses(planData.plannedCourses || []);
+          } else {
+            if (typeof window !== 'undefined') {
+              console.log('Step 8: No coursePlan found in localStorage');
+            }
           }
-          setPlannedCourses(planData.plannedCourses || []);
-        } else {
+          
+          // Load concentration analysis
+          const savedConcentrationAnalysis = localStorage.getItem('concentrationAnalysis');
           if (typeof window !== 'undefined') {
-            console.log('Step 8: No coursePlan found in localStorage');
+            console.log('Step 9: Raw concentrationAnalysis:', savedConcentrationAnalysis);
           }
-        }
-        
-        // Load concentration analysis
-        const savedConcentrationAnalysis = localStorage.getItem('concentrationAnalysis');
-        if (typeof window !== 'undefined') {
-          console.log('Step 9: Raw concentrationAnalysis:', savedConcentrationAnalysis);
-        }
-        
-        if (savedConcentrationAnalysis) {
-          const analysisData = JSON.parse(savedConcentrationAnalysis);
+          
+          if (savedConcentrationAnalysis) {
+            const analysisData = JSON.parse(savedConcentrationAnalysis);
+            if (typeof window !== 'undefined') {
+              console.log('Step 10: Parsed concentrationAnalysis:', analysisData);
+            }
+            setConcentrationAnalysis(analysisData);
+          } else {
+            if (typeof window !== 'undefined') {
+              console.log('Step 10: No concentrationAnalysis found in localStorage');
+            }
+          }
+          
           if (typeof window !== 'undefined') {
-            console.log('Step 10: Parsed concentrationAnalysis:', analysisData);
+            console.log('=== END PROGRESS PAGE DEBUGGING ===');
           }
-          setConcentrationAnalysis(analysisData);
-        } else {
-          if (typeof window !== 'undefined') {
-            console.log('Step 10: No concentrationAnalysis found in localStorage');
+          
+          // If no concentration analysis found, try to generate it
+          if (!savedConcentrationAnalysis && parsedData && parsedData.selectedCurriculum) {
+            await generateConcentrationAnalysis(parsedData);
           }
+          
+          // Load blacklist data for the curriculum
+          if (parsedData && parsedData.selectedCurriculum) {
+            await loadBlacklistData(parsedData.selectedCurriculum);
+          }
+          
+          // Run enhanced validation
+          await runEnhancedValidation();
+        } catch (error) {
+          console.error('Error loading data:', error);
+        } finally {
+          setLoading(false);
         }
-        
-        if (typeof window !== 'undefined') {
-          console.log('=== END PROGRESS PAGE DEBUGGING ===');
-        }
-        
-        // If no concentration analysis found, try to generate it
-        if (!savedConcentrationAnalysis && parsedData && parsedData.selectedCurriculum) {
-          await generateConcentrationAnalysis(parsedData);
-        }
-        
-        // Load blacklist data for the curriculum
-        if (parsedData && parsedData.selectedCurriculum) {
-          await loadBlacklistData(parsedData.selectedCurriculum);
-        }
-        
-        // Run enhanced validation
-        await runEnhancedValidation();
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setLoading(false);
-      }
     };
 
     loadData();
@@ -373,7 +378,7 @@ export default function ProgressPage() {
       }
 
       // Fetch concentrations
-      const concResponse = await fetch(`${API_BASE}/public-concentrations?curriculumId=${data.selectedCurriculum}&departmentId=${currentCurriculum.department.id}`, {
+      const concResponse = await fetch(`${API_BASE}/public-concentrations?curriculum_id=${data.selectedCurriculum}&department_id=${currentCurriculum.department.id}`, {
         credentials: 'include'
       });
       const concData = await concResponse.json();
@@ -538,15 +543,34 @@ export default function ProgressPage() {
   const fetchAllCourseData = async (): Promise<{ [courseCode: string]: { credits: number; title: string } }> => {
     try {
       if (!completedData.actualDepartmentId && !completedData.selectedDepartment) {
+        console.warn('[fetchAllCourseData] No department ID available. Skipping fetch.');
         return {};
       }
-      
+  
       const departmentId = completedData.actualDepartmentId || completedData.selectedDepartment;
-      const response = await fetch(`${API_BASE}/available-courses?curriculumId=${selectedCurriculum}&departmentId=${departmentId}`, {
+      const curriculumId = selectedCurriculum;
+      const url = `${API_BASE}/available-courses?curriculum_id=${curriculumId}&department_id=${departmentId}`;
+      console.log('[fetchAllCourseData] Fetching courses with:', { curriculumId, departmentId, url });
+  
+      const response = await fetch(url, {
         credentials: 'include'
       });
+  
+      // Log status and headers
+      console.log('[fetchAllCourseData] Response status:', response.status);
+      console.log('[fetchAllCourseData] Response headers:', response.headers);
+  
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('[fetchAllCourseData] Non-JSON response:', text);
+        return {};
+      }
+  
       const data = await response.json();
-      
+      console.log('[fetchAllCourseData] Response JSON:', data);
+  
       if (response.ok && data.courses) {
         const courseMap: { [courseCode: string]: { credits: number; title: string } } = {};
         data.courses.forEach((course: any) => {
@@ -556,12 +580,15 @@ export default function ProgressPage() {
           };
         });
         setCourseDataCache(courseMap);
+        console.log('[fetchAllCourseData] Course map created:', courseMap);
         return courseMap;
+      } else {
+        console.warn('[fetchAllCourseData] No courses found in response or response not OK.');
       }
-      
+  
       return {};
     } catch (error) {
-      console.warn('Could not fetch course data:', error);
+      console.error('[fetchAllCourseData] Could not fetch course data:', error);
       return {};
     }
   };
@@ -582,7 +609,7 @@ export default function ProgressPage() {
           status = 'COMPLETED';
           break;
         case 'planning':
-          status = 'IN_PROGRESS'; // Planning courses are considered in progress
+          status = 'IN_PROGRESS'; 
           break;
         case 'failed':
           status = 'FAILED';
@@ -1575,7 +1602,7 @@ export default function ProgressPage() {
           
           <button
             className="border border-input bg-background text-foreground px-4 py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => router.push('/management/data-entry')}
+            onClick={() => router.push('/student/management/data-entry')}
           >
             Course Entry
           </button>

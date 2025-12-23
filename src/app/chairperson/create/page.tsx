@@ -361,22 +361,27 @@ export default function CreateCurriculumPage() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 sm:px-6">
         <div className="relative w-full max-w-5xl mx-auto bg-card rounded-xl sm:rounded-2xl border border-border p-4 sm:p-8 lg:p-12">
+          {/* Close Button */}
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Close"
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 text-muted-foreground hover:text-foreground transition-colors text-2xl sm:text-3xl font-normal z-10"
+          >
+            ×
+          </button>
+          
           <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 lg:gap-12">
             {/* Form Section */}
             <div className="w-full lg:w-[400px]">              
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-6 sm:mb-8 lg:mb-10 text-foreground">Create Curriculum</h1>
-              <button
-                  type="button"
-                  onClick={handleClose}
-                  aria-label="Close"
-                  className="absolute top-4 right-4 sm:top-6 sm:right-6 text-muted-foreground hover:text-foreground transition text-xl font-medium"
-                >
-                  X
-                </button>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-2 text-foreground">Create Curriculum</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mb-6 sm:mb-8">Fields marked with <span className="text-red-500">*</span> are required</p>
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-4 sm:gap-6">
                 <div>
-                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">Curriculum Name</label>
+                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">
+                    Curriculum Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     placeholder="Enter curriculum name"
@@ -387,7 +392,9 @@ export default function CreateCurriculumPage() {
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">Academic Year</label>
+                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">
+                    Academic Year <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     placeholder="Enter academic year (e.g., 2024, 2025)"
@@ -400,7 +407,9 @@ export default function CreateCurriculumPage() {
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">Total Credits</label>
+                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">
+                    Total Credits <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="number"
                     placeholder="Enter total credits"
@@ -411,7 +420,9 @@ export default function CreateCurriculumPage() {
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">ID - Start</label>
+                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">
+                    ID - Start <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     placeholder="Enter starting ID (e.g., 63001, 64001, 65001)"
@@ -425,7 +436,9 @@ export default function CreateCurriculumPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">ID - End</label>
+                  <label className="block font-semibold mb-1 text-sm sm:text-base text-foreground">
+                    ID - End <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     placeholder="Enter ending ID (e.g., 63999, 64999, 65999)"

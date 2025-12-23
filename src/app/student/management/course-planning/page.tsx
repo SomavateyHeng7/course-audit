@@ -257,7 +257,7 @@ export default function CoursePlanningPage() {
       setLoading(true);
       // Use actualDepartmentId if available, fall back to selectedDepartment
       const departmentId = dataEntryContext.actualDepartmentId || dataEntryContext.selectedDepartment;
-      const response = await fetch(`${API_BASE}/available-courses?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${departmentId}`, {
+      const response = await fetch(`${API_BASE}/available-courses?curriculum_id=${dataEntryContext.selectedCurriculum}&department_id=${departmentId}`, {
         credentials: 'include'
       });
       if (!response.ok) {
@@ -384,7 +384,7 @@ export default function CoursePlanningPage() {
     });
     
     try {
-      const response = await fetch(`${API_BASE}/public-concentrations?curriculumId=${dataEntryContext.selectedCurriculum}&departmentId=${actualDepartmentId}`, {
+      const response = await fetch(`${API_BASE}/public-concentrations?curriculum_id=${dataEntryContext.selectedCurriculum}&department_id=${actualDepartmentId}`, {
         credentials: 'include'
       });
       console.log('🔍 DEBUG: Course Planning - API response status:', response.status);

@@ -115,9 +115,30 @@ export async function getPublicCurricula() {
   return response.json();
 }
 
-export async function getPublicCurriculum(id: string | number) {
-  const response = await fetch(`${API_BASE}/public-curricula/${id}`);
-  if (!response.ok) throw new Error('Failed to fetch curriculum');
+export async function getPublicCurriculum(id: string) {
+  if (!id || typeof id !== 'string' || !id.includes('-')) {
+    throw new Error(
+      `[getPublicCurriculum] Invalid curriculum UUID: ${id}`
+    );
+  }
+
+  const response = await fetch(
+    `${API_BASE}/public-curricula/${id}`,
+    {
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `Failed to fetch curriculum ${id}: ${response.status} ${text}`
+    );
+  }
+
   return response.json();
 }
 
