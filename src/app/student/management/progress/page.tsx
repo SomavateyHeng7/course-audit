@@ -141,8 +141,9 @@ const DonutChart = ({
 // categoryOrder is now dynamically determined inside the component
 
 interface CourseStatus {
-  status: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning';
+  status: 'pending' | 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning';
   grade?: string;
+  plannedSemester?: string;
 }
 
 interface CompletedCourseData {
@@ -161,9 +162,48 @@ interface PlannedCourse {
   title: string;
   credits: number;
   semester: string;
-  year: number;
+  year?: number;
+  semesterLabel?: string;
   status: 'planning'; // Now only supports 'planning' status
 }
+
+const getSuggestedSemesterLabel = (value?: string) => {
+  const currentYear = new Date().getFullYear();
+  if (value === '2') return `2/${currentYear}`;
+  if (value === 'summer' || value === '3') return `3/${currentYear}`;
+  return `1/${currentYear}`;
+};
+
+const normalizeSemesterLabel = (label?: string, semester?: string, year?: number) => {
+  if (label && label.includes('/')) {
+    return label;
+  }
+  if (semester && typeof year !== 'undefined') {
+    const prefix = semester === 'summer' ? '3' : semester;
+    return `${prefix}/${year}`;
+  }
+  return getSuggestedSemesterLabel(semester);
+};
+
+const getDisplaySemesterLabel = (semesterLabel?: string, semester?: string, year?: number) => {
+  if (semesterLabel) return semesterLabel;
+  if (semester === 'summer') {
+    return year ? `Summer Session / ${year}` : 'Summer Session';
+  }
+  if (semester) {
+    return year ? `Semester ${semester} / ${year}` : `Semester ${semester}`;
+  }
+  return 'Semester 1';
+};
+
+const deriveSemesterValueFromLabel = (label?: string, fallback?: string) => {
+  if (fallback) return fallback;
+  if (!label) return '1';
+  const prefix = label.split('/')[0]?.trim();
+  if (prefix === '3') return 'summer';
+  if (prefix === '2') return '2';
+  return '1';
+};
 
 interface ConcentrationProgress {
   concentration: {
@@ -183,6 +223,68 @@ interface ConcentrationProgress {
   isEligible: boolean;
   remainingCourses: number;
 }
+
+type GraduationExportRow = {
+  Title: string;
+  Code: string;
+  Credits: number;
+  Category: string;
+  Grade: string;
+  Status: string;
+  RawStatus: CourseStatus['status'] | 'pending';
+  Semester: string;
+};
+
+const normalizeExportStatus = (status?: CourseStatus['status'] | 'pending') => {
+  if (!status) return 'pending';
+  if (status === 'not_completed') return 'pending';
+  return status;
+};
+
+const isPendingExportStatus = (status?: CourseStatus['status'] | 'pending') => {
+  return normalizeExportStatus(status) === 'pending';
+};
+
+const getExportStatusLabel = (status?: CourseStatus['status'] | 'pending') => {
+  const normalized = normalizeExportStatus(status);
+  switch (normalized) {
+    case 'completed':
+      return 'Completed';
+    case 'planning':
+      return 'Planned';
+    case 'failed':
+      return 'Failed';
+    case 'withdrawn':
+      return 'Withdrawn';
+    default:
+      return 'Pending';
+  }
+};
+
+const shouldHighlightExportRow = (status?: CourseStatus['status'] | 'pending') => {
+  return !isPendingExportStatus(status);
+};
+
+const calculateActiveCredits = (courses: GraduationExportRow[]) => {
+  return courses.reduce((sum, course) => {
+    if (isPendingExportStatus(course.RawStatus)) return sum;
+    return sum + (course.Credits || 0);
+  }, 0);
+};
+
+const escapeCsvValue = (value: string | number | null | undefined) => {
+  const stringValue = value === null || typeof value === 'undefined' ? '' : String(value);
+  return `"${stringValue.replace(/"/g, '""')}"`;
+};
+
+const formatSemesterForCsvValue = (value?: string) => {
+  if (!value) return '';
+  return `="${value}"`;
+};
+
+const formatCsvRow = (values: Array<string | number | null | undefined>) => {
+  return values.map(escapeCsvValue).join(',');
+};
 
 export default function ProgressPage() {
   const router = useRouter();
@@ -301,7 +403,15 @@ export default function ProgressPage() {
             if (typeof window !== 'undefined') {
               console.log('Step 8: Parsed coursePlan:', planData);
             }
-            setPlannedCourses(planData.plannedCourses || []);
+            const normalizedPlan = (planData.plannedCourses || []).map((course: any) => {
+              const normalizedLabel = normalizeSemesterLabel(course.semesterLabel, course.semester, course.year);
+              return {
+                ...course,
+                semesterLabel: normalizedLabel,
+                semester: deriveSemesterValueFromLabel(normalizedLabel, course.semester)
+              };
+            });
+            setPlannedCourses(normalizedPlan);
           } else {
             if (typeof window !== 'undefined') {
               console.log('Step 8: No coursePlan found in localStorage');
@@ -617,6 +727,7 @@ export default function ProgressPage() {
         case 'withdrawn':
           status = 'DROPPED';
           break;
+        case 'pending':
         case 'not_completed':
         default:
           status = 'PENDING';
@@ -1071,7 +1182,13 @@ export default function ProgressPage() {
       const plannedCourse = plannedCoursesMap.get(c.code);
       
       if (status === 'completed') {
-        completedList.push({ ...c, category, grade: completedCourses[c.code]?.grade, source: 'completed' });
+        completedList.push({
+          ...c,
+          category,
+          grade: completedCourses[c.code]?.grade,
+          source: 'completed',
+          semesterLabel: completedCourses[c.code]?.plannedSemester
+        });
         earnedCredits += c.credits;
         earnedCategoryCredits += c.credits;
         completedCount++;
@@ -1088,13 +1205,19 @@ export default function ProgressPage() {
           category, 
           source: 'planner',
           semester: plannedCourse.semester,
+          semesterLabel: plannedCourse.semesterLabel,
           year: plannedCourse.year,
           status: plannedCourse.status
         });
         plannedCredits += c.credits;
         plannedCount++;
       } else {
-        pendingList.push({ ...c, category, source: 'pending' });
+        pendingList.push({
+          ...c,
+          category,
+          source: 'pending',
+          status: status || 'pending'
+        });
       }
       
       totalCategoryCredits += c.credits;
@@ -1141,7 +1264,8 @@ export default function ProgressPage() {
         credits: credits,
         category: category,
         grade: courseStatus.grade,
-        source: 'completed'
+        source: 'completed',
+        semesterLabel: courseStatus.plannedSemester
       });
       
       // Update statistics
@@ -1182,6 +1306,7 @@ export default function ProgressPage() {
         category: category,
         source: 'planner',
         semester: plannedCourse.semester,
+        semesterLabel: plannedCourse.semesterLabel,
         year: plannedCourse.year,
         status: plannedCourse.status
       });
@@ -1383,7 +1508,9 @@ export default function ProgressPage() {
         yPosition += 5;
         
         plannedFromPlannerList.forEach(course => {
-          addText(`• ${course.code} - ${course.title} (${course.semester} ${course.year})`, 10, false, margin + 20);
+          const termLabel = getDisplaySemesterLabel(course.semesterLabel, course.semester, course.year);
+          const termSuffix = termLabel ? ` (${termLabel})` : '';
+          addText(`• ${course.code} - ${course.title}${termSuffix}`, 10, false, margin + 20);
         });
         yPosition += 15;
       }
@@ -1452,100 +1579,127 @@ export default function ProgressPage() {
     }
   };
 
-  // Export functions for CSV and Excel
-  const exportToExcel = () => {
-    // Prepare all courses data (both completed and planned)
-    const allCourses: any[] = [];
-    
-    // Add all completed courses
+  const buildGraduationExportRows = (): GraduationExportRow[] => {
+    const rows: GraduationExportRow[] = [];
+
     completedList.forEach(course => {
-      allCourses.push({
+      rows.push({
         Title: course.title,
         Code: (course.code || '').trim(),
         Credits: course.credits,
         Category: course.category,
         Grade: course.grade || '',
-        Status: 'completed'
+        Status: getExportStatusLabel('completed'),
+        RawStatus: 'completed',
+        Semester: course.semesterLabel || ''
       });
     });
-    
-    // Add all planned courses
-    plannedFromPlannerList.forEach((course: any) => {
-      allCourses.push({
+
+    plannedFromPlannerList.forEach(course => {
+      const normalizedStatus = normalizeExportStatus((course.status as CourseStatus['status']) || 'planning');
+      const semesterDisplay = getDisplaySemesterLabel(course.semesterLabel, course.semester, course.year);
+      rows.push({
         Title: course.title,
         Code: (course.code || '').trim(),
         Credits: course.credits,
         Category: course.category,
         Grade: '',
-        Status: course.status || 'planning'
+        Status: getExportStatusLabel(normalizedStatus),
+        RawStatus: normalizedStatus,
+        Semester: semesterDisplay || ''
       });
     });
 
+    pendingList.forEach(course => {
+      const normalizedStatus = normalizeExportStatus((course.status as CourseStatus['status']) || 'pending');
+      rows.push({
+        Title: course.title,
+        Code: (course.code || '').trim(),
+        Credits: course.credits,
+        Category: course.category,
+        Grade: '',
+        Status: getExportStatusLabel(normalizedStatus),
+        RawStatus: normalizedStatus,
+        Semester: ''
+      });
+    });
+
+    return rows;
+  };
+
+  // Export functions for CSV and Excel
+  const exportToExcel = () => {
+    const graduationRows = buildGraduationExportRows();
     const worksheetData: any[][] = [];
+    const highlightRowIndices: number[] = [];
+
     worksheetData.push(['course data']); // Title (match CSV format)
     worksheetData.push([]); // Empty row
     
     // Group courses by category
-    const groupedCourses: { [key: string]: any[] } = {};
-    allCourses.forEach(course => {
-      if (!groupedCourses[course.Category]) {
-        groupedCourses[course.Category] = [];
+    const groupedCourses: { [key: string]: GraduationExportRow[] } = {};
+    graduationRows.forEach(course => {
+      const categoryKey = course.Category || 'Uncategorized';
+      if (!groupedCourses[categoryKey]) {
+        groupedCourses[categoryKey] = [];
       }
-      groupedCourses[course.Category].push(course);
+      groupedCourses[categoryKey].push(course);
     });
     
     // Add each category section
     Object.entries(groupedCourses).forEach(([category, courses]) => {
       const totalCredits = courses.reduce((sum, course) => sum + (course.Credits || 0), 0);
+      const activeCredits = calculateActiveCredits(courses);
       worksheetData.push([`${category} (${totalCredits} Credits)`]);
+      worksheetData.push([`Active Credits: ${activeCredits}`]);
       
       courses.forEach(course => {
-        const status = course.Status === 'completed' ? '' : course.Status;
         worksheetData.push([
           course.Title,
           course.Code,
           course.Credits,
           course.Grade,
-          status
+          course.Status,
+          course.Semester || ''
         ]);
+        if (shouldHighlightExportRow(course.RawStatus)) {
+          highlightRowIndices.push(worksheetData.length);
+        }
       });
       
       worksheetData.push([]); // Empty row after each category
     });
+    const totalActiveCredits = calculateActiveCredits(graduationRows);
+    worksheetData.push([`Overall Active Credits: ${totalActiveCredits}`]);
     
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
     const wb = XLSX.utils.book_new();
+
+    if (highlightRowIndices.length > 0) {
+      const highlightStyle = {
+        fill: {
+          patternType: 'solid',
+          fgColor: { rgb: 'FFF6DB' }
+        }
+      };
+      const columnCount = 6;
+      highlightRowIndices.forEach(rowIndex => {
+        for (let colIdx = 0; colIdx < columnCount; colIdx++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: rowIndex - 1, c: colIdx });
+          const cell = ws[cellAddress];
+          if (cell) {
+            (cell as any).s = highlightStyle;
+          }
+        }
+      });
+    }
+
     XLSX.utils.book_append_sheet(wb, ws, 'Course Data');
     XLSX.writeFile(wb, 'course data.xlsx');
   };
 
   const exportToCSV = () => {
-    // Prepare all courses data (both completed and planned)
-    const allCourses: any[] = [];
-    
-    // Add all completed courses
-    completedList.forEach(course => {
-      allCourses.push({
-        Title: course.title,
-        Code: (course.code || '').trim(),
-        Credits: course.credits,
-        Category: course.category,
-        Grade: course.grade || '',
-        Status: 'completed'
-      });
-    });
-    
-    // Add all planned courses
-    plannedFromPlannerList.forEach((course: any) => {
-      allCourses.push({
-        Title: course.title,
-        Code: (course.code || '').trim(),
-        Credits: course.credits,
-        Category: course.category,
-        Grade: '',
-        Status: course.status || 'planning'
-      });
-    });
+    const graduationRows = buildGraduationExportRows();
 
     // Convert to curriculum transcript CSV format (match data-entry page exactly)
     const csvLines: string[] = [];
@@ -1553,26 +1707,37 @@ export default function ProgressPage() {
     csvLines.push(''); // Empty line
     
     // Group courses by category
-    const groupedCourses: { [key: string]: any[] } = {};
-    allCourses.forEach(course => {
-      if (!groupedCourses[course.Category]) {
-        groupedCourses[course.Category] = [];
+    const groupedCourses: { [key: string]: GraduationExportRow[] } = {};
+    graduationRows.forEach(course => {
+      const categoryKey = course.Category || 'Uncategorized';
+      if (!groupedCourses[categoryKey]) {
+        groupedCourses[categoryKey] = [];
       }
-      groupedCourses[course.Category].push(course);
+      groupedCourses[categoryKey].push(course);
     });
     
     // Add each category section
     Object.entries(groupedCourses).forEach(([category, courses]) => {
       const totalCredits = courses.reduce((sum, course) => sum + (course.Credits || 0), 0);
-      csvLines.push(`"${category} (${totalCredits} Credits)"`);
+      const activeCredits = calculateActiveCredits(courses);
+      csvLines.push(formatCsvRow([`${category} (${totalCredits} Credits)`]));
+      csvLines.push(formatCsvRow(['Active Credits', activeCredits]));
       
       courses.forEach(course => {
-        const status = course.Status === 'completed' ? '' : course.Status;
-        csvLines.push(`"${course.Title}","${course.Code}",${course.Credits},"${course.Grade}","${status}"`);
+        csvLines.push(formatCsvRow([
+          course.Title,
+          course.Code,
+          course.Credits,
+          course.Grade,
+          course.Status,
+          formatSemesterForCsvValue(course.Semester || '')
+        ]));
       });
       
       csvLines.push(''); // Empty line after each category
     });
+    const totalActiveCredits = calculateActiveCredits(graduationRows);
+    csvLines.push(formatCsvRow(['Overall Active Credits', totalActiveCredits]));
     
     const csvContent = csvLines.join('\n');
 
@@ -1594,7 +1759,7 @@ export default function ProgressPage() {
         <div className="flex justify-between items-center mb-4">
           <button
             className="border border-input bg-background text-foreground px-4 py-2 rounded-lg font-medium hover:bg-accent hover:text-accent-foreground transition text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            onClick={() => router.push('/management/course-planning')}
+            onClick={() => router.push('/student/management/course-planning')}
           >
             <ArrowLeft size={16} />
             Back to Course Planner
@@ -1633,7 +1798,7 @@ export default function ProgressPage() {
               Please go to the Course Entry page first to set up your curriculum and add completed courses.
             </p>
             <button
-              onClick={() => router.push('/management/data-entry')}
+              onClick={() => router.push('/student/management/data-entry')}
               className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium transition"
             >
               Go to Course Entry
@@ -2113,14 +2278,17 @@ export default function ProgressPage() {
                 </Button>
               </div>
             ) : (
-              plannedFromPlannerList.map((c) => (
-                <div key={c.code} className="flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded px-3 py-2">
-                  <span className="font-semibold text-xs text-blue-800 dark:text-blue-200">{c.code} - {c.title}</span>
-                  <div className="text-xs text-blue-600 dark:text-blue-400">
-                    {c.category} • {c.semester} {c.year}
+              plannedFromPlannerList.map((c) => {
+                const termLabel = getDisplaySemesterLabel(c.semesterLabel, c.semester, c.year);
+                return (
+                  <div key={c.code} className="flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded px-3 py-2">
+                    <span className="font-semibold text-xs text-blue-800 dark:text-blue-200">{c.code} - {c.title}</span>
+                    <div className="text-xs text-blue-600 dark:text-blue-400">
+                      {c.category}{termLabel ? ` • ${termLabel}` : ''}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

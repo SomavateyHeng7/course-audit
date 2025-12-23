@@ -12,8 +12,7 @@ import {
   Users, 
   Award,
   Plus,
-  FileText,
-  Target
+  FileText
 } from 'lucide-react'
 
 // Import chairperson components
@@ -25,16 +24,16 @@ export default function ManagementPage() {
   const [error, setError] = useState<string>("")
 
   const handleManualEntry = () => {
-    router.push("/management/data-entry")
+    router.push("/student/management/data-entry")
   }
 
   const quickActions = [
     {
-      title: "Course Planning",
-      description: "Plan your future courses and track your progress",
-      icon: <Target className="h-6 w-6" />,
-      action: () => router.push('/student/management/course-planning'),
-      color: "bg-blue-500"
+      title: "Graduation Progress Check",
+      description: "Enter or edit your course data",
+      icon: <Plus className="h-6 w-6" />,
+      action: () => router.push('/student/management/data-entry'),
+      color: "bg-red-500"
     },
     {
       title: "Future Courses",
@@ -56,13 +55,6 @@ export default function ManagementPage() {
       icon: <Award className="h-6 w-6" />,
       action: () => router.push('/student/allCurricula'),
       color: "bg-orange-500"
-    },
-    {
-      title: "Manual Entry",
-      description: "Enter course data manually",
-      icon: <Plus className="h-6 w-6" />,
-      action: () => router.push('/student/management/data-entry'),
-      color: "bg-red-500"
     }
   ]
 

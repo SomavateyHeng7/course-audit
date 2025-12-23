@@ -24,8 +24,9 @@ export interface SessionStorageData {
 }
 
 export interface CourseStatus {
-  status: 'not_completed' | 'completed' | 'taking' | 'planning';
+  status: 'pending' | 'not_completed' | 'completed' | 'taking' | 'planning';
   grade?: string;
+  plannedSemester?: string;
 }
 
 const SESSION_KEY = 'course-audit-session';
@@ -277,7 +278,8 @@ export function convertFromLocalStorage(storageData: SessionStorageData): Anonym
     status: courseInfo.status === 'completed' ? 'COMPLETED' :
            courseInfo.status === 'taking' ? 'IN_PROGRESS' :
            courseInfo.status === 'planning' ? 'PENDING' : 'PENDING',
-    grade: courseInfo.grade
+    grade: courseInfo.grade,
+    semester: courseInfo.plannedSemester
   }));
 
   // Add free electives

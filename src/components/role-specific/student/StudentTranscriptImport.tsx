@@ -13,7 +13,7 @@ import {
   type CourseData, 
   type TranscriptParseResult 
 } from '@/components/features/excel/ExcelUtils';
-import { API_BASE } from '@/lib/api/laravel';
+import { API_BASE, getPublicCurricula } from '@/lib/api/laravel';
 import { UnmatchedCourse } from './UnmatchedCoursesSection';
 import { FreeElectiveCourse } from './FreeElectiveManager';
 
@@ -38,8 +38,9 @@ interface StudentTranscriptImportProps {
 // - Blacklist management
 
 interface CourseStatus {
-  status: 'not_completed' | 'completed' | 'taking' | 'planning';
+  status: 'pending' | 'not_completed' | 'completed' | 'taking' | 'planning';
   grade?: string;
+  plannedSemester?: string;
 }
 
 interface CurriculumCourse {
@@ -58,6 +59,7 @@ interface CategorizedCourses {
     status: CourseStatus['status'];
     grade?: string;
     found: boolean; // Whether this course was in the imported transcript
+    plannedSemester?: string;
   }[];
 }
 
@@ -142,32 +144,44 @@ export default function StudentTranscriptImport({
     unmatchedCourses: CourseData[];
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [curriculumCache, setCurriculumCache] = useState<any | null>(null);
+
+  useEffect(() => {
+    setCurriculumCache(null);
+  }, [curriculumId]);
+
+  const fetchActiveCurriculum = async () => {
+    if (!curriculumId) {
+      throw new Error('No curriculum selected');
+    }
+
+    if (curriculumCache) {
+      return curriculumCache;
+    }
+
+    const data = await getPublicCurricula();
+    const curricula = data.curricula || [];
+    const found = curricula.find((curr: any) => curr.id === curriculumId);
+
+    if (!found) {
+      throw new Error('Curriculum not found');
+    }
+
+    setCurriculumCache(found);
+    return found;
+  };
 
   /**
    * Fetch curriculum structure to categorize courses
    */
   const fetchCurriculumStructure = async (): Promise<CurriculumCourse[]> => {
     try {
-      // Fetch curriculum data from public API (includes constraints and courses)
-      const response = await fetch(`${API_BASE}/api/public-curricula?curriculumId=${curriculumId}`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch curriculum data');
-      }
-
-      const data = await response.json();
-      const curriculum = data.curricula?.[0]; // Get the specific curriculum
-
-      if (!curriculum) {
-        throw new Error('Curriculum not found');
-      }
+      const curriculum = await fetchActiveCurriculum();
 
       const courses: CurriculumCourse[] = [];
 
       // Process curriculum courses using their courseType for categorization
-      const curriculumCourses = curriculum.curriculumCourses || [];
+      const curriculumCourses = curriculum.curriculumCourses || curriculum.curriculum_courses || [];
 
       console.log('Raw curriculum courses:', curriculumCourses.length);
       
@@ -175,7 +189,11 @@ export default function StudentTranscriptImport({
       curriculumCourses.forEach((currCourse: any) => {
         const course = currCourse.course;
         if (course) {
-          const category = course.category || 'Unassigned';
+          const category =
+            course.category ||
+            currCourse.category ||
+            currCourse.courseType ||
+            'Unassigned';
           
           console.log(`Course ${course.code}: category = ${category}`);
           
@@ -208,7 +226,7 @@ export default function StudentTranscriptImport({
       // NOTE: This endpoint may require authentication
       // Currently using curriculum data instead of this function
       const coursePromises = courseCodes.map(async (code) => {
-        const response = await fetch(`${API_BASE}/api/courses?departmentId=${departmentId}&code=${code}`, {
+        const response = await fetch(`${API_BASE}/courses?departmentId=${departmentId}&code=${code}`, {
           credentials: 'include',
         });
         if (response.ok) {
@@ -247,15 +265,9 @@ export default function StudentTranscriptImport({
    */
   const fetchElectiveRules = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/public-curricula?curriculumId=${curriculumId}`, {
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch curriculum data');
-      }
-      const data = await response.json();
-      const curriculum = data.curricula?.[0];
-      return curriculum?.electiveRules || [];
+      const curriculum = await fetchActiveCurriculum();
+      const electiveRules = curriculum?.electiveRules || curriculum?.elective_rules || [];
+      return electiveRules;
     } catch (error) {
       console.error('Error fetching elective rules:', error);
       warning('Could not load elective rules. Some features may be limited.');
@@ -330,7 +342,7 @@ export default function StudentTranscriptImport({
         matchedCodes.add(importedCourse.courseCode); // Add the imported course code, not curriculum code
         
         // Auto-set status based on grade
-        let status: CourseStatus['status'] = 'not_completed';
+        let status: CourseStatus['status'] = 'pending';
         if (importedCourse.grade && importedCourse.grade.trim()) {
           status = 'completed';
         } else if (importedCourse.status === 'IN_PROGRESS') {
@@ -347,7 +359,8 @@ export default function StudentTranscriptImport({
           credits: course.credits,
           status,
           grade: importedCourse.grade,
-          found: true
+          found: true,
+          plannedSemester: importedCourse.semester
         });
       } else {
         // Course not found in transcript
@@ -355,8 +368,9 @@ export default function StudentTranscriptImport({
           code: course.code,
           title: course.title,
           credits: course.credits,
-          status: 'not_completed',
-          found: false
+          status: 'pending',
+          found: false,
+          plannedSemester: undefined
         });
       }
     });
@@ -375,7 +389,7 @@ export default function StudentTranscriptImport({
       }
 
       unmatchedCourses.forEach(course => {
-        let status: CourseStatus['status'] = 'not_completed';
+        let status: CourseStatus['status'] = 'pending';
         if (course.grade && course.grade.trim()) {
           status = 'completed';
         } else if (course.status === 'IN_PROGRESS') {
@@ -390,7 +404,8 @@ export default function StudentTranscriptImport({
           credits: course.credits,
           status,
           grade: course.grade,
-          found: true
+          found: true,
+          plannedSemester: course.semester
         });
       });
     }

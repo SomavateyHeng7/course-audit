@@ -38,6 +38,7 @@ import {
 // Extended interfaces to maintain compatibility
 interface PlannedCourse extends MgmtPlannedCourse {
   semester?: string;
+  semesterLabel?: string;
   prerequisites?: string[];
   corequisites?: string[];
 }
@@ -84,6 +85,28 @@ interface DataEntryContext {
   actualDepartmentId?: string;
 }
 
+const getSuggestedSemesterLabel = (value?: string) => {
+  const currentYear = new Date().getFullYear();
+  if (value === '2') return `2/${currentYear}`;
+  if (value === 'summer' || value === '3') return `3/${currentYear}`;
+  return `1/${currentYear}`;
+};
+
+const getSemesterValueFromLabel = (label?: string) => {
+  if (!label) return '1';
+  const prefix = label.split('/')[0]?.trim();
+  if (prefix === '3') return 'summer';
+  if (prefix === '2') return '2';
+  return '1';
+};
+
+const ensureSemesterLabel = (label: string | undefined, fallbackValue?: string) => {
+  if (label && label.includes('/')) {
+    return label;
+  }
+  return getSuggestedSemesterLabel(fallbackValue);
+};
+
 export default function CoursePlanningPage() {
   const router = useRouter();
   const toast = useToastHelpers();
@@ -102,8 +125,14 @@ export default function CoursePlanningPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedSemester, setSelectedSemester] = useState('');
+  const [selectedSemesterLabel, setSelectedSemesterLabel] = useState(getSuggestedSemesterLabel('1'));
   const [loading, setLoading] = useState(true);
   const [blacklistedCourses, setBlacklistedCourses] = useState<Set<string>>(new Set());
+  
+  const handleSemesterSelect = (value: string) => {
+    setSelectedSemester(value);
+    setSelectedSemesterLabel(getSuggestedSemesterLabel(value));
+  };
   
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -130,7 +159,8 @@ export default function CoursePlanningPage() {
 
   // Semester options
   const semesterOptions = [
-    { value: '1', label: 'Semester' },
+    { value: '1', label: 'Semester 1' },
+    { value: '2', label: 'Semester 2' },
     { value: 'summer', label: 'Summer Session' },
   ];
 
@@ -208,13 +238,16 @@ export default function CoursePlanningPage() {
             // Extract title and credits from courseData if available, otherwise use defaults
             const title = (courseData as any)?.title || (courseData as any)?.name || code;
             const credits = (courseData as any)?.credits || 3;
+            const derivedSemesterValue = getSemesterValueFromLabel((courseData as any)?.plannedSemester);
+            const derivedSemesterLabel = ensureSemesterLabel((courseData as any)?.plannedSemester, derivedSemesterValue);
             
             return {
               id: `planned-${code}-${Date.now()}-${index}`,
               code: code,
               title: title,
               credits: credits,
-              semester: '1', // Default semester
+              semester: derivedSemesterValue,
+              semesterLabel: derivedSemesterLabel,
               status: 'planning' as const,
               validationStatus: 'valid' as const,
             };
@@ -485,10 +518,17 @@ export default function CoursePlanningPage() {
         if (planData.curriculumId === dataEntryContext.selectedCurriculum && 
             planData.departmentId === dataEntryContext.selectedDepartment) {
           // Migrate old status values to 'planning'
-          savedCourses = (planData.plannedCourses || []).map((course: any) => ({
-            ...course,
-            status: 'planning' // Convert all statuses to 'planning'
-          }));
+          savedCourses = (planData.plannedCourses || []).map((course: any) => {
+            const legacyLabel = course.semesterLabel || (course.semester && course.year ? `${course.semester}/${course.year}` : undefined);
+            const normalizedSemesterLabel = ensureSemesterLabel(legacyLabel, course.semester);
+            const normalizedSemesterValue = course.semester || getSemesterValueFromLabel(normalizedSemesterLabel);
+            return {
+              ...course,
+              status: 'planning', // Convert all statuses to 'planning'
+              semester: normalizedSemesterValue,
+              semesterLabel: normalizedSemesterLabel
+            };
+          });
           console.log('Loaded saved course plan:', savedCourses);
         }
       }
@@ -659,6 +699,8 @@ export default function CoursePlanningPage() {
       return;
     }
 
+    const normalizedSemesterLabel = ensureSemesterLabel(selectedSemesterLabel?.trim() || undefined, selectedSemester);
+
     // ===== NEW: Course Flags Validation =====
     const flagErrors: string[] = [];
     const flagWarnings: string[] = [];
@@ -701,7 +743,7 @@ export default function CoursePlanningPage() {
         onConfirm: () => {
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
           // Continue with adding the course
-          proceedWithAddingCourse(course, status);
+          proceedWithAddingCourse(course, status, normalizedSemesterLabel);
         }
       });
       return;
@@ -709,11 +751,11 @@ export default function CoursePlanningPage() {
     // ===== END: Course Flags Validation =====
     
     // If no warnings, proceed directly
-    proceedWithAddingCourse(course, status);
+    proceedWithAddingCourse(course, status, normalizedSemesterLabel);
   };
   
   // Helper function to proceed with adding course after validation
-  const proceedWithAddingCourse = (course: AvailableCourse, status: PlannedCourse['status']) => {
+  const proceedWithAddingCourse = (course: AvailableCourse, status: PlannedCourse['status'], semesterLabel: string) => {
 
     // 1. Validate banned combinations
     const bannedValidation = validateBannedCombinations(course);
@@ -735,6 +777,7 @@ export default function CoursePlanningPage() {
       title: course.title,
       credits: parseCredits(course.credits),
       semester: selectedSemester,
+      semesterLabel,
       status,
       prerequisites: course.prerequisites,
       corequisites: course.corequisites,
@@ -751,6 +794,7 @@ export default function CoursePlanningPage() {
       title: coreqCourse.title,
       credits: parseCredits(coreqCourse.credits),
       semester: selectedSemester,
+      semesterLabel,
       status,
       prerequisites: coreqCourse.prerequisites,
       corequisites: coreqCourse.corequisites,
@@ -929,7 +973,7 @@ export default function CoursePlanningPage() {
                 Course planning is only accessible after completing the data entry process.
               </p>
               <Button 
-                onClick={() => router.push('/management/data-entry')}
+                onClick={() => router.push('/student/management/data-entry')}
                 className="w-full"
               >
                 Go to Data Entry
@@ -962,7 +1006,7 @@ export default function CoursePlanningPage() {
       <div className="mb-4 sm:mb-6">
         <Button
           variant="outline"
-          onClick={() => router.push('/management/data-entry')}
+          onClick={() => router.push('/student/management/data-entry')}
           className="flex items-center gap-2 mb-3 sm:mb-4"
         >
           <ArrowLeft size={16} />
@@ -999,22 +1043,36 @@ export default function CoursePlanningPage() {
               />
 
               {/* Semester Selection */}
-              <div className="p-3 sm:p-4 bg-muted rounded-lg">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Semester</label>
-                  <Select value={selectedSemester} onValueChange={setSelectedSemester}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select semester" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {semesterOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="p-3 sm:p-4 bg-muted rounded-lg space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Semester</label>
+                    <Select value={selectedSemester} onValueChange={handleSemesterSelect}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select semester" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {semesterOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Semester Label</label>
+                    <Input
+                      value={selectedSemesterLabel}
+                      onChange={(event) => setSelectedSemesterLabel(event.target.value)}
+                      placeholder={getSuggestedSemesterLabel(selectedSemester || '1')}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Use the format term/year such as 1/2025 for Semester 1, 2/2025 for Semester 2, or 3/2025 for Summer Session.
+                </p>
               </div>
 
               {/* Course Flags Legend - Mobile-optimized */}
@@ -1083,15 +1141,15 @@ export default function CoursePlanningPage() {
                     {/* Group courses by semester */}
                     {Object.entries(
                       plannedCourses.reduce((acc, course) => {
-                        const key = `Semester ${course.semester || '1'}`;
-                        if (!acc[key]) acc[key] = [];
-                        acc[key].push(course);
+                        const label = course.semesterLabel || (course.semester === 'summer' ? 'Summer Session' : `Semester ${course.semester || '1'}`);
+                        if (!acc[label]) acc[label] = [];
+                        acc[label].push(course);
                         return acc;
                       }, {} as Record<string, PlannedCourse[]>)
-                    ).map(([semesterKey, courses]) => (
-                      <div key={semesterKey} className="space-y-2">
+                    ).map(([semesterLabel, courses]) => (
+                      <div key={semesterLabel} className="space-y-2">
                         <h4 className="font-semibold text-sm text-muted-foreground border-b pb-1">
-                          {semesterKey}
+                          {semesterLabel}
                         </h4>
                         {courses.map((course) => (
                           <PlannedCourseCard

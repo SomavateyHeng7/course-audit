@@ -134,9 +134,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             className="flex items-center gap-1 text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
             variant={hasBlockingIssues ? "secondary" : "default"}
           >
-            <Plus size={12} className="sm:w-3.5 sm:h-3.5" />
+            <Plus size={12} className="hidden xs:inline-block sm:w-3.5 sm:h-3.5" />
+            <span className="xs:hidden">{hasBlockingIssues ? "Blocked" : "Add"}</span>
             <span className="hidden xs:inline">{hasBlockingIssues ? "Blocked" : "Add to Plan"}</span>
-            <span className="xs:hidden">+</span>
           </Button>
           {!prerequisiteValidation.valid && (
             <div className="text-xs text-orange-600 text-center">

@@ -24,10 +24,20 @@ import { type CourseData } from '@/components/features/excel/ExcelUtils';
 
 // Define CourseStatus for data entry page - includes planning status for course planner compatibility
 interface CourseStatus {
-  status: 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning';
+  status: 'pending' | 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning';
   grade?: string;
   plannedSemester?: string; // Format: "1/2026" or "2/2026"
 }
+
+const isPendingStatus = (status?: CourseStatus['status']) =>
+  !status || status === 'pending' || status === 'not_completed';
+
+const getDefaultSemesterLabel = (term?: string) => {
+  const currentYear = new Date().getFullYear();
+  if (term === '2') return `2/${currentYear}`;
+  if (term === '3' || term === 'summer') return `3/${currentYear}`;
+  return `1/${currentYear}`;
+};
 
 interface ProgressContextType {
   completedCourses: { [code: string]: CourseStatus };
@@ -85,6 +95,60 @@ export default function DataEntryPage() {
     selectedConcentration, setSelectedConcentration,
     freeElectives, // <-- add this line
   } = useProgressContext();
+
+  // Auto-populate semester labels for planning courses that do not have one yet
+  useEffect(() => {
+    const needsDefaults = Object.entries(completedCourses).some(([, course]) =>
+      course?.status === 'planning' && !course.plannedSemester
+    );
+
+    if (!needsDefaults) {
+      return;
+    }
+
+    setCompletedCourses(prev => {
+      const next = { ...prev };
+      Object.entries(prev).forEach(([code, course]) => {
+        if (course?.status === 'planning' && !course.plannedSemester) {
+          next[code] = {
+            ...course,
+            plannedSemester: getDefaultSemesterLabel()
+          };
+        }
+      });
+      return next;
+    });
+  }, [completedCourses, setCompletedCourses]);
+
+  const getCourseSelectValue = (courseCode: string) => {
+    const courseState = completedCourses[courseCode];
+    if (!courseState) return 'Pending';
+    if (courseState.status === 'planning') return 'Planning';
+    if (isPendingStatus(courseState.status)) return 'Pending';
+    return courseState.grade || 'Pending';
+  };
+
+  const handleCourseStatusChange = (courseCode: string, value: string) => {
+    const newStatus: CourseStatus['status'] =
+      value === 'Planning'
+        ? 'planning'
+        : value === 'Pending'
+          ? 'pending'
+          : (value === 'F' || value === 'W')
+            ? 'failed'
+            : 'completed';
+
+    setCompletedCourses(prev => ({
+      ...prev,
+      [courseCode]: {
+        status: newStatus,
+        grade: value === 'Planning' || value === 'Pending' ? '' : value,
+        plannedSemester: newStatus === 'planning'
+          ? (prev[courseCode]?.plannedSemester || getDefaultSemesterLabel())
+          : undefined
+      }
+    }));
+  };
 
   // State to track collapsed/expanded sections
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -344,15 +408,19 @@ export default function DataEntryPage() {
           status = 'planning';
           break;
         case 'PENDING':
-          status = 'not_completed'; // Map pending to not completed
+        case 'NOT_COMPLETED':
+          status = 'pending';
           break;
         default:
-          status = 'not_completed';
+          status = 'pending';
       }
 
       newCompletedCourses[course.courseCode] = {
         status,
-        grade: course.grade
+        grade: course.grade,
+        plannedSemester: status === 'planning'
+          ? (course.semester || getDefaultSemesterLabel())
+          : undefined
       };
     });
 
@@ -389,7 +457,10 @@ export default function DataEntryPage() {
             console.log('Adding course to completed:', course.code, course.status, course.grade);
             newCompletedCourses[course.code] = {
               status: course.status,
-              grade: course.grade
+              grade: course.grade,
+              plannedSemester: course.status === 'planning'
+                ? (course.plannedSemester || getDefaultSemesterLabel())
+                : undefined
             };
           }
         });
@@ -749,23 +820,14 @@ export default function DataEntryPage() {
                                   </div>
                                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
                                     <Select
-                                      value={completedCourses[course.code]?.grade || 'Planning'}
-                                      onValueChange={value => {
-                                        const newStatus = value === 'Planning' ? 'planning' : (value === 'F' || value === 'W') ? 'failed' : 'completed';
-                                        setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                          ...prev,
-                                          [course.code]: {
-                                            status: newStatus,
-                                            grade: value === 'Planning' ? '' : value,
-                                            plannedSemester: value === 'Planning' ? prev[course.code]?.plannedSemester : undefined
-                                          }
-                                        }));
-                                      }}
+                                      value={getCourseSelectValue(course.code)}
+                                      onValueChange={value => handleCourseStatusChange(course.code, value)}
                                     >
                                       <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
                                         <SelectValue placeholder="Select Grade" />
                                       </SelectTrigger>
                                       <SelectContent>
+                                        <SelectItem value="Pending">Pending</SelectItem>
                                         <SelectItem value="Planning">Planning</SelectItem>
                                         {gradeOptions.map((g: string) => (
                                           <SelectItem key={g} value={g}>{g}</SelectItem>
@@ -809,23 +871,14 @@ export default function DataEntryPage() {
                             </div>
                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
                               <Select
-                                value={completedCourses[course.code]?.grade || 'Planning'}
-                                onValueChange={value => {
-                                  const newStatus = value === 'Planning' ? 'planning' : (value === 'F' || value === 'W') ? 'failed' : 'completed';
-                                  setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                    ...prev,
-                                    [course.code]: {
-                                      status: newStatus,
-                                      grade: value === 'Planning' ? '' : value,
-                                      plannedSemester: value === 'Planning' ? prev[course.code]?.plannedSemester : undefined
-                                    }
-                                  }));
-                                }}
+                                value={getCourseSelectValue(course.code)}
+                                onValueChange={value => handleCourseStatusChange(course.code, value)}
                               >
                                 <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
                                   <SelectValue placeholder="Select Grade" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                  <SelectItem value="Pending">Pending</SelectItem>
                                   <SelectItem value="Planning">Planning</SelectItem>
                                   {gradeOptions.map((g: string) => (
                                     <SelectItem key={g} value={g}>{g}</SelectItem>
@@ -885,25 +938,16 @@ export default function DataEntryPage() {
                             <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                           </div>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                            <Select
-                              value={completedCourses[course.code]?.grade || 'Planning'}
-                              onValueChange={value => {
-                                const newStatus = value === 'Planning' ? 'planning' : (value === 'F' || value === 'W') ? 'failed' : 'completed';
-                                setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                  ...prev,
-                                  [course.code]: {
-                                    status: newStatus,
-                                    grade: value === 'Planning' ? '' : value,
-                                    plannedSemester: value === 'Planning' ? prev[course.code]?.plannedSemester : undefined
-                                  }
-                                }));
-                              }}
-                            >
+                              <Select
+                                value={getCourseSelectValue(course.code)}
+                                onValueChange={value => handleCourseStatusChange(course.code, value)}
+                              >
                               <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
                                 <SelectValue placeholder="Select Grade" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Planning">Planning</SelectItem>
+                                  <SelectItem value="Pending">Pending</SelectItem>
+                                  <SelectItem value="Planning">Planning</SelectItem>
                                 {gradeOptions.map((g: string) => (
                                   <SelectItem key={g} value={g}>{g}</SelectItem>
                                 ))}
@@ -964,25 +1008,16 @@ export default function DataEntryPage() {
                           <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                          <Select
-                            value={completedCourses[course.code]?.grade || 'Planning'}
-                            onValueChange={value => {
-                              const newStatus = value === 'Planning' ? 'planning' : (value === 'F' || value === 'W') ? 'failed' : 'completed';
-                              setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                ...prev,
-                                [course.code]: {
-                                  status: newStatus,
-                                  grade: value === 'Planning' ? '' : value,
-                                  plannedSemester: value === 'Planning' ? prev[course.code]?.plannedSemester : undefined
-                                }
-                              }));
-                            }}
-                          >
+                            <Select
+                              value={getCourseSelectValue(course.code)}
+                              onValueChange={value => handleCourseStatusChange(course.code, value)}
+                            >
                             <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
                               <SelectValue placeholder="Select Grade" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Planning">Planning</SelectItem>
+                                <SelectItem value="Pending">Pending</SelectItem>
+                                <SelectItem value="Planning">Planning</SelectItem>
                               {gradeOptions.map((g: string) => (
                                 <SelectItem key={g} value={g}>{g}</SelectItem>
                               ))}
@@ -1040,25 +1075,16 @@ export default function DataEntryPage() {
                           <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                          <Select
-                            value={completedCourses[course.code]?.grade || 'Planning'}
-                            onValueChange={value => {
-                              const newStatus = value === 'Planning' ? 'planning' : (value === 'F' || value === 'W') ? 'failed' : 'completed';
-                              setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                ...prev,
-                                [course.code]: {
-                                  status: newStatus,
-                                  grade: value === 'Planning' ? '' : value,
-                                  plannedSemester: value === 'Planning' ? prev[course.code]?.plannedSemester : undefined
-                                }
-                              }));
-                            }}
-                          >
+                            <Select
+                              value={getCourseSelectValue(course.code)}
+                              onValueChange={value => handleCourseStatusChange(course.code, value)}
+                            >
                             <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
                               <SelectValue placeholder="Select Grade" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Planning">Planning</SelectItem>
+                                <SelectItem value="Pending">Pending</SelectItem>
+                                <SelectItem value="Planning">Planning</SelectItem>
                               {gradeOptions.map((g: string) => (
                                 <SelectItem key={g} value={g}>{g}</SelectItem>
                               ))}
@@ -1177,7 +1203,7 @@ export default function DataEntryPage() {
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3 mt-6 flex-wrap">
+          <div className="flex flex-col gap-3 mt-6 sm:flex-row sm:items-center sm:justify-between">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -1199,9 +1225,10 @@ export default function DataEntryPage() {
                       courses.forEach(course => {
                         const courseStatus = completedCourses[course.code]?.status;
                         const courseGrade = completedCourses[course.code]?.grade || '';
+                        const courseSemester = completedCourses[course.code]?.plannedSemester || '';
                         
                         // Include courses except not_completed status
-                        if (courseStatus && courseStatus !== 'not_completed') {
+                        if (courseStatus && !isPendingStatus(courseStatus)) {
                           rows.push({
                             Category: category,
                             Code: course.code,
@@ -1209,6 +1236,7 @@ export default function DataEntryPage() {
                             Credits: course.credits,
                             Status: courseStatus,
                             Grade: courseGrade,
+                            Semester: courseSemester
                           });
                         }
                       });
@@ -1218,8 +1246,9 @@ export default function DataEntryPage() {
                     assignedFreeElectives.forEach(course => {
                       const courseStatus = completedCourses[course.courseCode]?.status;
                       const courseGrade = completedCourses[course.courseCode]?.grade || course.grade || '';
+                      const courseSemester = completedCourses[course.courseCode]?.plannedSemester || '';
                       
-                      if (courseStatus && courseStatus !== 'not_completed') {
+                      if (courseStatus && !isPendingStatus(courseStatus)) {
                         rows.push({
                           Category: 'Free Elective',
                           Code: course.courseCode,
@@ -1227,6 +1256,7 @@ export default function DataEntryPage() {
                           Credits: course.credits,
                           Status: courseStatus,
                           Grade: courseGrade,
+                          Semester: courseSemester
                         });
                       }
                     });
@@ -1235,8 +1265,9 @@ export default function DataEntryPage() {
                     (Array.isArray(freeElectives) ? freeElectives : []).forEach((course: { code: string; title: string; credits: number }) => {
                       const courseStatus = completedCourses[course.code]?.status;
                       const courseGrade = completedCourses[course.code]?.grade || '';
+                      const courseSemester = completedCourses[course.code]?.plannedSemester || '';
                       
-                      if (courseStatus && courseStatus !== 'not_completed') {
+                      if (courseStatus && !isPendingStatus(courseStatus)) {
                         rows.push({
                           Category: 'Free Elective',
                           Code: course.code,
@@ -1244,6 +1275,7 @@ export default function DataEntryPage() {
                           Credits: course.credits,
                           Status: courseStatus,
                           Grade: courseGrade,
+                          Semester: courseSemester
                         });
                       }
                     });
@@ -1274,7 +1306,8 @@ export default function DataEntryPage() {
                           course.Code,
                           course.Credits,
                           course.Grade,
-                          status
+                          status,
+                          course.Semester || ''
                         ]);
                       });
                       
@@ -1300,9 +1333,10 @@ export default function DataEntryPage() {
                       courses.forEach(course => {
                         const courseStatus = completedCourses[course.code]?.status;
                         const courseGrade = completedCourses[course.code]?.grade || '';
+                        const courseSemester = completedCourses[course.code]?.plannedSemester || '';
                         
                         // Include courses except not_completed status
-                        if (courseStatus && courseStatus !== 'not_completed') {
+                        if (courseStatus && !isPendingStatus(courseStatus)) {
                           rows.push({
                             Category: category,
                             Code: course.code,
@@ -1310,6 +1344,7 @@ export default function DataEntryPage() {
                             Credits: course.credits,
                             Status: courseStatus,
                             Grade: courseGrade,
+                            Semester: courseSemester
                           });
                         }
                       });
@@ -1319,8 +1354,9 @@ export default function DataEntryPage() {
                     assignedFreeElectives.forEach(course => {
                       const courseStatus = completedCourses[course.courseCode]?.status;
                       const courseGrade = completedCourses[course.courseCode]?.grade || course.grade || '';
+                      const courseSemester = completedCourses[course.courseCode]?.plannedSemester || '';
                       
-                      if (courseStatus && courseStatus !== 'not_completed') {
+                      if (courseStatus && !isPendingStatus(courseStatus)) {
                         rows.push({
                           Category: 'Free Elective',
                           Code: course.courseCode,
@@ -1328,6 +1364,7 @@ export default function DataEntryPage() {
                           Credits: course.credits,
                           Status: courseStatus,
                           Grade: courseGrade,
+                          Semester: courseSemester
                         });
                       }
                     });
@@ -1336,8 +1373,9 @@ export default function DataEntryPage() {
                     (Array.isArray(freeElectives) ? freeElectives : []).forEach((course: { code: string; title: string; credits: number }) => {
                       const courseStatus = completedCourses[course.code]?.status;
                       const courseGrade = completedCourses[course.code]?.grade || '';
+                      const courseSemester = completedCourses[course.code]?.plannedSemester || '';
                       
-                      if (courseStatus && courseStatus !== 'not_completed') {
+                      if (courseStatus && !isPendingStatus(courseStatus)) {
                         rows.push({
                           Category: 'Free Elective',
                           Code: course.code,
@@ -1345,6 +1383,7 @@ export default function DataEntryPage() {
                           Credits: course.credits,
                           Status: courseStatus,
                           Grade: courseGrade,
+                          Semester: courseSemester
                         });
                       }
                     });
@@ -1370,7 +1409,7 @@ export default function DataEntryPage() {
                       
                       courses.forEach(course => {
                         const status = course.Status === 'completed' ? '' : course.Status;
-                        csvLines.push(`"${course.Title}","${course.Code}",${course.Credits},"${course.Grade}","${status}"`);
+                        csvLines.push(`"${course.Title}","${course.Code}",${course.Credits},"${course.Grade}","${status}","${course.Semester || ''}"`);
                       });
                       
                       csvLines.push(''); // Empty line after each category
@@ -1396,37 +1435,25 @@ export default function DataEntryPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {/* <Button 
-              variant="default"
-              className="bg-sky-500 hover:bg-sky-500/90 text-white min-w-[180px] shadow-sm"
-              onClick={() => router.push('/student/management/progress')}
-            >
-              <BarChart2 className="w-4 h-4 mr-2" />
-              Show Progress
-            </Button> */}
+            <div className="flex flex-col items-stretch sm:items-end gap-2">
+              <Button 
+                onClick={handleCoursePlanning}
+                className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 text-primary-foreground flex items-center gap-2 px-8 py-3 text-lg shadow-md transform transition-all duration-200 hover:scale-[1.01] border-0"
+                disabled={!selectedCurriculum || !selectedDepartment}
+                size="lg"
+              >
+                <Calendar className="w-5 h-5" />
+                Continue to Course Planning
+              </Button>
+              {(!selectedCurriculum || !selectedDepartment) && (
+                <p className="text-sm text-muted-foreground text-left sm:text-right">
+                  Please select a faculty and department first
+                </p>
+              )}
+            </div>
           </div>
             </div>
       )}
-      
-      {/* Course Planning Button at Bottom */}
-      <div className="mt-8 border-t border-border pt-8">
-        <div className="flex justify-center">
-          <Button 
-            onClick={handleCoursePlanning}
-            className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 text-primary-foreground flex items-center gap-2 px-8 py-3 text-lg shadow-md transform transition-all duration-200 hover:scale-[1.01] border-0"
-            disabled={!selectedCurriculum || !selectedDepartment}
-            size="lg"
-          >
-            <Calendar className="w-5 h-5" />
-            Continue to Course Planning
-          </Button>
-        </div>
-        {(!selectedCurriculum || !selectedDepartment) && (
-          <p className="text-center text-sm text-muted-foreground mt-2">
-            Please select a faculty and department first
-          </p>
-        )}
-      </div>
             </div>
   );
 }
@@ -1436,6 +1463,36 @@ function FreeElectiveAddButton() {
   const { completedCourses, setCompletedCourses, freeElectives, setFreeElectives } = useProgressContext();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ code: '', title: '', credits: '' });
+
+  const getCourseSelectValue = (courseCode: string) => {
+    const courseState = completedCourses[courseCode];
+    if (!courseState) return 'Pending';
+    if (courseState.status === 'planning') return 'Planning';
+    if (isPendingStatus(courseState.status)) return 'Pending';
+    return courseState.grade || 'Pending';
+  };
+
+  const handleCourseStatusChange = (courseCode: string, value: string) => {
+    const newStatus: CourseStatus['status'] =
+      value === 'Planning'
+        ? 'planning'
+        : value === 'Pending'
+          ? 'pending'
+          : (value === 'F' || value === 'W')
+            ? 'failed'
+            : 'completed';
+
+    setCompletedCourses(prev => ({
+      ...prev,
+      [courseCode]: {
+        grade: newStatus === 'completed' ? value : undefined,
+        status: newStatus,
+        plannedSemester: newStatus === 'planning'
+          ? prev[courseCode]?.plannedSemester || getDefaultSemesterLabel()
+          : undefined
+      }
+    }));
+  };
 
 
   const handleAdd = () => {
@@ -1508,25 +1565,16 @@ function FreeElectiveAddButton() {
                 <span className="text-sm text-muted-foreground">{course.credits} credits</span>
               </div>
               <div className="flex flex-row items-center gap-3 mt-2 sm:mt-0">
-                <Select
-                  value={completedCourses[course.code]?.grade || 'Planning'}
-                  onValueChange={value => {
-                    const newStatus = value === 'Planning' ? 'planning' : (value === 'F' || value === 'W') ? 'failed' : 'completed';
-                    setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                      ...prev,
-                      [course.code]: {
-                        status: newStatus,
-                        grade: value === 'Planning' ? '' : value,
-                        plannedSemester: value === 'Planning' ? prev[course.code]?.plannedSemester : undefined
-                      }
-                    }));
-                  }}
-                >
+                  <Select
+                    value={getCourseSelectValue(course.code)}
+                    onValueChange={value => handleCourseStatusChange(course.code, value)}
+                  >
                   <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
                     <SelectValue placeholder="Select Grade" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Planning">Planning</SelectItem>
+                      <SelectItem value="Pending">Pending</SelectItem>
+                      <SelectItem value="Planning">Planning</SelectItem>
                     {gradeOptions.map((g: string) => (
                       <SelectItem key={g} value={g}>{g}</SelectItem>
                     ))}

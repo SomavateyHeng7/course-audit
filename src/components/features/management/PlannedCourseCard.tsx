@@ -17,6 +17,7 @@ export interface PlannedCourse {
   status: 'planning' | 'planned' | 'completed' | string;
   validationStatus?: ValidationStatus;
   validationNotes?: string[];
+  semesterLabel?: string;
 }
 
 interface PlannedCourseCardProps {
@@ -39,6 +40,11 @@ export const PlannedCourseCard: React.FC<PlannedCourseCardProps> = ({
             <Badge variant="outline" className="text-xs shrink-0">
               {course.credits} cr
             </Badge>
+            {course.semesterLabel && (
+              <Badge variant="secondary" className="text-[10px] font-medium">
+                {course.semesterLabel}
+              </Badge>
+            )}
             {course.validationStatus === 'valid' && (
               <CheckCircle size={14} className="text-green-600" />
             )}
