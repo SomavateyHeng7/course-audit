@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from '@/contexts/SanctumAuthContext';
 import { useRouter } from "next/navigation";
-import { Trash2, Info, Plus, BookOpen, Users, Calendar, Settings } from 'lucide-react';
+import { Trash2, Info, Plus, BookOpen, Users, Calendar, Settings, Copy } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
 import { API_BASE } from '@/lib/api/laravel';
 import { getCsrfCookie, getCsrfTokenFromCookie } from '@/lib/auth/sanctum';
@@ -170,6 +170,56 @@ const ChairpersonPage: React.FC = () => {
     }
   };
 
+  const handleDuplicate = async (curriculumId: string, curriculumName: string) => {
+    try {
+      info('Duplicating curriculum...');
+      
+      // Get CSRF cookie first
+      await getCsrfCookie();
+
+      // Get CSRF token
+      const csrfToken = getCsrfTokenFromCookie();
+
+      const response = await fetch(`${API_BASE}/curricula/${curriculumId}/duplicate`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Refresh the curricula list
+        fetchCurricula(searchTerm, pagination.page);
+        success(`Curriculum "${curriculumName}" has been duplicated successfully as "${data.curriculum?.name || 'Copy'}".`);
+      } else {
+        let errorMessage = 'Unknown error';
+        
+        // Try to parse JSON error response
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          errorMessage = data.error?.message || data.message || 'Unknown error';
+        } else {
+          // Handle non-JSON responses (like 419 CSRF errors)
+          if (response.status === 419) {
+            errorMessage = 'Session expired. Please refresh the page and try again.';
+          } else {
+            errorMessage = `Server error (${response.status})`;
+          }
+        }
+        
+        showError(`Failed to duplicate curriculum: ${errorMessage}`);
+      }
+    } catch (error) {
+      console.error('Error duplicating curriculum:', error);
+      showError('An error occurred while duplicating the curriculum. Please try again.');
+    }
+  };
+
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -311,9 +361,9 @@ const ChairpersonPage: React.FC = () => {
             {
               key: 'actions',
               label: 'Actions',
-              className: 'w-40 text-right',
+              className: 'w-40 text-center',
               render: (curriculum: Curriculum) => (
-                <div className="flex gap-2 justify-end">
+                <div className="flex gap-2 justify-center">
                   <ActionButton
                     variant="ghost"
                     size="sm"
@@ -321,6 +371,15 @@ const ChairpersonPage: React.FC = () => {
                     stopPropagation
                     icon={<Info size={14} />}
                     tooltip="View Details"
+                  />
+                  <ActionButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDuplicate(curriculum.id, curriculum.name)}
+                    stopPropagation
+                    icon={<Copy size={14} />}
+                    tooltip="Duplicate Curriculum"
+                    className="text-blue-600 hover:text-blue-700"
                   />
                   <ActionButton
                     variant="ghost"
