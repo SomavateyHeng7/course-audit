@@ -377,43 +377,40 @@ export default function DataEntryPage() {
     setSelectedConcentration('general');
   };
 
+  const mapTranscriptStatusToCourseStatus = (status?: string, grade?: string): CourseStatus['status'] => {
+    const normalized = status?.toString().trim().toLowerCase();
+
+    switch (normalized) {
+      case 'completed':
+        return 'completed';
+      case 'planning':
+      case 'planned':
+      case 'in_progress':
+      case 'in-progress':
+      case 'in progress':
+      case 'taking':
+        return 'planning';
+      case 'failed':
+        return 'failed';
+      case 'withdrawn':
+      case 'dropped':
+        return 'withdrawn';
+      case 'not_completed':
+      case 'not-completed':
+        return 'not_completed';
+      case 'pending':
+        return 'pending';
+      default:
+        return grade && grade.trim() ? 'completed' : 'pending';
+    }
+  };
+
   // Handle imported courses from transcript
   const handleCoursesImported = (courses: CourseData[]) => {
     const newCompletedCourses: { [code: string]: CourseStatus } = {};
     
     courses.forEach(course => {
-      let status: CourseStatus['status'];
-      
-      // Map StudentCourseStatus to local CourseStatus - includes progress page export statuses
-      switch (course.status) {
-        case 'COMPLETED':
-          status = 'completed';
-          break;
-        case 'IN_PROGRESS':
-          status = 'planning'; // Map in-progress to planning for data entry (progress page exports planning as IN_PROGRESS)
-          break;
-        case 'TAKING':
-          status = 'planning'; // Handle "taking" status as planning
-          break;
-        case 'FAILED':
-          status = 'failed';
-          break;
-        case 'DROPPED':
-          status = 'withdrawn';
-          break;
-        case 'WITHDRAWN':
-          status = 'withdrawn';
-          break;
-        case 'PLANNING':
-          status = 'planning';
-          break;
-        case 'PENDING':
-        case 'NOT_COMPLETED':
-          status = 'pending';
-          break;
-        default:
-          status = 'pending';
-      }
+      const status = mapTranscriptStatusToCourseStatus(course.status, course.grade);
 
       newCompletedCourses[course.courseCode] = {
         status,
@@ -455,11 +452,16 @@ export default function DataEntryPage() {
           
           if (course.found) { // Only import courses that were found in transcript
             console.log('Adding course to completed:', course.code, course.status, course.grade);
+            const normalizedStatus = mapTranscriptStatusToCourseStatus(course.status, course.grade);
+            const trimmedPlannedSemester = typeof course.plannedSemester === 'string'
+              ? course.plannedSemester.trim()
+              : undefined;
+
             newCompletedCourses[course.code] = {
-              status: course.status,
+              status: normalizedStatus,
               grade: course.grade,
-              plannedSemester: course.status === 'planning'
-                ? (course.plannedSemester || getDefaultSemesterLabel())
+              plannedSemester: normalizedStatus === 'planning'
+                ? (trimmedPlannedSemester || getDefaultSemesterLabel())
                 : undefined
             };
           }

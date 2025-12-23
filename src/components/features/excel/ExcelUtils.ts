@@ -72,16 +72,17 @@ function extractCategoryName(headerText: string): string {
  * Determine course status based on grade and remark fields
  */
 function determineStatus(grade?: string, remark?: string): CourseData['status'] {
+  const remarkLower = remark?.toLowerCase();
+
   // Check for explicit status indicators first - handle progress page export statuses
-  if (remark?.toLowerCase().includes('planning')) return 'PLANNING';
-  if (remark?.toLowerCase().includes('taking')) return 'IN_PROGRESS';
-  if (remark?.toLowerCase().includes('failed')) return 'FAILED';
-  if (remark?.toLowerCase().includes('dropped')) return 'DROPPED';
-  if (remark?.toLowerCase().includes('withdrawn')) return 'WITHDRAWN';
+  if (remarkLower?.includes('planning') || remarkLower?.includes('planned')) return 'PLANNING';
+  if (remarkLower?.includes('taking')) return 'IN_PROGRESS';
+  if (remarkLower?.includes('failed')) return 'FAILED';
+  if (remarkLower?.includes('dropped')) return 'DROPPED';
+  if (remarkLower?.includes('withdrawn')) return 'WITHDRAWN';
   
   // Handle exact status matches (case-insensitive) from progress page exports
-  const remarkLower = remark?.toLowerCase();
-  if (remarkLower === 'planning') return 'PLANNING';
+  if (remarkLower === 'planning' || remarkLower === 'planned') return 'PLANNING';
   if (remarkLower === 'taking') return 'IN_PROGRESS'; // Handle "taking" status
   if (remarkLower === 'completed') return 'COMPLETED';
   if (remarkLower === 'failed') return 'FAILED';
