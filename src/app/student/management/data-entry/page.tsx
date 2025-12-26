@@ -24,7 +24,7 @@ import { type CourseData } from '@/components/features/excel/ExcelUtils';
 
 // Define CourseStatus for data entry page - includes planning status for course planner compatibility
 interface CourseStatus {
-  status: 'pending' | 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning';
+  status: 'pending' | 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning' | 'in_progress';
   grade?: string;
   plannedSemester?: string; // Format: "1/2026" or "2/2026"
 }
@@ -124,6 +124,7 @@ export default function DataEntryPage() {
     const courseState = completedCourses[courseCode];
     if (!courseState) return 'Pending';
     if (courseState.status === 'planning') return 'Planning';
+    if (courseState.status === 'in_progress') return 'Currently Taking';
     if (isPendingStatus(courseState.status)) return 'Pending';
     return courseState.grade || 'Pending';
   };
@@ -132,17 +133,19 @@ export default function DataEntryPage() {
     const newStatus: CourseStatus['status'] =
       value === 'Planning'
         ? 'planning'
-        : value === 'Pending'
-          ? 'pending'
-          : (value === 'F' || value === 'W')
-            ? 'failed'
-            : 'completed';
+        : value === 'Currently Taking'
+          ? 'in_progress'
+          : value === 'Pending'
+            ? 'pending'
+            : (value === 'F' || value === 'W')
+              ? 'failed'
+              : 'completed';
 
     setCompletedCourses(prev => ({
       ...prev,
       [courseCode]: {
         status: newStatus,
-        grade: value === 'Planning' || value === 'Pending' ? '' : value,
+        grade: value === 'Planning' || value === 'Pending' || value === 'Currently Taking' ? '' : value,
         plannedSemester: newStatus === 'planning'
           ? (prev[courseCode]?.plannedSemester || getDefaultSemesterLabel())
           : undefined
@@ -830,6 +833,7 @@ export default function DataEntryPage() {
                                       </SelectTrigger>
                                       <SelectContent>
                                         <SelectItem value="Pending">Pending</SelectItem>
+                                        <SelectItem value="Currently Taking">Currently Taking</SelectItem>
                                         <SelectItem value="Planning">Planning</SelectItem>
                                         {gradeOptions.map((g: string) => (
                                           <SelectItem key={g} value={g}>{g}</SelectItem>
@@ -1454,11 +1458,10 @@ export default function DataEntryPage() {
               )}
             </div>
           </div>
-            </div>
+        </div>
       )}
-            </div>
+    </div>
   );
-}
 
 // Add this component at the top level of the file (outside DataEntryPage)
 function FreeElectiveAddButton() {
@@ -1470,6 +1473,7 @@ function FreeElectiveAddButton() {
     const courseState = completedCourses[courseCode];
     if (!courseState) return 'Pending';
     if (courseState.status === 'planning') return 'Planning';
+    if (courseState.status === 'in_progress') return 'Currently Taking';
     if (isPendingStatus(courseState.status)) return 'Pending';
     return courseState.grade || 'Pending';
   };
@@ -1478,11 +1482,13 @@ function FreeElectiveAddButton() {
     const newStatus: CourseStatus['status'] =
       value === 'Planning'
         ? 'planning'
-        : value === 'Pending'
-          ? 'pending'
-          : (value === 'F' || value === 'W')
-            ? 'failed'
-            : 'completed';
+        : value === 'Currently Taking'
+          ? 'in_progress'
+          : value === 'Pending'
+            ? 'pending'
+            : (value === 'F' || value === 'W')
+              ? 'failed'
+              : 'completed';
 
     setCompletedCourses(prev => ({
       ...prev,
@@ -1576,6 +1582,7 @@ function FreeElectiveAddButton() {
                   </SelectTrigger>
                   <SelectContent>
                       <SelectItem value="Pending">Pending</SelectItem>
+                      <SelectItem value="Currently Taking">Currently Taking</SelectItem>
                       <SelectItem value="Planning">Planning</SelectItem>
                     {gradeOptions.map((g: string) => (
                       <SelectItem key={g} value={g}>{g}</SelectItem>
@@ -1615,4 +1622,5 @@ function FreeElectiveAddButton() {
       )}
     </div>
   );
+}
 } 

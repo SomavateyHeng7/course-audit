@@ -75,6 +75,9 @@ const ChairpersonPage: React.FC = () => {
     curriculumName: string | null;
   }>({ open: false, curriculumId: null, curriculumName: null });
 
+  const [editingCurriculumId, setEditingCurriculumId] = useState<string | null>(null);
+  const [editedName, setEditedName] = useState<string>('');
+
   const fetchCurricula = async (search: string = '', page: number = 1) => {
     try {
       setLoading(true);
@@ -219,7 +222,68 @@ const ChairpersonPage: React.FC = () => {
       showError('An error occurred while duplicating the curriculum. Please try again.');
     }
   };
+  const handleUpdateName = async (curriculumId: string, newName: string) => {
+    if (!newName.trim()) {
+      warning('Curriculum name cannot be empty');
+      return;
+    }
 
+    try {
+      // Get CSRF cookie first
+      await getCsrfCookie();
+
+      // Get CSRF token
+      const csrfToken = getCsrfTokenFromCookie();
+
+      const response = await fetch(`${API_BASE}/curricula/${curriculumId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+        },
+        body: JSON.stringify({ name: newName })
+      });
+
+      if (response.ok) {
+        // Refresh the curricula list
+        fetchCurricula(searchTerm, pagination.page);
+        success(`Curriculum name updated successfully.`);
+        setEditingCurriculumId(null);
+        setEditedName('');
+      } else {
+        let errorMessage = 'Unknown error';
+        
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          errorMessage = data.error?.message || data.message || 'Unknown error';
+        } else {
+          if (response.status === 419) {
+            errorMessage = 'Session expired. Please refresh the page and try again.';
+          } else {
+            errorMessage = `Server error (${response.status})`;
+          }
+        }
+        
+        showError(`Failed to update curriculum name: ${errorMessage}`);
+      }
+    } catch (error) {
+      console.error('Error updating curriculum name:', error);
+      showError('An error occurred while updating the curriculum name. Please try again.');
+    }
+  };
+
+  const handleStartEdit = (curriculum: Curriculum) => {
+    setEditingCurriculumId(curriculum.id);
+    setEditedName(curriculum.name);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCurriculumId(null);
+    setEditedName('');
+  };
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -306,9 +370,56 @@ const ChairpersonPage: React.FC = () => {
               className: 'flex-1',
               render: (curriculum: Curriculum) => (
                 <div>
-                  <div className="font-semibold text-foreground">
-                    {curriculum.name} ({curriculum.year})
-                  </div>
+                  {editingCurriculumId === curriculum.id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editedName}
+                        onChange={(e) => setEditedName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleUpdateName(curriculum.id, editedName);
+                          } else if (e.key === 'Escape') {
+                            handleCancelEdit();
+                          }
+                        }}
+                        className="flex-1 px-2 py-1 border border-teal-500 rounded focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm font-semibold"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUpdateName(curriculum.id, editedName);
+                        }}
+                        className="px-2 py-1 bg-teal-600 text-white rounded text-xs hover:bg-teal-700"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCancelEdit();
+                        }}
+                        className="px-2 py-1 border rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div 
+                      className="cursor-pointer hover:text-teal-600 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartEdit(curriculum);
+                      }}
+                      title="Click to rename"
+                    >
+                      <div className="font-semibold text-foreground">
+                        {curriculum.name} ({curriculum.year})
+                      </div>
+                    </div>
+                  )}
                   <div className="text-sm text-muted-foreground">
                     Version {curriculum.version} • ID: {curriculum.startId} - {curriculum.endId}
                   </div>
