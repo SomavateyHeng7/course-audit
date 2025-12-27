@@ -9,6 +9,8 @@ interface CourseDetailFormProps {
   onSave: (courseData: CourseFormData) => void;
   onCancel: () => void;
   isOpen: boolean;
+  instructorsList?: string[];
+  onAddInstructor?: (instructorName: string) => void;
 }
 
 interface CourseFormData {
@@ -26,7 +28,9 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
   courseCode = "CSX3003",
   onSave,
   onCancel,
-  isOpen
+  isOpen,
+  instructorsList = [],
+  onAddInstructor
 }) => {
   const [formData, setFormData] = useState<CourseFormData>({
     section: '',
@@ -37,6 +41,9 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
     seat: '',
     categoryColor: '#3B82F6'
   });
+
+  const [showCustomInstructor, setShowCustomInstructor] = useState(false);
+  const [customInstructor, setCustomInstructor] = useState('');
 
   const daysOfWeek = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -140,15 +147,69 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
           </div>
 
           {/* Instructor */}
-          <div className="relative">
-            <FaChalkboardTeacher className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-            <input
-              type="text"
-              value={formData.instructor}
-              onChange={(e) => handleInputChange('instructor', e.target.value)}
-              placeholder="Instructor name"
-              className="w-full pl-9 sm:pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
-            />
+          <div className="space-y-2">
+            <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">
+              <FaChalkboardTeacher className="inline mr-1 w-4 h-4" />
+              Instructor
+            </label>
+            {!showCustomInstructor ? (
+              <div className="space-y-2">
+                <select
+                  value={formData.instructor}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setShowCustomInstructor(true);
+                      handleInputChange('instructor', '');
+                    } else {
+                      handleInputChange('instructor', e.target.value);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
+                >
+                  <option value="">Select Instructor</option>
+                  {instructorsList.map((instructor) => (
+                    <option key={instructor} value={instructor}>{instructor}</option>
+                  ))}
+                  <option value="__custom__">+ Add New Instructor</option>
+                </select>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={customInstructor}
+                  onChange={(e) => setCustomInstructor(e.target.value)}
+                  placeholder="Enter instructor name"
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (customInstructor.trim()) {
+                      handleInputChange('instructor', customInstructor);
+                      if (onAddInstructor) {
+                        onAddInstructor(customInstructor);
+                      }
+                      setCustomInstructor('');
+                      setShowCustomInstructor(false);
+                    }
+                  }}
+                  className="px-3 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm"
+                >
+                  Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomInstructor(false);
+                    setCustomInstructor('');
+                  }}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Seat */}

@@ -273,12 +273,6 @@ const SemesterCoursePage: React.FC = () => {
                   subtitle="Optional courses"
                   icon={<User className="h-5 w-5" />}
                 />
-                <StatCard
-                  title="Enrollment Rate"
-                  value={`${Math.round((courseSchedules.reduce((acc, c) => acc + c.enrolled, 0) / courseSchedules.reduce((acc, c) => acc + c.capacity, 0)) * 100)}%`}
-                  subtitle="Overall capacity"
-                  icon={<Search className="h-5 w-5" />}
-                />
               </div>
             )}
 

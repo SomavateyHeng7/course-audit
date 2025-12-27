@@ -35,7 +35,7 @@ interface Course {
   schedule: string;
   location: string;
   capacity: number;
-  enrolled: number;
+  plannedBy: number;
   category: string;
 }
 
@@ -76,7 +76,7 @@ const FutureCoursesPage: React.FC = () => {
           schedule: 'MWF 10:00-11:00',
           location: 'CS Building Room 201',
           capacity: 30,
-          enrolled: 25,
+          plannedBy: 25,
           category: 'Core'
         },
         {
@@ -91,7 +91,7 @@ const FutureCoursesPage: React.FC = () => {
           schedule: 'TTh 14:00-15:30',
           location: 'CS Building Room 301',
           capacity: 25,
-          enrolled: 20,
+          plannedBy: 20,
           category: 'Elective'
         }
       ];
@@ -166,14 +166,14 @@ const FutureCoursesPage: React.FC = () => {
     },
     {
       key: 'enrollment',
-      label: 'Enrollment',
-      className: 'w-28',
+      label: 'Number of Students Planning',
+      className: 'w-40',
       mobileLabel: 'Spots',
       render: (course: Course) => (
         <div className="text-sm">
-          <span className="font-medium">{course.enrolled}/{course.capacity}</span>
+          <span className="font-medium">{course.plannedBy}/{course.capacity}</span>
           <div className="text-xs text-muted-foreground">
-            {course.capacity - course.enrolled} available
+            {course.plannedBy} students planning
           </div>
         </div>
       )
@@ -255,10 +255,10 @@ const FutureCoursesPage: React.FC = () => {
             icon={<Filter size={20} />}
           />
           <StatCard
-            title="Average Enrollment"
-            value={`${Math.round(courses.reduce((acc, c) => acc + (c.enrolled / c.capacity * 100), 0) / courses.length || 0)}%`}
-            subtitle="Capacity utilization"
-            icon={<Clock size={20} />}
+            title="Number of students planning"
+            value={courses.length > 0 ? Math.round(courses.reduce((acc, c) => acc + c.plannedBy, 0) / courses.length) : 0}
+            subtitle="Average per course"
+            icon={<Users size={20} />}
           />
         </div>
 

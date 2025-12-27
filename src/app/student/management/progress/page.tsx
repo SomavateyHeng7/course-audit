@@ -303,6 +303,7 @@ export default function ProgressPage() {
   const [loading, setLoading] = useState(true);
   const [blacklistData, setBlacklistData] = useState<CurriculumBlacklistsResponse | null>(null);
   const [blacklistWarnings, setBlacklistWarnings] = useState<string[]>([]);
+  const [savedTotalCredits, setSavedTotalCredits] = useState<number | null>(null); // Store credits from localStorage
   
   // Enhanced validation states
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -348,6 +349,14 @@ export default function ProgressPage() {
           // Support both array and object
           const auditObj = Array.isArray(parsedData) ? parsedData[0] : parsedData;
           curriculumId = auditObj?.selectedCurriculum || null;
+
+          // Extract and save total credits from localStorage
+          if (auditObj?.curriculumCreditsRequired) {
+            setSavedTotalCredits(auditObj.curriculumCreditsRequired);
+            if (typeof window !== 'undefined') {
+              console.log('Found saved total credits:', auditObj.curriculumCreditsRequired);
+            }
+          }
 
           // Only set data if auditObj is not null
           if (auditObj) {
@@ -1329,17 +1338,31 @@ export default function ProgressPage() {
   }
   
   const totalCreditsRequired = (() => {
+    // First priority: credits saved from data-entry page (most accurate)
+    if (typeof savedTotalCredits === 'number' && savedTotalCredits > 0) {
+      console.log('Using saved total credits from localStorage:', savedTotalCredits);
+      return savedTotalCredits;
+    }
+    // Second priority: try multiple possible paths for total credits in the curriculum data
     if (typeof curriculumData?.totalCreditsRequired === 'number' && curriculumData.totalCreditsRequired > 0) {
+      console.log('Using totalCreditsRequired from curriculumData:', curriculumData.totalCreditsRequired);
       return curriculumData.totalCreditsRequired;
     }
+    if (typeof curriculumData?.totalCredits === 'number' && curriculumData.totalCredits > 0) {
+      console.log('Using totalCredits from curriculumData:', curriculumData.totalCredits);
+      return curriculumData.totalCredits;
+    }
     if (typeof curriculumProgress?.totalCreditsRequired === 'number' && curriculumProgress.totalCreditsRequired > 0) {
+      console.log('Using totalCreditsRequired from curriculumProgress:', curriculumProgress.totalCreditsRequired);
       return curriculumProgress.totalCreditsRequired;
     }
-    return 120;
+    // Fallback to 132 only if no curriculum data is available
+    console.warn('No total credits found in any source, using fallback of 132');
+    return 132;
   })();
 
-  const percent = totalCreditsRequired ? Math.round((earnedCredits / totalCreditsRequired) * 100) : 0;
-  const projectedPercent = totalCreditsRequired ? Math.round(((earnedCredits + plannedCredits) / totalCreditsRequired) * 100) : 0;
+  const percent = totalCreditsRequired ? Math.min(100, Math.round((earnedCredits / totalCreditsRequired) * 100)) : 0;
+  const projectedPercent = totalCreditsRequired ? Math.min(100, Math.round(((earnedCredits + plannedCredits) / totalCreditsRequired) * 100)) : 0;
   const gpa = totalGpaCredits > 0 ? (totalGradePoints / totalGpaCredits).toFixed(2) : 'N/A';
 
   // For each category, count completed, planned and total courses
@@ -1459,10 +1482,12 @@ export default function ProgressPage() {
       // Overall Progress
       addText('OVERALL PROGRESS', 14, true);
       yPosition += 5;
-      addText(`Total Credits Earned: ${earnedCredits}`);
+      addText(`Completed Credits: ${earnedCredits}`);
       if (plannedCredits > 0) {
         addText(`Planned Credits: ${plannedCredits}`);
       }
+      const remainingCredits = Math.max(0, totalCreditsRequired - earnedCredits - plannedCredits);
+      addText(`Remaining Credits: ${remainingCredits}`);
       addText(`Total Required: ${totalCreditsRequired}`);
       addText(`Progress: ${percent}%`);
       if (gpa !== 'N/A') {
@@ -1497,7 +1522,8 @@ export default function ProgressPage() {
         
         completedList.forEach(course => {
           const gradeText = course.grade ? ` (${course.grade})` : '';
-          addText(`• ${course.code} - ${course.title}${gradeText}`, 10, false, margin + 20);
+          const credits = courseDataCache[course.code]?.credits || 3;
+          addText(`• ${course.code} - ${course.title} [${credits} cr]${gradeText}`, 10, false, margin + 20);
         });
         yPosition += 15;
       }
