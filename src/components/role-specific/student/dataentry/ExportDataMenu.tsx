@@ -51,6 +51,8 @@ const getExportStatusLabel = (status?: CourseStatus['status'] | 'pending') => {
       return 'Failed';
     case 'withdrawn':
       return 'Withdrawn';
+    case 'in_progress':
+      return 'Currently Taking';
     default:
       return 'Pending';
   }

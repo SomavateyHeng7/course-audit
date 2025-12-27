@@ -1,5 +1,5 @@
 export interface CourseStatus {
-  status: 'pending' | 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning';
+  status: 'pending' | 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning' | 'in_progress';
   grade?: string;
   plannedSemester?: string; // Format: "1/2026" or "2/2026"
 }

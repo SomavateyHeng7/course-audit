@@ -3,11 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from '@/contexts/SanctumAuthContext';
 import { useRouter } from "next/navigation";
-import { Trash2, Info, Plus, BookOpen, Users, Calendar, Settings, Copy } from 'lucide-react';
+import { Trash2, Info, Plus, BookOpen, Users, Calendar, Settings, Copy, PencilLine } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
 import { API_BASE } from '@/lib/api/laravel';
 import { getCsrfCookie, getCsrfTokenFromCookie } from '@/lib/auth/sanctum';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // Import chairperson components
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
@@ -77,6 +80,8 @@ const ChairpersonPage: React.FC = () => {
 
   const [editingCurriculumId, setEditingCurriculumId] = useState<string | null>(null);
   const [editedName, setEditedName] = useState<string>('');
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<Curriculum | null>(null);
 
   const fetchCurricula = async (search: string = '', page: number = 1) => {
     try {
@@ -222,6 +227,8 @@ const ChairpersonPage: React.FC = () => {
       showError('An error occurred while duplicating the curriculum. Please try again.');
     }
   };
+  // Backend integration point: the PUT below wires the rename UI to the existing
+  // curriculum endpoint. Adjust the payload or URL here if the rename contract changes.
   const handleUpdateName = async (curriculumId: string, newName: string) => {
     if (!newName.trim()) {
       warning('Curriculum name cannot be empty');
@@ -252,6 +259,8 @@ const ChairpersonPage: React.FC = () => {
         success(`Curriculum name updated successfully.`);
         setEditingCurriculumId(null);
         setEditedName('');
+        setRenameModalOpen(false);
+        setRenameTarget(null);
       } else {
         let errorMessage = 'Unknown error';
         
@@ -278,11 +287,15 @@ const ChairpersonPage: React.FC = () => {
   const handleStartEdit = (curriculum: Curriculum) => {
     setEditingCurriculumId(curriculum.id);
     setEditedName(curriculum.name);
+    setRenameTarget(curriculum);
+    setRenameModalOpen(true);
   };
 
   const handleCancelEdit = () => {
     setEditingCurriculumId(null);
     setEditedName('');
+    setRenameModalOpen(false);
+    setRenameTarget(null);
   };
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A';
@@ -297,6 +310,8 @@ const ChairpersonPage: React.FC = () => {
 
   const activeCurricula = curricula.filter(c => c.isActive).length;
   const totalCourses = curricula.reduce((sum, c) => sum + c._count.curriculumCourses, 0);
+  const trimmedEditedName = editedName.trim();
+  const isRenameDisabled = !trimmedEditedName || trimmedEditedName === renameTarget?.name?.trim();
 
   if (loading) {
     return (
@@ -370,56 +385,26 @@ const ChairpersonPage: React.FC = () => {
               className: 'flex-1',
               render: (curriculum: Curriculum) => (
                 <div>
-                  {editingCurriculumId === curriculum.id ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={editedName}
-                        onChange={(e) => setEditedName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleUpdateName(curriculum.id, editedName);
-                          } else if (e.key === 'Escape') {
-                            handleCancelEdit();
-                          }
-                        }}
-                        className="flex-1 px-2 py-1 border border-teal-500 rounded focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm font-semibold"
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleUpdateName(curriculum.id, editedName);
-                        }}
-                        className="px-2 py-1 bg-teal-600 text-white rounded text-xs hover:bg-teal-700"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCancelEdit();
-                        }}
-                        className="px-2 py-1 border rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-800"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <div 
-                      className="cursor-pointer hover:text-teal-600 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartEdit(curriculum);
-                      }}
-                      title="Click to rename"
-                    >
+                  <button
+                    type="button"
+                    className="w-full text-left cursor-pointer hover:text-teal-600 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartEdit(curriculum);
+                    }}
+                    title="Rename curriculum"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
                       <div className="font-semibold text-foreground">
                         {curriculum.name} ({curriculum.year})
                       </div>
+                      {editingCurriculumId === curriculum.id && renameModalOpen && (
+                        <span className="text-[11px] uppercase tracking-wide text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-full">
+                          Renaming
+                        </span>
+                      )}
                     </div>
-                  )}
+                  </button>
                   <div className="text-sm text-muted-foreground">
                     Version {curriculum.version} • ID: {curriculum.startId} - {curriculum.endId}
                   </div>
@@ -475,6 +460,16 @@ const ChairpersonPage: React.FC = () => {
               className: 'w-40 text-center',
               render: (curriculum: Curriculum) => (
                 <div className="flex gap-2 justify-center">
+                  {/* Frontend rename trigger; Save button ultimately calls handleUpdateName for backend sync */}
+                  <ActionButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleStartEdit(curriculum)}
+                    stopPropagation
+                    icon={<PencilLine size={14} />}
+                    tooltip="Rename Curriculum"
+                    className="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
+                  />
                   <ActionButton
                     variant="ghost"
                     size="sm"
@@ -531,6 +526,78 @@ const ChairpersonPage: React.FC = () => {
           onRowClick={(curriculum) => router.push(`/chairperson/info_edit/${curriculum.id}`)}
         />
       </div>
+
+      <Dialog
+        open={renameModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCancelEdit();
+          } else {
+            setRenameModalOpen(true);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg border border-amber-200/70 dark:border-amber-400/30 bg-gradient-to-b from-card via-background/95 to-background shadow-[0_30px_70px_rgba(15,23,42,0.35)]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-300">
+                <PencilLine size={18} />
+              </span>
+              Rename Curriculum
+            </DialogTitle>
+            <DialogDescription>
+              Give this curriculum a clearer label so chairperson tooling and exports stay in sync.
+            </DialogDescription>
+          </DialogHeader>
+
+          {renameTarget && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-dashed border-amber-200/60 dark:border-amber-400/30 bg-amber-50/40 dark:bg-amber-500/5 px-4 py-3 text-sm">
+                <div className="font-semibold text-foreground">
+                  {renameTarget.name}
+                </div>
+                <div className="text-muted-foreground text-xs uppercase tracking-wide">
+                  Current version {renameTarget.version} • {renameTarget.year}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  New curriculum name
+                </label>
+                <Input
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && editingCurriculumId) {
+                      handleUpdateName(editingCurriculumId, editedName);
+                    }
+                  }}
+                  className="h-12 border-amber-200 focus-visible:ring-amber-500/60 dark:border-amber-500/40"
+                  placeholder="e.g., BSCS (2026 Revision)"
+                />
+                <p className="text-xs text-muted-foreground">
+                  The new label feeds both the chairperson dashboard and downstream exports; keep it concise but descriptive.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-3">
+            <Button variant="outline" onClick={handleCancelEdit} className="border-border">
+              Cancel
+            </Button>
+            <Button
+              disabled={isRenameDisabled || !editingCurriculumId}
+              onClick={() => editingCurriculumId && handleUpdateName(editingCurriculumId, editedName)}
+              className="bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+            >
+              Save Name
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={confirmDialog.open}

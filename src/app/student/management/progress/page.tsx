@@ -141,7 +141,7 @@ const DonutChart = ({
 // categoryOrder is now dynamically determined inside the component
 
 interface CourseStatus {
-  status: 'pending' | 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning';
+  status: 'pending' | 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning' | 'in_progress';
   grade?: string;
   plannedSemester?: string;
 }
@@ -250,6 +250,8 @@ const getExportStatusLabel = (status?: CourseStatus['status'] | 'pending') => {
   switch (normalized) {
     case 'completed':
       return 'Completed';
+    case 'in_progress':
+      return 'Currently Taking';
     case 'planning':
       return 'Planned';
     case 'failed':
@@ -730,6 +732,9 @@ export default function ProgressPage() {
         case 'planning':
           status = 'IN_PROGRESS'; 
           break;
+        case 'in_progress':
+          status = 'IN_PROGRESS';
+          break;
         case 'failed':
           status = 'FAILED';
           break;
@@ -1168,6 +1173,7 @@ export default function ProgressPage() {
   let totalCredits = 0;
   let earnedCredits = 0;
   let plannedCredits = 0;
+  let inProgressCredits = 0;
   let totalGradePoints = 0;
   let totalGpaCredits = 0;
   const categoryStats: { [category: string]: { completed: number; total: number; earned: number; totalCredits: number; planned: number } } = {};
@@ -1187,8 +1193,11 @@ export default function ProgressPage() {
     let totalCategoryCredits = 0;
     
     for (const c of courses) {
-      const status = completedCourses[c.code]?.status;
+      totalCategoryCredits += c.credits;
+      const courseState = completedCourses[c.code];
+      const status = courseState?.status;
       const plannedCourse = plannedCoursesMap.get(c.code);
+      const isCurrentlyTaking = status === 'in_progress';
       
       if (status === 'completed') {
         completedList.push({
@@ -1207,6 +1216,14 @@ export default function ProgressPage() {
           totalGradePoints += gradeToGPA[grade] * c.credits;
           totalGpaCredits += c.credits;
         }
+      } else if (isCurrentlyTaking) {
+        takingList.push({
+          ...c,
+          category,
+          source: 'in_progress',
+          semesterLabel: courseState?.plannedSemester,
+        });
+        inProgressCredits += c.credits;
       } else if (plannedCourse) {
         // Course is in the planner
         plannedFromPlannerList.push({ 
@@ -1228,8 +1245,6 @@ export default function ProgressPage() {
           status: status || 'pending'
         });
       }
-      
-      totalCategoryCredits += c.credits;
     }
     
     categoryStats[category] = {
@@ -1255,7 +1270,8 @@ export default function ProgressPage() {
   // Add completed courses that aren't in any predefined category
   Object.keys(completedCourses).forEach(courseCode => {
     const courseStatus = completedCourses[courseCode];
-    if (courseStatus.status === 'completed' && !coursesInCategories.has(courseCode)) {
+    const isOutsideCurriculum = !coursesInCategories.has(courseCode);
+    if (courseStatus.status === 'completed' && isOutsideCurriculum) {
       // Courses not in curriculum are treated as Free Electives
       const category = 'Free Elective';
       
@@ -1293,6 +1309,18 @@ export default function ProgressPage() {
         totalGradePoints += gradeToGPA[grade] * credits;
         totalGpaCredits += credits;
       }
+    } else if (courseStatus.status === 'in_progress' && isOutsideCurriculum) {
+      const category = 'Free Elective';
+      const credits = 3;
+      takingList.push({
+        code: courseCode,
+        title: courseCode,
+        credits,
+        category,
+        source: 'in_progress',
+        semesterLabel: courseStatus.plannedSemester,
+      });
+      inProgressCredits += credits;
     }
   });
   
@@ -1300,6 +1328,9 @@ export default function ProgressPage() {
   // These should be treated as Free Electives as per user specification
   plannedCourses.forEach(plannedCourse => {
     if (!coursesInCategories.has(plannedCourse.code)) {
+      if (completedCourses[plannedCourse.code]?.status === 'in_progress') {
+        return;
+      }
       // This planned course is not in the predefined curriculum - treat as Free Elective
       const category = 'Free Elective';
       
@@ -1362,7 +1393,9 @@ export default function ProgressPage() {
   })();
 
   const percent = totalCreditsRequired ? Math.min(100, Math.round((earnedCredits / totalCreditsRequired) * 100)) : 0;
-  const projectedPercent = totalCreditsRequired ? Math.min(100, Math.round(((earnedCredits + plannedCredits) / totalCreditsRequired) * 100)) : 0;
+  const projectedPercent = totalCreditsRequired
+    ? Math.min(100, Math.round(((earnedCredits + inProgressCredits + plannedCredits) / totalCreditsRequired) * 100))
+    : 0;
   const gpa = totalGpaCredits > 0 ? (totalGradePoints / totalGpaCredits).toFixed(2) : 'N/A';
 
   // For each category, count completed, planned and total courses
@@ -1524,6 +1557,18 @@ export default function ProgressPage() {
           const gradeText = course.grade ? ` (${course.grade})` : '';
           const credits = courseDataCache[course.code]?.credits || 3;
           addText(`• ${course.code} - ${course.title} [${credits} cr]${gradeText}`, 10, false, margin + 20);
+        });
+        yPosition += 15;
+      }
+
+      // Currently Taking Courses
+      if (takingList.length > 0) {
+        addText('CURRENTLY TAKING COURSES', 14, true);
+        yPosition += 5;
+        takingList.forEach(course => {
+          const termLabel = getDisplaySemesterLabel(course.semesterLabel, undefined, undefined);
+          const termSuffix = termLabel ? ` (${termLabel})` : '';
+          addText(`• ${course.code} - ${course.title}${termSuffix}`, 10, false, margin + 20);
         });
         yPosition += 15;
       }
@@ -2251,8 +2296,8 @@ export default function ProgressPage() {
           </div>
         )}
       </div>
-      {/* Completed and Planned Courses */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Completed, Currently Taking, and Planned Courses */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[150px]">
           <h3 className="text-lg font-bold mb-3">Completed Courses</h3>
           <div className="space-y-2 max-h-40 overflow-y-auto pdf-expandable">
@@ -2281,6 +2326,29 @@ export default function ProgressPage() {
                   </div>
                 </div>
               ))
+            )}
+          </div>
+        </div>
+        <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[150px]">
+          <h3 className="text-lg font-bold mb-3">Currently Taking</h3>
+          <div className="space-y-2 max-h-40 overflow-y-auto pdf-expandable">
+            {takingList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                <Clock className="w-6 h-6 text-blue-400 dark:text-blue-500 mb-2" />
+                No courses marked as Currently Taking
+              </div>
+            ) : (
+              takingList.map((c) => {
+                const termLabel = getDisplaySemesterLabel(c.semesterLabel, undefined, undefined);
+                return (
+                  <div key={c.code} className="flex justify-between items-center bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded px-3 py-2">
+                    <span className="font-semibold text-xs text-yellow-800 dark:text-yellow-200">{c.code} - {c.title}</span>
+                    <div className="text-xs text-yellow-700 dark:text-yellow-400">
+                      {c.category}{termLabel ? ` • ${termLabel}` : ''}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
