@@ -1476,14 +1476,16 @@ export default function ProgressPage() {
       let yPosition = margin + 20;
       const lineHeight = 15;
       const maxWidth = pageWidth - (margin * 2);
-      
-      // Helper function to add text and handle page breaks
-      const addText = (text: string, fontSize = 11, isBold = false, leftMargin = margin) => {
-        if (yPosition > pageHeight - margin - 20) {
+
+      const ensureSpace = (heightNeeded = lineHeight) => {
+        if (yPosition + heightNeeded > pageHeight - margin) {
           pdf.addPage();
           yPosition = margin + 20;
         }
-        
+      };
+      
+      // Helper function to add text and handle page breaks
+      const addText = (text: string, fontSize = 11, isBold = false, leftMargin = margin) => {
         pdf.setFontSize(fontSize);
         pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
         
@@ -1492,15 +1494,62 @@ export default function ProgressPage() {
         
         if (Array.isArray(lines)) {
           lines.forEach((line: string) => {
+            ensureSpace(lineHeight);
             pdf.text(line, leftMargin, yPosition);
             yPosition += lineHeight;
           });
         } else {
+          ensureSpace(lineHeight);
           pdf.text(lines, leftMargin, yPosition);
           yPosition += lineHeight;
         }
         
         return yPosition;
+      };
+
+      const addCreditSummaryColumns = (columns: { label: string; value: string | number; }[]) => {
+        if (!columns.length) return;
+
+        ensureSpace(lineHeight * 2);
+        const availableWidth = maxWidth;
+        const columnWidth = availableWidth / columns.length;
+        const labelY = yPosition;
+        const valueY = yPosition + lineHeight;
+
+        pdf.setFontSize(11);
+        columns.forEach((column, index) => {
+          const xPosition = margin + (columnWidth * index);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(column.label, xPosition, labelY);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(String(column.value), xPosition, valueY);
+        });
+
+        yPosition = valueY + lineHeight;
+      };
+
+      type TableColumn<T> = {
+        label: string;
+        width: number;
+        getValue: (item: T) => string;
+      };
+
+      const addCourseListSection = <T extends Record<string, any>>(
+        title: string,
+        data: T[],
+        formatter: (item: T) => string
+      ) => {
+        if (!data.length) return;
+
+        addText(title, 14, true);
+        yPosition += 5;
+
+        data.forEach(item => {
+          const line = formatter(item);
+          addText(`• ${line}`, 10, false, margin + 20);
+        });
+
+        yPosition += 5;
       };
       
       // Title
@@ -1515,18 +1564,18 @@ export default function ProgressPage() {
       // Overall Progress
       addText('OVERALL PROGRESS', 14, true);
       yPosition += 5;
-      addText(`Completed Credits: ${earnedCredits}`);
-      if (plannedCredits > 0) {
-        addText(`Planned Credits: ${plannedCredits}`);
-      }
       const remainingCredits = Math.max(0, totalCreditsRequired - earnedCredits - plannedCredits);
-      addText(`Remaining Credits: ${remainingCredits}`);
-      addText(`Total Required: ${totalCreditsRequired}`);
+      addCreditSummaryColumns([
+        { label: 'Completed Credits', value: `${earnedCredits}` },
+        { label: 'Planned Credits', value: `${plannedCredits}` },
+        { label: 'Remaining Credits', value: `${remainingCredits}` }
+      ]);
+      addText(`Total Required Credits: ${totalCreditsRequired}`);
       addText(`Progress: ${percent}%`);
       if (gpa !== 'N/A') {
         addText(`GPA: ${gpa}`);
       }
-      yPosition += 20;
+      yPosition += 10;
       
       // Category Progress
       addText('CATEGORY PROGRESS', 14, true);
@@ -1550,15 +1599,11 @@ export default function ProgressPage() {
       
       // Completed Courses
       if (completedList.length > 0) {
-        addText('COMPLETED COURSES', 14, true);
-        yPosition += 5;
-        
-        completedList.forEach(course => {
-          const gradeText = course.grade ? ` (${course.grade})` : '';
-          const credits = courseDataCache[course.code]?.credits || 3;
-          addText(`• ${course.code} - ${course.title} [${credits} cr]${gradeText}`, 10, false, margin + 20);
+        addCourseListSection('COMPLETED COURSES', completedList, (course) => {
+          const credits = courseDataCache[course.code]?.credits ?? course.credits ?? 0;
+          const gradeText = course.grade ? ` (Grade: ${course.grade})` : '';
+          return `${course.code} - ${course.title} (${credits} credits)${gradeText}`;
         });
-        yPosition += 15;
       }
 
       // Currently Taking Courses
@@ -1575,15 +1620,12 @@ export default function ProgressPage() {
       
       // Planned Courses
       if (plannedFromPlannerList.length > 0) {
-        addText('PLANNED COURSES', 14, true);
-        yPosition += 5;
-        
-        plannedFromPlannerList.forEach(course => {
+        addCourseListSection('PLANNED COURSES', plannedFromPlannerList, (course) => {
+          const credits = course.credits ?? courseDataCache[course.code]?.credits ?? 0;
           const termLabel = getDisplaySemesterLabel(course.semesterLabel, course.semester, course.year);
-          const termSuffix = termLabel ? ` (${termLabel})` : '';
-          addText(`• ${course.code} - ${course.title}${termSuffix}`, 10, false, margin + 20);
+          const termText = termLabel ? ` (${termLabel})` : '';
+          return `${course.code} - ${course.title} (${credits} credits)${termText}`;
         });
-        yPosition += 15;
       }
       
       // Concentration Progress
