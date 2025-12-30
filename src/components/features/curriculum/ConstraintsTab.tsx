@@ -432,10 +432,10 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
       config: config
     };
     
-    console.log('Making POST request to:', `${API_BASE}/api/curricula/${curriculumId}/constraints`);
+    console.log('Making POST request to:', `${API_BASE}/curricula/${curriculumId}/constraints`);
     console.log('Request body:', JSON.stringify(requestBody, null, 2));
     
-    const response = await fetch(`${API_BASE}/api/curricula/${curriculumId}/constraints`, {
+    const response = await fetch(`${API_BASE}/curricula/${curriculumId}/constraints`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

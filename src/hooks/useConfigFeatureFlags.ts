@@ -60,7 +60,7 @@ export const useConfigFeatureFlags = () => {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE}/api/config/feature-flags`, {
+      const response = await fetch(`${API_BASE}/config/feature-flags`, {
         credentials: 'include'
       });
 

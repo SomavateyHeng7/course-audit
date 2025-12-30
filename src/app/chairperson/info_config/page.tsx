@@ -471,7 +471,7 @@ export default function InfoConfig() {
 
     try {
       setSearchLoading(true);
-      const response = await fetch(`${API_BASE}/api/courses/search?q=${encodeURIComponent(query)}&limit=20`, {
+      const response = await fetch(`${API_BASE}/courses/search?q=${encodeURIComponent(query)}&limit=20`, {
         credentials: 'include',
       });
       
@@ -1082,7 +1082,7 @@ export default function InfoConfig() {
           });
 
           // Add courses via the dedicated course endpoint using direct fetch
-          const addCoursesResponse = await fetch(`${API_BASE}/api/concentrations/${newConcentrationData.id}/courses`, {
+          const addCoursesResponse = await fetch(`${API_BASE}/concentrations/${newConcentrationData.id}/courses`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1134,7 +1134,7 @@ export default function InfoConfig() {
           // Remove courses that are no longer in the list
           if (coursesToRemove.length > 0) {
             for (const courseId of coursesToRemove) {
-              await fetch(`${API_BASE}/api/concentrations/${editingConcentration.id}/courses?courseId=${courseId}`, {
+              await fetch(`${API_BASE}/concentrations/${editingConcentration.id}/courses?courseId=${courseId}`, {
                 method: 'DELETE',
                 credentials: 'include',
               });
@@ -1162,7 +1162,7 @@ export default function InfoConfig() {
               };
             });
 
-            const addCoursesResponse = await fetch(`${API_BASE}/api/concentrations/${editingConcentration.id}/courses`, {
+            const addCoursesResponse = await fetch(`${API_BASE}/concentrations/${editingConcentration.id}/courses`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
