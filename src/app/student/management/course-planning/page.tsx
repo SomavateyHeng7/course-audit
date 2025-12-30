@@ -119,6 +119,7 @@ export default function CoursePlanningPage() {
   const [availableCourses, setAvailableCourses] = useState<AvailableCourse[]>([]);
   const [plannedCourses, setPlannedCourses] = useState<PlannedCourse[]>([]);
   const [completedCourses, setCompletedCourses] = useState<Set<string>>(new Set());
+  const [inProgressCourses, setInProgressCourses] = useState<Set<string>>(new Set());
   const [concentrations, setConcentrations] = useState<Concentration[]>([]);
   const [concentrationAnalysis, setConcentrationAnalysis] = useState<ConcentrationProgress[]>([]);
   const [showConcentrationModal, setShowConcentrationModal] = useState(false);
@@ -225,6 +226,11 @@ export default function CoursePlanningPage() {
         );
         setCompletedCourses(new Set(completedCourseCodes));
 
+        const inProgressCourseCodes = Object.keys(context.completedCourses).filter(
+          code => context.completedCourses[code]?.status === 'in_progress'
+        );
+        setInProgressCourses(new Set(inProgressCourseCodes));
+
         // Auto-sync planning courses to course plan
         const planningCourses = Object.keys(context.completedCourses).filter(
           code => context.completedCourses[code]?.status === 'planning'
@@ -282,6 +288,16 @@ export default function CoursePlanningPage() {
       loadSavedCoursePlan();
     }
   }, [hasValidContext, dataEntryContext]);
+
+  // Remove currently taking courses from any persisted plan state
+  useEffect(() => {
+    if (inProgressCourses.size === 0) return;
+
+    setPlannedCourses(prev => {
+      const filtered = prev.filter(course => !inProgressCourses.has(course.code));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  }, [inProgressCourses]);
 
   const fetchAvailableCourses = async () => {
     if (!dataEntryContext) return;
@@ -612,6 +628,7 @@ export default function CoursePlanningPage() {
     const matchesCategory = selectedCategory === 'all' || course.category === selectedCategory;
     const notAlreadyPlanned = !plannedCourses.some(planned => planned.code === course.code);
     const notAlreadyCompleted = !completedCourses.has(course.code);
+    const notCurrentlyTaking = !inProgressCourses.has(course.code);
     
     // Check for banned combinations
     const bannedValidation = validateBannedCombinations(course);
@@ -624,7 +641,7 @@ export default function CoursePlanningPage() {
       ? course.summerOnly  // In summer session: show ONLY summer courses
       : true;              // In regular semester: show ALL courses
     
-    return matchesSearch && matchesCategory && notAlreadyPlanned && notAlreadyCompleted && notBanned && matchesSemester;
+    return matchesSearch && matchesCategory && notAlreadyPlanned && notAlreadyCompleted && notCurrentlyTaking && notBanned && matchesSemester;
   });
 
   // Find courses that depend on a specific prerequisite

@@ -141,7 +141,7 @@ const DonutChart = ({
 // categoryOrder is now dynamically determined inside the component
 
 interface CourseStatus {
-  status: 'pending' | 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning';
+  status: 'pending' | 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning' | 'in_progress';
   grade?: string;
   plannedSemester?: string;
 }
@@ -250,6 +250,8 @@ const getExportStatusLabel = (status?: CourseStatus['status'] | 'pending') => {
   switch (normalized) {
     case 'completed':
       return 'Completed';
+    case 'in_progress':
+      return 'Currently Taking';
     case 'planning':
       return 'Planned';
     case 'failed':
@@ -657,6 +659,7 @@ export default function ProgressPage() {
 
   // Cache for course data to avoid multiple API calls
   const [courseDataCache, setCourseDataCache] = useState<{ [courseCode: string]: { credits: number; title: string } }>({});
+  const [openCreditCardKey, setOpenCreditCardKey] = useState<string | null>(null);
 
   // Function to fetch all course data at once
   const fetchAllCourseData = async (): Promise<{ [courseCode: string]: { credits: number; title: string } }> => {
@@ -729,6 +732,9 @@ export default function ProgressPage() {
           break;
         case 'planning':
           status = 'IN_PROGRESS'; 
+          break;
+        case 'in_progress':
+          status = 'IN_PROGRESS';
           break;
         case 'failed':
           status = 'FAILED';
@@ -1168,9 +1174,10 @@ export default function ProgressPage() {
   let totalCredits = 0;
   let earnedCredits = 0;
   let plannedCredits = 0;
+  let inProgressCredits = 0;
   let totalGradePoints = 0;
   let totalGpaCredits = 0;
-  const categoryStats: { [category: string]: { completed: number; total: number; earned: number; totalCredits: number; planned: number } } = {};
+  const categoryStats: { [category: string]: { completed: number; total: number; earned: number; totalCredits: number; planned: number; plannedCredits: number } } = {};
   const completedList: any[] = [];
   const takingList: any[] = [];
   const plannedFromPlannerList: any[] = [];
@@ -1185,10 +1192,14 @@ export default function ProgressPage() {
     let plannedCount = 0;
     let earnedCategoryCredits = 0;
     let totalCategoryCredits = 0;
+    let plannedCategoryCredits = 0;
     
     for (const c of courses) {
-      const status = completedCourses[c.code]?.status;
+      totalCategoryCredits += c.credits;
+      const courseState = completedCourses[c.code];
+      const status = courseState?.status;
       const plannedCourse = plannedCoursesMap.get(c.code);
+      const isCurrentlyTaking = status === 'in_progress';
       
       if (status === 'completed') {
         completedList.push({
@@ -1207,6 +1218,14 @@ export default function ProgressPage() {
           totalGradePoints += gradeToGPA[grade] * c.credits;
           totalGpaCredits += c.credits;
         }
+      } else if (isCurrentlyTaking) {
+        takingList.push({
+          ...c,
+          category,
+          source: 'in_progress',
+          semesterLabel: courseState?.plannedSemester,
+        });
+        inProgressCredits += c.credits;
       } else if (plannedCourse) {
         // Course is in the planner
         plannedFromPlannerList.push({ 
@@ -1220,6 +1239,7 @@ export default function ProgressPage() {
         });
         plannedCredits += c.credits;
         plannedCount++;
+        plannedCategoryCredits += c.credits;
       } else {
         pendingList.push({
           ...c,
@@ -1228,8 +1248,6 @@ export default function ProgressPage() {
           status: status || 'pending'
         });
       }
-      
-      totalCategoryCredits += c.credits;
     }
     
     categoryStats[category] = {
@@ -1238,6 +1256,7 @@ export default function ProgressPage() {
       total: courses.length,
       earned: earnedCategoryCredits,
       totalCredits: totalCategoryCredits,
+      plannedCredits: plannedCategoryCredits,
     };
   }
   
@@ -1255,7 +1274,8 @@ export default function ProgressPage() {
   // Add completed courses that aren't in any predefined category
   Object.keys(completedCourses).forEach(courseCode => {
     const courseStatus = completedCourses[courseCode];
-    if (courseStatus.status === 'completed' && !coursesInCategories.has(courseCode)) {
+    const isOutsideCurriculum = !coursesInCategories.has(courseCode);
+    if (courseStatus.status === 'completed' && isOutsideCurriculum) {
       // Courses not in curriculum are treated as Free Electives
       const category = 'Free Elective';
       
@@ -1280,7 +1300,7 @@ export default function ProgressPage() {
       // Update statistics
       earnedCredits += credits;
       if (!categoryStats[category]) {
-        categoryStats[category] = { completed: 0, planned: 0, total: 0, earned: 0, totalCredits: 0 };
+        categoryStats[category] = { completed: 0, planned: 0, total: 0, earned: 0, totalCredits: 0, plannedCredits: 0 };
       }
       categoryStats[category].completed += 1;
       categoryStats[category].earned += credits;
@@ -1293,6 +1313,18 @@ export default function ProgressPage() {
         totalGradePoints += gradeToGPA[grade] * credits;
         totalGpaCredits += credits;
       }
+    } else if (courseStatus.status === 'in_progress' && isOutsideCurriculum) {
+      const category = 'Free Elective';
+      const credits = 3;
+      takingList.push({
+        code: courseCode,
+        title: courseCode,
+        credits,
+        category,
+        source: 'in_progress',
+        semesterLabel: courseStatus.plannedSemester,
+      });
+      inProgressCredits += credits;
     }
   });
   
@@ -1300,6 +1332,9 @@ export default function ProgressPage() {
   // These should be treated as Free Electives as per user specification
   plannedCourses.forEach(plannedCourse => {
     if (!coursesInCategories.has(plannedCourse.code)) {
+      if (completedCourses[plannedCourse.code]?.status === 'in_progress') {
+        return;
+      }
       // This planned course is not in the predefined curriculum - treat as Free Elective
       const category = 'Free Elective';
       
@@ -1323,11 +1358,12 @@ export default function ProgressPage() {
       // Update statistics
       plannedCredits += plannedCourse.credits;
       if (!categoryStats[category]) {
-        categoryStats[category] = { completed: 0, planned: 0, total: 0, earned: 0, totalCredits: 0 };
+        categoryStats[category] = { completed: 0, planned: 0, total: 0, earned: 0, totalCredits: 0, plannedCredits: 0 };
       }
       categoryStats[category].planned += 1;
       categoryStats[category].total += 1;
       categoryStats[category].totalCredits += plannedCourse.credits;
+      categoryStats[category].plannedCredits += plannedCourse.credits;
     }
   });
 
@@ -1361,8 +1397,6 @@ export default function ProgressPage() {
     return 132;
   })();
 
-  const percent = totalCreditsRequired ? Math.min(100, Math.round((earnedCredits / totalCreditsRequired) * 100)) : 0;
-  const projectedPercent = totalCreditsRequired ? Math.min(100, Math.round(((earnedCredits + plannedCredits) / totalCreditsRequired) * 100)) : 0;
   const gpa = totalGpaCredits > 0 ? (totalGradePoints / totalGpaCredits).toFixed(2) : 'N/A';
 
   // For each category, count completed, planned and total courses
@@ -1417,6 +1451,363 @@ export default function ProgressPage() {
   const unassignedPlanned = categoryStats['Unassigned']?.planned || 0;
   const unassignedTotal = categoryStats['Unassigned']?.total || 0;
 
+  type CourseStatusKey = 'completed' | 'in_progress' | 'planned';
+
+  type CategorizedCourseEntry = {
+    code: string;
+    title: string;
+    credits: number;
+    category: string;
+    semesterLabel?: string;
+    status: CourseStatusKey;
+  };
+
+  interface CategoryCreditDetail {
+    requiredCredits: number;
+    completedCredits: number;
+    inProgressCredits: number;
+    plannedCredits: number;
+    coursesByStatus: Record<CourseStatusKey, CategorizedCourseEntry[]>;
+  }
+
+  const categoryCreditDetails: Record<string, CategoryCreditDetail> = {};
+
+  const getCourseCredits = (course: { code?: string; credits?: number }) => {
+    if (!course) return 0;
+    const cacheEntry = course.code ? courseDataCache[course.code] : undefined;
+    return course.credits ?? cacheEntry?.credits ?? 0;
+  };
+
+  const ensureCategoryDetail = (categoryName: string): CategoryCreditDetail => {
+    const safeCategory = categoryName || 'Unassigned';
+    if (!categoryCreditDetails[safeCategory]) {
+      const requiredFromStats = categoryStats[safeCategory]?.totalCredits || 0;
+      const fallbackRequirement = safeCategory === 'Free Elective'
+        ? freeElectiveRequiredCredits
+        : (allCoursesByCategory[safeCategory]?.reduce((sum, course) => sum + (course.credits || 0), 0) || 0);
+
+      categoryCreditDetails[safeCategory] = {
+        requiredCredits: requiredFromStats || fallbackRequirement,
+        completedCredits: 0,
+        inProgressCredits: 0,
+        plannedCredits: 0,
+        coursesByStatus: {
+          completed: [],
+          in_progress: [],
+          planned: [],
+        },
+      };
+    }
+    return categoryCreditDetails[safeCategory];
+  };
+
+  const registerCoursesForDetail = (courses: any[], status: CourseStatusKey) => {
+    courses.forEach(course => {
+      const category = course.category || 'Unassigned';
+      const detail = ensureCategoryDetail(category);
+      const credits = getCourseCredits(course);
+      const normalized: CategorizedCourseEntry = {
+        code: course.code,
+        title: course.title,
+        credits,
+        category,
+        semesterLabel: course.semesterLabel,
+        status,
+      };
+
+      detail.coursesByStatus[status].push(normalized);
+      if (status === 'completed') {
+        detail.completedCredits += credits;
+      } else if (status === 'in_progress') {
+        detail.inProgressCredits += credits;
+      } else {
+        detail.plannedCredits += credits;
+      }
+    });
+  };
+
+  registerCoursesForDetail(completedList, 'completed');
+  registerCoursesForDetail(takingList, 'in_progress');
+  registerCoursesForDetail(plannedFromPlannerList, 'planned');
+
+  interface OverflowCourseInfo extends CategorizedCourseEntry {
+    overflowCredits: number;
+  }
+
+  const overflowTotalsByStatus: Record<CourseStatusKey, number> = {
+    completed: 0,
+    in_progress: 0,
+    planned: 0,
+  };
+
+  const overflowCourseDetails: OverflowCourseInfo[] = [];
+
+  Object.entries(categoryCreditDetails).forEach(([category, detail]) => {
+    let remainingRequirement = detail.requiredCredits;
+    const overflowCoursesForCategory: OverflowCourseInfo[] = [];
+
+    const consumeCourses = (courses: CategorizedCourseEntry[], status: CourseStatusKey) => {
+      courses.forEach(course => {
+        const credits = course.credits || 0;
+        if (remainingRequirement <= 0) {
+          overflowTotalsByStatus[status] += credits;
+          overflowCoursesForCategory.push({ ...course, overflowCredits: credits });
+          return;
+        }
+
+        if (credits <= remainingRequirement) {
+          remainingRequirement -= credits;
+          return;
+        }
+
+        const overflowPortion = credits - remainingRequirement;
+        overflowTotalsByStatus[status] += overflowPortion;
+        overflowCoursesForCategory.push({ ...course, overflowCredits: overflowPortion });
+        remainingRequirement = 0;
+      });
+    };
+
+    consumeCourses(detail.coursesByStatus.completed, 'completed');
+    consumeCourses(detail.coursesByStatus.in_progress, 'in_progress');
+    consumeCourses(detail.coursesByStatus.planned, 'planned');
+
+    const overflowCredits = overflowCoursesForCategory.reduce((sum, course) => sum + course.overflowCredits, 0);
+
+    if (overflowCredits > 0) {
+      overflowCourseDetails.push(...overflowCoursesForCategory);
+    }
+  });
+
+  const totalOverflowCredits = overflowCourseDetails.reduce((sum, course) => sum + course.overflowCredits, 0);
+
+  const countedEarnedCredits = Math.max(0, earnedCredits - overflowTotalsByStatus.completed);
+  const availableAfterEarned = Math.max(0, totalCreditsRequired - countedEarnedCredits);
+  const netInProgressCredits = Math.max(0, inProgressCredits - overflowTotalsByStatus.in_progress);
+  const countedInProgressCredits = Math.min(netInProgressCredits, availableAfterEarned);
+  const netPlannedCredits = Math.max(0, plannedCredits - overflowTotalsByStatus.planned);
+  const countedPlannedOnlyCredits = Math.max(
+    0,
+    Math.min(netPlannedCredits, availableAfterEarned - countedInProgressCredits)
+  );
+  const countedPlannedCredits = countedInProgressCredits + countedPlannedOnlyCredits;
+  const percent = totalCreditsRequired
+    ? Math.min(100, Math.round((countedEarnedCredits / totalCreditsRequired) * 100))
+    : 0;
+  const projectedPercent = totalCreditsRequired
+    ? Math.min(100, Math.round(((countedEarnedCredits + countedPlannedCredits) / totalCreditsRequired) * 100))
+    : percent;
+  const remainingCreditsForBar = Math.max(0, totalCreditsRequired - (countedEarnedCredits + countedPlannedCredits));
+  const actualRemainingCredits = Math.max(0, totalCreditsRequired - (earnedCredits + inProgressCredits + plannedCredits));
+
+  const buildAggregateCreditDetail = (categories: string[]) => {
+    return categories.reduce(
+      (acc, key) => {
+        const detail = categoryCreditDetails[key] || ensureCategoryDetail(key);
+        if (!detail) {
+          return acc;
+        }
+
+        acc.requiredCredits += detail.requiredCredits;
+        acc.completedCredits += detail.completedCredits;
+        acc.inProgressCredits += detail.inProgressCredits;
+        acc.plannedCredits += detail.plannedCredits;
+        acc.coursesByStatus.completed.push(...detail.coursesByStatus.completed);
+        acc.coursesByStatus.in_progress.push(...detail.coursesByStatus.in_progress);
+        acc.coursesByStatus.planned.push(...detail.coursesByStatus.planned);
+        return acc;
+      },
+      {
+        requiredCredits: 0,
+        completedCredits: 0,
+        inProgressCredits: 0,
+        plannedCredits: 0,
+        coursesByStatus: {
+          completed: [] as CategorizedCourseEntry[],
+          in_progress: [] as CategorizedCourseEntry[],
+          planned: [] as CategorizedCourseEntry[],
+        },
+      }
+    );
+  };
+
+  const overflowPreview = overflowCourseDetails.slice(0, 4);
+  const additionalOverflowCount = Math.max(0, overflowCourseDetails.length - overflowPreview.length);
+  const overflowStatusLabels: Record<CourseStatusKey, string> = {
+    completed: 'Completed',
+    in_progress: 'Currently Taking',
+    planned: 'Planned',
+  };
+
+  const statusChipStyles: Record<CourseStatusKey, { chip: string; text: string; pill: string }> = {
+    completed: {
+      chip: 'bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-200 dark:border-emerald-500/30',
+      text: 'text-emerald-700 dark:text-emerald-200',
+      pill: 'bg-gradient-to-r from-teal-500 to-emerald-500',
+    },
+    in_progress: {
+      chip: 'bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-500/10 dark:text-amber-200 dark:border-amber-500/30',
+      text: 'text-amber-700 dark:text-amber-200',
+      pill: 'bg-gradient-to-r from-amber-300 to-amber-500',
+    },
+    planned: {
+      chip: 'bg-indigo-50 text-indigo-700 border border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-200 dark:border-indigo-500/30',
+      text: 'text-indigo-700 dark:text-indigo-200',
+      pill: 'bg-gradient-to-r from-indigo-400 to-fuchsia-500',
+    },
+  };
+
+  const creditCardConfigs = [
+    {
+      key: 'general-education',
+      label: 'General Ed',
+      valueColor: 'text-blue-500 dark:text-blue-400',
+      plannedColor: 'text-blue-400 dark:text-blue-300',
+      completedCount: genEdCompleted,
+      plannedCount: genEdPlanned,
+      totalCount: genEdTotal,
+      categories: ['General Education'],
+      tooltipContent: (
+        <>
+          <p className="font-semibold mb-1">General Education Courses</p>
+          <p className="text-sm">Foundational courses including:</p>
+          <ul className="text-xs mt-1 space-y-0.5">
+            <li>• Language Courses</li>
+            <li>• Humanities Courses</li>
+            <li>• Social Science Courses</li>
+            <li>• Science and Mathematics Courses</li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      key: 'core',
+      label: 'Core',
+      valueColor: 'text-teal-600 dark:text-teal-400',
+      plannedColor: 'text-teal-500 dark:text-teal-300',
+      completedCount: coreCompleted,
+      plannedCount: corePlanned,
+      totalCount: coreTotal,
+      categories: ['Core Courses'],
+      tooltipContent: (
+        <>
+          <p className="font-semibold mb-1">Core Courses</p>
+          <p className="text-sm">Major required courses essential for your program.</p>
+        </>
+      ),
+    },
+    {
+      key: 'major',
+      label: 'Major',
+      valueColor: 'text-cyan-600 dark:text-cyan-400',
+      plannedColor: 'text-cyan-500 dark:text-cyan-300',
+      completedCount: majorCompleted,
+      plannedCount: majorPlanned,
+      totalCount: majorTotal,
+      categories: ['Major'],
+      tooltipContent: (
+        <>
+          <p className="font-semibold mb-1">Major Courses</p>
+          <p className="text-sm mb-2">Core curriculum courses organized into specialized groups:</p>
+          <ul className="text-xs space-y-0.5">
+            <li>• Organization Issues and Information Systems</li>
+            <li>• Applications Technology</li>
+            <li>• Technology and Software Methods</li>
+            <li>• Systems Infrastructure</li>
+            <li>• Hardware and Computer Architecture</li>
+          </ul>
+          <p className="text-xs mt-1 text-yellow-600 dark:text-yellow-400">⚠️ At least C grades are required.</p>
+        </>
+      ),
+    },
+    {
+      key: 'electives',
+      label: 'Electives',
+      valueColor: 'text-green-600 dark:text-green-400',
+      plannedColor: 'text-green-500 dark:text-green-300',
+      completedCount: majorElectiveCompleted + freeElectiveCompleted,
+      plannedCount: majorElectivePlanned + freeElectivePlanned,
+      totalCount: majorElectiveTotal + freeElectiveTotal,
+      categories: ['Major Elective', 'Free Elective'],
+      tooltipContent: (
+        <>
+          <p className="font-semibold mb-1">Elective Courses</p>
+          <p className="text-sm mb-2">Combined major and free electives:</p>
+          <ul className="text-xs space-y-1">
+            <li>• <span className="font-medium">Major Electives:</span> {majorElectiveCompleted}/{majorElectiveTotal} (≈15 credits)</li>
+            <li>• <span className="font-medium">Free Electives:</span> {freeElectiveCompleted}/{freeElectiveTotal} (≈12 credits)</li>
+          </ul>
+        </>
+      ),
+    },
+  ];
+
+  const toggleCreditCard = (cardKey: string) => {
+    setOpenCreditCardKey(prev => (prev === cardKey ? null : cardKey));
+  };
+
+  const renderCourseChipList = (courses: CategorizedCourseEntry[]) => {
+    if (!courses.length) {
+      return <div className="text-[11px] text-muted-foreground mt-1">No courses yet</div>;
+    }
+    const preview = courses.slice(0, 3);
+    return (
+      <div className="flex flex-wrap gap-1.5 mt-1">
+        {preview.map((course, index) => (
+          <span
+            key={`${course.code}-${course.status}-${index}`}
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${statusChipStyles[course.status]?.chip || 'bg-muted text-muted-foreground'}`}
+          >
+            {course.code} ({course.credits})
+          </span>
+        ))}
+        {courses.length > preview.length && (
+          <span className="text-[11px] text-muted-foreground">+{courses.length - preview.length} more</span>
+        )}
+      </div>
+    );
+  };
+
+  const renderCreditDetailRows = (categories: string[]) => {
+    const aggregate = buildAggregateCreditDetail(categories);
+    const trackedCredits = aggregate.completedCredits + aggregate.inProgressCredits + aggregate.plannedCredits;
+
+    if (!trackedCredits) {
+      return <div className="text-xs text-muted-foreground">No credit history recorded for this category yet.</div>;
+    }
+
+    const statusRows = [
+      { label: 'Completed', value: aggregate.completedCredits, courses: aggregate.coursesByStatus.completed },
+      { label: 'Currently Taking', value: aggregate.inProgressCredits, courses: aggregate.coursesByStatus.in_progress },
+      { label: 'Planned', value: aggregate.plannedCredits, courses: aggregate.coursesByStatus.planned },
+    ];
+
+    return (
+      <div className="space-y-3 text-xs">
+        <div className="flex items-center justify-between text-[13px] font-semibold text-foreground/80">
+          <span>Tracked Credits</span>
+          <span>
+            {trackedCredits}
+            {aggregate.requiredCredits ? ` / ${aggregate.requiredCredits}` : ''}
+          </span>
+        </div>
+        {statusRows.map(row => (
+          <div key={row.label}>
+            <div className="flex items-center justify-between text-[12px] text-muted-foreground">
+              <span>{row.label}</span>
+              <span>{row.value} credits</span>
+            </div>
+            {row.value > 0 ? renderCourseChipList(row.courses) : (
+              <div className="text-[11px] text-muted-foreground mt-1">No courses yet</div>
+            )}
+          </div>
+        ))}
+        <div className="text-[11px] text-muted-foreground">
+          Requirement reference: {aggregate.requiredCredits || 'Not specified'} credits
+        </div>
+      </div>
+    );
+  };
+
   // Simple PDF download handler - create text-based PDF instead of image
   const handleDownloadPDF = async () => {
     if (!selectedCurriculum) {
@@ -1443,14 +1834,16 @@ export default function ProgressPage() {
       let yPosition = margin + 20;
       const lineHeight = 15;
       const maxWidth = pageWidth - (margin * 2);
-      
-      // Helper function to add text and handle page breaks
-      const addText = (text: string, fontSize = 11, isBold = false, leftMargin = margin) => {
-        if (yPosition > pageHeight - margin - 20) {
+
+      const ensureSpace = (heightNeeded = lineHeight) => {
+        if (yPosition + heightNeeded > pageHeight - margin) {
           pdf.addPage();
           yPosition = margin + 20;
         }
-        
+      };
+      
+      // Helper function to add text and handle page breaks
+      const addText = (text: string, fontSize = 11, isBold = false, leftMargin = margin) => {
         pdf.setFontSize(fontSize);
         pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
         
@@ -1459,15 +1852,62 @@ export default function ProgressPage() {
         
         if (Array.isArray(lines)) {
           lines.forEach((line: string) => {
+            ensureSpace(lineHeight);
             pdf.text(line, leftMargin, yPosition);
             yPosition += lineHeight;
           });
         } else {
+          ensureSpace(lineHeight);
           pdf.text(lines, leftMargin, yPosition);
           yPosition += lineHeight;
         }
         
         return yPosition;
+      };
+
+      const addCreditSummaryColumns = (columns: { label: string; value: string | number; }[]) => {
+        if (!columns.length) return;
+
+        ensureSpace(lineHeight * 2);
+        const availableWidth = maxWidth;
+        const columnWidth = availableWidth / columns.length;
+        const labelY = yPosition;
+        const valueY = yPosition + lineHeight;
+
+        pdf.setFontSize(11);
+        columns.forEach((column, index) => {
+          const xPosition = margin + (columnWidth * index);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(column.label, xPosition, labelY);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(String(column.value), xPosition, valueY);
+        });
+
+        yPosition = valueY + lineHeight;
+      };
+
+      type TableColumn<T> = {
+        label: string;
+        width: number;
+        getValue: (item: T) => string;
+      };
+
+      const addCourseListSection = <T extends Record<string, any>>(
+        title: string,
+        data: T[],
+        formatter: (item: T) => string
+      ) => {
+        if (!data.length) return;
+
+        addText(title, 14, true);
+        yPosition += 5;
+
+        data.forEach(item => {
+          const line = formatter(item);
+          addText(`• ${line}`, 10, false, margin + 20);
+        });
+
+        yPosition += 5;
       };
       
       // Title
@@ -1482,18 +1922,18 @@ export default function ProgressPage() {
       // Overall Progress
       addText('OVERALL PROGRESS', 14, true);
       yPosition += 5;
-      addText(`Completed Credits: ${earnedCredits}`);
-      if (plannedCredits > 0) {
-        addText(`Planned Credits: ${plannedCredits}`);
-      }
       const remainingCredits = Math.max(0, totalCreditsRequired - earnedCredits - plannedCredits);
-      addText(`Remaining Credits: ${remainingCredits}`);
-      addText(`Total Required: ${totalCreditsRequired}`);
+      addCreditSummaryColumns([
+        { label: 'Completed Credits', value: `${earnedCredits}` },
+        { label: 'Planned Credits', value: `${plannedCredits}` },
+        { label: 'Remaining Credits', value: `${remainingCredits}` }
+      ]);
+      addText(`Total Required Credits: ${totalCreditsRequired}`);
       addText(`Progress: ${percent}%`);
       if (gpa !== 'N/A') {
         addText(`GPA: ${gpa}`);
       }
-      yPosition += 20;
+      yPosition += 10;
       
       // Category Progress
       addText('CATEGORY PROGRESS', 14, true);
@@ -1517,28 +1957,33 @@ export default function ProgressPage() {
       
       // Completed Courses
       if (completedList.length > 0) {
-        addText('COMPLETED COURSES', 14, true);
+        addCourseListSection('COMPLETED COURSES', completedList, (course) => {
+          const credits = courseDataCache[course.code]?.credits ?? course.credits ?? 0;
+          const gradeText = course.grade ? ` (Grade: ${course.grade})` : '';
+          return `${course.code} - ${course.title} (${credits} credits)${gradeText}`;
+        });
+      }
+
+      // Currently Taking Courses
+      if (takingList.length > 0) {
+        addText('CURRENTLY TAKING COURSES', 14, true);
         yPosition += 5;
-        
-        completedList.forEach(course => {
-          const gradeText = course.grade ? ` (${course.grade})` : '';
-          const credits = courseDataCache[course.code]?.credits || 3;
-          addText(`• ${course.code} - ${course.title} [${credits} cr]${gradeText}`, 10, false, margin + 20);
+        takingList.forEach(course => {
+          const termLabel = getDisplaySemesterLabel(course.semesterLabel, undefined, undefined);
+          const termSuffix = termLabel ? ` (${termLabel})` : '';
+          addText(`• ${course.code} - ${course.title}${termSuffix}`, 10, false, margin + 20);
         });
         yPosition += 15;
       }
       
       // Planned Courses
       if (plannedFromPlannerList.length > 0) {
-        addText('PLANNED COURSES', 14, true);
-        yPosition += 5;
-        
-        plannedFromPlannerList.forEach(course => {
+        addCourseListSection('PLANNED COURSES', plannedFromPlannerList, (course) => {
+          const credits = course.credits ?? courseDataCache[course.code]?.credits ?? 0;
           const termLabel = getDisplaySemesterLabel(course.semesterLabel, course.semester, course.year);
-          const termSuffix = termLabel ? ` (${termLabel})` : '';
-          addText(`• ${course.code} - ${course.title}${termSuffix}`, 10, false, margin + 20);
+          const termText = termLabel ? ` (${termLabel})` : '';
+          return `${course.code} - ${course.title} (${credits} credits)${termText}`;
         });
-        yPosition += 15;
       }
       
       // Concentration Progress
@@ -1943,13 +2388,13 @@ export default function ProgressPage() {
 
           <div className="bg-white dark:bg-card rounded-xl p-6 mb-6 border border-gray-200 dark:border-border">
         {/* Custom Academic Progress Bar */}
-        <div className="flex items-center relative h-24 mb-4 bg-gradient-to-r from-emerald-100 to-blue-100 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-lg px-6">
+        <div className="flex items-center relative h-24 mb-4 bg-gradient-to-r from-slate-50 via-emerald-50 to-emerald-100 dark:from-slate-900/40 dark:via-teal-900/20 dark:to-emerald-900/30 rounded-lg px-6 border border-emerald-100/60 dark:border-emerald-900/40 shadow-sm">
           {/* Progress bar */}
-          <div className="flex-1 relative h-4 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+          <div className="flex-1 relative h-4 bg-slate-200 dark:bg-slate-800/70 rounded-full overflow-hidden shadow-inner">
             {/* Completed section */}
             <div 
-              className={`absolute left-0 top-0 h-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-700 ease-out shadow-sm ${
-                percent >= 100 ? 'rounded-lg' : 'rounded-l-lg'
+              className={`absolute left-0 top-0 h-full bg-gradient-to-r from-teal-500 to-emerald-500 dark:from-teal-400 dark:to-emerald-300 transition-[width] duration-700 ease-out shadow-sm ${
+                percent >= 100 ? 'rounded-full' : 'rounded-l-full'
               }`}
               style={{ width: `${percent}%` }}
             ></div>
@@ -1957,7 +2402,7 @@ export default function ProgressPage() {
             {/* Planned section */}
             {projectedPercent > percent && (
               <div 
-                className="absolute top-0 h-full bg-sky-300 dark:bg-sky-400 transition-all duration-700 ease-out rounded-r-lg"
+                className="absolute top-0 h-full bg-gradient-to-r from-indigo-400 to-fuchsia-500 dark:from-indigo-300 dark:to-fuchsia-400 transition-[width] duration-700 ease-out"
                 style={{ 
                   left: `${percent}%`, 
                   width: `${projectedPercent - percent}%` 
@@ -1978,138 +2423,134 @@ export default function ProgressPage() {
           </div>
           
           {/* Graduate label at the far right */}
-          <div className="flex items-center ml-4">
+          <div className="flex items-center ml-4 text-emerald-800 dark:text-emerald-200">
             <GiGraduateCap className="mr-2 text-emerald-700 dark:text-emerald-300" size={24} />
-            <span className="font-semibold text-lg text-emerald-700 dark:text-emerald-300">Graduate!</span>
+            <span className="font-semibold text-lg">Graduate!</span>
           </div>
         </div>
         
         {/* Progress segments breakdown */}
-        <div className="flex items-center justify-center gap-6 text-sm mb-4">
+        <div className="flex flex-wrap items-center justify-center gap-6 text-sm mb-3">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-emerald-500 dark:bg-emerald-400 rounded-full"></div>
-            <span className="font-medium text-emerald-700 dark:text-emerald-400">
-              Completed: {earnedCredits} credits
+            <div className="w-3 h-3 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500"></div>
+            <span className="font-medium text-emerald-700 dark:text-emerald-300">
+              Counted Completed: {countedEarnedCredits} credits
             </span>
           </div>
-          {projectedPercent > percent && (
+          {countedInProgressCredits > 0 && (
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-sky-300 dark:bg-sky-400 rounded-full"></div>
-              <span className="font-medium text-sky-700 dark:text-sky-400">
-                Planned: {plannedCredits} credits
+              <div className="w-3 h-3 rounded-full bg-gradient-to-r from-amber-300 to-amber-500"></div>
+              <span className="font-medium text-amber-700 dark:text-amber-300">
+                Counted Currently Taking: {countedInProgressCredits} credits
+              </span>
+            </div>
+          )}
+          {countedPlannedOnlyCredits > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-gradient-to-r from-indigo-400 to-fuchsia-500"></div>
+              <span className="font-medium text-indigo-700 dark:text-indigo-300">
+                Counted Planned: {countedPlannedOnlyCredits} credits
               </span>
             </div>
           )}
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full"></div>
             <span className="text-muted-foreground">
-              Remaining: {totalCreditsRequired - earnedCredits - plannedCredits} credits
+              Remaining (visible in bar): {remainingCreditsForBar} credits
             </span>
           </div>
         </div>
+        <div className="text-center text-sm text-muted-foreground mb-4">
+          Actual earned credits: <span className="font-semibold text-foreground">{earnedCredits} / {totalCreditsRequired}</span>
+          {totalOverflowCredits > 0 && (
+            <span className="ml-2 text-amber-600 dark:text-amber-400 font-medium">
+              (+{totalOverflowCredits} overflow counted as Free Elective)
+            </span>
+          )}
+          <div className="mt-1">Actual remaining credits (including planned): {actualRemainingCredits}</div>
+        </div>
+
+        {totalOverflowCredits > 0 && (
+          <div className="rounded-lg border border-amber-200/70 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-900/10 p-4 mb-6">
+            <div className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+              Overflow credits reassigned to Free Electives: +{totalOverflowCredits}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              These courses exceeded their category requirements. They no longer add to the progress bar but remain in your record as Free Electives.
+            </p>
+            <div className="mt-3 space-y-2 text-sm">
+              {overflowPreview.map((course, index) => (
+                <div key={`${course.code}-${course.status}-${index}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-white/70 dark:bg-slate-900/40 rounded-md px-3 py-2 text-foreground">
+                  <div>
+                    <span className="font-semibold">{course.code}</span>
+                    <span className="text-muted-foreground"> • {course.title}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">({course.category})</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs">
+                    <span className={`inline-flex items-center gap-1 ${statusChipStyles[course.status]?.text || 'text-foreground'}`}>
+                      +{course.overflowCredits} credits
+                    </span>
+                    <span className={`inline-flex items-center gap-1 ${statusChipStyles[course.status]?.text || 'text-muted-foreground'}`}>
+                      {overflowStatusLabels[course.status]}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {additionalOverflowCount > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  +{additionalOverflowCount} more overflow {additionalOverflowCount === 1 ? 'course' : 'courses'}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {/* Academic Progress Stats - Reorganized Layout */}
         <TooltipProvider>
-          {/* Row 1 - Requirements (4 columns) - Moved to top */}
+          {/* Row 1 - Requirements (4 columns) - dynamic */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 cursor-help relative group">
-                  <div className="flex items-center justify-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    General Ed
-                    <HelpCircle className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <div className="text-2xl font-bold text-blue-500 dark:text-blue-400 mb-1">
-                    {genEdCompleted}
-                    {genEdPlanned > 0 && <span className="text-blue-400 dark:text-blue-300">+{genEdPlanned}</span>}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">/ {genEdTotal}</div>
+            {creditCardConfigs.map(card => {
+              const isOpen = openCreditCardKey === card.key;
+              return (
+                <div key={card.key} className="space-y-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => toggleCreditCard(card.key)}
+                        aria-expanded={isOpen}
+                        className="group w-full bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                      >
+                        <div className="flex items-center justify-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-2">
+                          {card.label}
+                          <HelpCircle className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <div className={`text-2xl font-bold ${card.valueColor} mb-1`}>
+                          {card.completedCount}
+                          {card.plannedCount > 0 && (
+                            <span className={card.plannedColor}>+{card.plannedCount}</span>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">/ {card.totalCount}</div>
+                        <div className="text-[11px] text-muted-foreground mt-3">
+                          {isOpen ? 'Tap to hide credit details' : 'Tap to view credit details'}
+                        </div>
+                      </button>
+                    </TooltipTrigger>
+                    {card.tooltipContent && (
+                      <TooltipContent side="top" className="max-w-sm text-left">
+                        {card.tooltipContent}
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                  {isOpen && (
+                    <div className="bg-white/90 dark:bg-slate-900/60 rounded-lg border border-gray-100 dark:border-slate-800 p-3 text-left shadow-inner">
+                      {renderCreditDetailRows(card.categories)}
+                      <div className="text-[11px] text-muted-foreground mt-3">Click the card again to collapse.</div>
+                    </div>
+                  )}
                 </div>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-sm">
-                <p className="font-semibold mb-1">General Education Courses</p>
-                <p className="text-sm">Foundational courses including:</p>
-                <ul className="text-xs mt-1 space-y-0.5">
-                  <li>• Language Courses</li>
-                  <li>• Humanities Courses</li>
-                  <li>• Social Science Courses</li>
-                  <li>• Science and Mathematics Courses</li>
-                </ul>
-              </TooltipContent>
-            </Tooltip>
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 cursor-help relative group">
-                  <div className="flex items-center justify-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    Core
-                    <HelpCircle className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <div className="text-2xl font-bold text-teal-600 dark:text-teal-400 mb-1">
-                    {coreCompleted}
-                    {corePlanned > 0 && <span className="text-teal-500 dark:text-teal-300">+{corePlanned}</span>}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">/ {coreTotal}</div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-sm">
-                <p className="font-semibold mb-1">Core Courses</p>
-                <p className="text-sm">Major required courses essential for your program.</p>
-              </TooltipContent>
-            </Tooltip>
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 cursor-help relative group">
-                  <div className="flex items-center justify-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    Major
-                    <HelpCircle className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400 mb-1">
-                    {majorCompleted}
-                    {majorPlanned > 0 && <span className="text-cyan-500 dark:text-cyan-300">+{majorPlanned}</span>}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">/ {majorTotal}</div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-sm">
-                <p className="font-semibold mb-1">Major Courses</p>
-                <p className="text-sm mb-2">Core curriculum courses organized into specialized groups:</p>
-                <ul className="text-xs space-y-0.5">
-                  <li>• Organization Issues and Information Systems Group</li>
-                  <li>• Applications Technology Group</li>
-                  <li>• Technology and Software Methods Group</li>
-                  <li>• Systems Infrastructure Group</li>
-                  <li>• Hardware and Computer Architecture Group</li>
-                </ul>
-                <p className="text-xs mt-1 text-yellow-600 dark:text-yellow-400">
-                  ⚠️ At least C grades are required to pass these courses.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 cursor-help relative group">
-                  <div className="flex items-center justify-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    Electives
-                    <HelpCircle className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
-                    {(majorElectiveCompleted + freeElectiveCompleted)}
-                    {(majorElectivePlanned + freeElectivePlanned) > 0 && <span className="text-green-500 dark:text-green-300">+{majorElectivePlanned + freeElectivePlanned}</span>}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">/ {majorElectiveTotal + freeElectiveTotal}</div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-sm">
-                <p className="font-semibold mb-1">Elective Courses</p>
-                <p className="text-sm mb-2">Combined major and free electives:</p>
-                <ul className="text-xs space-y-1">
-                  <li>• <span className="font-medium">Major Electives:</span> {majorElectiveCompleted}/{majorElectiveTotal} ({15} credits required)</li>
-                  <li>• <span className="font-medium">Free Electives:</span> {freeElectiveCompleted}/{freeElectiveTotal} ({12} credits required)</li>
-                </ul>
-              </TooltipContent>
-            </Tooltip>
+              );
+            })}
           </div>
 
           {/* Overview and Summary Stats */}
@@ -2251,8 +2692,8 @@ export default function ProgressPage() {
           </div>
         )}
       </div>
-      {/* Completed and Planned Courses */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Completed, Currently Taking, and Planned Courses */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[150px]">
           <h3 className="text-lg font-bold mb-3">Completed Courses</h3>
           <div className="space-y-2 max-h-40 overflow-y-auto pdf-expandable">
@@ -2281,6 +2722,29 @@ export default function ProgressPage() {
                   </div>
                 </div>
               ))
+            )}
+          </div>
+        </div>
+        <div className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border min-h-[150px]">
+          <h3 className="text-lg font-bold mb-3">Currently Taking</h3>
+          <div className="space-y-2 max-h-40 overflow-y-auto pdf-expandable">
+            {takingList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                <Clock className="w-6 h-6 text-blue-400 dark:text-blue-500 mb-2" />
+                No courses marked as Currently Taking
+              </div>
+            ) : (
+              takingList.map((c) => {
+                const termLabel = getDisplaySemesterLabel(c.semesterLabel, undefined, undefined);
+                return (
+                  <div key={c.code} className="flex justify-between items-center bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded px-3 py-2">
+                    <span className="font-semibold text-xs text-yellow-800 dark:text-yellow-200">{c.code} - {c.title}</span>
+                    <div className="text-xs text-yellow-700 dark:text-yellow-400">
+                      {c.category}{termLabel ? ` • ${termLabel}` : ''}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
@@ -2456,7 +2920,7 @@ export default function ProgressPage() {
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
                 </svg>
-                Download Data
+                Export Data
                 <ChevronDown className="w-4 h-4 ml-2" />
               </Button>
             </DropdownMenuTrigger>

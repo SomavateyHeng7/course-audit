@@ -29,7 +29,7 @@ export default function ManagementPage() {
 
   const quickActions = [
     {
-      title: "Graduation Progress Check",
+      title: "Graduation Roadmap Check",
       description: "Enter or edit your course data",
       icon: <Plus className="h-6 w-6" />,
       action: () => router.push('/student/management/data-entry'),

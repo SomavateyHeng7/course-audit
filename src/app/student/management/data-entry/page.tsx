@@ -6,38 +6,17 @@ import { useState, createContext, useContext, useRef, useEffect } from 'react';
 import { useToastHelpers } from '@/hooks/useToast';
 import { getPublicCurricula, getPublicFaculties, getPublicDepartments, API_BASE } from '@/lib/api/laravel';
 
-import * as XLSX from 'xlsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { BarChart2, Calendar, ChevronDown, ArrowLeft } from 'lucide-react';
 import { FaTrash } from 'react-icons/fa';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import StudentTranscriptImport from '@/components/role-specific/student/StudentTranscriptImport';
 import UnmatchedCoursesSection, { UnmatchedCourse } from '@/components/role-specific/student/UnmatchedCoursesSection';
 import FreeElectiveManager, { FreeElectiveCourse } from '@/components/role-specific/student/FreeElectiveManager';
 import { type CourseData } from '@/components/features/excel/ExcelUtils';
-
-// Define CourseStatus for data entry page - includes planning status for course planner compatibility
-interface CourseStatus {
-  status: 'pending' | 'not_completed' | 'completed' | 'failed' | 'withdrawn' | 'planning' | 'in_progress';
-  grade?: string;
-  plannedSemester?: string; // Format: "1/2026" or "2/2026"
-}
-
-const isPendingStatus = (status?: CourseStatus['status']) =>
-  !status || status === 'pending' || status === 'not_completed';
-
-const getDefaultSemesterLabel = (term?: string) => {
-  const currentYear = new Date().getFullYear();
-  if (term === '2') return `2/${currentYear}`;
-  if (term === '3' || term === 'summer') return `3/${currentYear}`;
-  return `1/${currentYear}`;
-};
+import ExportDataMenu from '../../../../components/role-specific/student/dataentry/ExportDataMenu';
+import CourseStatusDropdown from '../../../../components/role-specific/student/dataentry/CourseStatusDropdown';
+import { CourseStatus, getDefaultSemesterLabel, isPendingStatus } from '../../../../components/role-specific/student/dataentry/types';
 
 interface ProgressContextType {
   completedCourses: { [code: string]: CourseStatus };
@@ -86,7 +65,7 @@ const gradeOptions: string[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D'
 
 export default function DataEntryPage() {
   const router = useRouter();
-  const { success, error: showError, warning, info } = useToastHelpers();
+  const { error: showError, warning } = useToastHelpers();
   // Use context for shared state
   const {
     completedCourses, setCompletedCourses,
@@ -149,6 +128,16 @@ export default function DataEntryPage() {
         plannedSemester: newStatus === 'planning'
           ? (prev[courseCode]?.plannedSemester || getDefaultSemesterLabel())
           : undefined
+      }
+    }));
+  };
+
+  const handleSemesterChange = (courseCode: string, semester: string) => {
+    setCompletedCourses(prev => ({
+      ...prev,
+      [courseCode]: {
+        ...prev[courseCode],
+        plannedSemester: semester,
       }
     }));
   };
@@ -368,6 +357,7 @@ export default function DataEntryPage() {
     ];
   }
 
+
   // Reset lower selections when a higher one changes
   const handleDepartmentChange = (value: string) => {
     setSelectedDepartment(value);
@@ -388,11 +378,13 @@ export default function DataEntryPage() {
         return 'completed';
       case 'planning':
       case 'planned':
+        return 'planning';
       case 'in_progress':
       case 'in-progress':
       case 'in progress':
       case 'taking':
-        return 'planning';
+      case 'currently taking':
+        return 'in_progress';
       case 'failed':
         return 'failed';
       case 'withdrawn':
@@ -520,6 +512,7 @@ export default function DataEntryPage() {
 
   const courseTypeOrder = getCourseTypeOrder();
 
+
   // Debug logging for curriculumCourses changes
   useEffect(() => {
     console.log('curriculumCourses state updated:', curriculumCourses);
@@ -622,6 +615,10 @@ export default function DataEntryPage() {
   };
 
   const handleCoursePlanning = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('coursePlan');
+      localStorage.removeItem('planningData');
+    }
     // Data is automatically stored in localStorage via useEffect
     // Navigate to course planning
     router.push('/student/management/course-planning');
@@ -823,42 +820,14 @@ export default function DataEntryPage() {
                                     <span className="font-semibold text-sm">{course.code} - {course.title}</span>
                                     <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                                   </div>
-                                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                                    <Select
-                                      value={getCourseSelectValue(course.code)}
-                                      onValueChange={value => handleCourseStatusChange(course.code, value)}
-                                    >
-                                      <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
-                                        <SelectValue placeholder="Select Grade" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="Pending">Pending</SelectItem>
-                                        <SelectItem value="Currently Taking">Currently Taking</SelectItem>
-                                        <SelectItem value="Planning">Planning</SelectItem>
-                                        {gradeOptions.map((g: string) => (
-                                          <SelectItem key={g} value={g}>{g}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                    {completedCourses[course.code]?.status === 'planning' && (
-                                      <Input
-                                        type="text"
-                                        placeholder="e.g., 1/2026"
-                                        value={completedCourses[course.code]?.plannedSemester || ''}
-                                        onChange={e => {
-                                          const semester = e.target.value;
-                                          setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                            ...prev,
-                                            [course.code]: {
-                                              ...prev[course.code],
-                                              plannedSemester: semester
-                                            }
-                                          }));
-                                        }}
-                                        className="w-28 border border-input rounded-lg px-3 py-2 text-sm"
-                                      />
-                                    )}
-                                  </div>
+                                  <CourseStatusDropdown
+                                    value={getCourseSelectValue(course.code)}
+                                    onValueChange={(value: string) => handleCourseStatusChange(course.code, value)}
+                                    gradeOptions={gradeOptions}
+                                    isPlanning={completedCourses[course.code]?.status === 'planning'}
+                                    plannedSemester={completedCourses[course.code]?.plannedSemester || ''}
+                                    onSemesterChange={(semester: string) => handleSemesterChange(course.code, semester)}
+                                  />
                                 </div>
                               ))
                             )}
@@ -875,41 +844,14 @@ export default function DataEntryPage() {
                               <span className="font-semibold text-sm">{course.code} - {course.title}</span>
                               <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                             </div>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                              <Select
-                                value={getCourseSelectValue(course.code)}
-                                onValueChange={value => handleCourseStatusChange(course.code, value)}
-                              >
-                                <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
-                                  <SelectValue placeholder="Select Grade" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Pending">Pending</SelectItem>
-                                  <SelectItem value="Planning">Planning</SelectItem>
-                                  {gradeOptions.map((g: string) => (
-                                    <SelectItem key={g} value={g}>{g}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              {completedCourses[course.code]?.status === 'planning' && (
-                                <Input
-                                  type="text"
-                                  placeholder="e.g., 1/2026"
-                                  value={completedCourses[course.code]?.plannedSemester || ''}
-                                  onChange={e => {
-                                    const semester = e.target.value;
-                                    setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                      ...prev,
-                                      [course.code]: {
-                                        ...prev[course.code],
-                                        plannedSemester: semester
-                                      }
-                                    }));
-                                  }}
-                                  className="w-28 border border-input rounded-lg px-3 py-2 text-sm"
-                                />
-                              )}
-                            </div>
+                            <CourseStatusDropdown
+                              value={getCourseSelectValue(course.code)}
+                              onValueChange={(value: string) => handleCourseStatusChange(course.code, value)}
+                              gradeOptions={gradeOptions}
+                              isPlanning={completedCourses[course.code]?.status === 'planning'}
+                              plannedSemester={completedCourses[course.code]?.plannedSemester || ''}
+                              onSemesterChange={(semester: string) => handleSemesterChange(course.code, semester)}
+                            />
                           </div>
                         ))
                       ))
@@ -943,41 +885,14 @@ export default function DataEntryPage() {
                             <span className="font-semibold text-sm">{course.code} - {course.title}</span>
                             <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                           </div>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                              <Select
-                                value={getCourseSelectValue(course.code)}
-                                onValueChange={value => handleCourseStatusChange(course.code, value)}
-                              >
-                              <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
-                                <SelectValue placeholder="Select Grade" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="Pending">Pending</SelectItem>
-                                  <SelectItem value="Planning">Planning</SelectItem>
-                                {gradeOptions.map((g: string) => (
-                                  <SelectItem key={g} value={g}>{g}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {completedCourses[course.code]?.status === 'planning' && (
-                              <Input
-                                type="text"
-                                placeholder="e.g., 1/2026"
-                                value={completedCourses[course.code]?.plannedSemester || ''}
-                                onChange={e => {
-                                  const semester = e.target.value;
-                                  setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                    ...prev,
-                                    [course.code]: {
-                                      ...prev[course.code],
-                                      plannedSemester: semester
-                                    }
-                                  }));
-                                }}
-                                className="w-28 border border-input rounded-lg px-3 py-2 text-sm"
-                              />
-                            )}
-                          </div>
+                          <CourseStatusDropdown
+                            value={getCourseSelectValue(course.code)}
+                            onValueChange={(value: string) => handleCourseStatusChange(course.code, value)}
+                            gradeOptions={gradeOptions}
+                            isPlanning={completedCourses[course.code]?.status === 'planning'}
+                            plannedSemester={completedCourses[course.code]?.plannedSemester || ''}
+                            onSemesterChange={(semester: string) => handleSemesterChange(course.code, semester)}
+                          />
                         </div>
                       ))
                     )}
@@ -1005,7 +920,13 @@ export default function DataEntryPage() {
                         Students can take free elective courses of 12 credits from any faculty in Assumption University upon completion of the prerequisite. Check with academic advisor for the course availability.
                       </div>
                       <div className="bg-background rounded-lg p-4 flex flex-col gap-3">
-                    <FreeElectiveAddButton />
+                    <FreeElectiveAddButton
+                      gradeOptions={gradeOptions}
+                      completedCourses={completedCourses}
+                      getCourseSelectValue={getCourseSelectValue}
+                      handleCourseStatusChange={handleCourseStatusChange}
+                      handleSemesterChange={handleSemesterChange}
+                    />
                     {/* Render static free electives, if any */}
                     {(curriculumCourses[selectedCurriculum]?.['Free Elective'] || []).map(course => (
                       <div key={course.code} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-muted rounded-lg px-4 py-3 border border-border mb-2">
@@ -1013,41 +934,14 @@ export default function DataEntryPage() {
                           <span className="font-semibold text-sm">{course.code} - {course.title}</span>
                           <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                         </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                            <Select
-                              value={getCourseSelectValue(course.code)}
-                              onValueChange={value => handleCourseStatusChange(course.code, value)}
-                            >
-                            <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
-                              <SelectValue placeholder="Select Grade" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Pending">Pending</SelectItem>
-                                <SelectItem value="Planning">Planning</SelectItem>
-                              {gradeOptions.map((g: string) => (
-                                <SelectItem key={g} value={g}>{g}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {completedCourses[course.code]?.status === 'planning' && (
-                            <Input
-                              type="text"
-                              placeholder="e.g., 1/2026"
-                              value={completedCourses[course.code]?.plannedSemester || ''}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                const semester = e.target.value;
-                                setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                  ...prev,
-                                  [course.code]: {
-                                    ...prev[course.code],
-                                    plannedSemester: semester
-                                  }
-                                }));
-                              }}
-                              className="w-28 border border-input rounded-lg px-3 py-2 text-sm"
-                            />
-                          )}
-                        </div>
+                        <CourseStatusDropdown
+                          value={getCourseSelectValue(course.code)}
+                          onValueChange={(value: string) => handleCourseStatusChange(course.code, value)}
+                          gradeOptions={gradeOptions}
+                          isPlanning={completedCourses[course.code]?.status === 'planning'}
+                          plannedSemester={completedCourses[course.code]?.plannedSemester || ''}
+                          onSemesterChange={(semester: string) => handleSemesterChange(course.code, semester)}
+                        />
                       </div>
                     ))}
                       </div>
@@ -1080,41 +974,14 @@ export default function DataEntryPage() {
                           <span className="font-semibold text-sm">{course.code} - {course.title}</span>
                           <span className="text-sm text-muted-foreground">{course.credits} credits</span>
                         </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                            <Select
-                              value={getCourseSelectValue(course.code)}
-                              onValueChange={value => handleCourseStatusChange(course.code, value)}
-                            >
-                            <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
-                              <SelectValue placeholder="Select Grade" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Pending">Pending</SelectItem>
-                                <SelectItem value="Planning">Planning</SelectItem>
-                              {gradeOptions.map((g: string) => (
-                                <SelectItem key={g} value={g}>{g}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {completedCourses[course.code]?.status === 'planning' && (
-                            <Input
-                              type="text"
-                              placeholder="e.g., 1/2026"
-                              value={completedCourses[course.code]?.plannedSemester || ''}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                const semester = e.target.value;
-                                setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                                  ...prev,
-                                  [course.code]: {
-                                    ...prev[course.code],
-                                    plannedSemester: semester
-                                  }
-                                }));
-                              }}
-                              className="w-28 border border-input rounded-lg px-3 py-2 text-sm"
-                            />
-                          )}
-                        </div>
+                        <CourseStatusDropdown
+                          value={getCourseSelectValue(course.code)}
+                          onValueChange={(value: string) => handleCourseStatusChange(course.code, value)}
+                          gradeOptions={gradeOptions}
+                          isPlanning={completedCourses[course.code]?.status === 'planning'}
+                          plannedSemester={completedCourses[course.code]?.plannedSemester || ''}
+                          onSemesterChange={(semester: string) => handleSemesterChange(course.code, semester)}
+                        />
                       </div>
                     ))
                   )}
@@ -1210,237 +1077,17 @@ export default function DataEntryPage() {
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-3 mt-6 sm:flex-row sm:items-center sm:justify-between">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="default"
-                  className="bg-purple-600 hover:bg-purple-600/90 text-white min-w-[180px] shadow-sm" 
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
-                  Download Data
-                  <ChevronDown className="w-4 h-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuItem
-                  onClick={() => {
-                    // Gather course data for export - exclude not_completed courses
-                    const rows: any[] = [];
-                    courseTypeOrder.forEach(category => {
-                      const courses = curriculumCourses[selectedCurriculum]?.[category] || [];
-                      courses.forEach(course => {
-                        const courseStatus = completedCourses[course.code]?.status;
-                        const courseGrade = completedCourses[course.code]?.grade || '';
-                        const courseSemester = completedCourses[course.code]?.plannedSemester || '';
-                        
-                        // Include courses except not_completed status
-                        if (courseStatus && !isPendingStatus(courseStatus)) {
-                          rows.push({
-                            Category: category,
-                            Code: course.code,
-                            Title: course.title,
-                            Credits: course.credits,
-                            Status: courseStatus,
-                            Grade: courseGrade,
-                            Semester: courseSemester
-                          });
-                        }
-                      });
-                    });
-                    
-                    // Add assigned free electives with all statuses
-                    assignedFreeElectives.forEach(course => {
-                      const courseStatus = completedCourses[course.courseCode]?.status;
-                      const courseGrade = completedCourses[course.courseCode]?.grade || course.grade || '';
-                      const courseSemester = completedCourses[course.courseCode]?.plannedSemester || '';
-                      
-                      if (courseStatus && !isPendingStatus(courseStatus)) {
-                        rows.push({
-                          Category: 'Free Elective',
-                          Code: course.courseCode,
-                          Title: course.courseName,
-                          Credits: course.credits,
-                          Status: courseStatus,
-                          Grade: courseGrade,
-                          Semester: courseSemester
-                        });
-                      }
-                    });
-                    
-                    // Legacy free electives support (if any)
-                    (Array.isArray(freeElectives) ? freeElectives : []).forEach((course: { code: string; title: string; credits: number }) => {
-                      const courseStatus = completedCourses[course.code]?.status;
-                      const courseGrade = completedCourses[course.code]?.grade || '';
-                      const courseSemester = completedCourses[course.code]?.plannedSemester || '';
-                      
-                      if (courseStatus && !isPendingStatus(courseStatus)) {
-                        rows.push({
-                          Category: 'Free Elective',
-                          Code: course.code,
-                          Title: course.title,
-                          Credits: course.credits,
-                          Status: courseStatus,
-                          Grade: courseGrade,
-                          Semester: courseSemester
-                        });
-                      }
-                    });
-                    
-                    // Create curriculum transcript format for XLSX
-                    const worksheetData: any[][] = [];
-                    worksheetData.push(['course data']); // Title
-                    worksheetData.push([]); // Empty row
-                    
-                    // Group courses by category
-                    const groupedCourses: { [key: string]: any[] } = {};
-                    rows.forEach(row => {
-                      if (!groupedCourses[row.Category]) {
-                        groupedCourses[row.Category] = [];
-                      }
-                      groupedCourses[row.Category].push(row);
-                    });
-                    
-                    // Add each category section
-                    Object.entries(groupedCourses).forEach(([category, courses]) => {
-                      const totalCredits = courses.reduce((sum, course) => sum + course.Credits, 0);
-                      worksheetData.push([`${category} (${totalCredits} Credits)`]);
-                      
-                      courses.forEach(course => {
-                        const status = course.Status === 'completed' ? '' : course.Status;
-                        worksheetData.push([
-                          course.Title,
-                          course.Code,
-                          course.Credits,
-                          course.Grade,
-                          status,
-                          course.Semester || ''
-                        ]);
-                      });
-                      
-                      worksheetData.push([]); // Empty row after each category
-                    });
-                    
-                    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-                    const wb = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb, ws, 'Transcript');
-                    XLSX.writeFile(wb, 'course data.xlsx');
-                  }}
-                  className="cursor-pointer"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
-                  Download as XLSX
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    // Gather course data for CSV export - exclude not_completed courses
-                    const rows: any[] = [];
-                    courseTypeOrder.forEach(category => {
-                      const courses = curriculumCourses[selectedCurriculum]?.[category] || [];
-                      courses.forEach(course => {
-                        const courseStatus = completedCourses[course.code]?.status;
-                        const courseGrade = completedCourses[course.code]?.grade || '';
-                        const courseSemester = completedCourses[course.code]?.plannedSemester || '';
-                        
-                        // Include courses except not_completed status
-                        if (courseStatus && !isPendingStatus(courseStatus)) {
-                          rows.push({
-                            Category: category,
-                            Code: course.code,
-                            Title: course.title,
-                            Credits: course.credits,
-                            Status: courseStatus,
-                            Grade: courseGrade,
-                            Semester: courseSemester
-                          });
-                        }
-                      });
-                    });
-                    
-                    // Add assigned free electives excluding not_completed
-                    assignedFreeElectives.forEach(course => {
-                      const courseStatus = completedCourses[course.courseCode]?.status;
-                      const courseGrade = completedCourses[course.courseCode]?.grade || course.grade || '';
-                      const courseSemester = completedCourses[course.courseCode]?.plannedSemester || '';
-                      
-                      if (courseStatus && !isPendingStatus(courseStatus)) {
-                        rows.push({
-                          Category: 'Free Elective',
-                          Code: course.courseCode,
-                          Title: course.courseName,
-                          Credits: course.credits,
-                          Status: courseStatus,
-                          Grade: courseGrade,
-                          Semester: courseSemester
-                        });
-                      }
-                    });
-                    
-                    // Legacy free electives support (if any)
-                    (Array.isArray(freeElectives) ? freeElectives : []).forEach((course: { code: string; title: string; credits: number }) => {
-                      const courseStatus = completedCourses[course.code]?.status;
-                      const courseGrade = completedCourses[course.code]?.grade || '';
-                      const courseSemester = completedCourses[course.code]?.plannedSemester || '';
-                      
-                      if (courseStatus && !isPendingStatus(courseStatus)) {
-                        rows.push({
-                          Category: 'Free Elective',
-                          Code: course.code,
-                          Title: course.title,
-                          Credits: course.credits,
-                          Status: courseStatus,
-                          Grade: courseGrade,
-                          Semester: courseSemester
-                        });
-                      }
-                    });
-
-                    // Convert to curriculum transcript CSV format
-                    const csvLines: string[] = [];
-                    csvLines.push('course data'); // Title
-                    csvLines.push(''); // Empty line
-                    
-                    // Group courses by category
-                    const groupedCourses: { [key: string]: any[] } = {};
-                    rows.forEach(row => {
-                      if (!groupedCourses[row.Category]) {
-                        groupedCourses[row.Category] = [];
-                      }
-                      groupedCourses[row.Category].push(row);
-                    });
-                    
-                    // Add each category section
-                    Object.entries(groupedCourses).forEach(([category, courses]) => {
-                      const totalCredits = courses.reduce((sum, course) => sum + course.Credits, 0);
-                      csvLines.push(`"${category} (${totalCredits} Credits)"`);
-                      
-                      courses.forEach(course => {
-                        const status = course.Status === 'completed' ? '' : course.Status;
-                        csvLines.push(`"${course.Title}","${course.Code}",${course.Credits},"${course.Grade}","${status}","${course.Semester || ''}"`);
-                      });
-                      
-                      csvLines.push(''); // Empty line after each category
-                    });
-                    
-                    const csvContent = csvLines.join('\n');
-
-                    // Create and download CSV file
-                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                    const link = document.createElement('a');
-                    const url = URL.createObjectURL(blob);
-                    link.setAttribute('href', url);
-                    link.setAttribute('download', 'course data.csv');
-                    link.style.visibility = 'hidden';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }}
-                  className="cursor-pointer"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
-                  Download as CSV
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {!loading && selectedCurriculum && (
+              <ExportDataMenu
+                selectedCurriculum={selectedCurriculum}
+                courseTypeOrder={courseTypeOrder}
+                curriculumCourses={curriculumCourses}
+                completedCourses={completedCourses}
+                assignedFreeElectives={assignedFreeElectives}
+                freeElectives={Array.isArray(freeElectives) ? freeElectives : []}
+                warning={warning}
+              />
+            )}
             <div className="flex flex-col items-stretch sm:items-end gap-2">
               <Button 
                 onClick={handleCoursePlanning}
@@ -1463,44 +1110,25 @@ export default function DataEntryPage() {
     </div>
   );
 
+interface FreeElectiveAddButtonProps {
+  gradeOptions: string[];
+  completedCourses: { [code: string]: CourseStatus };
+  getCourseSelectValue: (courseCode: string) => string;
+  handleCourseStatusChange: (courseCode: string, value: string) => void;
+  handleSemesterChange: (courseCode: string, semester: string) => void;
+}
+
 // Add this component at the top level of the file (outside DataEntryPage)
-function FreeElectiveAddButton() {
-  const { completedCourses, setCompletedCourses, freeElectives, setFreeElectives } = useProgressContext();
+function FreeElectiveAddButton({
+  gradeOptions,
+  completedCourses,
+  getCourseSelectValue,
+  handleCourseStatusChange,
+  handleSemesterChange,
+}: FreeElectiveAddButtonProps) {
+  const { freeElectives, setFreeElectives } = useProgressContext();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ code: '', title: '', credits: '' });
-
-  const getCourseSelectValue = (courseCode: string) => {
-    const courseState = completedCourses[courseCode];
-    if (!courseState) return 'Pending';
-    if (courseState.status === 'planning') return 'Planning';
-    if (courseState.status === 'in_progress') return 'Currently Taking';
-    if (isPendingStatus(courseState.status)) return 'Pending';
-    return courseState.grade || 'Pending';
-  };
-
-  const handleCourseStatusChange = (courseCode: string, value: string) => {
-    const newStatus: CourseStatus['status'] =
-      value === 'Planning'
-        ? 'planning'
-        : value === 'Currently Taking'
-          ? 'in_progress'
-          : value === 'Pending'
-            ? 'pending'
-            : (value === 'F' || value === 'W')
-              ? 'failed'
-              : 'completed';
-
-    setCompletedCourses(prev => ({
-      ...prev,
-      [courseCode]: {
-        grade: newStatus === 'completed' ? value : undefined,
-        status: newStatus,
-        plannedSemester: newStatus === 'planning'
-          ? prev[courseCode]?.plannedSemester || getDefaultSemesterLabel()
-          : undefined
-      }
-    }));
-  };
 
 
   const handleAdd = () => {
@@ -1572,41 +1200,17 @@ function FreeElectiveAddButton() {
                 <span className="font-semibold text-sm">{course.code} - {course.title}</span>
                 <span className="text-sm text-muted-foreground">{course.credits} credits</span>
               </div>
+
               <div className="flex flex-row items-center gap-3 mt-2 sm:mt-0">
-                  <Select
-                    value={getCourseSelectValue(course.code)}
-                    onValueChange={value => handleCourseStatusChange(course.code, value)}
-                  >
-                  <SelectTrigger className="w-full border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
-                    <SelectValue placeholder="Select Grade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Currently Taking">Currently Taking</SelectItem>
-                      <SelectItem value="Planning">Planning</SelectItem>
-                    {gradeOptions.map((g: string) => (
-                      <SelectItem key={g} value={g}>{g}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {completedCourses[course.code]?.status === 'planning' && (
-                  <Input
-                    type="text"
-                    placeholder="e.g., 1/2026"
-                    value={completedCourses[course.code]?.plannedSemester || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      const semester = e.target.value;
-                      setCompletedCourses((prev: { [code: string]: CourseStatus }) => ({
-                        ...prev,
-                        [course.code]: {
-                          ...prev[course.code],
-                          plannedSemester: semester
-                        }
-                      }));
-                    }}
-                    className="w-28 border border-input rounded-lg px-3 py-2 text-sm"
-                  />
-                )}
+                <CourseStatusDropdown
+                  value={getCourseSelectValue(course.code)}
+                  onValueChange={(value: string) => handleCourseStatusChange(course.code, value)}
+                  gradeOptions={gradeOptions}
+                  isPlanning={completedCourses[course.code]?.status === 'planning'}
+                  plannedSemester={completedCourses[course.code]?.plannedSemester || ''}
+                  onSemesterChange={(semester: string) => handleSemesterChange(course.code, semester)}
+                  className="flex-1 mt-0"
+                />
                 <button
                   type="button"
                   className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
