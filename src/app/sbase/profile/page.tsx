@@ -21,7 +21,7 @@ export default function StudentProfile() {
       const userRole = String(session.user.role);
       if (userRole !== "CHAIRPERSON" && userRole !== "SUPER_ADMIN") return;
       try {
-        const res = await fetch(`${API_BASE}/api/student-profile`, {
+        const res = await fetch(`${API_BASE}/student-profile`, {
           credentials: 'include',
         });
         if (res.ok) {
@@ -39,7 +39,7 @@ export default function StudentProfile() {
 
   const handleSave = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/student-profile`, {
+      const res = await fetch(`${API_BASE}/student-profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: 'include',

@@ -100,7 +100,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
 
     setIsAssigning(true);
     try {
-      const response = await fetch(`${API_BASE}/api/course-types/assign`, {
+      const response = await fetch(`${API_BASE}/course-types/assign`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
