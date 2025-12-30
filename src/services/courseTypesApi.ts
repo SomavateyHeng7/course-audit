@@ -70,15 +70,14 @@ export const courseTypesApi = {
     id: string,
     data: UpdateCourseTypeRequest
   ): Promise<CourseTypeData> {
-    return await laravelUpdateCourseType(id, data);
+    return await laravelUpdateCourseType(Number(id), data);
   },
 
   /* =====================================================
    * DELETE /course-types/{id}
    * ===================================================== */
   async deleteCourseType(id: string): Promise<{ message: string }> {
-    // ✅ DO NOT cast UUIDs
-    await laravelDeleteCourseType(id);
+    await laravelDeleteCourseType(Number(id));
     return { message: 'Course type deleted successfully' };
   },
 

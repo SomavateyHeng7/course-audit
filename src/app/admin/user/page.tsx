@@ -151,7 +151,7 @@ export default function RoleManagement() {
     setUpdateLoading(true);
     try {
       const { confirmPassword, ...submitData } = formData;
-      await updateUser(editingUser.id, submitData);
+      await updateUser(Number(editingUser.id), submitData);
       success('User updated successfully!');
       setEditingUser(null);
       setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
@@ -216,7 +216,7 @@ export default function RoleManagement() {
                   if (!deleteUserId) return;
                   setCreateLoading(true);
                   try {
-                    await deleteUser(deleteUserId);
+                    await deleteUser(Number(deleteUserId));
                     success('User deleted successfully!');
                     fetchUsers();
                   } catch (error) {

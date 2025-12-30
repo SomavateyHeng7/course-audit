@@ -1,7 +1,8 @@
 // Department access validation middleware
 import { prisma } from '@/lib/database/prisma';
-import { auth } from '@/app/api/auth/[...nextauth]/authOptions';
-import { authOptions } from '@/app/api/auth/[...nextauth]/authOptions';
+// Note: This file was originally set up for NextAuth but project uses Laravel Sanctum
+// import { auth } from '@/app/api/auth/[...nextauth]/authOptions';
+// import { authOptions } from '@/app/api/auth/[...nextauth]/authOptions';
 
 export interface DepartmentAccessUser {
   id: string;
@@ -85,7 +86,9 @@ export async function getUserAccessibleDepartments(userId: string) {
 
 /**
  * Middleware to validate department access in API routes
+ * Note: This function is currently disabled as the project uses Laravel Sanctum instead of NextAuth
  */
+/*
 export async function requireDepartmentAccess(departmentId: string) {
   const session = await auth();
   if (!session || !session.user || !session.user.id) {
@@ -98,10 +101,13 @@ export async function requireDepartmentAccess(departmentId: string) {
   }
   return session;
 }
+*/
 
 /**
  * Get departments accessible to current session user
+ * Note: This function is currently disabled as the project uses Laravel Sanctum instead of NextAuth
  */
+/*
 export async function getSessionAccessibleDepartments() {
   const session = await auth();
   if (!session || !session.user || !session.user.id) {
@@ -110,3 +116,4 @@ export async function getSessionAccessibleDepartments() {
   const userId = session.user.id;
   return await getUserAccessibleDepartments(userId);
 }
+*/

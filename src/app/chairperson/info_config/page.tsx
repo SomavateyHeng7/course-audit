@@ -1677,7 +1677,7 @@ export default function InfoConfig() {
                           <div>
                             <h3 className="text-base font-semibold text-foreground">Credit Pools Builder</h3>
                             <p className="text-sm text-muted-foreground">
-                              Define min/max credit gates and source nodes. Backend endpoints `/credit-pools` &amp; `/curricula/{id}/credit-pools` pending.
+                              Define min/max credit gates and source nodes. Backend endpoints `/credit-pools` &amp; `/curricula/:id/credit-pools` pending.
                             </p>
                           </div>
                           <button

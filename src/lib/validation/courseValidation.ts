@@ -111,7 +111,7 @@ export async function validateStudentProgress(
 
   try {
     // Fetch curriculum data (includes constraints and electiveRules)
-    const curriculumData = await getPublicCurriculum(parseInt(curriculumId));
+    const curriculumData = await getPublicCurriculum(curriculumId);
     const curriculum = curriculumData.curriculum;
     const constraints = curriculum.curriculumConstraints || [];
     const electiveRules = curriculum.electiveRules || [];
@@ -174,7 +174,7 @@ export async function calculateCurriculumProgress(
   curriculumId: string
 ): Promise<CurriculumProgress> {
   try {
-    const curriculumData = await getPublicCurriculum(parseInt(curriculumId));
+    const curriculumData = await getPublicCurriculum(curriculumId);
     const curriculum = curriculumData.curriculum;
     const constraints = curriculum.curriculumConstraints || [];
 

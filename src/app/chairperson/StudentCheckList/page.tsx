@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { User, BarChart3, Calendar, Save, Search, Users, BookOpen, Award, GraduationCap } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
@@ -52,8 +51,6 @@ interface AcademicProgress {
 }
 
 const StudentManagementPage: React.FC = () => {
-  // Authentication
-  const { data: session, status } = useSession();
   const router = useRouter();
   const { success, error: showError, warning, info } = useToastHelpers();
 
@@ -67,44 +64,10 @@ const StudentManagementPage: React.FC = () => {
   const [loadingProgress, setLoadingProgress] = useState(false);
   const [loadingCourses, setLoadingCourses] = useState(false);
 
-  // Authentication check
+  // Load students on mount on mount
   useEffect(() => {
-    if (status === 'loading') return;
-
-    if (!session) {
-      router.push('/auth');
-      return;
-    }
-
-    if (session.user.role !== 'CHAIRPERSON') {
-      router.push('/dashboard');
-      return;
-    }
-  }, [session, status, router]);
-
-  // Load students
-  useEffect(() => {
-    if (session && session.user.role === 'CHAIRPERSON') {
-      loadStudents();
-    }
-  }, [session]);
-
-  // Show loading while checking authentication
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Don't render if not authenticated or not chairperson
-  if (!session || session.user.role !== 'CHAIRPERSON') {
-    return null;
-  }
+    loadStudents();
+  }, []);
 
   const loadStudents = async () => {
     try {

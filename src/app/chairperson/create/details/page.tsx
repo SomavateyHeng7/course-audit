@@ -229,7 +229,7 @@ export default function CurriculumDetails() {
         endId: curriculumInfo.idEnd,
         totalCreditsRequired: Number(curriculumInfo.totalCredits) || 0,
         departmentId: selectedDepartmentId,
-        facultyId: user.faculty.id,
+        facultyId: user?.faculty?.id,
         courses: courses.map((course, index) => ({
           code: course.code,
           name: course.title, // Map title to name
