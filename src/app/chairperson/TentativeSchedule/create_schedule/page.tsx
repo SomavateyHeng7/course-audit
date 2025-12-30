@@ -397,12 +397,7 @@ const TentativeSchedulePage: React.FC = () => {
     setLoading(false);
   };
 
-  if (status === 'loading')
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500"></div>
-      </div>
-    );
+  // Loading state handled by loading state variable below
 
 
   const totalCredits = schedule.courses.reduce((sum, course) => sum + course.credits, 0);

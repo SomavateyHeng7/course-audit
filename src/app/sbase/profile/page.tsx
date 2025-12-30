@@ -1,10 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 import { API_BASE } from '@/lib/api/laravel';
 
 export default function StudentProfile() {
-  const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState("advisor");
   // Removed student tab and editing state
   const [isEditingAdvisor, setIsEditingAdvisor] = useState(false);
@@ -17,9 +15,6 @@ export default function StudentProfile() {
 
   useEffect(() => {
     async function fetchProfile() {
-      if (!session?.user?.role) return;
-      const userRole = String(session.user.role);
-      if (userRole !== "CHAIRPERSON" && userRole !== "SUPER_ADMIN") return;
       try {
         const res = await fetch(`${API_BASE}/student-profile`, {
           credentials: 'include',
@@ -35,7 +30,7 @@ export default function StudentProfile() {
       }
     }
     fetchProfile();
-  }, [session]);
+  }, []);
 
   const handleSave = async () => {
     try {
@@ -60,11 +55,8 @@ export default function StudentProfile() {
     }
   };
 
-  if (status === "loading") return <div>Loading...</div>;
-  const userRole = String(session?.user?.role);
-  if (!session?.user?.role || (userRole !== "CHAIRPERSON" && userRole !== "SUPER_ADMIN")) {
-    return <div className="text-center mt-10 text-gray-500">Profile info is only available for Chairperson and Super Admin.</div>;
-  }
+  // Note: This page is accessible to all authenticated users
+  // Role-based access control should be implemented via auth context if needed
 
   return (
     <div className="bg-gray-50 dark:bg-background min-h-screen p-4 sm:p-8 md:p-10">
