@@ -577,6 +577,17 @@ const TentativeSchedulePage: React.FC = () => {
                     Required: Course, Course Name, Section, Day, Time<br />
                     Optional: Instructor Name, Seat Limit
                   </div>
+                  
+                  {/* Download Template Button */}
+                  <a
+                    href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/download/tentative-schedule-template`}
+                    download
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 mb-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                  >
+                    <FileSpreadsheet size={16} />
+                    Download Excel Template
+                  </a>
+                  
                   <input
                     ref={fileInputRef}
                     type="file"

@@ -112,7 +112,9 @@ export const concentrationApi = {
       throw new Error(error.error?.message || 'Failed to create concentration');
     }
 
-    return response.json();
+    const result = await response.json();
+    // Backend returns { concentration: {...} }
+    return result.concentration || result;
   },
 
   // Update concentration
@@ -339,27 +341,58 @@ export const concentrationApi = {
     isNew: boolean;
   }>> {
     try {
-      // This would normally query the courses API to map codes to IDs
-      // For now, returning mock mapping results
-      return codes.map(code => ({
+      // Query the backend to check which courses exist
+      const response = await fetch(`${API_BASE}/courses/map-codes`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ codes }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to map course codes');
+      }
+
+      const data = await response.json();
+      return data.results || codes.map(code => ({
         code,
-        id: crypto.randomUUID(),
+        id: '',
         found: false,
         isNew: true
       }));
     } catch (error) {
       console.error('Error mapping course codes to IDs:', error);
-      return [];
+      // Return all as new courses if API fails
+      return codes.map(code => ({
+        code,
+        id: '',
+        found: false,
+        isNew: true
+      }));
     }
   },
 
-  async createCoursesFromConcentrationData(coursesData: any[]): Promise<Array<{ id: string }>> {
+  async createCoursesFromConcentrationData(coursesData: any[]): Promise<Array<{ id: string; code: string; name: string }>> {
     try {
-      // This would normally create courses in the database
-      // For now, returning mock course objects with IDs
-      return coursesData.map(() => ({
-        id: crypto.randomUUID()
-      }));
+      // Create courses in the database via bulk create endpoint
+      const response = await fetch(`${API_BASE}/courses/bulk-create`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ courses: coursesData }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || 'Failed to create courses');
+      }
+
+      const data = await response.json();
+      return data.courses || [];
     } catch (error) {
       console.error('Error creating courses:', error);
       throw new Error('Failed to create courses');
