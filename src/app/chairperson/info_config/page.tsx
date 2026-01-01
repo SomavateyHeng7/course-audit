@@ -389,6 +389,15 @@ export default function InfoConfig() {
       setLoading(true);
       setError(null);
       const response = await concentrationApi.getConcentrations();
+      console.log('📦 Loaded concentrations from server:', {
+        count: response.length,
+        concentrations: response.map(c => ({
+          id: c.id,
+          name: c.name,
+          coursesCount: c.courses?.length || 0,
+          courses: c.courses
+        }))
+      });
       setConcentrations(Array.isArray(response) ? response : []);
     } catch (err) {
       console.error('Error loading concentrations:', err);
@@ -586,6 +595,12 @@ export default function InfoConfig() {
       setLoading(true);
       setError(null);
       
+      console.log('📝 Starting blacklist creation with:', {
+        name: newBlacklist.name,
+        coursesCount: newBlacklist.courses?.length || 0,
+        courses: newBlacklist.courses
+      });
+      
       // Validate input
       const validationErrors = blacklistApi.validateBlacklistData({
         name: newBlacklist.name,
@@ -594,25 +609,35 @@ export default function InfoConfig() {
       
       if (validationErrors.length > 0) {
         setError(validationErrors[0]);
+        showError(validationErrors[0]);
         return;
       }
       
       // Check for duplicate names
       const nameExists = await blacklistApi.checkNameExists(newBlacklist.name);
       if (nameExists) {
-        setError('A blacklist with this name already exists');
+        const errorMsg = 'A blacklist with this name already exists';
+        setError(errorMsg);
+        showError(errorMsg);
         return;
       }
       
       // Map course codes to course IDs if we have courses from file upload
       let courseIds: string[] = [];
       if (newBlacklist.courses && newBlacklist.courses.length > 0) {
+        console.log('🔍 Mapping course codes to IDs for', newBlacklist.courses.length, 'courses');
         const courseCodes = newBlacklist.courses.map(course => course.code);
+        console.log('📋 Course codes to map:', courseCodes);
+        
         const mappingResults = await blacklistApi.mapCodesToIds(courseCodes);
+        console.log('🔄 Mapping results:', mappingResults);
         
         // Separate found courses from courses that need to be created
         const foundCourses = mappingResults.filter(result => result.found);
         const coursesToCreate = mappingResults.filter(result => !result.found && result.isNew);
+        
+        console.log('✅ Found courses:', foundCourses.length, foundCourses);
+        console.log('➕ Courses to create:', coursesToCreate.length, coursesToCreate);
         
         // Get course IDs for found courses
         courseIds = foundCourses.map(result => result.id);
@@ -625,15 +650,21 @@ export default function InfoConfig() {
           });
           
           try {
+            console.log('🆕 Creating new courses:', coursesToCreateData);
             const createdCourses = await blacklistApi.createCoursesFromBlacklistData(coursesToCreateData);
+            console.log('✨ Created courses:', createdCourses);
             courseIds.push(...createdCourses.map(c => c.id));
           } catch (createError) {
-            console.error('Error creating new courses:', createError);
-            setError('Failed to create some courses. Please try again.');
+            console.error('❌ Error creating new courses:', createError);
+            const errorMsg = 'Failed to create some courses. Please try again.';
+            setError(errorMsg);
+            showError(errorMsg);
             return;
           }
         }
       }
+      
+      console.log('🎯 Final course IDs to send:', courseIds);
       
       // Create the blacklist with course IDs
       const createdBlacklist = await blacklistApi.createBlacklist({
@@ -642,14 +673,23 @@ export default function InfoConfig() {
         courseIds: courseIds.length > 0 ? courseIds : undefined
       });
       
-      // Update local state
-      setBlacklists([...blacklists, createdBlacklist]);
+      console.log('🎉 Created blacklist:', createdBlacklist);
+      
+      // Reload blacklists from server to ensure we have the latest data
+      await loadBlacklists();
+      
+      // Close modal and reset form
       setIsAddBlacklistModalOpen(false);
       setNewBlacklist({ name: '', description: '', courses: [] });
       
+      // Show success notification
+      success('Blacklist created successfully');
+      
     } catch (err) {
-      console.error('Error creating blacklist:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create blacklist');
+      console.error('❌ Error creating blacklist:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create blacklist';
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -700,9 +740,14 @@ export default function InfoConfig() {
       setEditingBlacklist(null);
       setNewBlacklist({ name: '', description: '', courses: [] });
       
+      // Show success notification
+      success('Blacklist updated successfully');
+      
     } catch (err) {
       console.error('Error updating blacklist:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update blacklist');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update blacklist';
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -731,7 +776,10 @@ export default function InfoConfig() {
   };
 
   const handleDeleteBlacklist = async (blacklist: BlacklistData) => {
-    if (!confirm(`Are you sure you want to delete the blacklist "${blacklist.name}"?`)) {
+    // Show confirmation with warning
+    warning(`You are about to delete "${blacklist.name}"`);
+    
+    if (!confirm(`Are you sure you want to delete the blacklist "${blacklist.name}"?\n\nThis action cannot be undone.`)) {
       return;
     }
 
@@ -741,12 +789,17 @@ export default function InfoConfig() {
       
       await blacklistApi.deleteBlacklist(blacklist.id);
       
-      // Update local state
-      setBlacklists(blacklists.filter(b => b.id !== blacklist.id));
+      // Reload blacklists from server
+      await loadBlacklists();
+      
+      // Show success notification
+      success('Blacklist deleted successfully');
       
     } catch (err) {
       console.error('Error deleting blacklist:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete blacklist');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete blacklist';
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -773,7 +826,10 @@ export default function InfoConfig() {
     const typeToDelete = courseTypes.find(type => type.id === typeId);
     if (!typeToDelete) return;
 
-    if (!confirm(`Are you sure you want to delete the course type "${typeToDelete.name}"?`)) {
+    // Show warning toast before confirmation
+    warning(`You are about to delete course type "${typeToDelete.name}"`);
+
+    if (!confirm(`Are you sure you want to delete the course type "${typeToDelete.name}"?\n\nThis action cannot be undone.`)) {
       return;
     }
 
@@ -972,7 +1028,10 @@ export default function InfoConfig() {
     const concentrationToDelete = concentrations.find(concentration => concentration.id === concentrationId);
     if (!concentrationToDelete) return;
 
-    if (!confirm(`Are you sure you want to delete the concentration "${concentrationToDelete.name}"?`)) {
+    // Show warning toast before confirmation
+    warning(`You are about to delete "${concentrationToDelete.name}"`);
+
+    if (!confirm(`Are you sure you want to delete the concentration "${concentrationToDelete.name}"?\n\nThis action cannot be undone.`)) {
       return;
     }
 
@@ -1051,71 +1110,93 @@ export default function InfoConfig() {
   };
 
   const handleSaveNewConcentration = async () => {
-    if (newConcentration.name.trim() && newConcentration.courses.length > 0) {
-      try {
-        setLoading(true);
-        setError(null);
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('📝 Starting concentration creation with:', {
+        name: newConcentration.name,
+        coursesCount: newConcentration.courses?.length || 0,
+        courses: newConcentration.courses
+      });
+      
+      if (!newConcentration.name.trim()) {
+        const errorMsg = 'Please provide a concentration name';
+        setError(errorMsg);
+        showError(errorMsg);
+        return;
+      }
+      
+      // Map course codes to course IDs if we have courses from file upload
+      let courseIds: string[] = [];
+      if (newConcentration.courses && newConcentration.courses.length > 0) {
+        console.log('🔍 Mapping course codes to IDs for', newConcentration.courses.length, 'courses');
+        const courseCodes = newConcentration.courses.map(course => course.code);
+        console.log('📋 Course codes to map:', courseCodes);
         
-        // Step 1: Create the concentration with basic info only
-        const newConcentrationData = await concentrationApi.createConcentration({
-          name: newConcentration.name.trim(),
-          description: `${newConcentration.name.trim()} concentration`,
-        });
+        const mappingResults = await concentrationApi.mapCodesToIds(courseCodes);
+        console.log('🔄 Mapping results:', mappingResults);
         
-        console.log('Created concentration:', newConcentrationData);
-
-        // Step 2: Add courses to the concentration
-        if (newConcentration.courses.length > 0 && newConcentrationData && newConcentrationData.id) {
-          // Convert Course[] to the format expected by the courses API
-          const coursesForAPI = newConcentration.courses.map(course => {
-            // Parse creditHours safely
-            let creditHours = 3; // default
-            if (course.creditHours && typeof course.creditHours === 'string') {
-              const parsed = parseInt(course.creditHours.split('-')[0]);
-              if (!isNaN(parsed) && parsed > 0) {
-                creditHours = parsed;
-              }
-            }
-
-            return {
-              code: course.code.trim(),
-              name: course.title.trim(),
-              credits: Number(course.credits) || 3,
-              creditHours: creditHours,
-              description: course.description?.trim() || '',
-              category: course.type?.trim() || 'Elective'
-            };
+        // Separate found courses from courses that need to be created
+        const foundCourses = mappingResults.filter(result => result.found);
+        const coursesToCreate = mappingResults.filter(result => !result.found && result.isNew);
+        
+        console.log('✅ Found courses:', foundCourses.length, foundCourses);
+        console.log('➕ Courses to create:', coursesToCreate.length, coursesToCreate);
+        
+        // Get course IDs for found courses
+        courseIds = foundCourses.map(result => result.id);
+        
+        // Create new courses for those that don't exist
+        if (coursesToCreate.length > 0) {
+          const coursesToCreateData = coursesToCreate.map(result => {
+            const originalCourse = newConcentration.courses.find(c => c.code === result.code);
+            return originalCourse!;
           });
-
-          // Add courses via the dedicated course endpoint using direct fetch
-          const addCoursesResponse = await fetch(`${API_BASE}/concentrations/${newConcentrationData.id}/courses`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({ courses: coursesForAPI }),
-          });
-
-          if (!addCoursesResponse.ok) {
-            const error = await addCoursesResponse.json();
-            throw new Error(error.error?.message || 'Failed to add courses to concentration');
+          
+          try {
+            console.log('🆕 Creating new courses:', coursesToCreateData);
+            const createdCourses = await concentrationApi.createCoursesFromConcentrationData(coursesToCreateData);
+            console.log('✨ Created courses:', createdCourses);
+            courseIds.push(...createdCourses.map(c => c.id));
+          } catch (createError) {
+            console.error('❌ Error creating new courses:', createError);
+            const errorMsg = 'Failed to create some courses. Please try again.';
+            setError(errorMsg);
+            showError(errorMsg);
+            return;
           }
         }
-
-        // Reload concentrations from API to get the latest data
-        await loadConcentrations();
-        setIsAddConcentrationModalOpen(false);
-        setNewConcentration({ name: '', courses: [] });
-        success('Concentration created successfully');
-      } catch (error) {
-        console.error('Error creating concentration:', error);
-        showError('Failed to create concentration. Please try again.');
-      } finally {
-        setLoading(false);
       }
-    } else {
-      setError('Please provide a name and at least one course');
+      
+      console.log('🎯 Final course IDs to send:', courseIds);
+      
+      // Create the concentration with course IDs
+      const createdConcentration = await concentrationApi.createConcentration({
+        name: newConcentration.name.trim(),
+        description: `${newConcentration.name.trim()} concentration`,
+        courseIds: courseIds.length > 0 ? courseIds : undefined
+      });
+      
+      console.log('🎉 Created concentration:', createdConcentration);
+      
+      // Reload concentrations from server to ensure we have the latest data
+      await loadConcentrations();
+      
+      // Close modal and reset form
+      setIsAddConcentrationModalOpen(false);
+      setNewConcentration({ name: '', courses: [] });
+      
+      // Show success notification
+      success('Concentration created successfully');
+      
+    } catch (err) {
+      console.error('❌ Error creating concentration:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create concentration';
+      setError(errorMessage);
+      showError(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1962,7 +2043,7 @@ export default function InfoConfig() {
                         <button
                           onClick={() => handleAddNewCourse('blacklist')}
                           disabled={!newCourse.code.trim() || !newCourse.title.trim()}
-                          className="w-full px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Add Course
                         </button>
@@ -1990,7 +2071,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => blacklistFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primarary rounded text-sm bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primary text-white rounded text-sm bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -2243,7 +2324,7 @@ export default function InfoConfig() {
                         <button
                           onClick={() => handleAddNewCourse('blacklist')}
                           disabled={!newCourse.code.trim() || !newCourse.title.trim()}
-                          className="w-full px-4 py-2 bg-primarary rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Add Course
                         </button>
@@ -2271,7 +2352,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => blacklistFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primarary rounded text-sm bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primary text-white rounded text-sm bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -2336,10 +2417,10 @@ export default function InfoConfig() {
               </button>
               <button
                 onClick={handleSaveEditBlacklist}
-                disabled={!newBlacklist.name.trim()}
-                className="flex-1 px-4 py-2 bg-primarary rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!newBlacklist.name.trim() || loading}
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Save Changes
+                {loading ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -2509,10 +2590,10 @@ export default function InfoConfig() {
               </button>
               <button
                 onClick={handleSaveEditType}
-                disabled={!newType.name.trim()}
-                className="flex-1 px-4 py-2 bg-primarary rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!newType.name.trim() || loading}
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Save Changes
+                {loading ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -2707,7 +2788,7 @@ export default function InfoConfig() {
                         </p>
                         <button
                           onClick={() => concentrationFileInputRef.current?.click()}
-                          className="px-3 py-1 bg-primarary rounded text-sm bg-primary/90 transition-colors"
+                          className="px-3 py-1 bg-primary text-white rounded text-sm bg-primary/90 transition-colors"
                         >
                           Choose File
                         </button>
@@ -2773,7 +2854,7 @@ export default function InfoConfig() {
               <button
                 onClick={handleSaveNewConcentration}
                 disabled={loading || !newConcentration.name.trim() || newConcentration.courses.length === 0}
-                className="flex-1 px-4 py-2 bg-primarary rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -3041,10 +3122,10 @@ export default function InfoConfig() {
               </button>
               <button
                 onClick={handleSaveEditConcentration}
-                disabled={!newConcentration.name.trim()}
-                className="flex-1 px-4 py-2 bg-primarary rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!newConcentration.name.trim() || loading}
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Save Changes
+                {loading ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -3132,8 +3213,15 @@ export default function InfoConfig() {
               <div>
                 <h3 className="text-xl font-bold text-foreground">Concentration: {selectedInfoConcentration.name}</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Created on {selectedInfoConcentration.createdAt} • {selectedInfoConcentration.courses.length} courses
+                  Created on {selectedInfoConcentration.createdAt} • {selectedInfoConcentration.courses?.length || 0} courses
                 </p>
+                {/* Debug logging */}
+                {console.log('🔍 Concentration Info Modal Data:', {
+                  name: selectedInfoConcentration.name,
+                  coursesExists: !!selectedInfoConcentration.courses,
+                  coursesLength: selectedInfoConcentration.courses?.length,
+                  coursesArray: selectedInfoConcentration.courses
+                })}
               </div>
               <button
                 onClick={() => setIsConcentrationInfoModalOpen(false)}
@@ -3145,7 +3233,7 @@ export default function InfoConfig() {
               </button>
             </div>
 
-            {selectedInfoConcentration.courses.length > 0 ? (
+            {selectedInfoConcentration.courses && selectedInfoConcentration.courses.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full border border-gray-200 dark:border-border rounded-lg overflow-hidden">
                   <thead className="bg-primary/10 dark:bg-primary/20/20">

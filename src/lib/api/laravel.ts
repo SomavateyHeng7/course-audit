@@ -192,7 +192,9 @@ async function authenticatedRequest(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || 'Request failed');
+    // Handle different error response formats from backend
+    const errorMessage = error.error || error.message || `Request failed with status ${response.status}`;
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -215,7 +217,7 @@ export async function createFaculty(data: any) {
   });
 }
 
-export async function updateFaculty(id: number, data: any) {
+export async function updateFaculty(id: string, data: any) {
   return authenticatedRequest(`/faculties/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -404,35 +406,27 @@ export async function getBlacklists() {
   return authenticatedRequest('/blacklists');
 }
 
-export async function getBlacklist(id: number) {
+export async function getBlacklist(id: string) {
   return authenticatedRequest(`/blacklists/${id}`);
 }
 
 export async function createBlacklist(data: any) {
-  // Convert courseIds to integers if they exist
-  const payload = {
-    ...data,
-    courseIds: data.courseIds ? data.courseIds.map((id: any) => parseInt(id, 10)) : undefined
-  };
+  // courseIds are UUIDs (strings), no conversion needed
   return authenticatedRequest('/blacklists', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(data),
   });
 }
 
-export async function updateBlacklist(id: number, data: any) {
-  // Convert courseIds to integers if they exist
-  const payload = {
-    ...data,
-    courseIds: data.courseIds ? data.courseIds.map((id: any) => parseInt(id, 10)) : undefined
-  };
+export async function updateBlacklist(id: string, data: any) {
+  // courseIds are UUIDs (strings), no conversion needed
   return authenticatedRequest(`/blacklists/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(data),
   });
 }
 
-export async function deleteBlacklist(id: number) {
+export async function deleteBlacklist(id: string) {
   return authenticatedRequest(`/blacklists/${id}`, {
     method: 'DELETE',
   });

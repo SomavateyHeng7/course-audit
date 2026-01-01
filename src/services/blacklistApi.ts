@@ -60,14 +60,15 @@ class BlacklistApi {
 
   // Get all blacklists for the user's department
   async getBlacklists(): Promise<BlacklistsResponse> {
-    const blacklists = await laravelGetBlacklists();
-    console.log('Fetched blacklists:', blacklists);
-    return { blacklists };
+    const response = await laravelGetBlacklists();
+    console.log('Fetched blacklists:', response);
+    // Backend returns { blacklists: [...] }
+    return response;
   }
 
   // Get specific blacklist
   async getBlacklist(id: string): Promise<BlacklistData> {
-    return await laravelGetBlacklist(Number(id));
+    return await laravelGetBlacklist(id);
   }
 
   // Create new blacklist
@@ -85,7 +86,7 @@ class BlacklistApi {
 
   // Delete blacklist
   async deleteBlacklist(id: string): Promise<void> {
-    await laravelDeleteBlacklist(Number(id));
+    await laravelDeleteBlacklist(id);
   }
 
   // Helper method to parse CSV file content for blacklist courses
