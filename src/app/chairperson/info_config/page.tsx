@@ -14,7 +14,8 @@ import {
   FaLayerGroup,
   FaSitemap,
   FaLightbulb,
-  FaListUl
+  FaListUl,
+  FaSearch
 } from 'react-icons/fa';
 import { blacklistApi, type BlacklistData, type BlacklistCourse } from '@/services/blacklistApi';
 import { concentrationApi, type ConcentrationData, type ConcentrationCourse } from '@/services/concentrationApi';
@@ -1052,14 +1053,19 @@ export default function InfoConfig() {
   const handleSaveNewConcentration = async () => {
     if (newConcentration.name.trim() && newConcentration.courses.length > 0) {
       try {
+        setLoading(true);
+        setError(null);
+        
         // Step 1: Create the concentration with basic info only
         const newConcentrationData = await concentrationApi.createConcentration({
           name: newConcentration.name.trim(),
           description: `${newConcentration.name.trim()} concentration`,
         });
+        
+        console.log('Created concentration:', newConcentrationData);
 
         // Step 2: Add courses to the concentration
-        if (newConcentration.courses.length > 0) {
+        if (newConcentration.courses.length > 0 && newConcentrationData && newConcentrationData.id) {
           // Convert Course[] to the format expected by the courses API
           const coursesForAPI = newConcentration.courses.map(course => {
             // Parse creditHours safely
@@ -1105,7 +1111,11 @@ export default function InfoConfig() {
       } catch (error) {
         console.error('Error creating concentration:', error);
         showError('Failed to create concentration. Please try again.');
+      } finally {
+        setLoading(false);
       }
+    } else {
+      setError('Please provide a name and at least one course');
     }
   };
 
@@ -1819,13 +1829,16 @@ export default function InfoConfig() {
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
                     <h5 className="font-medium text-foreground mb-3">Search Database Courses</h5>
                     <div className="space-y-3">
-                      <input
+                      <div className="relative">
+                        <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <input
                         type="text"
                         placeholder="Search by course code or title..."
                         value={courseSearch}
                         onChange={(e) => setCourseSearch(e.target.value)}
-                        className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                        className="w-full border border-gray-300 dark:border-border rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
                       />
+                      </div>
                       
                       {courseSearch && (
                         <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
@@ -1985,7 +1998,7 @@ export default function InfoConfig() {
                       <input
                         ref={blacklistFileInputRef}
                         type="file"
-                        accept=".xlsx,.xls"
+                        accept=".xlsx,.xls,.csv"
                         onChange={handleBlacklistFileInputChange}
                         className="hidden"
                       />
@@ -2097,13 +2110,16 @@ export default function InfoConfig() {
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
                     <h5 className="font-medium text-foreground mb-3">Search Database Courses</h5>
                     <div className="space-y-3">
-                      <input
+                      <div className="relative">
+                        <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <input
                         type="text"
                         placeholder="Search by course code or title..."
                         value={courseSearch}
                         onChange={(e) => setCourseSearch(e.target.value)}
-                        className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                        className="w-full border border-gray-300 dark:border-border rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
                       />
+                      </div>
                       
                       {courseSearch && (
                         <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
@@ -2263,7 +2279,7 @@ export default function InfoConfig() {
                       <input
                         ref={blacklistFileInputRef}
                         type="file"
-                        accept=".xlsx,.xls"
+                        accept=".xlsx,.xls,.csv"
                         onChange={handleBlacklistFileInputChange}
                         className="hidden"
                       />
@@ -2538,13 +2554,16 @@ export default function InfoConfig() {
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
                     <h5 className="font-medium text-foreground mb-3">Search Database Courses</h5>
                     <div className="space-y-3">
-                      <input
+                      <div className="relative">
+                        <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <input
                         type="text"
                         placeholder="Search by course code or title..."
                         value={courseSearch}
                         onChange={(e) => setCourseSearch(e.target.value)}
-                        className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                        className="w-full border border-gray-300 dark:border-border rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
                       />
+                      </div>
                       
                       {courseSearch && (
                         <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
@@ -2696,7 +2715,7 @@ export default function InfoConfig() {
                       <input
                         ref={concentrationFileInputRef}
                         type="file"
-                        accept=".xlsx,.xls"
+                        accept=".xlsx,.xls,.csv"
                         onChange={handleConcentrationFileInputChange}
                         className="hidden"
                       />
@@ -2804,13 +2823,16 @@ export default function InfoConfig() {
                   <div className="border border-gray-200 dark:border-border rounded-lg p-4">
                     <h5 className="font-medium text-foreground mb-3">Search Database Courses</h5>
                     <div className="space-y-3">
-                      <input
+                      <div className="relative">
+                        <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <input
                         type="text"
                         placeholder="Search by course code or title..."
                         value={courseSearch}
                         onChange={(e) => setCourseSearch(e.target.value)}
-                        className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
+                        className="w-full border border-gray-300 dark:border-border rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
                       />
+                      </div>
                       
                       {courseSearch && (
                         <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-border rounded-lg">
@@ -2962,7 +2984,7 @@ export default function InfoConfig() {
                       <input
                         ref={concentrationFileInputRef}
                         type="file"
-                        accept=".xlsx,.xls"
+                        accept=".xlsx,.xls,.csv"
                         onChange={handleConcentrationFileInputChange}
                         className="hidden"
                       />

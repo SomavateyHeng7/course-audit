@@ -409,16 +409,26 @@ export async function getBlacklist(id: number) {
 }
 
 export async function createBlacklist(data: any) {
+  // Convert courseIds to integers if they exist
+  const payload = {
+    ...data,
+    courseIds: data.courseIds ? data.courseIds.map((id: any) => parseInt(id, 10)) : undefined
+  };
   return authenticatedRequest('/blacklists', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 }
 
 export async function updateBlacklist(id: number, data: any) {
+  // Convert courseIds to integers if they exist
+  const payload = {
+    ...data,
+    courseIds: data.courseIds ? data.courseIds.map((id: any) => parseInt(id, 10)) : undefined
+  };
   return authenticatedRequest(`/blacklists/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 }
 
