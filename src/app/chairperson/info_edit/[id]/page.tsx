@@ -168,26 +168,35 @@ export default function EditCurriculum() {
   // Load course types when curriculum is available
   useEffect(() => {
     const fetchCourseTypes = async () => {
-      if (!curriculum?.departmentId) return;
+      const deptId = curriculum?.departmentId || curriculum?.department_id;
+      
+      if (!deptId) {
+        console.log('No departmentId available for fetching course types. Curriculum:', curriculum);
+        return;
+      }
 
+      console.log('Fetching course types for department:', deptId);
       setIsLoadingCourseTypes(true);
       try {
-        const response = await fetch(`${API_BASE}/course-types?departmentId=${curriculum.departmentId}`, {
+        const response = await fetch(`${API_BASE}/course-types?departmentId=${deptId}`, {
           credentials: 'include'
         });
         if (response.ok) {
           const data = await response.json();
+          console.log('Course types fetched:', data.courseTypes);
           setCourseTypes(data.courseTypes || []);
+        } else {
+          console.error('Failed to fetch course types:', response.status);
         }
       } catch (error) {
-        // ignore
+        console.error('Error fetching course types:', error);
       } finally {
         setIsLoadingCourseTypes(false);
       }
     };
 
     fetchCourseTypes();
-  }, [curriculum?.departmentId]);
+  }, [curriculum?.departmentId, curriculum?.department_id, curriculum]);
 
   // Process curriculum data for display
   const summary = curriculum ? {
@@ -299,20 +308,31 @@ export default function EditCurriculum() {
     curriculumCourseId: course.curriculumCourseId
   }));
 
-  const resolvedCourseTypes = (courseTypes && courseTypes.length > 0)
-    ? courseTypes
-    : Array.from(
-        coursesData.reduce((acc: Map<string, any>, course: any) => {
-          if (course.courseType?.id && !acc.has(course.courseType.id)) {
-            acc.set(course.courseType.id, {
-              id: course.courseType.id,
-              name: course.courseType.name,
-              color: course.courseType.color,
-            });
-          }
-          return acc;
-        }, new Map<string, any>()).values()
-      );
+  // For the dropdown, we need ALL available course types, not just assigned ones
+  // Combine fetched courseTypes with any course types already assigned to courses
+  const resolvedCourseTypes = (() => {
+    const typeMap = new Map<string, any>();
+    
+    // First, add all fetched course types from the department
+    if (courseTypes && courseTypes.length > 0) {
+      courseTypes.forEach(ct => typeMap.set(ct.id, ct));
+    }
+    
+    // Then, add any course types that are already assigned to courses
+    coursesData.forEach((course: any) => {
+      if (course.courseType?.id && !typeMap.has(course.courseType.id)) {
+        typeMap.set(course.courseType.id, {
+          id: course.courseType.id,
+          name: course.courseType.name,
+          color: course.courseType.color,
+        });
+      }
+    });
+    
+    const result = Array.from(typeMap.values());
+    console.log('Resolved course types for dropdown:', result);
+    return result;
+  })();
 
   const courseTypeCreditBreakdown = resolvedCourseTypes.map((type: any) => {
     const totalCredits = coursesData.reduce((sum: number, course: any) => {
@@ -1121,22 +1141,22 @@ export default function EditCurriculum() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-foreground">Course Type</label>
+                  <label className="block text-sm font-semibold mb-2 text-foreground">Course Category</label>
                   <select
                     value={editingCourse.selectedCourseTypeId || ''}
                     onChange={(e) => setEditingCourse({...editingCourse, selectedCourseTypeId: e.target.value})}
                     className="w-full border border-gray-300 dark:border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground transition-colors"
                     disabled={isLoadingCourseTypes}
                   >
-                    <option value="">Select Course Type</option>
-                    {courseTypes.map((courseType) => (
+                    <option value="">Select Course Category</option>
+                    {resolvedCourseTypes.map((courseType) => (
                       <option key={courseType.id} value={courseType.id}>
                         {courseType.name}
                       </option>
                     ))}
                   </select>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {isLoadingCourseTypes ? 'Loading course types...' : 'Choose the appropriate course type for curriculum requirements'}
+                    {isLoadingCourseTypes ? 'Loading course categories...' : 'Choose the appropriate course category for curriculum requirements'}
                   </p>
                 </div>
                 
@@ -1382,13 +1402,13 @@ export default function EditCurriculum() {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium mb-1 text-foreground">Course Type</label>
+                          <label className="block text-sm font-medium mb-1 text-foreground">Course Category</label>
                           <select
                             value={newCourse.type}
                             onChange={(e) => setNewCourse({...newCourse, type: e.target.value})}
                             className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-sm"
                           >
-                            <option value="">Select Type</option>
+                            <option value="">Select Category</option>
                             <option value="Core">Core</option>
                             <option value="Major">Major</option>
                             <option value="Major Elective">Major Elective</option>

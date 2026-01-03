@@ -70,14 +70,14 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
       
       // Set free elective credits from rules
       const freeElectiveRule = data.electiveRules.find(rule => rule.category.toLowerCase().includes('free'));
-      if (freeElectiveRule) {
+      if (freeElectiveRule && freeElectiveRule.requiredCredits != null) {
         setFreeElectiveCredits(freeElectiveRule.requiredCredits.toString());
         setFreeElectiveName(freeElectiveRule.category);
       }
       
       // Set major elective credits from rules
       const majorElectiveRule = data.electiveRules.find(rule => rule.category === 'Major Elective');
-      if (majorElectiveRule) {
+      if (majorElectiveRule && majorElectiveRule.requiredCredits != null) {
         setMajorElectiveCredits(majorElectiveRule.requiredCredits.toString());
       }
       
