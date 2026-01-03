@@ -15,7 +15,8 @@ import {
   FaSitemap,
   FaLightbulb,
   FaListUl,
-  FaSearch
+  FaSearch,
+  FaEye
 } from 'react-icons/fa';
 import { blacklistApi, type BlacklistData, type BlacklistCourse } from '@/services/blacklistApi';
 import { concentrationApi, type ConcentrationData, type ConcentrationCourse } from '@/services/concentrationApi';
@@ -25,6 +26,12 @@ import { formatCreatedDate } from "@/lib/ui/dateformat";
 import { useToastHelpers } from '@/hooks/useToast';
 import { API_BASE } from '@/lib/api/laravel';
 import { useConfigFeatureFlags } from '@/hooks/useConfigFeatureFlags';
+import { mockCreditPoolStore, isDemoModeFromFlags } from '@/lib/mockData/creditPoolMocks';
+import type { CreditPool, PoolList, NewCreditPool, NewPoolList, CourseTypeTreeNode as CreditPoolCourseTypeTreeNode } from '@/types/creditPool';
+import CreditPoolCard from '@/components/features/curriculum/CreditPoolCard';
+import PoolListCard from '@/components/features/curriculum/PoolListCard';
+import AddPoolModal from '@/components/features/curriculum/AddPoolModal';
+import AddPoolListModal from '@/components/features/curriculum/AddPoolListModal';
 
 interface Course {
   code: string;
@@ -209,8 +216,16 @@ export default function InfoConfig() {
     pools: false
   });
   const [expandedTypeIds, setExpandedTypeIds] = useState<Record<string, boolean>>({});
-  const [poolLists] = useState<{ id: string; name: string; courseCount: number; type: 'pool'; updatedAt?: string }[]>([]);
-  const [pools] = useState<{ id: string; name: string; minCredits: number; maxCredits: number; updatedAt?: string }[]>([]);
+  const [poolLists, setPoolLists] = useState<PoolList[]>([]);
+  const [pools, setPools] = useState<CreditPool[]>([]);
+  
+  // Pool modal states
+  const [isAddPoolModalOpen, setIsAddPoolModalOpen] = useState(false);
+  const [isAddPoolListModalOpen, setIsAddPoolListModalOpen] = useState(false);
+  const [editingPool, setEditingPool] = useState<CreditPool | null>(null);
+  const [editingPoolList, setEditingPoolList] = useState<PoolList | null>(null);
+  const [viewingPoolList, setViewingPoolList] = useState<PoolList | null>(null);
+  const [draggingPoolId, setDraggingPoolId] = useState<string | null>(null);
   
   // Concentration management states
   const [concentrations, setConcentrations] = useState<ConcentrationData[]>([]);
@@ -263,8 +278,22 @@ export default function InfoConfig() {
   const poolsEnabled = flags.enablePools;
   const genericListsEnabled = flags.enableGenericLists;
   const legacyBannerVisible = flags.showLegacyBridgeBanner;
+  const isDemoMode = isDemoModeFromFlags(flags);
 
   const courseTypeTree = useMemo(() => buildCourseTypeTree(courseTypes), [courseTypes]);
+  // Convert course type tree to the format expected by AddPoolModal
+  const courseTypeTreeForPools = useMemo((): CreditPoolCourseTypeTreeNode[] => {
+    const convertNode = (node: CourseTypeTreeNode): CreditPoolCourseTypeTreeNode => ({
+      id: node.id,
+      name: node.name,
+      color: node.color,
+      parentId: node.parentId,
+      usageCount: node.usageCount,
+      childCount: node.childCount,
+      children: node.children.map(convertNode),
+    });
+    return courseTypeTree.map(convertNode);
+  }, [courseTypeTree]);
   const courseTypeOptions = useMemo(() => flattenCourseTypeTree(courseTypeTree), [courseTypeTree]);
   const courseTypeDepth = useMemo(() => calculateTreeDepth(courseTypeTree), [courseTypeTree]);
   const disallowedParentIds = useMemo(() => {
@@ -351,6 +380,13 @@ export default function InfoConfig() {
       loadCourseTypes();
     }
   }, [user]);
+
+  // Load pools and pool lists when pools feature is enabled
+  useEffect(() => {
+    if (user && user.role === 'CHAIRPERSON' && poolsEnabled) {
+      loadPoolsAndLists();
+    }
+  }, [user, poolsEnabled]);
 
   // Trigger search when courseSearch changes - with debounce
   useEffect(() => {
@@ -472,6 +508,28 @@ export default function InfoConfig() {
     }
   };
 
+  // Load pools and pool lists from mock data store
+  const loadPoolsAndLists = () => {
+    try {
+      // Load from mock data store (demo mode)
+      const loadedPools = mockCreditPoolStore.getCreditPools();
+      const loadedPoolLists = mockCreditPoolStore.getPoolLists();
+      
+      // Sort pools by orderIndex
+      const sortedPools = [...loadedPools].sort((a, b) => a.orderIndex - b.orderIndex);
+      
+      setPools(sortedPools);
+      setPoolLists(loadedPoolLists);
+      
+      console.log('📦 Loaded pools and lists from mock store:', {
+        poolsCount: sortedPools.length,
+        poolListsCount: loadedPoolLists.length
+      });
+    } catch (err) {
+      console.error('Error loading pools and lists:', err);
+    }
+  };
+
   // Fetch courses from database based on search query
   const searchDatabaseCourses = async (query: string) => {
     if (!query || query.trim().length < 2) {
@@ -523,6 +581,164 @@ export default function InfoConfig() {
       [typeId]: !currentState
     }));
   }, []);
+
+  // Pool management handlers
+  const handleAddPool = useCallback(() => {
+    setEditingPool(null);
+    setIsAddPoolModalOpen(true);
+  }, []);
+
+  const handleEditPool = useCallback((pool: CreditPool) => {
+    setEditingPool(pool);
+    setIsAddPoolModalOpen(true);
+  }, []);
+
+  const handleDeletePool = useCallback((poolId: string) => {
+    const poolToDelete = pools.find(p => p.id === poolId);
+    if (!poolToDelete) return;
+
+    warning(`You are about to delete "${poolToDelete.name}"`);
+
+    if (!confirm(`Are you sure you want to delete the pool "${poolToDelete.name}"?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      mockCreditPoolStore.deleteCreditPool(poolId);
+      loadPoolsAndLists();
+      success('Credit pool deleted successfully');
+    } catch (err) {
+      console.error('Error deleting pool:', err);
+      showError('Failed to delete credit pool');
+    }
+  }, [pools, warning, success, showError]);
+
+  const handleSavePool = useCallback((poolData: NewCreditPool) => {
+    try {
+      if (editingPool) {
+        // Update existing pool
+        mockCreditPoolStore.updateCreditPool(editingPool.id, poolData);
+        success('Credit pool updated successfully');
+      } else {
+        // Create new pool
+        mockCreditPoolStore.createCreditPool(poolData, 'dept-1');
+        success('Credit pool created successfully');
+      }
+      loadPoolsAndLists();
+      setIsAddPoolModalOpen(false);
+      setEditingPool(null);
+    } catch (err) {
+      console.error('Error saving pool:', err);
+      showError('Failed to save credit pool');
+    }
+  }, [editingPool, success, showError]);
+
+  // Pool drag-to-reorder handlers
+  const handlePoolDragStart = useCallback((e: React.DragEvent, poolId: string) => {
+    setDraggingPoolId(poolId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', poolId);
+  }, []);
+
+  const handlePoolDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const handlePoolDrop = useCallback((e: React.DragEvent, targetPoolId: string) => {
+    e.preventDefault();
+    const draggedPoolId = e.dataTransfer.getData('text/plain');
+    
+    if (draggedPoolId === targetPoolId) {
+      setDraggingPoolId(null);
+      return;
+    }
+
+    // Reorder pools
+    const currentPools = [...pools];
+    const draggedIndex = currentPools.findIndex(p => p.id === draggedPoolId);
+    const targetIndex = currentPools.findIndex(p => p.id === targetPoolId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggingPoolId(null);
+      return;
+    }
+
+    // Remove dragged pool and insert at target position
+    const [draggedPool] = currentPools.splice(draggedIndex, 1);
+    currentPools.splice(targetIndex, 0, draggedPool);
+
+    // Update order indices
+    const orderedIds = currentPools.map(p => p.id);
+    mockCreditPoolStore.reorderCreditPools('dept-1', orderedIds);
+    
+    loadPoolsAndLists();
+    setDraggingPoolId(null);
+    info('Pool order updated');
+  }, [pools, info]);
+
+  // Pool List management handlers
+  const handleAddPoolList = useCallback(() => {
+    setEditingPoolList(null);
+    setIsAddPoolListModalOpen(true);
+  }, []);
+
+  const handleEditPoolList = useCallback((list: PoolList) => {
+    setEditingPoolList(list);
+    setIsAddPoolListModalOpen(true);
+  }, []);
+
+  const handleDeletePoolList = useCallback((listId: string) => {
+    const listToDelete = poolLists.find(l => l.id === listId);
+    if (!listToDelete) return;
+
+    warning(`You are about to delete "${listToDelete.name}"`);
+
+    if (!confirm(`Are you sure you want to delete the pool list "${listToDelete.name}"?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      mockCreditPoolStore.deletePoolList(listId);
+      loadPoolsAndLists();
+      success('Pool list deleted successfully');
+    } catch (err) {
+      console.error('Error deleting pool list:', err);
+      showError('Failed to delete pool list');
+    }
+  }, [poolLists, warning, success, showError]);
+
+  const handleViewPoolListCourses = useCallback((list: PoolList) => {
+    setViewingPoolList(list);
+  }, []);
+
+  const handleSavePoolList = useCallback((listData: NewPoolList) => {
+    try {
+      // Convert course codes to resolved courses (mock implementation)
+      const resolvedCourses = listData.courseCodes.map((code, index) => ({
+        courseId: `course-${Date.now()}-${index}`,
+        code,
+        name: `Course ${code}`,
+        credits: 3,
+      }));
+
+      if (editingPoolList) {
+        // Update existing list
+        mockCreditPoolStore.updatePoolList(editingPoolList.id, listData, resolvedCourses);
+        success('Pool list updated successfully');
+      } else {
+        // Create new list
+        mockCreditPoolStore.createPoolList(listData, 'dept-1', resolvedCourses);
+        success('Pool list created successfully');
+      }
+      loadPoolsAndLists();
+      setIsAddPoolListModalOpen(false);
+      setEditingPoolList(null);
+    } catch (err) {
+      console.error('Error saving pool list:', err);
+      showError('Failed to save pool list');
+    }
+  }, [editingPoolList, success, showError]);
 
   const handlePoolBuilderPlaceholder = useCallback(() => {
     warning('Credit Pool builder is coming soon. Backend endpoints need to land before we enable this.');
@@ -1738,42 +1954,62 @@ export default function InfoConfig() {
                         {pools.length} pools
                       </span>
                       <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                        {genericListSummaries.reduce((total, summary) => total + summary.count, 0)} lists
+                        {poolLists.length} lists
                       </span>
+                      {isDemoMode && (
+                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                          Demo Mode
+                        </span>
+                      )}
                     </div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
-                      Stage the upcoming credit-pool builder and generic course lists without blocking existing workflows.
+                      Manage credit pools and reusable course lists for your department.
                     </p>
                   </div>
                 </button>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handlePoolBuilderPlaceholder}
-                    disabled={!poolsEnabled}
-                    className="flex items-center gap-2 rounded-lg border border-primary px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
-                  >
-                    <FaLayerGroup className="h-3.5 w-3.5" />
-                    Launch Builder
-                  </button>
+                  {poolsEnabled && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleAddPoolList}
+                        className="flex items-center gap-2 rounded-lg border border-primary px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
+                      >
+                        <FaListUl className="h-3.5 w-3.5" />
+                        Add List
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddPool}
+                        className="flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary/90"
+                      >
+                        <FaPlus className="h-3.5 w-3.5" />
+                        Add Pool
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
               {!collapsedSections.pools && (
-                <div className="mt-4 space-y-4">
+                <div className="mt-4 space-y-6">
                   {poolsEnabled ? (
                     <>
+                      {/* Credit Pools Subsection */}
                       <div className="rounded-lg border border-gray-200 dark:border-border p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
                           <div>
-                            <h3 className="text-base font-semibold text-foreground">Credit Pools Builder</h3>
+                            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                              <FaLayerGroup className="h-4 w-4 text-primary" />
+                              Credit Pools
+                            </h3>
                             <p className="text-sm text-muted-foreground">
-                              Define min/max credit gates and source nodes. Backend endpoints `/credit-pools` &amp; `/curricula/:id/credit-pools` pending.
+                              Define credit requirements and source nodes. Drag to reorder evaluation priority.
                             </p>
                           </div>
                           <button
                             type="button"
-                            onClick={handlePoolBuilderPlaceholder}
+                            onClick={handleAddPool}
                             className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary/90"
                           >
                             Add Pool
@@ -1781,58 +2017,85 @@ export default function InfoConfig() {
                         </div>
 
                         {pools.length === 0 ? (
-                          <div className="mt-4 rounded-lg border border-dashed border-gray-300 dark:border-border p-4 text-sm text-muted-foreground">
-                            No pools yet. This UI will light up once the backend delivers pool + attachment APIs.
+                          <div className="rounded-lg border border-dashed border-gray-300 dark:border-border p-6 text-center">
+                            <div className="flex flex-col items-center">
+                              <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                                <FaLayerGroup className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                              </div>
+                              <p className="text-sm font-medium mb-1 text-foreground">No credit pools yet</p>
+                              <p className="text-xs text-muted-foreground">Create your first credit pool to define credit requirements</p>
+                            </div>
                           </div>
                         ) : (
-                          <ul className="mt-4 space-y-3">
-                            {pools.map((pool) => (
-                              <li key={pool.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-3 text-sm">
-                                <div>
-                                  <p className="font-semibold text-foreground">{pool.name}</p>
-                                  <p className="text-muted-foreground">
-                                    {pool.minCredits}-{pool.maxCredits} credit window
-                                  </p>
-                                </div>
-                                <span className="text-xs text-muted-foreground">
-                                  Updated {pool.updatedAt ? formatCreatedDate(pool.updatedAt) : '—'}
+                          <div className="space-y-3">
+                            {pools.map((pool, index) => (
+                              <div key={pool.id} className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-muted-foreground w-6 text-center">
+                                  {index + 1}
                                 </span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-
-                      {genericListsEnabled ? (
-                        <div className="rounded-lg border border-gray-200 dark:border-border p-4">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-center gap-2">
-                              <FaListUl className="h-4 w-4 text-primary" />
-                              <h3 className="text-base font-semibold text-foreground">Generic Lists</h3>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={handleGenericListPlaceholder}
-                              className="rounded-lg border border-primary px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
-                            >
-                              New List
-                            </button>
-                          </div>
-                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                            {genericListSummaries.map((summary) => (
-                              <div key={summary.id} className="rounded-lg border border-gray-200 dark:border-border p-3">
-                                <p className="text-sm font-semibold text-foreground">{summary.label}</p>
-                                <p className="text-xs text-muted-foreground">{summary.description}</p>
-                                <p className="mt-2 text-2xl font-bold text-foreground">{summary.count}</p>
+                                <div className="flex-1">
+                                  <CreditPoolCard
+                                    pool={pool}
+                                    onEdit={handleEditPool}
+                                    onDelete={handleDeletePool}
+                                    onDragStart={handlePoolDragStart}
+                                    onDragOver={handlePoolDragOver}
+                                    onDrop={handlePoolDrop}
+                                    isDragging={draggingPoolId === pool.id}
+                                    showDragHandle={true}
+                                  />
+                                </div>
                               </div>
                             ))}
                           </div>
+                        )}
+                      </div>
+
+                      {/* Pool Lists Subsection */}
+                      <div className="rounded-lg border border-gray-200 dark:border-border p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
+                          <div>
+                            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                              <FaListUl className="h-4 w-4 text-primary" />
+                              Pool Lists
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Reusable course collections that can be attached to credit pools as sources.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleAddPoolList}
+                            className="rounded-lg border border-primary px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
+                          >
+                            Add List
+                          </button>
                         </div>
-                      ) : (
-                        <div className="rounded-lg border border-dashed border-gray-300 dark:border-border p-4 text-sm text-muted-foreground">
-                          Generic pool lists are off. Flip `NEXT_PUBLIC_ENABLE_CONFIG_GENERIC_LISTS` when backend consolidation is ready.
-                        </div>
-                      )}
+
+                        {poolLists.length === 0 ? (
+                          <div className="rounded-lg border border-dashed border-gray-300 dark:border-border p-6 text-center">
+                            <div className="flex flex-col items-center">
+                              <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                                <FaListUl className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                              </div>
+                              <p className="text-sm font-medium mb-1 text-foreground">No pool lists yet</p>
+                              <p className="text-xs text-muted-foreground">Create reusable course collections for your credit pools</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {poolLists.map((list) => (
+                              <PoolListCard
+                                key={list.id}
+                                poolList={list}
+                                onEdit={handleEditPoolList}
+                                onDelete={handleDeletePoolList}
+                                onViewCourses={handleViewPoolListCourses}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </>
                   ) : (
                     <div className="rounded-lg border border-dashed border-gray-300 dark:border-border p-4 text-sm text-muted-foreground">
@@ -3281,6 +3544,93 @@ export default function InfoConfig() {
                 <p className="text-sm">This concentration is currently empty</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Add Pool Modal */}
+      <AddPoolModal
+        isOpen={isAddPoolModalOpen}
+        onClose={() => {
+          setIsAddPoolModalOpen(false);
+          setEditingPool(null);
+        }}
+        onSave={handleSavePool}
+        courseTypes={courseTypeTreeForPools}
+        poolLists={poolLists}
+        editingPool={editingPool}
+      />
+
+      {/* Add Pool List Modal */}
+      <AddPoolListModal
+        isOpen={isAddPoolListModalOpen}
+        onClose={() => {
+          setIsAddPoolListModalOpen(false);
+          setEditingPoolList(null);
+        }}
+        onSave={handleSavePoolList}
+        editingList={editingPoolList}
+      />
+
+      {/* View Pool List Courses Modal */}
+      {viewingPoolList && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white dark:bg-card rounded-xl p-6 w-full max-w-2xl border border-gray-200 dark:border-border shadow-2xl max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-foreground">{viewingPoolList.name}</h3>
+                <p className="text-sm text-muted-foreground">{viewingPoolList.courses.length} courses</p>
+              </div>
+              <button
+                onClick={() => setViewingPoolList(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {viewingPoolList.description && (
+              <p className="text-sm text-muted-foreground mb-4">{viewingPoolList.description}</p>
+            )}
+
+            {viewingPoolList.courses.length > 0 ? (
+              <div className="border border-border rounded-lg overflow-hidden">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Code</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Name</th>
+                      <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Credits</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-border">
+                    {viewingPoolList.courses.map((course) => (
+                      <tr key={course.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <td className="px-4 py-3 font-medium text-foreground">{course.code}</td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{course.name}</td>
+                        <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{course.credits}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <FaListUl className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                <p>No courses in this list</p>
+              </div>
+            )}
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setViewingPoolList(null)}
+                className="px-4 py-2 border border-gray-300 dark:border-border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

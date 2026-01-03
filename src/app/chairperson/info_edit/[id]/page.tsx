@@ -13,6 +13,19 @@ import { facultyLabelApi } from '@/services/facultyLabelApi';
 import { useToastHelpers } from '@/hooks/useToast';
 import { useConfigFeatureFlags } from '@/hooks/useConfigFeatureFlags';
 import { API_BASE } from '@/lib/api/laravel';
+import {
+  getMockCreditPools,
+  getMockPoolLists,
+  getMockCurriculumAttachments,
+  mockCreditPoolStore,
+} from '@/lib/mockData/creditPoolMocks';
+import type {
+  CreditPool,
+  PoolList,
+  CurriculumPoolAttachment as CurriculumPoolAttachmentType,
+  PoolCreditConfig,
+  CurriculumCourseLite,
+} from '@/types/creditPool';
 
 interface CurriculumCourseMeta {
   curriculumCourseId: string;
@@ -101,6 +114,11 @@ export default function EditCurriculum() {
   const [courseTypes, setCourseTypes] = useState<any[]>([]);
   const [isLoadingCourseTypes, setIsLoadingCourseTypes] = useState(false);
 
+  // Credit Pools State (for demo mode)
+  const [availablePools, setAvailablePools] = useState<CreditPool[]>([]);
+  const [poolLists, setPoolLists] = useState<PoolList[]>([]);
+  const [attachedPools, setAttachedPools] = useState<CurriculumPoolAttachmentType[]>([]);
+
   // Add Course Loading State
   const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
@@ -188,6 +206,59 @@ export default function EditCurriculum() {
 
     fetchCourseTypes();
   }, [curriculum?.departmentId]);
+
+  // Load pool data when curriculum is available (demo mode with mock data)
+  useEffect(() => {
+    if (!curriculumId || !curriculum?.departmentId) return;
+
+    // Load mock data for pools
+    const pools = getMockCreditPools(curriculum.departmentId);
+    const lists = getMockPoolLists(curriculum.departmentId);
+    const attachments = getMockCurriculumAttachments(curriculumId);
+
+    setAvailablePools(pools);
+    setPoolLists(lists);
+    setAttachedPools(attachments);
+  }, [curriculumId, curriculum?.departmentId]);
+
+  // Pool attachment handlers
+  const handleAttachPool = (poolId: string, credits: PoolCreditConfig) => {
+    const newAttachment = mockCreditPoolStore.attachPoolToCurriculum(
+      curriculumId,
+      poolId,
+      credits
+    );
+    if (newAttachment) {
+      setAttachedPools((prev) => [...prev, newAttachment]);
+      success('Pool attached to curriculum successfully!');
+    }
+  };
+
+  const handleDetachPool = (attachmentId: string) => {
+    mockCreditPoolStore.detachPoolFromCurriculum(attachmentId);
+    setAttachedPools((prev) => prev.filter((a) => a.id !== attachmentId));
+    success('Pool detached from curriculum.');
+  };
+
+  const handleUpdateAttachment = (attachment: CurriculumPoolAttachmentType) => {
+    mockCreditPoolStore.updateCurriculumAttachment(attachment.id, {
+      requiredCredits: attachment.requiredCredits,
+      maxCredits: attachment.maxCredits,
+    });
+    setAttachedPools((prev) =>
+      prev.map((a) => (a.id === attachment.id ? attachment : a))
+    );
+  };
+
+  const handleReorderAttachments = (orderedIds: string[]) => {
+    mockCreditPoolStore.reorderCurriculumAttachments(curriculumId, orderedIds);
+    setAttachedPools((prev) =>
+      prev.map((a) => ({
+        ...a,
+        orderIndex: orderedIds.indexOf(a.id),
+      }))
+    );
+  };
 
   // Process curriculum data for display
   const summary = curriculum ? {
@@ -984,8 +1055,22 @@ export default function EditCurriculum() {
               curriculumName={curriculum?.name ?? ''}
               departmentId={curriculum?.departmentId}
               courseTypes={courseTypes}
-              courses={coursesData}
+              courses={coursesData.map((course: any) => ({
+                id: course.id,
+                code: course.code,
+                name: course.title,
+                credits: course.credits,
+                courseType: course.courseType,
+              }))}
               isLoadingCourseTypes={isLoadingCourseTypes}
+              availablePools={availablePools}
+              attachedPools={attachedPools}
+              poolLists={poolLists}
+              onAttachPool={handleAttachPool}
+              onDetachPool={handleDetachPool}
+              onUpdateAttachment={handleUpdateAttachment}
+              onReorderAttachments={handleReorderAttachments}
+              isDemoMode={true}
             />
           )}
 
