@@ -42,7 +42,7 @@ const defaultNavigationItems = [
     icon: Library,
   },
   {
-    name: 'Next Semester Course',
+    name: 'Next Tentative Schedules',
     href: '/student/SemesterCourse',
     icon: Book,
   },
@@ -90,7 +90,7 @@ const chairpersonNavigationItems = [
     icon: Settings,
   },
   {
-    name: 'Tentative Schedule',
+    name: 'Tntative Shedules',
     href: '/chairperson/TentativeSchedule',
     icon: CalendarClock,
   },
