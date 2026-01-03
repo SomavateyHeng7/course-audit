@@ -72,7 +72,11 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
   };
 
   const handleConcentrationClick = async (concentrationId: string) => {
-    const existing = curriculumConcentrations.find(cc => cc.concentration.id === concentrationId);
+    // Check if this concentration is already assigned
+    // Backend returns { id: concentration_id, concentration: {...} }
+    const existing = curriculumConcentrations.find(cc => 
+      cc.id === concentrationId || cc.concentration?.id === concentrationId
+    );
     
     try {
       setLoading(true);
@@ -145,15 +149,22 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
   };
 
   const isConcentrationSelected = (concentrationId: string) => {
-    return curriculumConcentrations.some(cc => cc.concentration.id === concentrationId);
+    return curriculumConcentrations.some(cc => 
+      cc.id === concentrationId || cc.concentration?.id === concentrationId
+    );
   };
 
   const getSelectedConcentration = (concentrationId: string) => {
-    return curriculumConcentrations.find(cc => cc.concentration.id === concentrationId);
+    return curriculumConcentrations.find(cc => 
+      cc.id === concentrationId || cc.concentration?.id === concentrationId
+    );
   };
 
   // Get unassigned concentrations for display
-  const assignedConcentrationIds = curriculumConcentrations.map(cc => cc.concentration.id);
+  // Backend can return either format: { id: concentrationId, concentration: {...} } or { concentration: { id: ... } }
+  const assignedConcentrationIds = curriculumConcentrations.map(cc => 
+    cc.id || cc.concentration?.id
+  ).filter(Boolean);
   const unassignedConcentrations = availableConcentrations.filter(
     concentration => !assignedConcentrationIds.includes(concentration.id)
   );
