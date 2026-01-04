@@ -90,7 +90,7 @@ const chairpersonNavigationItems = [
     icon: Settings,
   },
   {
-    name: 'Tntative Shedules',
+    name: 'Tentative Shedules',
     href: '/chairperson/TentativeSchedule',
     icon: CalendarClock,
   },

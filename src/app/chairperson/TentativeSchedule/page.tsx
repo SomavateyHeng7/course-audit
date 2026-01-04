@@ -121,7 +121,7 @@ const TentativeSchedulePage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">
-              Tntative Schedules
+              Tentative Schedules
             </h1>
             <p className="text-muted-foreground">
               Manage and create tentative course schedules for different batches and semesters
