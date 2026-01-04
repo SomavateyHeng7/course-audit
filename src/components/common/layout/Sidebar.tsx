@@ -4,14 +4,15 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/SanctumAuthContext";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/common-utils";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useSidebar } from "@/contexts/SidebarContext";
-import NotificationDropdown from "@/components/common/NotificationDropdown";
 import {
   LayoutDashboard,
+  MessageSquare,
   User,
   LogOut,
   Menu,
@@ -22,6 +23,7 @@ import {
   Building,
   GraduationCap,
   CalendarClock,
+  UserCheck,
   Library,
   Folders,
   FileUp,
@@ -36,15 +38,20 @@ const defaultNavigationItems = [
     icon: LayoutDashboard,
   },
   {
+    name: "Plan Future Courses",
+    href: "/student/FutureCourses",
+    icon: Library,
+  },
+  {
     name: "Next Tentative Schedules",
     href: "/student/SemesterCourse",
     icon: Book,
   },
-  // {
-  //   name: "All Curricula",
-  //   href: "/student/allCurricula",
-  //   icon: Folders,
-  // },
+  {
+    name: "All Curricula",
+    href: "/student/allCurricula",
+    icon: Folders,
+  },
   {
     name: 'Graduation Portal',
     href: '/student/GraduationPortal',
@@ -89,37 +96,24 @@ const chairpersonNavigationItems = [
     icon: Settings,
   },
   {
-    name: "Tentative Schedules",
+    name: "Tentative Shedules",
     href: "/chairperson/TentativeSchedule",
     icon: CalendarClock,
   },
-  {
-    name: "Graduation Portal",
-    href: "/chairperson/GraduationPortal",
-    icon: GraduationCap,
-  },
-];
-
-// Navigation for advisor users (view-only access)
-const advisorNavigationItems = [
-  {
-    name: "View Curricula",
-    href: "/advisor/curricula",
-    icon: BookOpen,
-  },
-  {
-    name: "View Tentative Schedules",
-    href: "/advisor/schedules",
-    icon: CalendarClock,
-  },
+  // {
+  //   name: 'Student',
+  //   href: '/chairperson/StudentCheckList',
+  //   icon: UserCheck,
+  // }
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const { isCollapsed, toggleSidebar } = useSidebar();
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout } = useAuth();
 
   // Determine navigation items based on user role
   const navigationItems =
@@ -127,39 +121,11 @@ export default function Sidebar() {
       ? chairpersonNavigationItems
       : user?.role === "SUPER_ADMIN"
       ? adminNavigationItems
-      : user?.role === "ADVISOR"
-      ? advisorNavigationItems
       : defaultNavigationItems;
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Validate user is on correct page for their role
-  useEffect(() => {
-    if (isLoading || !mounted || !user) return;
-    
-    const isOnStudentPage = pathname.startsWith('/student');
-    const isOnChairpersonPage = pathname.startsWith('/chairperson');
-    const isOnAdminPage = pathname.startsWith('/admin');
-    const isOnAdvisorPage = pathname.startsWith('/advisor');
-    
-    // Check if user is on wrong page for their role
-    if (user.role === 'STUDENT' && (isOnChairpersonPage || isOnAdminPage || isOnAdvisorPage)) {
-      console.log('Student on wrong page, redirecting...');
-      window.location.href = '/student/management';
-    } else if (user.role === 'CHAIRPERSON' && (isOnStudentPage || isOnAdminPage || isOnAdvisorPage)) {
-      console.log('Chairperson on wrong page, redirecting...');
-      window.location.href = '/chairperson';
-    } else if (user.role === 'SUPER_ADMIN' && (isOnStudentPage || isOnChairpersonPage || isOnAdvisorPage)) {
-      console.log('Admin on wrong page, redirecting...');
-      window.location.href = '/admin';
-    } else if (user.role === 'ADVISOR' && (isOnStudentPage || isOnChairpersonPage || isOnAdminPage)) {
-      console.log('Advisor on wrong page, redirecting...');
-      window.location.href = '/advisor/curricula';
-    }
-  }, [user, pathname, isLoading, mounted]);
-
   const handleLogoError = () => {
     if (!logoError) {
       console.warn("Logo failed to load");
@@ -170,14 +136,13 @@ export default function Sidebar() {
   const handleLogout = async () => {
     try {
       await logout();
-      // Small delay to ensure logout completes, then force full page reload
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      // Use replace to prevent back button from returning to authenticated state
-      window.location.replace("/");
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      router.push("/");
+      router.refresh();
     } catch (error) {
       console.error("Logout error:", error);
-      // Force reload even on error to clear any cached state
-      window.location.replace("/");
+      router.push("/");
+      router.refresh();
     }
   };
 
@@ -296,9 +261,9 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
-      {/* Theme Toggle Section */}
-      <div className="px-3 py-3 border-b border-teal-200/60 dark:border-teal-800/40">
-        <div className="flex items-center justify-center">
+      {/* Theme Toggle */}
+      <div className="px-3 py-2 border-b border-teal-200/60 dark:border-teal-800/40">
+        <div className="flex justify-center">
           <ThemeToggle />
         </div>
       </div>
@@ -354,13 +319,6 @@ export default function Sidebar() {
               </Link>
             );
           })}
-          
-          {/* Notification Dropdown - Only for Chairperson and Advisor */}
-          {(user?.role === 'CHAIRPERSON' || user?.role === 'ADVISOR') && (
-            <div className="pt-1">
-              <NotificationDropdown isCollapsed={isCollapsed} />
-            </div>
-          )}
         </div>
       </nav>
       {/* Logout/Clear Data Button */}
