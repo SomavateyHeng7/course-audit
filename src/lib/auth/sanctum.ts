@@ -1,4 +1,3 @@
-// Laravel Sanctum Authentication Service for Next.js
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export interface User {
@@ -24,7 +23,6 @@ export interface LoginResponse {
   user: User;
 }
 
-// Get CSRF cookie before making authenticated requests
 export async function getCsrfCookie(): Promise<void> {
   await fetch(`${API_URL}/sanctum/csrf-cookie`, {
     method: 'GET',
@@ -35,7 +33,6 @@ export async function getCsrfCookie(): Promise<void> {
   });
 }
 
-// Helper to get CSRF token from cookie
 export function getCsrfTokenFromCookie(): string | null {
   if (typeof document === 'undefined') return null;
   
@@ -46,12 +43,9 @@ export function getCsrfTokenFromCookie(): string | null {
   return null;
 }
 
-// Login with email and password
 export async function login(email: string, password: string): Promise<LoginResponse> {
-  // First get CSRF cookie
   await getCsrfCookie();
 
-  // Get CSRF token from cookie
   const csrfToken = getCsrfTokenFromCookie();
 
   const response = await fetch(`${API_URL}/api/login`, {
@@ -74,21 +68,43 @@ export async function login(email: string, password: string): Promise<LoginRespo
   return data;
 }
 
-// Logout
 export async function logout(): Promise<void> {
-  const csrfToken = getCsrfTokenFromCookie();
-  
-  await fetch(`${API_URL}/api/logout`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Accept': 'application/json',
-      ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
-    },
-  });
+  try {
+    const csrfToken = getCsrfTokenFromCookie();
+    
+    await fetch(`${API_URL}/api/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+        ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+      },
+    });
+  } catch (error) {
+    console.error('Logout API error:', error);
+  } finally {
+    clearAllClientData();
+  }
 }
 
-// Get current user
+function clearAllClientData(): void {
+  if (typeof window === 'undefined') return;
+
+  localStorage.clear();
+  sessionStorage.clear();
+  
+  const cookies = document.cookie.split(';');
+  for (let i = 0; i < cookies.length; i++) {
+    const cookie = cookies[i];
+    const eqPos = cookie.indexOf('=');
+    const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
+    
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
+  }
+}
+
 export async function getUser(): Promise<User> {
   try {
     const response = await fetch(`${API_URL}/api/user`, {
@@ -100,7 +116,6 @@ export async function getUser(): Promise<User> {
     });
 
     if (!response.ok) {
-      // Don't throw error for 401, just return null-like response
       if (response.status === 401) {
         console.log('User not authenticated - 401 response');
         throw new Error('Unauthenticated');
@@ -115,7 +130,6 @@ export async function getUser(): Promise<User> {
   }
 }
 
-// Token management
 export function setToken(token: string): void {
   if (typeof window !== 'undefined') {
     localStorage.setItem('auth_token', token);
@@ -135,7 +149,6 @@ export function clearToken(): void {
   }
 }
 
-// Helper to make authenticated API requests
 export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   const csrfToken = getCsrfTokenFromCookie();
   

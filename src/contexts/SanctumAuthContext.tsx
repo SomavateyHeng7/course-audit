@@ -1,7 +1,18 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { login as sanctumLogin, logout as sanctumLogout, getUser, User } from '@/lib/auth/sanctum';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import {
+  login as sanctumLogin,
+  logout as sanctumLogout,
+  getUser,
+  User,
+} from "@/lib/auth/sanctum";
 
 interface AuthContextType {
   user: User | null;
@@ -44,12 +55,14 @@ export function SanctumAuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    setIsLoading(true);
     try {
       await sanctumLogout();
-      setUser(null);
     } catch (error) {
-      // Even if logout fails, clear local state
+      console.error("Logout error:", error);
+    } finally {
       setUser(null);
+      setIsLoading(false);
     }
   };
 
@@ -63,7 +76,9 @@ export function SanctumAuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, login, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -72,7 +87,7 @@ export function SanctumAuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within a SanctumAuthProvider');
+    throw new Error("useAuth must be used within a SanctumAuthProvider");
   }
   return context;
 }
