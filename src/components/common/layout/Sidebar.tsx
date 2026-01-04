@@ -26,6 +26,7 @@ import {
   UserCheck,
   Library,
   Folders,
+  FileUp,
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -50,6 +51,11 @@ const defaultNavigationItems = [
     name: 'All Curricula',
     href: '/student/allCurricula',
     icon: Folders,
+  },
+  {
+    name: 'Graduation Portal',
+    href: '/student/GraduationPortal',
+    icon: FileUp,
   },
 ];
 
