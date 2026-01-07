@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/SanctumAuthContext";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/common-utils";
@@ -12,7 +11,6 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useSidebar } from "@/contexts/SidebarContext";
 import {
   LayoutDashboard,
-  MessageSquare,
   User,
   LogOut,
   Menu,
@@ -23,7 +21,6 @@ import {
   Building,
   GraduationCap,
   CalendarClock,
-  UserCheck,
   Library,
   Folders,
   FileUp,
@@ -96,20 +93,19 @@ const chairpersonNavigationItems = [
     icon: Settings,
   },
   {
-    name: "Tentative Shedules",
+    name: "Tentative Schedules",
     href: "/chairperson/TentativeSchedule",
     icon: CalendarClock,
   },
-  // {
-  //   name: 'Student',
-  //   href: '/chairperson/StudentCheckList',
-  //   icon: UserCheck,
-  // }
+  {
+    name: "Graduation Portal",
+    href: "/chairperson/GraduationPortal",
+    icon: GraduationCap,
+  },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const { isCollapsed, toggleSidebar } = useSidebar();
@@ -137,12 +133,10 @@ export default function Sidebar() {
     try {
       await logout();
       await new Promise((resolve) => setTimeout(resolve, 150));
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     }
   };
 
