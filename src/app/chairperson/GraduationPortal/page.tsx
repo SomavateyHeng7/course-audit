@@ -230,6 +230,9 @@ const DonutChart = ({
   const percent = total > 0 ? (completed / total) * 100 : 0;
   const offset = circumference - (percent / 100) * circumference;
   
+  // Scale text size based on chart size
+  const percentTextSize = size <= 40 ? 'text-[9px]' : size <= 60 ? 'text-[11px]' : size <= 80 ? 'text-xs' : 'text-sm';
+  
   return (
     <div className="relative flex items-center justify-center">
       <svg width={size} height={size} className="transform -rotate-90">
@@ -256,7 +259,7 @@ const DonutChart = ({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-sm font-bold">{Math.round(percent)}%</span>
+        <span className={`${percentTextSize} font-bold leading-none`}>{Math.round(percent)}%</span>
       </div>
     </div>
   );
@@ -677,33 +680,40 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleViewSubmission(submission);
                           }}
+                          className="h-8 w-8 p-0"
                         >
-                          <Eye className="w-4 h-4 mr-1" />
-                          View
+                          <Eye className="w-4 h-4" />
                         </Button>
+                        {submission.status === 'validated' && (
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Handle approve action
+                            }}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                        )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button size="sm" variant="ghost">
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
                               <MoreVertical className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem>
                               <Download className="w-4 h-4 mr-2" />
-                              Download File
+                              Download Excel
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {submission.status === 'validated' && (
-                              <DropdownMenuItem className="text-green-600">
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                Approve
-                              </DropdownMenuItem>
-                            )}
                             {submission.status === 'has_issues' && (
                               <DropdownMenuItem className="text-red-600">
                                 <XCircle className="w-4 h-4 mr-2" />
