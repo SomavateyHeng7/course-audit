@@ -341,3 +341,144 @@ export interface AttachPoolModalProps {
   availablePools: CreditPool[];
   selectedPoolId?: string | null;
 }
+
+// =============================================================================
+// Curriculum-Based Credit Pool Types (New Design)
+// =============================================================================
+
+/**
+ * Curriculum Credit Pool
+ * A credit pool created within a specific curriculum based on course type hierarchy.
+ * This replaces the global pool approach with curriculum-specific pools.
+ */
+export interface CurriculumCreditPool {
+  id: string;
+  curriculumId: string;
+  name: string;                          // From top-level course type
+  topLevelCourseTypeId: string;          // Reference to the selected top-level type
+  topLevelCourseTypeColor?: string;
+  enabled: boolean;
+  subCategories: SubCategoryPool[];
+  totalRequiredCredits: number;          // Computed: sum of sub-category requirements
+  totalAttachedCredits: number;          // Computed: sum of attached course credits
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Sub-Category Pool
+ * A child pool within a CurriculumCreditPool representing a specific course type.
+ */
+export interface SubCategoryPool {
+  id: string;
+  poolId: string;                        // Parent pool reference
+  courseTypeId: string;                  // The course type this sub-category represents
+  courseTypeName: string;
+  courseTypeColor?: string;
+  requiredCredits: number;
+  attachedCourses: AttachedPoolCourse[];
+  attachedCredits: number;               // Computed: sum of attached course credits
+}
+
+/**
+ * Attached Pool Course
+ * A course attached to a sub-category pool.
+ */
+export interface AttachedPoolCourse {
+  id: string;
+  courseId: string;
+  code: string;
+  name: string;
+  credits: number;
+  attachedAt: string;
+}
+
+/**
+ * New Curriculum Credit Pool Form Data
+ * Data structure for creating a new curriculum-based credit pool.
+ */
+export interface NewCurriculumCreditPool {
+  topLevelCourseTypeId: string;
+  subCategories: {
+    courseTypeId: string;
+    requiredCredits: number;
+  }[];
+}
+
+/**
+ * Curriculum Pools Tab Props (New Design)
+ */
+export interface CurriculumPoolsTabProps {
+  curriculumId: string;
+  curriculumName: string;
+  courseTypes: CourseTypeLite[];        // All course types used in curriculum
+  courses: CurriculumCourseLite[];      // All courses in curriculum
+  onPoolsChange?: (pools: CurriculumCreditPool[]) => void;
+}
+
+/**
+ * Create Pool Modal Props
+ */
+export interface CreatePoolModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (pool: NewCurriculumCreditPool) => void;
+  availableTopLevelTypes: CourseTypeLite[];
+  courseTypeHierarchy: CourseTypeTreeNode[];
+  curriculumCourses: CurriculumCourseLite[];
+  usedTopLevelTypeIds: string[];         // Types already used in existing pools
+}
+
+/**
+ * Credit Pool Card Props (New Design)
+ */
+export interface CurriculumCreditPoolCardProps {
+  pool: CurriculumCreditPool;
+  onEdit: (pool: CurriculumCreditPool) => void;
+  onDelete: (poolId: string) => void;
+  onToggleEnabled: (poolId: string, enabled: boolean) => void;
+  onUpdateSubCategory: (poolId: string, subCatId: string, requiredCredits: number) => void;
+  onAttachCourse: (poolId: string, subCatId: string, course: CurriculumCourseLite) => void;
+  onDetachCourse: (poolId: string, subCatId: string, courseId: string) => void;
+  onAutoAttach: (poolId: string, subCatId: string) => void;
+  curriculumCourses: CurriculumCourseLite[];
+  allAttachedCourseIds: string[];        // All courses attached across all pools (for duplicate prevention)
+}
+
+/**
+ * Sub-Category Pool Props
+ */
+export interface SubCategoryPoolProps {
+  subCategory: SubCategoryPool;
+  parentPoolId: string;
+  onUpdateCredits: (credits: number) => void;
+  onAttachCourse: (course: CurriculumCourseLite) => void;
+  onDetachCourse: (courseId: string) => void;
+  onAutoAttach: () => void;
+  availableCourses: CurriculumCourseLite[];
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  poolAttachedCourseIds: string[];       // Courses attached in this pool (for duplicate prevention)
+}
+
+/**
+ * Attach Course Modal Props (New Design)
+ */
+export interface AttachCourseToPoolModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAttach: (courses: CurriculumCourseLite[]) => void;
+  availableCourses: CurriculumCourseLite[];
+  alreadyAttachedIds: string[];
+  subCategoryName: string;
+}
+
+/**
+ * Pool Summary Card Props
+ */
+export interface PoolSummaryCardProps {
+  pools: CurriculumCreditPool[];
+  totalRequiredCredits: number;
+  completePools: number;
+  needsAttentionPools: number;
+}

@@ -9,6 +9,7 @@ import ElectiveRulesTab from '@/components/features/curriculum/ElectiveRulesTab'
 import ConcentrationsTab from '@/components/features/curriculum/ConcentrationsTab';
 import BlacklistTab from '@/components/features/curriculum/BlacklistTab';
 import PoolsListsTab from '@/components/features/curriculum/PoolsListsTab';
+import CurriculumPoolsTab from '@/components/features/curriculum/CurriculumPoolsTab';
 import { facultyLabelApi } from '@/services/facultyLabelApi';
 import { useToastHelpers } from '@/hooks/useToast';
 import { useConfigFeatureFlags } from '@/hooks/useConfigFeatureFlags';
@@ -1070,10 +1071,9 @@ export default function EditCurriculum() {
           )}
 
           {activeTab === "Pools & Lists" && poolsTabVisible && (
-            <PoolsListsTab
+            <CurriculumPoolsTab
               curriculumId={curriculumId}
               curriculumName={curriculum?.name ?? ''}
-              departmentId={curriculum?.departmentId}
               courseTypes={courseTypes}
               courses={coursesData.map((course: any) => ({
                 id: course.id,
@@ -1082,15 +1082,6 @@ export default function EditCurriculum() {
                 credits: course.credits,
                 courseType: course.courseType,
               }))}
-              isLoadingCourseTypes={isLoadingCourseTypes}
-              availablePools={availablePools}
-              attachedPools={attachedPools}
-              poolLists={poolLists}
-              onAttachPool={handleAttachPool}
-              onDetachPool={handleDetachPool}
-              onUpdateAttachment={handleUpdateAttachment}
-              onReorderAttachments={handleReorderAttachments}
-              isDemoMode={true}
             />
           )}
 
