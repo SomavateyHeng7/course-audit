@@ -27,8 +27,9 @@ interface Course {
   description?: string;
   category?: string;
   section?: string;
-  days?: string[]; // Changed from day to days array to support multiple days
-  time?: string;
+  dayTimeSlots?: Array<{ day: string; startTime: string; endTime: string }>; // Support for multiple day-time combinations
+  days?: string[]; // Legacy: for backwards compatibility with simple day list
+  time?: string; // Legacy: for backwards compatibility with single time
   instructor?: string;
   seatLimit?: number;
 }
@@ -230,13 +231,23 @@ const TentativeSchedulePage: React.FC = () => {
     setShowCourseDetailModal(true);
   };
 
-  const handleCourseDetailSave = () => {
+  const handleCourseDetailSave = (courseData?: any) => {
     if (!selectedCourseForDetail) return;
+    
+    // Merge the selected course with the form data from CourseDetailForm
+    const courseWithDetails: Course = {
+      ...selectedCourseForDetail,
+      section: courseData?.section,
+      dayTimeSlots: courseData?.dayTimeSlots || [],
+      instructor: courseData?.instructor,
+      seatLimit: courseData?.seat ? parseInt(courseData.seat) : undefined
+    };
+    
     setSchedule(prev => ({
       ...prev,
-      courses: [...prev.courses, selectedCourseForDetail]
+      courses: [...prev.courses, courseWithDetails]
     }));
-    success(`${selectedCourseForDetail.code} added`);
+    success(`${selectedCourseForDetail.code} added with ${courseData?.dayTimeSlots?.length || 0} time slot(s)`);
     setShowCourseDetailModal(false);
     setSelectedCourseForDetail(null);
   };
@@ -284,6 +295,22 @@ const TentativeSchedulePage: React.FC = () => {
           ? dayInput.toString().split(/[,;]/).map((d: string) => d.trim()).filter((d: string) => d.length > 0)
           : [];
 
+        // Create dayTimeSlots if we have days and time
+        let dayTimeSlots: Array<{ day: string; startTime: string; endTime: string }> | undefined;
+        if (days.length > 0 && time) {
+          // Parse time (format: "HH:MM - HH:MM" or "HH:MM-HH:MM")
+          const timeMatch = time.toString().match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+          if (timeMatch) {
+            const [, startTime, endTime] = timeMatch;
+            // Apply the same time to all days (Excel format limitation)
+            dayTimeSlots = days.map(day => ({
+              day,
+              startTime,
+              endTime
+            }));
+          }
+        }
+
         if (!course || !courseName) {
           warning(`Row ${index + 1}: Missing required fields (Course or Course Name)`);
         }
@@ -294,8 +321,9 @@ const TentativeSchedulePage: React.FC = () => {
           name: courseName || '',
           credits: 3, // Default value
           section: section || '',
-          days: days.length > 0 ? days : undefined,
-          time: time || '',
+          dayTimeSlots: dayTimeSlots,
+          days: days.length > 0 ? days : undefined, // Keep for backwards compatibility
+          time: time || '', // Keep for backwards compatibility
           instructor: instructor || '',
           seatLimit: seatLimit ? parseInt(seatLimit) : undefined,
           category: 'Uploaded'
@@ -724,7 +752,17 @@ const TentativeSchedulePage: React.FC = () => {
                               {course.credits} credits
                               {course.category && ` • ${course.category}`}
                             </div>
-                            {course.days && course.days.length > 0 && (
+                            {course.dayTimeSlots && course.dayTimeSlots.length > 0 && (
+                              <div className="text-xs text-teal-600 dark:text-teal-400 mt-1 space-y-0.5">
+                                {course.dayTimeSlots.map((slot, idx) => (
+                                  <div key={idx}>
+                                    📅 {slot.day}: {slot.startTime} - {slot.endTime}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* Fallback for legacy format (days array without specific times) */}
+                            {(!course.dayTimeSlots || course.dayTimeSlots.length === 0) && course.days && course.days.length > 0 && (
                               <div className="text-xs text-teal-600 dark:text-teal-400 mt-1">
                                 📅 {course.days.join(', ')}
                                 {course.time && ` at ${course.time}`}
@@ -766,7 +804,7 @@ const TentativeSchedulePage: React.FC = () => {
         isOpen={showCourseDetailModal}
         courseName={selectedCourseForDetail?.name}
         courseCode={selectedCourseForDetail?.code}
-        onSave={handleCourseDetailSave}
+        onSave={(courseData) => handleCourseDetailSave(courseData)}
         onCancel={() => setShowCourseDetailModal(false)}
         instructorsList={instructorsList}
         onAddInstructor={(name) => {
@@ -805,8 +843,7 @@ const TentativeSchedulePage: React.FC = () => {
                       <th className="text-left p-3 font-medium">Course</th>
                       <th className="text-left p-3 font-medium">Course Name</th>
                       <th className="text-left p-3 font-medium">Section</th>
-                      <th className="text-left p-3 font-medium">Day</th>
-                      <th className="text-left p-3 font-medium">Time</th>
+                      <th className="text-left p-3 font-medium">Schedule</th>
                       <th className="text-left p-3 font-medium">Instructor</th>
                       <th className="text-left p-3 font-medium">Seats</th>
                     </tr>
@@ -818,8 +855,22 @@ const TentativeSchedulePage: React.FC = () => {
                         <td className="p-3 text-sm font-medium">{course.code}</td>
                         <td className="p-3 text-sm">{course.name}</td>
                         <td className="p-3 text-sm">{course.section || '-'}</td>
-                        <td className="p-3 text-sm">{course.days && course.days.length > 0 ? course.days.join(', ') : '-'}</td>
-                        <td className="p-3 text-sm">{course.time || '-'}</td>
+                        <td className="p-3 text-sm">
+                          {course.dayTimeSlots && course.dayTimeSlots.length > 0 ? (
+                            <div className="space-y-1">
+                              {course.dayTimeSlots.map((slot, idx) => (
+                                <div key={idx} className="text-xs">
+                                  {slot.day}: {slot.startTime}-{slot.endTime}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span>
+                              {course.days && course.days.length > 0 ? course.days.join(', ') : '-'}
+                              {course.time && ` • ${course.time}`}
+                            </span>
+                          )}
+                        </td>
                         <td className="p-3 text-sm">{course.instructor || '-'}</td>
                         <td className="p-3 text-sm">{course.seatLimit || '-'}</td>
                       </tr>
