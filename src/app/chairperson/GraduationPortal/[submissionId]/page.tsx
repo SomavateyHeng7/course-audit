@@ -705,7 +705,7 @@ const SubmissionDetailPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <Button variant="outline">
                 <Download className="w-4 h-4 mr-2" />
-                Download File
+                Download Excel
               </Button>
               {submission.canGraduate ? (
                 <Button className="bg-green-600 hover:bg-green-700">
