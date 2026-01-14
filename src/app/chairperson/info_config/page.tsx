@@ -3037,13 +3037,6 @@ export default function InfoConfig() {
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Created on {selectedInfoConcentration.createdAt} • {selectedInfoConcentration.courses?.length || 0} courses
                 </p>
-                {/* Debug logging */}
-                {console.log('🔍 Concentration Info Modal Data:', {
-                  name: selectedInfoConcentration.name,
-                  coursesExists: !!selectedInfoConcentration.courses,
-                  coursesLength: selectedInfoConcentration.courses?.length,
-                  coursesArray: selectedInfoConcentration.courses
-                })}
               </div>
               <button
                 onClick={() => setIsConcentrationInfoModalOpen(false)}

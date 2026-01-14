@@ -24,7 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 
 // Mock data for available portals (created by chairpersons)
-const MOCK_PORTALS = [
+const MOCK_PORTALS: Portal[] = [
   {
     id: 'portal-1',
     name: 'BSCS Batch 65 Graduation Check',
