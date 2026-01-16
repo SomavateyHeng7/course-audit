@@ -104,6 +104,20 @@ const chairpersonNavigationItems = [
   },
 ];
 
+// Navigation for advisor users (view-only access)
+const advisorNavigationItems = [
+  {
+    name: "View Curricula",
+    href: "/advisor/curricula",
+    icon: BookOpen,
+  },
+  {
+    name: "View Tentative Schedules",
+    href: "/advisor/schedules",
+    icon: CalendarClock,
+  },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
@@ -117,6 +131,8 @@ export default function Sidebar() {
       ? chairpersonNavigationItems
       : user?.role === "SUPER_ADMIN"
       ? adminNavigationItems
+      : user?.role === "ADVISOR"
+      ? advisorNavigationItems
       : defaultNavigationItems;
 
   useEffect(() => {

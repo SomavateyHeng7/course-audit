@@ -1,53 +1,98 @@
 "use client";
 
-import { useRef } from "react";
+import { useRouter } from "next/navigation";
+import { BookOpen, CalendarClock, Eye } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default function AdvisorDashboard() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-foreground">Advisor Dashboard</h1>
-        <div className="flex gap-8 w-full max-w-6xl mx-auto">          {/* Advisor Card */}
-          <div className="bg-card rounded-2xl border border-border p-8 flex flex-col items-center w-[420px]">
-            <div className="w-20 h-20 rounded-full bg-muted border border-border flex items-center justify-center mb-4">
-              <span className="material-icons text-muted-foreground text-5xl">person</span>
-            </div>
-            <div className="text-foreground font-bold text-xl mb-6">ADVISOR NAME</div>
-            <button className="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-primary/90 transition border border-primary">
-              Request Session
-              <span className="material-icons text-base">arrow_forward</span>
-            </button>
-          </div>
-
-          {/* File Upload Card */}
-          <div className="bg-card rounded-2xl border border-border p-8 flex flex-col w-[420px]">
-            <label className="block font-bold text-lg mb-4 text-foreground">Upload Excel File</label>
-            <div
-              className="h-48 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground cursor-pointer hover:bg-muted/50 transition"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <svg className="w-10 h-10 mb-2 text-muted-foreground" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-8m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
-              </svg>
-              <p className="text-center text-sm">
-                Drag and drop previous Excel report here,<br />
-                or click here to upload.
-              </p>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                ref={fileInputRef}
-                className="hidden"
-              />
-            </div>
-          </div>
+      <div className="container mx-auto p-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2 text-foreground">Advisor Dashboard</h1>
+          <p className="text-muted-foreground">
+            View curricula and tentative schedules created by chairpersons
+          </p>
         </div>
-      </div>
 
-      {/* Material Icons CDN */}
-      <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+        {/* Quick Access Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+          {/* View Curricula Card */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/advisor/curricula')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <BookOpen className="w-6 h-6 text-primary" />
+                </div>
+                <span>View Curricula</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                Browse and view all curricula that have been created by chairpersons.
+              </p>
+              <Button 
+                className="w-full" 
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push('/advisor/curricula');
+                }}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Browse Curricula
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* View Tentative Schedules Card */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/advisor/schedules')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <CalendarClock className="w-6 h-6 text-primary" />
+                </div>
+                <span>View Tentative Schedules</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                View tentative course schedules for different batches and semesters.
+              </p>
+              <Button 
+                className="w-full" 
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push('/advisor/schedules');
+                }}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Browse Schedules
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Info Box */}
+        <Card className="mt-8 max-w-4xl border-primary/20 bg-primary/5">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-3">
+              <Eye className="w-5 h-5 text-primary mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-foreground mb-1">View-Only Access</h3>
+                <p className="text-sm text-muted-foreground">
+                  As an advisor, you have view-only access to curricula and tentative schedules. 
+                  You cannot create or modify any content, only review what has been created by chairpersons.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

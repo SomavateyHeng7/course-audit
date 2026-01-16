@@ -6,7 +6,7 @@ export default function AdvisingDashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-background flex justify-center py-12 px-6">
+    <div className="min-h-scree dark:bg-background flex justify-center py-12 px-6">
       <div className="flex flex-col w-full max-w-4xl gap-8">
         {/* Top Section: Advisor + Upload side-by-side */}
         <div className="flex flex-row gap-6 w-full">
