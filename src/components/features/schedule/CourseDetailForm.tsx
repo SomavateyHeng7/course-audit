@@ -13,11 +13,15 @@ interface CourseDetailFormProps {
   onAddInstructor?: (instructorName: string) => void;
 }
 
-interface CourseFormData {
-  section: string;
+interface DayTimeSlot {
   day: string;
   startTime: string;
   endTime: string;
+}
+
+interface CourseFormData {
+  section: string;
+  dayTimeSlots: DayTimeSlot[];
   instructor: string;
   seat: string;
   categoryColor: string;
@@ -34,9 +38,7 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
 }) => {
   const [formData, setFormData] = useState<CourseFormData>({
     section: '',
-    day: '',
-    startTime: '',
-    endTime: '',
+    dayTimeSlots: [],
     instructor: '',
     seat: '',
     categoryColor: '#3B82F6'
@@ -49,19 +51,67 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
   ];
 
-  const handleInputChange = (field: keyof CourseFormData, value: string) => {
+  const handleInputChange = (field: keyof CourseFormData, value: string | DayTimeSlot[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleDayToggle = (day: string) => {
+    setFormData(prev => {
+      const existingSlot = prev.dayTimeSlots.find(slot => slot.day === day);
+      
+      if (existingSlot) {
+        // Remove the day
+        return {
+          ...prev,
+          dayTimeSlots: prev.dayTimeSlots.filter(slot => slot.day !== day)
+        };
+      } else {
+        // Add the day with empty time slots
+        return {
+          ...prev,
+          dayTimeSlots: [...prev.dayTimeSlots, { day, startTime: '', endTime: '' }]
+        };
+      }
+    });
+  };
+
+  const handleTimeChange = (day: string, field: 'startTime' | 'endTime', value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      dayTimeSlots: prev.dayTimeSlots.map(slot =>
+        slot.day === day ? { ...slot, [field]: value } : slot
+      )
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const required = ['section', 'day', 'startTime', 'endTime', 'instructor', 'seat'];
-    for (const field of required) {
-      if (!(formData as any)[field]?.trim()) {
-        alert(`Please enter ${field}`);
+    // Validate required fields
+    if (!formData.section?.trim()) {
+      alert('Please enter section');
+      return;
+    }
+    if (formData.dayTimeSlots.length === 0) {
+      alert('Please select at least one day');
+      return;
+    }
+    
+    // Validate that all selected days have times
+    for (const slot of formData.dayTimeSlots) {
+      if (!slot.startTime || !slot.endTime) {
+        alert(`Please enter start and end time for ${slot.day}`);
         return;
       }
+    }
+    
+    if (!formData.instructor?.trim()) {
+      alert('Please enter instructor');
+      return;
+    }
+    if (!formData.seat?.trim()) {
+      alert('Please enter seat capacity');
+      return;
     }
 
     onSave(formData);
@@ -71,10 +121,10 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm bg-black/40 p-0 sm:p-4 animate-fadeIn">
-      <div className="relative bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] overflow-hidden">
+      <div className="relative bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] overflow-hidden flex flex-col">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 shrink-0">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white truncate pr-2">
             {courseCode} • {courseName}
           </h2>
@@ -86,8 +136,9 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto">
+        {/* Form - with scroll */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Section */}
           <div className="relative">
             <input
@@ -107,43 +158,80 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
           </div>
 
           {/* Day & Time */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="space-y-3 sm:space-y-4">
+            {/* Days Selection */}
             <div>
-              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Day</label>
-              <select
-                value={formData.day}
-                onChange={(e) => handleInputChange('day', e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm sm:text-base touch-manipulation"
-              >
-                <option value="">Select Day</option>
-                {daysOfWeek.map((day) => (
-                  <option key={day}>{day}</option>
-                ))}
-              </select>
+              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-2">
+                Days <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-500 ml-2">(Select one or more days)</span>
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {daysOfWeek.map((day) => {
+                  const isSelected = formData.dayTimeSlots.some(slot => slot.day === day);
+                  return (
+                    <label
+                      key={day}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
+                          : 'border-gray-300 dark:border-gray-700 hover:border-teal-300 dark:hover:border-teal-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleDayToggle(day)}
+                        className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500"
+                      />
+                      <span className="text-xs sm:text-sm font-medium truncate">
+                        {day.substring(0, 3)}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {formData.dayTimeSlots.length > 0 && (
+                <p className="text-xs text-teal-600 dark:text-teal-400 mt-2">
+                  Selected: {formData.dayTimeSlots.map(slot => slot.day).join(', ')}
+                </p>
+              )}
             </div>
 
-            <div>
-              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Time</label>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <div className="flex-1">
-                  <input
-                    type="time"
-                    value={formData.startTime}
-                    onChange={(e) => handleInputChange('startTime', e.target.value)}
-                    className="w-full px-2 sm:px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
-                  />
-                </div>
-                <span className="text-gray-400 text-sm">-</span>
-                <div className="flex-1">
-                  <input
-                    type="time"
-                    value={formData.endTime}
-                    onChange={(e) => handleInputChange('endTime', e.target.value)}
-                    className="w-full px-2 sm:px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
-                  />
+            {/* Time Slots for Each Selected Day */}
+            {formData.dayTimeSlots.length > 0 && (
+              <div className="space-y-3">
+                <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                  Time Schedule <span className="text-red-500">*</span>
+                  <span className="text-xs text-gray-500 ml-2">(Specify time for each day)</span>
+                </label>
+                <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50">
+                  {formData.dayTimeSlots.map((slot) => (
+                    <div key={slot.day} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <div className="font-medium text-sm text-gray-700 dark:text-gray-300 min-w-[80px]">
+                        {slot.day}
+                      </div>
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="time"
+                          value={slot.startTime}
+                          onChange={(e) => handleTimeChange(slot.day, 'startTime', e.target.value)}
+                          className="flex-1 px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                          placeholder="Start"
+                        />
+                        <span className="text-gray-400 text-sm">-</span>
+                        <input
+                          type="time"
+                          value={slot.endTime}
+                          onChange={(e) => handleTimeChange(slot.day, 'endTime', e.target.value)}
+                          className="flex-1 px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                          placeholder="End"
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Instructor */}
@@ -259,6 +347,7 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
             >
               Add Course
             </button>
+          </div>
           </div>
         </form>
       </div>

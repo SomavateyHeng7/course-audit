@@ -85,7 +85,7 @@ export default function FacultyManagement() {
     if (!editingFaculty) return;
     setUpdateLoading(true);
     try {
-      await updateFaculty(Number(editingFaculty.id), formData);
+      await updateFaculty(editingFaculty.id, formData);
       setToast({ message: 'Faculty updated successfully!', type: 'success' });
       setEditingFaculty(null);
       setFormData({ name: '', code: '' });

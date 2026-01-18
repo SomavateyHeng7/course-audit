@@ -81,7 +81,7 @@ class BlacklistApi {
     id: string,
     blacklistData: UpdateBlacklistRequest
   ): Promise<BlacklistData> {
-    return await laravelUpdateBlacklist(Number(id), blacklistData);
+    return await laravelUpdateBlacklist(id, blacklistData);
   }
 
   // Delete blacklist

@@ -24,7 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 
 // Mock data for available portals (created by chairpersons)
-const MOCK_PORTALS = [
+const MOCK_PORTALS: Portal[] = [
   {
     id: 'portal-1',
     name: 'BSCS Batch 65 Graduation Check',
@@ -182,7 +182,7 @@ const GraduationPortalPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50 dark:from-gray-900 dark:via-background dark:to-gray-900">
+    <div className="min-h-screen from-teal-50 via-white to-blue-50 dark:from-gray-900 dark:via-background dark:to-gray-900">
       <div className="container mx-auto px-4 py-8 max-w-5xl">
         {/* Header */}
         <div className="text-center mb-8">
