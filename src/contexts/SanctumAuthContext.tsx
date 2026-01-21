@@ -61,8 +61,22 @@ export function SanctumAuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
+      // Clear user state immediately
       setUser(null);
       setIsLoading(false);
+      
+      // Clear any additional cached data that might persist
+      if (typeof window !== 'undefined') {
+        // Clear all storage to ensure no stale data
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Clear all cookies
+        document.cookie.split(';').forEach(cookie => {
+          const name = cookie.split('=')[0].trim();
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        });
+      }
     }
   };
 
