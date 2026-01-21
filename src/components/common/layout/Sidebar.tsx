@@ -35,11 +35,6 @@ const defaultNavigationItems = [
     icon: LayoutDashboard,
   },
   {
-    name: "Plan Future Courses",
-    href: "/student/FutureCourses",
-    icon: Library,
-  },
-  {
     name: "Next Tentative Schedules",
     href: "/student/SemesterCourse",
     icon: Book,
@@ -148,11 +143,14 @@ export default function Sidebar() {
   const handleLogout = async () => {
     try {
       await logout();
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      window.location.href = "/";
+      // Small delay to ensure logout completes, then force full page reload
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      // Use replace to prevent back button from returning to authenticated state
+      window.location.replace("/");
     } catch (error) {
       console.error("Logout error:", error);
-      window.location.href = "/";
+      // Force reload even on error to clear any cached state
+      window.location.replace("/");
     }
   };
 

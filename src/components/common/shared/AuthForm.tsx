@@ -1,15 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/SanctumAuthContext';
-import { login as sanctumLogin } from '@/lib/auth/sanctum';
 
 export default function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
   const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -22,25 +19,34 @@ export default function AuthForm() {
     const password = formData.get('password') as string;
 
     try {
-      // Call the sanctum login directly to get the user data
-      const { user } = await sanctumLogin(email, password);
-      
-      // Also update the context
+      // Use only the context login to avoid duplicate calls
       await login(email, password);
       
-      // Redirect based on user role
-      if (user.role === 'SUPER_ADMIN') {
-        router.push('/admin');
-      } else if (user.role === 'CHAIRPERSON') {
-        router.push('/chairperson');
-      } else if (user.role === 'ADVISOR') {
-        router.push('/dashboard');
-      } else if (user.role === 'STUDENT') {
-        router.push('/student');
-      } else {
-        router.push('/dashboard');
+      // Fetch the updated user from the API to get role
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/user`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
       }
-      router.refresh();
+      
+      const user = await response.json();
+      
+      // Use window.location.href to force a full page reload
+      // This ensures all React state is cleared and re-initialized with new user
+      if (user.role === 'SUPER_ADMIN') {
+        window.location.href = '/admin';
+      } else if (user.role === 'CHAIRPERSON') {
+        window.location.href = '/chairperson';
+      } else if (user.role === 'ADVISOR') {
+        window.location.href = '/advisor/curricula';
+      } else if (user.role === 'STUDENT') {
+        window.location.href = '/student';
+      } else {
+        window.location.href = '/dashboard';
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred. Please try again.');
     } finally {
