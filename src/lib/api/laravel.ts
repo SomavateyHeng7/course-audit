@@ -97,18 +97,6 @@ export async function getUser(): Promise<User> {
 
 // ===== PUBLIC ENDPOINTS (No auth required) =====
 
-export async function getPublicFaculties() {
-  const response = await fetch(`${API_BASE}/public-faculties`);
-  if (!response.ok) throw new Error('Failed to fetch faculties');
-  return response.json();
-}
-
-export async function getPublicDepartments() {
-  const response = await fetch(`${API_BASE}/public-departments`);
-  if (!response.ok) throw new Error('Failed to fetch departments');
-  return response.json();
-}
-
 export async function getPublicCurricula() {
   const response = await fetch(`${API_BASE}/public-curricula`);
   if (!response.ok) throw new Error('Failed to fetch curricula');
@@ -457,4 +445,574 @@ export async function downloadSampleCsv() {
   });
   if (!response.ok) throw new Error('Failed to download file');
   return response.blob();
+}
+
+// ===== GRADUATION PORTAL API =====
+
+// Types for Graduation Portal
+export interface GraduationPortal {
+  id: string;
+  name: string;
+  description: string;
+  batch: string;
+  deadline: string;
+  daysRemaining?: number;
+  acceptedFormats: string[];
+  maxFileSizeMb: number;
+  status: 'active' | 'closed';
+  curriculum: {
+    id: string;
+    name: string;
+    year?: number;
+  };
+  department: {
+    id: string;
+    name: string;
+  };
+  // CP-only fields
+  pin?: string;
+  pinHint?: string;
+  submissionsCount?: number;
+  createdAt?: string;
+  closedAt?: string;
+}
+
+export interface GraduationSession {
+  token: string;
+  expires_in_minutes: number;
+  expires_at: string;
+}
+
+export interface SubmissionCourse {
+  code: string;
+  name?: string;
+  credits: number;
+  grade?: string;  // Optional - planned courses may not have grades
+  status: 'completed' | 'in_progress' | 'planned' | 'failed' | 'withdrawn';
+  semester?: string;
+  category?: string;
+}
+
+export interface GraduationSubmissionPayload {
+  student_identifier: string;
+  curriculum_id: string;
+  courses: SubmissionCourse[];
+  metadata?: {
+    parsed_at?: string;
+    file_name?: string;
+    total_courses?: number;
+  };
+}
+
+export interface CacheSubmission {
+  id: string;
+  student_identifier: string;
+  studentIdentifier?: string; // Backend might use either
+  status: 'pending' | 'processing' | 'validated' | 'has_issues' | 'approved' | 'rejected';
+  submitted_at: string;
+  submittedAt?: string; // Backend might use either
+  expires_at: string;
+  expiresAt?: string; // Backend might use either
+  time_remaining_minutes?: number;
+  course_count?: number;
+  courses?: SubmissionCourse[];
+  validation_result?: ValidationResult;
+  metadata?: {
+    file_name?: string;
+    parsed_at?: string;
+    total_credits?: number;
+  };
+  approved_at?: string;
+  rejected_at?: string;
+  rejection_reason?: string;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  canGraduate: boolean;
+  summary: {
+    totalCreditsRequired: number;
+    creditsCompleted: number;
+    creditsInProgress: number;
+    creditsPlanned: number;
+    gpa: number;
+    coursesMatched: number;
+    coursesUnmatched: number;
+  };
+  categoryProgress: Record<string, {
+    name: string;
+    creditsRequired: number;
+    creditsCompleted: number;
+    percentComplete: number;
+    isComplete: boolean;
+  }>;
+  requirements: Record<string, {
+    name: string;
+    required: number;
+    current: number;
+    met: boolean;
+    message: string;
+  }>;
+  errors: string[];
+  warnings: string[];
+  matchedCourses: Array<{ code: string; matched: boolean; status: string }>;
+  unmatchedCourses: string[];
+}
+
+// ===== PUBLIC GRADUATION PORTAL ENDPOINTS (No Auth) =====
+
+/**
+ * List active graduation portals
+ * GET /api/public/graduation-portals
+ */
+export async function getPublicGraduationPortals(params?: {
+  department_id?: string;
+  batch?: string;
+}): Promise<{ portals: GraduationPortal[]; total: number }> {
+  const searchParams = new URLSearchParams();
+  if (params?.department_id) searchParams.set('department_id', params.department_id);
+  if (params?.batch) searchParams.set('batch', params.batch);
+  
+  const queryString = searchParams.toString();
+  const url = `${API_BASE}/public/graduation-portals${queryString ? `?${queryString}` : ''}`;
+  
+  const response = await fetch(url, {
+    headers: { 'Accept': 'application/json' }
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error?.message || 'Failed to fetch graduation portals');
+  }
+  
+  return response.json();
+}
+
+/**
+ * Get single portal details (public info)
+ * GET /api/public/graduation-portals/{id}
+ */
+export async function getPublicGraduationPortal(portalId: string): Promise<{ portal: GraduationPortal }> {
+  const response = await fetch(`${API_BASE}/public/graduation-portals/${portalId}`, {
+    headers: { 'Accept': 'application/json' }
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error?.message || 'Portal not found');
+  }
+  
+  return response.json();
+}
+
+/**
+ * Verify portal PIN and get session token
+ * POST /api/public/graduation-portals/{id}/verify-pin
+ */
+export async function verifyGraduationPortalPin(
+  portalId: string, 
+  pin: string
+): Promise<{
+  message: string;
+  session: GraduationSession;
+  portal: Pick<GraduationPortal, 'id' | 'name' | 'acceptedFormats' | 'maxFileSizeMb'> & { curriculum_id: string };
+}> {
+  const response = await fetch(`${API_BASE}/public/graduation-portals/${portalId}/verify-pin`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ pin })
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    const errorData = error.error || error;
+    
+    // Handle specific error codes
+    if (response.status === 401) {
+      throw new Error(JSON.stringify({
+        code: errorData.code || 'INVALID_PIN',
+        message: errorData.message || 'Invalid PIN',
+        attempts_remaining: errorData.attempts_remaining
+      }));
+    }
+    
+    if (response.status === 429) {
+      throw new Error(JSON.stringify({
+        code: 'RATE_LIMITED',
+        message: errorData.message || 'Too many attempts. Please try again later.',
+        retry_after: errorData.retry_after
+      }));
+    }
+    
+    throw new Error(errorData.message || 'PIN verification failed');
+  }
+  
+  return response.json();
+}
+
+/**
+ * Public curriculum interface for graduation portal selection
+ */
+export interface PortalCurriculum {
+  id: string;
+  name: string;
+  year: number;
+  version: string | null;
+  description: string | null;
+  total_credits_required: number;
+  is_default: boolean;
+  department: { id: string; name: string } | null;
+  faculty: { id: string; name: string } | null;
+}
+
+/**
+ * Get curricula available for portal
+ * GET /api/public/graduation-portals/{id}/curricula
+ */
+export async function getPortalCurricula(
+  portalId: string,
+  params?: { faculty_id?: string; department_id?: string }
+): Promise<{
+  curricula: PortalCurriculum[];
+  default_curriculum_id: string | null;
+  portal_department_id: string | null;
+  total: number;
+}> {
+  const searchParams = new URLSearchParams();
+  if (params?.faculty_id) searchParams.set('faculty_id', params.faculty_id);
+  if (params?.department_id) searchParams.set('department_id', params.department_id);
+  
+  const queryString = searchParams.toString();
+  const url = `${API_BASE}/public/graduation-portals/${portalId}/curricula${queryString ? `?${queryString}` : ''}`;
+  
+  const response = await fetch(url, {
+    headers: { 'Accept': 'application/json' }
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch curricula');
+  }
+  
+  return response.json();
+}
+
+/**
+ * Get public faculties list (for curriculum selection fallback)
+ * GET /api/public/faculties
+ */
+export async function getPublicFaculties(): Promise<{
+  faculties: Array<{ id: string; name: string }>;
+}> {
+  const response = await fetch(`${API_BASE}/public/faculties`, {
+    headers: { 'Accept': 'application/json' }
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch faculties');
+  }
+  
+  return response.json();
+}
+
+/**
+ * Get public departments list (for curriculum selection fallback)
+ * GET /api/public/departments
+ */
+export async function getPublicDepartments(facultyId?: string): Promise<{
+  departments: Array<{ id: string; name: string; faculty_id: string }>;
+}> {
+  const url = facultyId 
+    ? `${API_BASE}/public/departments?faculty_id=${facultyId}`
+    : `${API_BASE}/public/departments`;
+    
+  const response = await fetch(url, {
+    headers: { 'Accept': 'application/json' }
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch departments');
+  }
+  
+  return response.json();
+}
+
+// ===== SESSION-AUTHENTICATED ENDPOINTS (Session Token) =====
+
+/**
+ * Submit courses for graduation validation
+ * POST /api/graduation-portals/{id}/submit
+ * Header: X-Graduation-Session-Token
+ */
+export async function submitGraduationCourses(
+  portalId: string,
+  sessionToken: string,
+  payload: GraduationSubmissionPayload
+): Promise<{
+  message: string;
+  submission: {
+    id: string;
+    status: string;
+    expires_at: string;
+    course_count: number;
+  };
+}> {
+  const response = await fetch(`${API_BASE}/graduation-portals/${portalId}/submit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Graduation-Session-Token': sessionToken
+    },
+    body: JSON.stringify(payload)
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    const errorData = error.error || error;
+    
+    // Handle session errors
+    if (response.status === 401) {
+      throw new Error(JSON.stringify({
+        code: errorData.code || 'SESSION_EXPIRED',
+        message: errorData.message || 'Session expired. Please verify PIN again.'
+      }));
+    }
+    
+    throw new Error(errorData.message || 'Submission failed');
+  }
+  
+  return response.json();
+}
+
+// ===== SANCTUM-AUTHENTICATED ENDPOINTS (CP/Advisor) =====
+
+/**
+ * List graduation portals for authenticated user
+ * GET /api/graduation-portals
+ */
+export async function getGraduationPortals(params?: {
+  status?: 'active' | 'closed';
+  curriculum_id?: string;
+}): Promise<{
+  data: GraduationPortal[];
+  meta?: { current_page: number; last_page: number; total: number };
+}> {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.curriculum_id) searchParams.set('curriculum_id', params.curriculum_id);
+  
+  const queryString = searchParams.toString();
+  return authenticatedRequest(`/graduation-portals${queryString ? `?${queryString}` : ''}`);
+}
+
+/**
+ * Create a new graduation portal
+ * POST /api/graduation-portals
+ */
+export async function createGraduationPortal(data: {
+  name: string;
+  description?: string;
+  curriculum_id: string;
+  batch?: string;
+  deadline?: string;
+  accepted_formats?: string[];
+  max_file_size_mb?: number;
+  custom_pin?: string;
+}): Promise<{
+  portal: GraduationPortal;
+  pin: string;
+  message: string;
+}> {
+  return authenticatedRequest('/graduation-portals', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+/**
+ * Get portal details (authenticated)
+ * GET /api/graduation-portals/{id}
+ */
+export async function getGraduationPortal(portalId: string): Promise<{
+  portal: GraduationPortal;
+  pending_submissions_count: number;
+}> {
+  return authenticatedRequest(`/graduation-portals/${portalId}`);
+}
+
+/**
+ * Update graduation portal
+ * PUT /api/graduation-portals/{id}
+ */
+export async function updateGraduationPortal(
+  portalId: string,
+  data: Partial<{
+    name: string;
+    description: string;
+    deadline: string;
+    accepted_formats: string[];
+    max_file_size_mb: number;
+  }>
+): Promise<{ portal: GraduationPortal; message: string }> {
+  return authenticatedRequest(`/graduation-portals/${portalId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  });
+}
+
+/**
+ * Delete graduation portal
+ * DELETE /api/graduation-portals/{id}
+ */
+export async function deleteGraduationPortal(portalId: string): Promise<{ message: string }> {
+  return authenticatedRequest(`/graduation-portals/${portalId}`, {
+    method: 'DELETE'
+  });
+}
+
+/**
+ * Close graduation portal
+ * POST /api/graduation-portals/{id}/close
+ */
+export async function closeGraduationPortal(portalId: string): Promise<{
+  portal: GraduationPortal;
+  message: string;
+}> {
+  return authenticatedRequest(`/graduation-portals/${portalId}/close`, {
+    method: 'POST'
+  });
+}
+
+/**
+ * Regenerate portal PIN
+ * POST /api/graduation-portals/{id}/regenerate-pin
+ */
+export async function regeneratePortalPin(portalId: string): Promise<{
+  pin: string;
+  pin_hint: string;
+  message: string;
+}> {
+  return authenticatedRequest(`/graduation-portals/${portalId}/regenerate-pin`, {
+    method: 'POST'
+  });
+}
+
+// ===== CACHE SUBMISSIONS (Temporary Data - 30 min TTL) =====
+
+/**
+ * List cached submissions for a portal
+ * GET /api/graduation-portals/{id}/cache-submissions
+ */
+export async function getCacheSubmissions(portalId: string): Promise<{
+  submissions: CacheSubmission[];
+  total: number;
+}> {
+  return authenticatedRequest(`/graduation-portals/${portalId}/cache-submissions`);
+}
+
+/**
+ * Get single cached submission
+ * GET /api/graduation-portals/{id}/cache-submissions/{submissionId}
+ */
+export async function getCacheSubmission(
+  portalId: string,
+  submissionId: string
+): Promise<{ submission: CacheSubmission & { courses: SubmissionCourse[] } }> {
+  return authenticatedRequest(`/graduation-portals/${portalId}/cache-submissions/${submissionId}`);
+}
+
+/**
+ * Validate a cached submission
+ * POST /api/graduation-portals/{id}/cache-submissions/{submissionId}/validate
+ */
+export async function validateCacheSubmission(
+  portalId: string,
+  submissionId: string
+): Promise<{
+  message: string;
+  submission: CacheSubmission;
+  validation: ValidationResult & { can_graduate: boolean };
+}> {
+  return authenticatedRequest(
+    `/graduation-portals/${portalId}/cache-submissions/${submissionId}/validate`,
+    { method: 'POST' }
+  );
+}
+
+/**
+ * Approve a cached submission
+ * POST /api/graduation-portals/{id}/cache-submissions/{submissionId}/approve
+ */
+export async function approveCacheSubmission(
+  portalId: string,
+  submissionId: string,
+  note?: string
+): Promise<{ message: string; submission: CacheSubmission }> {
+  return authenticatedRequest(
+    `/graduation-portals/${portalId}/cache-submissions/${submissionId}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ note })
+    }
+  );
+}
+
+/**
+ * Reject a cached submission
+ * POST /api/graduation-portals/{id}/cache-submissions/{submissionId}/reject
+ */
+export async function rejectCacheSubmission(
+  portalId: string,
+  submissionId: string,
+  reason: string
+): Promise<{ message: string; submission: CacheSubmission }> {
+  return authenticatedRequest(
+    `/graduation-portals/${portalId}/cache-submissions/${submissionId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    }
+  );
+}
+
+/**
+ * Batch validate multiple submissions
+ * POST /api/graduation-portals/{id}/batch-validate
+ */
+export async function batchValidateSubmissions(
+  portalId: string,
+  submissionIds: string[]
+): Promise<{
+  results: Record<string, { success: boolean; can_graduate?: boolean; error?: string }>;
+  processed: number;
+}> {
+  return authenticatedRequest(`/graduation-portals/${portalId}/batch-validate`, {
+    method: 'POST',
+    body: JSON.stringify({ submission_ids: submissionIds })
+  });
+}
+
+/**
+ * Download validation report
+ * GET /api/graduation-portals/{id}/cache-submissions/{submissionId}/report
+ */
+export async function getSubmissionReport(
+  portalId: string,
+  submissionId: string
+): Promise<{
+  report: {
+    student_identifier: string;
+    curriculum: string;
+    submitted_at: string;
+    validated_at?: string;
+    validation_result: ValidationResult;
+    courses: SubmissionCourse[];
+  };
+}> {
+  return authenticatedRequest(
+    `/graduation-portals/${portalId}/cache-submissions/${submissionId}/report`
+  );
 }

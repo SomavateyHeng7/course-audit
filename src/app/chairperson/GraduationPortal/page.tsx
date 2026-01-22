@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FileSpreadsheet,
@@ -21,11 +21,20 @@ import {
   XCircle,
   ChevronDown,
   RefreshCw,
+  Power,
+  Key,
+  Trash2,
+  Edit,
+  Loader2,
+  Settings,
+  BookOpen
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,118 +48,39 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
 import { EmptyState } from '@/components/role-specific/chairperson/EmptyState';
-
-// Types
-interface Portal {
-  id: string;
-  name: string;
-  description: string;
-  batch: string;
-  curriculum: string;
-  curriculumId: string;
-  deadline: string;
-  status: 'active' | 'closed';
-  pin: string;
-  acceptedFormats: string[];
-  submissionsCount: number;
-  createdAt: string;
-}
-
-interface Submission {
-  id: string;
-  portalId: string;
-  fileName: string;
-  fileSize: number;
-  submittedAt: string;
-  status: 'pending' | 'processing' | 'validated' | 'has_issues' | 'approved' | 'rejected';
-  validationResult?: ValidationResult;
-}
-
-interface ValidationResult {
-  canGraduate: boolean;
-  totalCredits: number;
-  requiredCredits: number;
-  completedCourses: number;
-  totalCourses: number;
-  missingCourses: string[];
-  issues: ValidationIssue[];
-  warnings: string[];
-}
-
-interface ValidationIssue {
-  type: 'missing_course' | 'failed_course' | 'prerequisite' | 'credit_shortage' | 'blacklist';
-  severity: 'error' | 'warning';
-  message: string;
-  courseCode?: string;
-}
-
-// Mock Data
-const MOCK_PORTALS: Portal[] = [
-  {
-    id: 'portal-1',
-    name: 'BSCS Batch 65 Graduation Check',
-    description: 'Submit your graduation roadmap for validation. Please ensure all courses are properly listed.',
-    batch: '65',
-    curriculum: 'BSCS 2022',
-    curriculumId: 'curr-bscs-2022',
-    deadline: '2026-03-15',
-    status: 'active',
-    pin: 'GRAD2026',
-    acceptedFormats: ['.xlsx', '.xls', '.csv'],
-    submissionsCount: 2,
-    createdAt: '2025-01-01',
-  },
-];
-
-const MOCK_SUBMISSIONS: Submission[] = [
-  {
-    id: 'sub-1',
-    portalId: 'portal-1',
-    fileName: 'graduation_roadmap_student_001.xlsx',
-    fileSize: 45678,
-    submittedAt: '2025-01-05T10:30:00Z',
-    status: 'validated',
-    validationResult: {
-      canGraduate: true,
-      totalCredits: 142,
-      requiredCredits: 140,
-      completedCourses: 48,
-      totalCourses: 50,
-      missingCourses: ['CS 499', 'CS 498'],
-      issues: [],
-      warnings: ['2 courses are still in progress'],
-    },
-  },
-  {
-    id: 'sub-2',
-    portalId: 'portal-1',
-    fileName: 'my_courses_final.xlsx',
-    fileSize: 52340,
-    submittedAt: '2025-01-06T14:15:00Z',
-    status: 'has_issues',
-    validationResult: {
-      canGraduate: false,
-      totalCredits: 128,
-      requiredCredits: 140,
-      completedCourses: 42,
-      totalCourses: 50,
-      missingCourses: ['CS 301', 'CS 302', 'CS 401', 'CS 402', 'MATH 201', 'CS 499', 'CS 498', 'PHYS 101'],
-      issues: [
-        { type: 'credit_shortage', severity: 'error', message: 'Missing 12 credits to meet graduation requirement' },
-        { type: 'missing_course', severity: 'error', message: 'Required core course CS 301 not completed', courseCode: 'CS 301' },
-        { type: 'missing_course', severity: 'error', message: 'Required core course CS 302 not completed', courseCode: 'CS 302' },
-        { type: 'failed_course', severity: 'error', message: 'Course MATH 201 was failed and needs to be retaken', courseCode: 'MATH 201' },
-      ],
-      warnings: ['Consider retaking MATH 201 in the next semester'],
-    },
-  },
-];
+import {
+  getGraduationPortals,
+  createGraduationPortal,
+  updateGraduationPortal,
+  deleteGraduationPortal,
+  closeGraduationPortal,
+  regeneratePortalPin,
+  getCacheSubmissions,
+  validateCacheSubmission,
+  approveCacheSubmission,
+  rejectCacheSubmission,
+  batchValidateSubmissions,
+  type GraduationPortal,
+  type CacheSubmission,
+  type ValidationResult
+} from '@/lib/api/laravel';
+import { getCurricula, type Curriculum } from '@/lib/api/laravel';
 
 // Helper functions
 const formatDate = (dateString: string) => {
+  if (!dateString) return 'N/A';
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -159,6 +89,7 @@ const formatDate = (dateString: string) => {
 };
 
 const formatDateTime = (dateString: string) => {
+  if (!dateString) return 'N/A';
   return new Date(dateString).toLocaleString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -168,13 +99,17 @@ const formatDateTime = (dateString: string) => {
   });
 };
 
-const formatFileSize = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+const getTimeRemaining = (expiresAt: string) => {
+  if (!expiresAt) return { minutes: 0, seconds: 0, expired: true };
+  const now = new Date().getTime();
+  const expires = new Date(expiresAt).getTime();
+  const remaining = Math.max(0, expires - now);
+  const minutes = Math.floor(remaining / 60000);
+  const seconds = Math.floor((remaining % 60000) / 1000);
+  return { minutes, seconds, expired: remaining <= 0 };
 };
 
-const getStatusColor = (status: Submission['status']) => {
+const getStatusColor = (status: CacheSubmission['status']) => {
   switch (status) {
     case 'pending': return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
     case 'processing': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
@@ -186,7 +121,7 @@ const getStatusColor = (status: Submission['status']) => {
   }
 };
 
-const getStatusIcon = (status: Submission['status']) => {
+const getStatusIcon = (status: CacheSubmission['status']) => {
   switch (status) {
     case 'pending': return <Clock className="w-4 h-4" />;
     case 'processing': return <RefreshCw className="w-4 h-4 animate-spin" />;
@@ -198,7 +133,7 @@ const getStatusIcon = (status: Submission['status']) => {
   }
 };
 
-const getStatusLabel = (status: Submission['status']) => {
+const getStatusLabel = (status: CacheSubmission['status']) => {
   switch (status) {
     case 'pending': return 'Pending Review';
     case 'processing': return 'Processing';
@@ -229,34 +164,13 @@ const DonutChart = ({
   const circumference = 2 * Math.PI * radius;
   const percent = total > 0 ? (completed / total) * 100 : 0;
   const offset = circumference - (percent / 100) * circumference;
-  
-  // Scale text size based on chart size
   const percentTextSize = size <= 40 ? 'text-[9px]' : size <= 60 ? 'text-[11px]' : size <= 80 ? 'text-xs' : 'text-sm';
   
   return (
     <div className="relative flex items-center justify-center">
       <svg width={size} height={size} className="transform -rotate-90">
-        <circle
-          cx={center}
-          cy={center}
-          r={radius}
-          fill="transparent"
-          stroke="#e5e7eb"
-          strokeWidth={strokeWidth - 2}
-          className="dark:stroke-gray-700"
-        />
-        <circle
-          cx={center}
-          cy={center}
-          r={radius}
-          fill="transparent"
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          className="transition-all duration-500"
-        />
+        <circle cx={center} cy={center} r={radius} fill="transparent" stroke="#e5e7eb" strokeWidth={strokeWidth - 2} className="dark:stroke-gray-700" />
+        <circle cx={center} cy={center} r={radius} fill="transparent" stroke={color} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-500" />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className={`${percentTextSize} font-bold leading-none`}>{Math.round(percent)}%</span>
@@ -265,45 +179,76 @@ const DonutChart = ({
   );
 };
 
+// Expiry Timer Component
+const ExpiryTimer = ({ expiresAt }: { expiresAt: string }) => {
+  const [time, setTime] = useState(getTimeRemaining(expiresAt || ''));
+  
+  useEffect(() => {
+    if (!expiresAt) return;
+    const interval = setInterval(() => {
+      setTime(getTimeRemaining(expiresAt));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+  
+  if (!expiresAt || time.expired) {
+    return <Badge variant="destructive" className="text-xs">Expired</Badge>;
+  }
+  
+  return (
+    <Badge variant="outline" className={`text-xs ${time.minutes < 5 ? 'border-red-500 text-red-500' : ''}`}>
+      <Clock className="w-3 h-3 mr-1" />
+      {time.minutes}:{time.seconds.toString().padStart(2, '0')}
+    </Badge>
+  );
+};
+
 // Create Portal Modal Component
 const CreatePortalModal = ({ 
   open, 
   onClose,
-  onSubmit
+  onSubmit,
+  isLoading
 }: { 
   open: boolean; 
   onClose: () => void;
-  onSubmit: (data: Partial<Portal>) => void;
+  onSubmit: (data: {
+    name: string;
+    description: string;
+    batch: string;
+    deadline: string;
+    accepted_formats: string[];
+    max_file_size_mb: number;
+  }) => void;
+  isLoading: boolean;
 }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    batch: '',
     deadline: '',
+    accepted_formats: ['.xlsx', '.xls', '.csv'],
+    max_file_size_mb: 5
   });
 
   const handleSubmit = () => {
-    onSubmit({
-      ...formData,
-      id: `portal-${Date.now()}`,
-      status: 'active',
-      pin: `GRAD${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-      acceptedFormats: ['.xlsx', '.xls', '.csv'],
-      submissionsCount: 0,
-      createdAt: new Date().toISOString(),
-    });
-    onClose();
+    if (!formData.name || !formData.deadline || !formData.batch) return;
+    onSubmit(formData);
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Create New Portal</DialogTitle>
+          <DialogDescription>
+            Create a graduation portal for students to submit their roadmaps. Students will select their curriculum when submitting.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium">Portal Name</label>
+            <Label>Portal Name</Label>
             <Input
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -311,27 +256,62 @@ const CreatePortalModal = ({
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Description</label>
-            <Input
+            <Label>Description</Label>
+            <Textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Instructions for students..."
+              rows={3}
             />
           </div>
-          <div>
-            <label className="text-sm font-medium">Deadline</label>
-            <Input
-              type="date"
-              value={formData.deadline}
-              onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Batch</Label>
+              <Input
+                value={formData.batch}
+                onChange={(e) => setFormData({ ...formData, batch: e.target.value })}
+                placeholder="e.g., 65"
+              />
+            </div>
+            <div>
+              <Label>Deadline</Label>
+              <Input
+                type="date"
+                value={formData.deadline}
+                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Max File Size (MB)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={50}
+                value={formData.max_file_size_mb}
+                onChange={(e) => setFormData({ ...formData, max_file_size_mb: parseInt(e.target.value) || 5 })}
+              />
+            </div>
+            <div>
+              <Label>Accepted Formats</Label>
+              <Input
+                value={formData.accepted_formats.join(', ')}
+                onChange={(e) => setFormData({ ...formData, accepted_formats: e.target.value.split(',').map(s => s.trim()) })}
+                placeholder=".xlsx, .csv"
+              />
+            </div>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!formData.name}>
-            Create Portal
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={isLoading || !formData.name || !formData.deadline || !formData.batch}>
+            {isLoading ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating...</>
+            ) : (
+              'Create Portal'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -339,90 +319,306 @@ const CreatePortalModal = ({
   );
 };
 
+// Confirm Dialog Component
+const ConfirmDialog = ({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  confirmText = 'Confirm',
+  variant = 'default',
+  isLoading = false
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  description: string;
+  confirmText?: string;
+  variant?: 'default' | 'destructive';
+  isLoading?: boolean;
+}) => (
+  <Dialog open={open} onOpenChange={onClose}>
+    <DialogContent className="max-w-md">
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={isLoading}>Cancel</Button>
+        <Button 
+          variant={variant === 'destructive' ? 'destructive' : 'default'} 
+          onClick={onConfirm}
+          disabled={isLoading}
+        >
+          {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+          {confirmText}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+);
+
 // Main Page Component
 const GraduationPortalChairpersonPage: React.FC = () => {
   const router = useRouter();
+  
+  // Loading states
   const [loading, setLoading] = useState(true);
-  const [portals, setPortals] = useState<Portal[]>([]);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [selectedPortal, setSelectedPortal] = useState<Portal | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isCreatingPortal, setIsCreatingPortal] = useState(false);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
+  
+  // Data
+  const [portals, setPortals] = useState<GraduationPortal[]>([]);
+  const [submissions, setSubmissions] = useState<CacheSubmission[]>([]);
+  const [curricula, setCurricula] = useState<Curriculum[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  
+  // UI state
+  const [selectedPortal, setSelectedPortal] = useState<GraduationPortal | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  
+  // Confirm dialogs
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    confirmText: string;
+    variant: 'default' | 'destructive';
+    onConfirm: () => void;
+  } | null>(null);
 
+  // Auto-refresh submissions every 10 seconds
   useEffect(() => {
-    // Simulate loading
-    const loadData = async () => {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setPortals(MOCK_PORTALS);
-      setSubmissions(MOCK_SUBMISSIONS);
-      setSelectedPortal(MOCK_PORTALS[0]);
-      setLoading(false);
-    };
-    loadData();
+    if (!selectedPortal) return;
+    
+    const interval = setInterval(() => {
+      loadSubmissions(selectedPortal.id);
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [selectedPortal]);
+
+  // Initial load
+  useEffect(() => {
+    loadInitialData();
   }, []);
 
+  // Load submissions when portal changes
+  useEffect(() => {
+    if (selectedPortal) {
+      loadSubmissions(selectedPortal.id);
+    }
+  }, [selectedPortal?.id]);
+
+  const loadInitialData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const [portalsRes, curriculaRes] = await Promise.all([
+        getGraduationPortals(),
+        getCurricula()
+      ]);
+      
+      setPortals(portalsRes.portals);
+      setCurricula(curriculaRes.curricula || curriculaRes);
+      
+      // Select first active portal by default
+      const activePortal = portalsRes.portals.find((p: GraduationPortal) => p.status === 'active');
+      if (activePortal) {
+        setSelectedPortal(activePortal);
+      } else if (portalsRes.portals.length > 0) {
+        setSelectedPortal(portalsRes.portals[0]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSubmissions = async (portalId: string) => {
+    try {
+      const response = await getCacheSubmissions(portalId);
+      // Normalize submission data from backend
+      const normalizedSubmissions = (response.submissions || []).map(sub => ({
+        ...sub,
+        studentIdentifier: sub.studentIdentifier || sub.student_identifier,
+        submittedAt: sub.submittedAt || sub.submitted_at,
+        expiresAt: sub.expiresAt || sub.expires_at,
+      }));
+      setSubmissions(normalizedSubmissions);
+    } catch (err) {
+      console.error('Failed to load submissions:', err);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (!selectedPortal) return;
+    setIsRefreshing(true);
+    await loadSubmissions(selectedPortal.id);
+    setIsRefreshing(false);
+  };
+
+  const handleCreatePortal = async (data: Parameters<typeof createGraduationPortal>[0]) => {
+    setIsCreatingPortal(true);
+    try {
+      const response = await createGraduationPortal(data);
+      setPortals(prev => [...prev, response.portal]);
+      setSelectedPortal(response.portal);
+      setShowCreateModal(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to create portal');
+    } finally {
+      setIsCreatingPortal(false);
+    }
+  };
+
+  const handleClosePortal = async (portalId: string) => {
+    setIsProcessingAction(true);
+    try {
+      await closeGraduationPortal(portalId);
+      setPortals(prev => prev.map(p => p.id === portalId ? { ...p, status: 'closed' as const } : p));
+      if (selectedPortal?.id === portalId) {
+        setSelectedPortal(prev => prev ? { ...prev, status: 'closed' } : null);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to close portal');
+    } finally {
+      setIsProcessingAction(false);
+      setConfirmDialog(null);
+    }
+  };
+
+  const handleRegeneratePin = async (portalId: string) => {
+    setIsProcessingAction(true);
+    try {
+      const response = await regeneratePortalPin(portalId);
+      setPortals(prev => prev.map(p => p.id === portalId ? { ...p, pin: response.pin } : p));
+      if (selectedPortal?.id === portalId) {
+        setSelectedPortal(prev => prev ? { ...prev, pin: response.pin } : null);
+      }
+      alert(`New PIN: ${response.pin}`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to regenerate PIN');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleDeletePortal = async (portalId: string) => {
+    setIsProcessingAction(true);
+    try {
+      await deleteGraduationPortal(portalId);
+      setPortals(prev => prev.filter(p => p.id !== portalId));
+      if (selectedPortal?.id === portalId) {
+        setSelectedPortal(portals.find(p => p.id !== portalId) || null);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete portal');
+    } finally {
+      setIsProcessingAction(false);
+      setConfirmDialog(null);
+    }
+  };
+
+  const handleValidateSubmission = async (submissionId: string) => {
+    try {
+      const response = await validateCacheSubmission(selectedPortal!.id, submissionId);
+      const canGraduate = response.validation?.can_graduate ?? response.submission?.validation_result?.canGraduate ?? false;
+      setSubmissions(prev => prev.map(s => 
+        s.id === submissionId 
+          ? { ...s, status: canGraduate ? 'validated' : 'has_issues', validationResult: response.validation || response.submission?.validation_result }
+          : s
+      ));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to validate submission');
+    }
+  };
+
+  const handleApproveSubmission = async (submissionId: string, notes?: string) => {
+    try {
+      await approveCacheSubmission(selectedPortal!.id, submissionId, notes);
+      setSubmissions(prev => prev.map(s => 
+        s.id === submissionId ? { ...s, status: 'approved' } : s
+      ));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to approve submission');
+    }
+  };
+
+  const handleRejectSubmission = async (submissionId: string, reason: string) => {
+    try {
+      await rejectCacheSubmission(selectedPortal!.id, submissionId, reason);
+      setSubmissions(prev => prev.map(s => 
+        s.id === submissionId ? { ...s, status: 'rejected' } : s
+      ));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to reject submission');
+    }
+  };
+
+  const handleBatchValidate = async () => {
+    if (!selectedPortal) return;
+    const pendingIds = submissions.filter(s => s.status === 'pending').map(s => s.id);
+    if (pendingIds.length === 0) return;
+    
+    setIsProcessingAction(true);
+    try {
+      const response = await batchValidateSubmissions(selectedPortal.id, pendingIds);
+      // Reload submissions to get updated statuses
+      await loadSubmissions(selectedPortal.id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to batch validate');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleViewSubmission = (submission: CacheSubmission) => {
+    router.push(`/chairperson/GraduationPortal/${submission.id}?portalId=${selectedPortal?.id}`);
+  };
+
+  const handleCopyPin = (pin: string) => {
+    navigator.clipboard.writeText(pin);
+    // Could add a toast notification here
+  };
+
+  // Filtered submissions
   const filteredSubmissions = submissions.filter(sub => {
-    if (selectedPortal && sub.portalId !== selectedPortal.id) return false;
     if (statusFilter !== 'all' && sub.status !== statusFilter) return false;
-    if (searchTerm && !sub.fileName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    if (searchTerm && !sub.studentIdentifier?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
 
   const stats = {
-    total: filteredSubmissions.length,
-    pending: filteredSubmissions.filter(s => s.status === 'pending').length,
-    validated: filteredSubmissions.filter(s => s.status === 'validated').length,
-    hasIssues: filteredSubmissions.filter(s => s.status === 'has_issues').length,
-  };
-
-  const handleCreatePortal = (data: Partial<Portal>) => {
-    const newPortal = data as Portal;
-    setPortals([...portals, newPortal]);
-    setSelectedPortal(newPortal);
-  };
-
-  const handleViewSubmission = (submission: Submission) => {
-    router.push(`/chairperson/GraduationPortal/${submission.id}`);
-  };
-
-  const handleBatchProcess = async () => {
-    // Simulate batch processing
-    setSubmissions(prev => prev.map(sub => {
-      if (sub.status === 'pending') {
-        return { ...sub, status: 'processing' as const };
-      }
-      return sub;
-    }));
-
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    setSubmissions(prev => prev.map(sub => {
-      if (sub.status === 'processing') {
-        // Randomly assign validated or has_issues for demo
-        return { 
-          ...sub, 
-          status: Math.random() > 0.5 ? 'validated' as const : 'has_issues' as const,
-          validationResult: {
-            canGraduate: Math.random() > 0.5,
-            totalCredits: Math.floor(Math.random() * 20) + 130,
-            requiredCredits: 140,
-            completedCourses: Math.floor(Math.random() * 10) + 40,
-            totalCourses: 50,
-            missingCourses: ['CS 499', 'CS 498'],
-            issues: [],
-            warnings: [],
-          }
-        };
-      }
-      return sub;
-    }));
+    total: submissions.length,
+    pending: submissions.filter(s => s.status === 'pending').length,
+    validated: submissions.filter(s => s.status === 'validated').length,
+    hasIssues: submissions.filter(s => s.status === 'has_issues').length,
+    approved: submissions.filter(s => s.status === 'approved').length,
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <AlertCircle className="w-12 h-12 text-red-500" />
+        <h2 className="text-xl font-semibold">Failed to load data</h2>
+        <p className="text-muted-foreground">{error}</p>
+        <Button onClick={loadInitialData}>Try Again</Button>
       </div>
     );
   }
@@ -469,9 +665,14 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                             onClick={() => setSelectedPortal(portal)}
                           >
                             <div className="flex flex-col">
-                              <span className="font-medium">{portal.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{portal.name}</span>
+                                <Badge variant={portal.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                                  {portal.status}
+                                </Badge>
+                              </div>
                               <span className="text-xs text-muted-foreground">
-                                Batch {portal.batch} • {portal.submissionsCount} submissions
+                                Batch {portal.batch} • {portal.curriculum?.name || 'Unknown Curriculum'}
                               </span>
                             </div>
                           </DropdownMenuItem>
@@ -482,7 +683,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                 </div>
 
                 {selectedPortal && (
-                  <div className="flex items-center gap-4 text-sm">
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
                       <span>Deadline: {formatDate(selectedPortal.deadline)}</span>
@@ -493,10 +694,61 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                     <div className="flex items-center gap-2 bg-muted px-3 py-1 rounded-md">
                       <span className="text-muted-foreground">PIN:</span>
                       <code className="font-mono font-medium">{selectedPortal.pin}</code>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 w-6 p-0"
+                        onClick={() => handleCopyPin(selectedPortal.pin)}
+                      >
                         <Copy className="w-3 h-3" />
                       </Button>
                     </div>
+                    
+                    {/* Portal Actions */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Settings className="w-4 h-4 mr-1" />
+                          Manage
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleRegeneratePin(selectedPortal.id)}>
+                          <Key className="w-4 h-4 mr-2" />
+                          Regenerate PIN
+                        </DropdownMenuItem>
+                        {selectedPortal.status === 'active' && (
+                          <DropdownMenuItem 
+                            onClick={() => setConfirmDialog({
+                              open: true,
+                              title: 'Close Portal',
+                              description: 'This will prevent new submissions. Existing submissions will still be visible.',
+                              confirmText: 'Close Portal',
+                              variant: 'default',
+                              onConfirm: () => handleClosePortal(selectedPortal.id)
+                            })}
+                          >
+                            <Power className="w-4 h-4 mr-2" />
+                            Close Portal
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="text-red-600"
+                          onClick={() => setConfirmDialog({
+                            open: true,
+                            title: 'Delete Portal',
+                            description: 'This will permanently delete the portal and all associated data. This action cannot be undone.',
+                            confirmText: 'Delete',
+                            variant: 'destructive',
+                            onConfirm: () => handleDeletePortal(selectedPortal.id)
+                          })}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Portal
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 )}
               </div>
@@ -505,7 +757,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -514,7 +766,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total Submissions</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
                 </div>
               </div>
             </CardContent>
@@ -527,7 +779,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.pending}</p>
-                  <p className="text-xs text-muted-foreground">Pending Review</p>
+                  <p className="text-xs text-muted-foreground">Pending</p>
                 </div>
               </div>
             </CardContent>
@@ -558,7 +810,31 @@ const GraduationPortalChairpersonPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                  <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.approved}</p>
+                  <p className="text-xs text-muted-foreground">Approved</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Info Alert */}
+        {selectedPortal && (
+          <Alert className="mb-6">
+            <Clock className="w-4 h-4" />
+            <AlertDescription>
+              Submissions are cached for 30 minutes due to privacy requirements. Review and approve them before they expire.
+              Auto-refreshing every 10 seconds.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Main Content */}
         <Card>
@@ -567,13 +843,14 @@ const GraduationPortalChairpersonPage: React.FC = () => {
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
                 Submissions
+                {isRefreshing && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
               </CardTitle>
               <div className="flex flex-col sm:flex-row gap-3">
                 {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search submissions..."
+                    placeholder="Search by student ID..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9 w-full sm:w-64"
@@ -584,7 +861,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline">
                       <Filter className="w-4 h-4 mr-2" />
-                      {statusFilter === 'all' ? 'All Status' : getStatusLabel(statusFilter as Submission['status'])}
+                      {statusFilter === 'all' ? 'All Status' : getStatusLabel(statusFilter as CacheSubmission['status'])}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
@@ -597,16 +874,34 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                     <DropdownMenuItem onClick={() => setStatusFilter('rejected')}>Rejected</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                {/* Refresh */}
+                <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
                 {/* Batch Process */}
-                <Button onClick={handleBatchProcess} disabled={stats.pending === 0}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Process All Pending
+                <Button 
+                  onClick={handleBatchValidate} 
+                  disabled={stats.pending === 0 || isProcessingAction}
+                >
+                  {isProcessingAction ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                  )}
+                  Validate All Pending
                 </Button>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {filteredSubmissions.length === 0 ? (
+            {!selectedPortal ? (
+              <EmptyState
+                icon={<GraduationCap size={32} />}
+                title="No portal selected"
+                description="Select a portal from the dropdown above or create a new one"
+              />
+            ) : filteredSubmissions.length === 0 ? (
               <EmptyState
                 icon={<FileSpreadsheet size={32} />}
                 title="No submissions yet"
@@ -616,10 +911,10 @@ const GraduationPortalChairpersonPage: React.FC = () => {
               <div className="space-y-3">
                 {/* Table Header */}
                 <div className="hidden lg:grid lg:grid-cols-6 gap-4 p-3 bg-muted/50 rounded-lg text-sm font-medium text-muted-foreground">
-                  <div className="col-span-2">File</div>
+                  <div className="col-span-2">Student</div>
                   <div>Submitted</div>
                   <div>Status</div>
-                  <div>Progress</div>
+                  <div>Expires</div>
                   <div>Actions</div>
                 </div>
 
@@ -631,20 +926,22 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                     onClick={() => handleViewSubmission(submission)}
                   >
                     <div className="lg:grid lg:grid-cols-6 gap-4 lg:items-center">
-                      {/* File Info */}
+                      {/* Student Info */}
                       <div className="col-span-2 flex items-center gap-3 mb-3 lg:mb-0">
                         <div className="p-2 rounded-lg bg-muted">
                           <FileSpreadsheet className="w-5 h-5 text-muted-foreground" />
                         </div>
                         <div>
-                          <p className="font-medium text-sm truncate max-w-[200px]">{submission.fileName}</p>
-                          <p className="text-xs text-muted-foreground">{formatFileSize(submission.fileSize)}</p>
+                          <p className="font-medium text-sm">{submission.studentIdentifier || 'Anonymous'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {submission.courses?.length || 0} courses • {submission.metadata?.total_credits || '-'} credits
+                          </p>
                         </div>
                       </div>
 
                       {/* Submitted Date */}
                       <div className="mb-2 lg:mb-0">
-                        <p className="text-sm">{formatDateTime(submission.submittedAt)}</p>
+                        <p className="text-sm">{formatDateTime(submission.submittedAt || submission.submitted_at)}</p>
                       </div>
 
                       {/* Status */}
@@ -655,67 +952,69 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                         </Badge>
                       </div>
 
-                      {/* Progress */}
+                      {/* Expiry */}
                       <div className="mb-3 lg:mb-0">
-                        {submission.validationResult ? (
-                          <div className="flex items-center gap-2">
-                            <DonutChart
-                              completed={submission.validationResult.totalCredits}
-                              total={submission.validationResult.requiredCredits}
-                              size={40}
-                              strokeWidth={4}
-                              color={submission.validationResult.canGraduate ? '#10b981' : '#ef4444'}
-                            />
-                            <div className="text-xs">
-                              <p className="font-medium">{submission.validationResult.totalCredits}/{submission.validationResult.requiredCredits}</p>
-                              <p className="text-muted-foreground">credits</p>
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        )}
+                        <ExpiryTimer expiresAt={submission.expiresAt || submission.expires_at} />
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewSubmission(submission);
-                          }}
+                          onClick={() => handleViewSubmission(submission)}
                           className="h-8 w-8 p-0"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
+                        
+                        {submission.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleValidateSubmission(submission.id)}
+                          >
+                            Validate
+                          </Button>
+                        )}
+                        
                         {submission.status === 'validated' && (
                           <Button
                             size="sm"
                             className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Handle approve action
-                            }}
+                            onClick={() => handleApproveSubmission(submission.id)}
                           >
                             <CheckCircle className="w-4 h-4 mr-1" />
                             Approve
                           </Button>
                         )}
+                        
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuTrigger asChild>
                             <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
                               <MoreVertical className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Download className="w-4 h-4 mr-2" />
-                              Download Excel
+                            <DropdownMenuItem onClick={() => handleViewSubmission(submission)}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Details
                             </DropdownMenuItem>
+                            {submission.status === 'pending' && (
+                              <DropdownMenuItem onClick={() => handleValidateSubmission(submission.id)}>
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                Validate
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
-                            {submission.status === 'has_issues' && (
-                              <DropdownMenuItem className="text-red-600">
+                            {(submission.status === 'validated' || submission.status === 'has_issues') && (
+                              <DropdownMenuItem 
+                                className="text-red-600"
+                                onClick={() => {
+                                  const reason = prompt('Reason for rejection:');
+                                  if (reason) handleRejectSubmission(submission.id, reason);
+                                }}
+                              >
                                 <XCircle className="w-4 h-4 mr-2" />
                                 Reject
                               </DropdownMenuItem>
@@ -737,7 +1036,21 @@ const GraduationPortalChairpersonPage: React.FC = () => {
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreatePortal}
+        isLoading={isCreatingPortal}
       />
+
+      {confirmDialog && (
+        <ConfirmDialog
+          open={confirmDialog.open}
+          onClose={() => setConfirmDialog(null)}
+          onConfirm={confirmDialog.onConfirm}
+          title={confirmDialog.title}
+          description={confirmDialog.description}
+          confirmText={confirmDialog.confirmText}
+          variant={confirmDialog.variant}
+          isLoading={isProcessingAction}
+        />
+      )}
     </div>
   );
 };
