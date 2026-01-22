@@ -118,7 +118,7 @@ export default function Sidebar() {
   const [mounted, setMounted] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const { isCollapsed, toggleSidebar } = useSidebar();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
 
   // Determine navigation items based on user role
   const navigationItems =
@@ -133,6 +133,32 @@ export default function Sidebar() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Validate user is on correct page for their role
+  useEffect(() => {
+    if (isLoading || !mounted || !user) return;
+    
+    const isOnStudentPage = pathname.startsWith('/student');
+    const isOnChairpersonPage = pathname.startsWith('/chairperson');
+    const isOnAdminPage = pathname.startsWith('/admin');
+    const isOnAdvisorPage = pathname.startsWith('/advisor');
+    
+    // Check if user is on wrong page for their role
+    if (user.role === 'STUDENT' && (isOnChairpersonPage || isOnAdminPage || isOnAdvisorPage)) {
+      console.log('Student on wrong page, redirecting...');
+      window.location.href = '/student/management';
+    } else if (user.role === 'CHAIRPERSON' && (isOnStudentPage || isOnAdminPage || isOnAdvisorPage)) {
+      console.log('Chairperson on wrong page, redirecting...');
+      window.location.href = '/chairperson';
+    } else if (user.role === 'SUPER_ADMIN' && (isOnStudentPage || isOnChairpersonPage || isOnAdvisorPage)) {
+      console.log('Admin on wrong page, redirecting...');
+      window.location.href = '/admin';
+    } else if (user.role === 'ADVISOR' && (isOnStudentPage || isOnChairpersonPage || isOnAdminPage)) {
+      console.log('Advisor on wrong page, redirecting...');
+      window.location.href = '/advisor/curricula';
+    }
+  }, [user, pathname, isLoading, mounted]);
+
   const handleLogoError = () => {
     if (!logoError) {
       console.warn("Logo failed to load");

@@ -5,6 +5,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useCallback,
   ReactNode,
 } from "react";
 import {
@@ -27,10 +28,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function SanctumAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authVersion, setAuthVersion] = useState(0);
 
-  // Fetch user on mount
+  // Fetch user on mount or when authVersion changes
   useEffect(() => {
     const fetchUser = async () => {
+      setIsLoading(true);
       try {
         const userData = await getUser();
         setUser(userData);
@@ -43,10 +46,19 @@ export function SanctumAuthProvider({ children }: { children: ReactNode }) {
     };
 
     fetchUser();
-  }, []);
+  }, [authVersion]);
 
   const login = async (email: string, password: string) => {
     try {
+      // Clear any existing user state first
+      setUser(null);
+      
+      // Clear all client data before login to ensure fresh state
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      
       const { user: userData } = await sanctumLogin(email, password);
       setUser(userData);
     } catch (error) {
@@ -80,14 +92,22 @@ export function SanctumAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
+    setIsLoading(true);
     try {
       const userData = await getUser();
       setUser(userData);
     } catch (error) {
       setUser(null);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Force refresh when auth changes (increment authVersion to trigger re-fetch)
+  const forceRefresh = useCallback(() => {
+    setAuthVersion(v => v + 1);
+  }, []);
 
   return (
     <AuthContext.Provider
