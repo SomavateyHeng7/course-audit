@@ -35,49 +35,39 @@ const TentativeSchedulePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Mock data for now - replace with actual API call
+  // Fetch schedules from localStorage
   const fetchSchedules = async () => {
     try {
       setLoading(true);
-      // For now, using mock data. Replace with actual API call
-      const mockSchedules: TentativeSchedule[] = [
-        {
-          id: '1',
-          name: 'Fall 2024 Schedule',
-          semester: 'Fall 2024',
-          version: '1.0',
-          department: 'Computer Science',
-          batch: '2022-2026',
-          coursesCount: 25,
-          createdAt: '2024-01-15',
-          updatedAt: '2024-01-20',
-          curriculum: {
-            id: 'curr-1',
-            name: 'Computer Science 2022',
-            year: '2022'
-          }
-        },
-        {
-          id: '2',
-          name: 'Spring 2024 Schedule',
-          semester: 'Spring 2024',
-          version: '2.1',
-          department: 'Computer Science',
-          batch: '2021-2025',
-          coursesCount: 30,
-          createdAt: '2024-02-01',
-          updatedAt: '2024-02-10',
-          curriculum: {
-            id: 'curr-2',
-            name: 'Computer Science 2021',
-            year: '2021'
-          }
-        }
-      ];
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setSchedules(mockSchedules);
+      // Load schedules from localStorage
+      const savedVersions = localStorage.getItem('tentativeScheduleVersions');
+      let loadedSchedules: TentativeSchedule[] = [];
+      
+      if (savedVersions) {
+        const versions = JSON.parse(savedVersions);
+        // Transform saved schedules to match the expected format
+        loadedSchedules = versions.map((schedule: any) => ({
+          id: schedule.id || '',
+          name: schedule.name || '',
+          semester: schedule.semester || '',
+          version: schedule.version || '1.0',
+          department: schedule.department || '',
+          batch: schedule.batch || '',
+          coursesCount: schedule.courses?.length || 0,
+          createdAt: schedule.createdAt || new Date().toISOString(),
+          updatedAt: schedule.updatedAt || new Date().toISOString(),
+          curriculum: schedule.curriculumName ? {
+            id: schedule.curriculumId || '',
+            name: schedule.curriculumName,
+            year: schedule.curriculumName.match(/\d{4}/)?.[0] || ''
+          } : undefined
+        }));
+      }
+      
+      // Simulate API delay for smooth UX
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setSchedules(loadedSchedules);
     } catch (error) {
       console.error('Error fetching schedules:', error);
       showError('Failed to fetch tentative schedules');
@@ -88,6 +78,27 @@ const TentativeSchedulePage: React.FC = () => {
 
   useEffect(() => {
     fetchSchedules();
+    
+    // Refetch schedules when page becomes visible (e.g., after creating a schedule)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchSchedules();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also refetch when window gains focus
+    const handleFocus = () => {
+      fetchSchedules();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const filteredSchedules = schedules.filter(schedule =>

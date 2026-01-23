@@ -49,14 +49,15 @@ const Toast: React.FC<ToastProps> = ({
   return (
     <div
       className={`
-        fixed top-6 right-6 z-[100] 
         ${getBackgroundColor()}
         text-white 
-        rounded-lg shadow-lg 
-        max-w-md min-w-[300px]
-        transform transition-all duration-300 ease-in-out
-        animate-in slide-in-from-right-full
+        rounded-lg shadow-2xl 
+        max-w-md min-w-[320px] w-full
+        animate-slide-in-right
+        border-2 border-white/20
       `}
+      role="alert"
+      aria-live="assertive"
     >
       <div className="flex items-start gap-3 p-4">
         <div className="flex-shrink-0 mt-0.5">
@@ -65,11 +66,11 @@ const Toast: React.FC<ToastProps> = ({
         
         <div className="flex-1 min-w-0">
           {title && (
-            <div className="font-semibold text-sm mb-1 line-clamp-1">
+            <div className="font-bold text-base mb-1.5 line-clamp-1">
               {title}
             </div>
           )}
-          <div className="text-sm opacity-90 line-clamp-2">
+          <div className="text-sm font-medium opacity-95 line-clamp-2">
             {message}
           </div>
         </div>
@@ -77,7 +78,7 @@ const Toast: React.FC<ToastProps> = ({
         {onClose && (
           <button
             onClick={onClose}
-            className="flex-shrink-0 ml-2 text-white/70 hover:text-white transition-colors"
+            className="flex-shrink-0 ml-2 text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
             aria-label="Close notification"
           >
             <X className="w-4 h-4" />
