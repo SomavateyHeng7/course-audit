@@ -225,7 +225,7 @@ export default function DataEntryPage() {
         const deptData = await getPublicDepartments();
         const fetchedDepartments = deptData.departments || [];
         const filtered = fetchedDepartments
-          .filter((dept: any) => dept.facultyId === selectedFaculty)
+          .filter((dept: any) => dept.faculty_id === selectedFaculty)
           .map((dept: any) => ({ value: dept.id, label: dept.name }));
         setDepartmentOptions(filtered);
       } catch (error) {
