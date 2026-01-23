@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Trash2, Save, BookOpen, Calendar, Users, ArrowLeft, Upload, FileSpreadsheet, X } from 'lucide-react';
+import { Search, Plus, Trash2, Save, BookOpen, Calendar, Users, ArrowLeft, Upload, FileSpreadsheet, X, Download } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
 import CourseDetailForm from '@/components/features/schedule/CourseDetailForm';
 import * as XLSX from 'xlsx';
 import { getPublicCurricula } from '@/lib/api/laravel';
+import { exportScheduleToPDF } from '@/lib/pdfExport';
 
 // Import chairperson components
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
@@ -412,17 +413,38 @@ const TentativeSchedulePage: React.FC = () => {
     
     await new Promise(r => setTimeout(r, 1000));
     success(`Schedule saved as ${versionName}!`);
-    setSchedule({ 
-      name: '', 
-      semester: '', 
-      version: '', 
-      courses: [], 
-      department: '', 
-      batch: '',
-      curriculumId: '',
-      curriculumName: ''
-    });
     setLoading(false);
+    
+    // Navigate back to the list page to view the saved schedule
+    setTimeout(() => {
+      router.push('/chairperson/TentativeSchedule');
+    }, 1500);
+  };
+
+  // Export schedule to PDF
+  const handleExportPDF = () => {
+    if (schedule.courses.length === 0) {
+      warning('Please add courses to the schedule before exporting');
+      return;
+    }
+
+    // Check if courses have time slots
+    const coursesWithTimeSlots = schedule.courses.filter(
+      course => course.dayTimeSlots && course.dayTimeSlots.length > 0
+    );
+
+    if (coursesWithTimeSlots.length === 0) {
+      warning('Please add day and time information to courses before exporting the timetable');
+      return;
+    }
+
+    try {
+      exportScheduleToPDF(schedule);
+      success('Schedule exported to PDF successfully!');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      showError('Failed to export PDF. Please try again.');
+    }
   };
 
   // Loading state handled by loading state variable below
@@ -441,6 +463,13 @@ const TentativeSchedulePage: React.FC = () => {
             onClick: () => router.back()
           }}
           actions={[
+            {
+              label: "Export PDF",
+              onClick: handleExportPDF,
+              disabled: loading || schedule.courses.length === 0,
+              icon: <Download size={16} />,
+              variant: "outline" as const
+            },
             {
               label: "Save Schedule",
               onClick: handleSaveSchedule,

@@ -23,36 +23,41 @@ interface ToastProviderProps {
 }
 
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
-  const [toast, setToast] = useState<ToastProps | null>(null);
+  const [toasts, setToasts] = useState<ToastProps[]>([]);
 
   const showToast = useCallback((newToast: Omit<ToastProps, 'id' | 'onClose'>) => {
+    const id = Math.random().toString(36).substr(2, 9);
     const toastWithId: ToastProps = {
       ...newToast,
-      id: Math.random().toString(36).substr(2, 9),
-      onClose: () => setToast(null)
+      id,
+      onClose: () => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      }
     };
     
-    setToast(toastWithId);
+    setToasts(prev => [...prev, toastWithId]);
 
-    // Auto-hide toast after duration (default 4 seconds)
-    const duration = newToast.duration || 4000;
+    // Auto-hide toast after duration (default 5 seconds)
+    const duration = newToast.duration || 5000;
     setTimeout(() => {
-      setToast(null);
+      setToasts(prev => prev.filter(t => t.id !== id));
     }, duration);
   }, []);
 
   const hideToast = useCallback(() => {
-    setToast(null);
+    setToasts([]);
   }, []);
 
   return (
     <ToastContext.Provider value={{ showToast, hideToast }}>
       {children}
-      {toast && (
-        <Toast
-          {...toast}
-        />
-      )}
+      <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
+        {toasts.map((toast) => (
+          <div key={toast.id} className="pointer-events-auto">
+            <Toast {...toast} />
+          </div>
+        ))}
+      </div>
     </ToastContext.Provider>
   );
 };
@@ -63,15 +68,15 @@ export const useToastHelpers = () => {
 
   return {
     success: (message: string, title?: string, duration?: number) => 
-      showToast({ type: 'success', message, title, duration }),
+      showToast({ type: 'success', message, title, duration: duration || 4000 }),
     
     error: (message: string, title?: string, duration?: number) => 
-      showToast({ type: 'error', message, title, duration }),
+      showToast({ type: 'error', message, title, duration: duration || 6000 }),
     
     warning: (message: string, title?: string, duration?: number) => 
-      showToast({ type: 'warning', message, title, duration }),
+      showToast({ type: 'warning', message, title, duration: duration || 5000 }),
     
     info: (message: string, title?: string, duration?: number) => 
-      showToast({ type: 'info', message, title, duration })
+      showToast({ type: 'info', message, title, duration: duration || 4000 })
   };
 };
