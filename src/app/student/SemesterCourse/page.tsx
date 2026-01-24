@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Clock, User, Book, ChevronDown, Search } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
+import { getPublishedSchedules, getPublishedSchedule } from '@/lib/api/laravel';
 
 // Import chairperson components
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
@@ -34,7 +35,9 @@ interface ScheduleDraft {
   name: string;
   semester: string;
   lastUpdated: string;
-  status: 'draft' | 'published';
+  isPublished: boolean;
+  curriculumName?: string;
+  curriculumYear?: string;
 }
 
 const SemesterCoursePage: React.FC = () => {
@@ -49,7 +52,7 @@ const SemesterCoursePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
 
-  // Load schedule drafts
+  // Load schedule drafts on mount
   useEffect(() => {
     loadScheduleDrafts();
   }, []);
@@ -58,33 +61,29 @@ const SemesterCoursePage: React.FC = () => {
     try {
       setLoading(true);
       
-      // Mock data for demonstration
-      const mockDrafts: ScheduleDraft[] = [
-        {
-          id: '1',
-          name: '(2/2025) CS&IT Course Schedule',
-          semester: 'Spring 2025',
-          lastUpdated: new Date().toISOString(),
-          status: 'draft'
-        },
-        {
-          id: '2',
-          name: '(1/2025) CS&IT Course Schedule',
-          semester: 'Fall 2024',
-          lastUpdated: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'published'
-        }
-      ];
+      // Fetch published schedules from API
+      const response = await getPublishedSchedules({ limit: 100 });
       
-      setScheduleDrafts(mockDrafts);
+      // Map schedules to local format
+      const publishedSchedules = response.schedules.map((schedule: any) => ({
+        id: schedule.id,
+        name: schedule.name,
+        semester: `${schedule.semester} ${schedule.year}`,
+        lastUpdated: schedule.updatedAt,
+        isPublished: schedule.isPublished,
+        curriculumName: schedule.curriculumName,
+        curriculumYear: schedule.curriculumYear
+      }));
       
-      // Auto-select the most recent draft
-      if (mockDrafts.length > 0) {
-        const latestDraft = mockDrafts[0];
+      setScheduleDrafts(publishedSchedules);
+      
+      // Auto-select the most recent published schedule
+      if (publishedSchedules.length > 0) {
+        const latestDraft = publishedSchedules[0];
         setSelectedDraft(latestDraft);
         loadCourseSchedules(latestDraft.id);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading schedule drafts:', error);
       showError('Error loading schedule drafts. Please try again.');
     } finally {
@@ -96,116 +95,55 @@ const SemesterCoursePage: React.FC = () => {
     try {
       setLoadingSchedules(true);
       
-      // Mock course schedule data
-      const mockCourses: CourseSchedule[] = [
-        {
-          id: '1',
-          code: 'CS301',
-          name: 'Database Systems',
-          instructor: 'Dr. Smith',
-          credits: 3,
-          day: 'Monday',
-          time: '09:00 - 11:00',
-          room: 'Room A101',
-          capacity: 35,
-          enrolled: 28,
-          section: 'A',
-          category: 'Core',
-          color: '#3b82f6'
-        },
-        {
-          id: '2',
-          code: 'CS302',
-          name: 'Software Engineering',
-          instructor: 'Dr. Johnson',
-          credits: 3,
-          day: 'Monday',
-          time: '13:00 - 15:00',
-          room: 'Room B201',
-          capacity: 30,
-          enrolled: 25,
-          section: 'A',
-          category: 'Core',
-          color: '#10b981'
-        },
-        {
-          id: '3',
-          code: 'CS303',
-          name: 'Computer Networks',
-          instructor: 'Dr. Williams',
-          credits: 3,
-          day: 'Tuesday',
-          time: '10:00 - 12:00',
-          room: 'Room C301',
-          capacity: 32,
-          enrolled: 30,
-          section: 'A',
-          category: 'Core',
-          color: '#f59e0b'
-        },
-        {
-          id: '4',
-          code: 'CS401',
-          name: 'Machine Learning',
-          instructor: 'Dr. Brown',
-          credits: 3,
-          day: 'Wednesday',
-          time: '09:00 - 11:00',
-          room: 'Room D101',
-          capacity: 25,
-          enrolled: 24,
-          section: 'B',
-          category: 'Elective',
-          color: '#8b5cf6'
-        },
-        {
-          id: '5',
-          code: 'CS402',
-          name: 'Web Development',
-          instructor: 'Dr. Davis',
-          credits: 3,
-          day: 'Wednesday',
-          time: '14:00 - 16:00',
-          room: 'Room E202',
-          capacity: 28,
-          enrolled: 22,
-          section: 'A',
-          category: 'Elective',
-          color: '#ef4444'
-        },
-        {
-          id: '6',
-          code: 'CS303',
-          name: 'Computer Networks',
-          instructor: 'Dr. Miller',
-          credits: 3,
-          day: 'Thursday',
-          time: '11:00 - 13:00',
-          room: 'Room F301',
-          capacity: 32,
-          enrolled: 27,
-          section: 'B',
-          category: 'Core',
-          color: '#f59e0b'
-        },
-        {
-          id: '7',
-          code: 'CS501',
-          name: 'Artificial Intelligence',
-          instructor: 'Dr. Wilson',
-          credits: 3,
-          day: 'Friday',
-          time: '10:00 - 12:00',
-          room: 'Room G401',
-          capacity: 20,
-          enrolled: 18,
-          section: 'A',
-          category: 'Advanced',
-          color: '#06b6d4'
-        }
-      ];
+      // Fetch schedule details with courses from published API
+      const response = await getPublishedSchedule(draftId);
+      const schedule = response.schedule;
       
-      setCourseSchedules(mockCourses);
+      // Transform API data to CourseSchedule format
+      const courses: CourseSchedule[] = schedule.courses.map((scheduleCourse: any, index: number) => {
+        
+        const course = scheduleCourse.course;
+        const categoryColors: Record<string, string> = {
+          'Core': '#3b82f6',
+          'Elective': '#10b981',
+          'Advanced': '#8b5cf6',
+          'Foundation': '#f59e0b',
+        };
+        
+        // Extract day from days array if available
+        let day = 'TBA';
+        if (scheduleCourse.day) {
+          day = scheduleCourse.day;
+        } else if (scheduleCourse.days && Array.isArray(scheduleCourse.days) && scheduleCourse.days.length > 0) {
+          day = scheduleCourse.days[0];
+        }
+        
+        // Extract time
+        let time = 'TBA';
+        if (scheduleCourse.timeStart && scheduleCourse.timeEnd) {
+          time = `${scheduleCourse.timeStart} - ${scheduleCourse.timeEnd}`;
+        } else if (scheduleCourse.time) {
+          time = scheduleCourse.time;
+        }
+        
+        return {
+          id: scheduleCourse.id,
+          code: course.code,
+          name: course.title,
+          instructor: scheduleCourse.instructor || 'TBA',
+          credits: course.credits,
+          day: day,
+          time: time,
+          room: scheduleCourse.room || 'TBA',
+          capacity: scheduleCourse.capacity || 0,
+          enrolled: scheduleCourse.enrolled || 0,
+          section: scheduleCourse.section || 'A',
+          category: scheduleCourse.courseType || 'Core',
+          color: categoryColors[scheduleCourse.courseType || 'Core'] || '#6b7280'
+        };
+      });
+      
+      setCourseSchedules(courses);
     } catch (error) {
       console.error('Error loading course schedules:', error);
       showError('Error loading course schedules. Please try again.');
@@ -254,25 +192,30 @@ const SemesterCoursePage: React.FC = () => {
 
             {/* Statistics */}
             {selectedDraft && courseSchedules.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-1 gap-4 mb-6">
                 <StatCard
                   title="Total Courses"
                   value={courseSchedules.length.toString()}
-                  subtitle="Available courses"
+                  subtitle="Scheduled courses"
                   icon={<Book className="h-5 w-5" />}
                 />
-                <StatCard
-                  title="Core Courses"
-                  value={courseSchedules.filter(c => c.category === 'Core').length.toString()}
-                  subtitle="Required courses"
-                  icon={<Calendar className="h-5 w-5" />}
-                />
-                <StatCard
-                  title="Electives"
-                  value={courseSchedules.filter(c => c.category === 'Elective').length.toString()}
-                  subtitle="Optional courses"
-                  icon={<User className="h-5 w-5" />}
-                />
+              </div>
+            )}
+
+            {/* No Published Schedules Message */}
+            {!loading && scheduleDrafts.length === 0 && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 mb-6">
+                <div className="flex items-start gap-3">
+                  <Calendar className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                      No Published Schedules Available
+                    </h3>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      There are currently no published tentative schedules. Please check back later or contact your department chairperson.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -296,7 +239,7 @@ const SemesterCoursePage: React.FC = () => {
                     >
                       {scheduleDrafts.map((draft) => (
                         <option key={draft.id} value={draft.id}>
-                          {draft.name} - {draft.status}
+                          {draft.name} - published
                         </option>
                       ))}
                     </select>
@@ -330,7 +273,7 @@ const SemesterCoursePage: React.FC = () => {
               {/* Header */}
               <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-border">
                 <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-foreground break-words">
-                  {selectedDraft ? `${selectedDraft.name} (${selectedDraft.status.charAt(0).toUpperCase() + selectedDraft.status.slice(1)} - ${selectedDraft.semester})` : 'Course Schedule'}
+                  {selectedDraft ? `${selectedDraft.name} (Published - ${selectedDraft.semester})` : 'Course Schedule'}
                 </h2>
               </div>
 
@@ -381,15 +324,6 @@ const SemesterCoursePage: React.FC = () => {
                                     <Book className="w-3 h-3 flex-shrink-0" />
                                     <span className="truncate">{course.credits} credits • {course.room}</span>
                                   </div>
-                                </div>
-
-                                <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700 gap-2">
-                                  <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded">
-                                    {course.category}
-                                  </span>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                    {course.enrolled}/{course.capacity} enrolled
-                                  </span>
                                 </div>
                               </div>
                             </div>

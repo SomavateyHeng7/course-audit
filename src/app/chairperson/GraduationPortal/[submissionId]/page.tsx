@@ -451,7 +451,7 @@ const SubmissionDetailPage: React.FC = () => {
   }
 
   const categories = groupCoursesByCategory(submission.courses || []);
-  const validation = submission.validationResult;
+  const validation = submission.validation_result;
   
   // Calculate totals
   const totalCredits = categories.reduce((sum, c) => sum + c.totalCredits, 0);
@@ -486,13 +486,13 @@ const SubmissionDetailPage: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-3">
-              <ExpiryTimer expiresAt={submission.expiresAt} large />
+              {submission.expiresAt && <ExpiryTimer expiresAt={submission.expiresAt} large />}
             </div>
           </div>
         </div>
 
         {/* Expiry Warning */}
-        {getTimeRemaining(submission.expiresAt).minutes < 10 && !getTimeRemaining(submission.expiresAt).expired && (
+        {submission.expiresAt && getTimeRemaining(submission.expiresAt).minutes < 10 && !getTimeRemaining(submission.expiresAt).expired && (
           <Alert variant="destructive" className="mb-6">
             <AlertTriangle className="w-4 h-4" />
             <AlertDescription>
@@ -512,8 +512,8 @@ const SubmissionDetailPage: React.FC = () => {
                 </Badge>
                 
                 {validation && (
-                  <Badge variant={validation.can_graduate ? 'default' : 'destructive'} className="text-base px-4 py-2">
-                    {validation.can_graduate ? (
+                  <Badge variant={validation.canGraduate ? 'default' : 'destructive'} className="text-base px-4 py-2">
+                    {validation.canGraduate ? (
                       <><CheckCircle className="w-4 h-4 mr-1" /> Eligible to Graduate</>
                     ) : (
                       <><XCircle className="w-4 h-4 mr-1" /> Not Eligible</>
@@ -576,7 +576,7 @@ const SubmissionDetailPage: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xl font-semibold">{formatDateTime(submission.submittedAt)}</p>
+              <p className="text-xl font-semibold">{formatDateTime(submission.submittedAt || submission.submitted_at || '')}</p>
             </CardContent>
           </Card>
           
@@ -652,57 +652,41 @@ const SubmissionDetailPage: React.FC = () => {
         </div>
 
         {/* Validation Issues */}
-        {validation && validation.issues && validation.issues.length > 0 && (
+        {validation && (validation.errors?.length || validation.warnings?.length) && (
           <Card className="mb-6 border-red-200 dark:border-red-900">
             <CardHeader>
               <CardTitle className="text-red-600 dark:text-red-400 flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5" />
-                Validation Issues ({validation.issues.length})
+                Validation Issues ({(validation.errors?.length || 0) + (validation.warnings?.length || 0)})
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {validation.issues.map((issue: { type: string; severity: string; message: string; courseCode?: string }, index: number) => (
+                {validation.errors?.map((message: string, index: number) => (
                   <div 
-                    key={index}
-                    className={`p-3 rounded-lg flex items-start gap-3 ${
-                      issue.severity === 'error' 
-                        ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' 
-                        : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
-                    }`}
+                    key={`error-${index}`}
+                    className="p-3 rounded-lg flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
                   >
-                    {issue.severity === 'error' ? (
-                      <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                    ) : (
-                      <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                    )}
+                    <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-medium text-sm">{issue.message}</p>
-                      {issue.courseCode && (
-                        <Badge variant="outline" className="mt-1 text-xs font-mono">
-                          {issue.courseCode}
-                        </Badge>
-                      )}
+                      <p className="font-medium text-sm">{message}</p>
+                    </div>
+                  </div>
+                ))}
+                {validation.warnings?.map((message: string, index: number) => (
+                  <div 
+                    key={`warning-${index}`}
+                    className="p-3 rounded-lg flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800"
+                  >
+                    <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-sm">{message}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
-        )}
-
-        {/* Warnings */}
-        {validation && validation.warnings && validation.warnings.length > 0 && (
-          <Alert className="mb-6">
-            <AlertTriangle className="w-4 h-4" />
-            <AlertDescription>
-              <ul className="list-disc list-inside">
-                {validation.warnings.map((warning: string, index: number) => (
-                  <li key={index}>{warning}</li>
-                ))}
-              </ul>
-            </AlertDescription>
-          </Alert>
         )}
 
         {/* Course Categories */}

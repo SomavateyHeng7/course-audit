@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, BookOpen, Clock, Search } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
+import { getPublishedSchedules } from '@/lib/api/laravel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,48 +35,12 @@ const AdvisorSchedulesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Mock data for now - replace with actual API call
+  // Fetch published schedules from API
   const fetchSchedules = async () => {
     try {
       setLoading(true);
-      // Mock data - same as chairperson view but read-only
-      const mockSchedules: TentativeSchedule[] = [
-        {
-          id: '1',
-          name: 'Fall 2024 Schedule',
-          semester: 'Fall 2024',
-          version: '1.0',
-          department: 'Computer Science',
-          batch: '2022-2026',
-          coursesCount: 25,
-          createdAt: '2024-01-15',
-          updatedAt: '2024-01-20',
-          curriculum: {
-            id: 'curr-1',
-            name: 'Computer Science 2022',
-            year: '2022'
-          }
-        },
-        {
-          id: '2',
-          name: 'Spring 2024 Schedule',
-          semester: 'Spring 2024',
-          version: '2.1',
-          department: 'Computer Science',
-          batch: '2021-2025',
-          coursesCount: 30,
-          createdAt: '2024-02-01',
-          updatedAt: '2024-02-10',
-          curriculum: {
-            id: 'curr-2',
-            name: 'Computer Science 2021',
-            year: '2021'
-          }
-        }
-      ];
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setSchedules(mockSchedules);
+      const response = await getPublishedSchedules({ limit: 100 });
+      setSchedules(response.schedules || []);
     } catch (error) {
       console.error('Error fetching schedules:', error);
       showError('Failed to fetch tentative schedules');

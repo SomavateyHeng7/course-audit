@@ -21,6 +21,7 @@ import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
 import { DataTable } from '@/components/role-specific/chairperson/DataTable';
 import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
 import { StatCard } from '@/components/role-specific/chairperson/StatCard';
+import { getTentativeSchedule } from '@/lib/api/laravel';
 
 interface ScheduleCourse {
   id: string;
@@ -64,99 +65,38 @@ const ViewSchedulePage: React.FC = () => {
   const fetchSchedule = async () => {
     setLoading(true);
     try {
-      // Simulate API call - in production, fetch from backend
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Fetch from API
+      const response = await getTentativeSchedule(scheduleId);
+      const apiSchedule = response.schedule;
       
-      // Try to load from localStorage first (for demo purposes)
-      const savedVersions = localStorage.getItem('tentativeScheduleVersions');
-      if (savedVersions) {
-        const versions = JSON.parse(savedVersions) as ScheduleData[];
-        const found = versions.find(v => v.id === scheduleId);
-        if (found) {
-          setSchedule(found);
-          setLoading(false);
-          return;
-        }
-      }
-      
-      // Mock data fallback
-      const mockSchedule: ScheduleData = {
-        id: scheduleId,
-        name: scheduleId === '1' ? 'Fall 2024 Schedule' : 'Spring 2024 Schedule',
-        semester: scheduleId === '1' ? 'Fall 2024' : 'Spring 2024',
-        version: scheduleId === '1' ? '1.0' : '2.1',
-        department: 'Computer Science',
-        batch: scheduleId === '1' ? '2022-2026' : '2021-2025',
-        curriculumName: scheduleId === '1' ? 'Computer Science 2022' : 'Computer Science 2021',
-        courses: [
-          {
-            id: '1',
-            code: 'CSX3001',
-            name: 'Database Systems',
-            credits: 3,
-            section: 'A',
-            days: ['Mon', 'Wed', 'Fri'],
-            time: '09:00-10:00',
-            instructor: 'Dr. Smith',
-            seatLimit: 40,
-            category: 'Core'
-          },
-          {
-            id: '2',
-            code: 'CSX3002',
-            name: 'Software Engineering',
-            credits: 3,
-            section: 'A',
-            days: ['Tue', 'Thu'],
-            time: '10:30-12:00',
-            instructor: 'Dr. Johnson',
-            seatLimit: 35,
-            category: 'Core'
-          },
-          {
-            id: '3',
-            code: 'CSX3003',
-            name: 'Data Structures',
-            credits: 3,
-            section: 'B',
-            days: ['Mon', 'Wed'],
-            time: '13:00-14:30',
-            instructor: 'Prof. Williams',
-            seatLimit: 45,
-            category: 'Core'
-          },
-          {
-            id: '4',
-            code: 'CSX4001',
-            name: 'Machine Learning',
-            credits: 3,
-            section: 'A',
-            days: ['Tue', 'Thu'],
-            time: '14:00-15:30',
-            instructor: 'Dr. Brown',
-            seatLimit: 30,
-            category: 'Elective'
-          },
-          {
-            id: '5',
-            code: 'CSX4002',
-            name: 'Web Development',
-            credits: 3,
-            section: 'A',
-            days: ['Mon', 'Wed', 'Fri'],
-            time: '15:00-16:00',
-            instructor: 'Prof. Davis',
-            seatLimit: 40,
-            category: 'Elective'
-          }
-        ],
-        createdAt: '2024-01-15T00:00:00Z',
-        updatedAt: '2024-01-20T00:00:00Z'
+      // Transform the data to match component format
+      const transformedSchedule: ScheduleData = {
+        id: apiSchedule.id,
+        name: apiSchedule.name,
+        semester: apiSchedule.semester,
+        version: apiSchedule.version.toString(),
+        department: apiSchedule.department || '',
+        batch: apiSchedule.batch || '',
+        curriculumId: apiSchedule.curriculum?.id || '',
+        curriculumName: apiSchedule.curriculum?.name || '',
+        courses: apiSchedule.courses.map((sc: any) => ({
+          id: sc.courseId || sc.id || sc.course?.id || '',
+          code: sc.code || sc.course?.code || '',
+          name: sc.name || sc.course?.name || '',
+          credits: sc.credits || sc.course?.credits || 0,
+          section: sc.section,
+          days: sc.days,
+          time: sc.time,
+          instructor: sc.instructor,
+          seatLimit: sc.seatLimit || sc.seat_limit,
+        })),
+        createdAt: apiSchedule.createdAt,
+        updatedAt: apiSchedule.updatedAt,
       };
       
-      setSchedule(mockSchedule);
+      setSchedule(transformedSchedule);
     } catch (error) {
-      console.error('Failed to fetch schedule:', error);
+      console.error('Error fetching schedule:', error);
     } finally {
       setLoading(false);
     }
@@ -183,10 +123,16 @@ const ViewSchedulePage: React.FC = () => {
       render: (course: ScheduleCourse) => (
         <div>
           <div className="font-medium">{course.name}</div>
-          {course.section && (
-            <div className="text-sm text-muted-foreground">Section {course.section}</div>
-          )}
         </div>
+      )
+    },
+    {
+      key: 'section',
+      label: 'Section',
+      className: 'w-24',
+      hideOnMobile: true,
+      render: (course: ScheduleCourse) => (
+        <span className="text-sm">{course.section || '-'}</span>
       )
     },
     {
@@ -196,17 +142,6 @@ const ViewSchedulePage: React.FC = () => {
       hideOnMobile: true,
       render: (course: ScheduleCourse) => (
         <Badge variant="outline">{course.credits}</Badge>
-      )
-    },
-    {
-      key: 'category',
-      label: 'Category',
-      className: 'w-24',
-      hideOnMobile: true,
-      render: (course: ScheduleCourse) => (
-        <Badge variant={course.category === 'Core' ? 'default' : 'secondary'}>
-          {course.category || 'N/A'}
-        </Badge>
       )
     },
     {
@@ -297,7 +232,7 @@ const ViewSchedulePage: React.FC = () => {
           actions={[
             {
               label: "Edit Schedule",
-              onClick: () => router.push('/chairperson/TentativeSchedule/create_schedule'),
+              onClick: () => router.push(`/chairperson/TentativeSchedule/create_schedule?id=${params.id}`),
               icon: <Edit size={16} />
             }
           ]}
@@ -328,7 +263,7 @@ const ViewSchedulePage: React.FC = () => {
         </Card>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
           <StatCard
             title="Total Courses"
             value={schedule.courses.length}
@@ -340,18 +275,6 @@ const ViewSchedulePage: React.FC = () => {
             value={totalCredits}
             subtitle="Credit hours"
             icon={<Calendar size={20} />}
-          />
-          <StatCard
-            title="Core Courses"
-            value={coreCount}
-            subtitle="Required courses"
-            icon={<Users size={20} />}
-          />
-          <StatCard
-            title="Electives"
-            value={electiveCount}
-            subtitle="Optional courses"
-            icon={<Clock size={20} />}
           />
         </div>
 

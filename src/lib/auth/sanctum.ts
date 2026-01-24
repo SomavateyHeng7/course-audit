@@ -164,7 +164,7 @@ export async function getUser(): Promise<User> {
 
     if (!response.ok) {
       if (response.status === 401) {
-        console.log('User not authenticated - 401 response');
+        // User not authenticated - this is normal, throw silently
         throw new Error('Unauthenticated');
       }
       throw new Error(`Failed to fetch user: ${response.status}`);
@@ -172,7 +172,10 @@ export async function getUser(): Promise<User> {
 
     return response.json();
   } catch (error) {
-    console.error('Error fetching user:', error);
+    // Only log actual network errors, not authentication errors
+    if (error instanceof Error && error.message !== 'Unauthenticated') {
+      console.error('Error fetching user:', error);
+    }
     throw error;
   }
 }
