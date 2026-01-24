@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { FaTimes, FaChalkboardTeacher, FaChair } from 'react-icons/fa';
+import { useToastHelpers } from '@/hooks/useToast';
 
 interface CourseDetailFormProps {
   courseName?: string;
@@ -46,6 +47,7 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
 
   const [showCustomInstructor, setShowCustomInstructor] = useState(false);
   const [customInstructor, setCustomInstructor] = useState('');
+  const { error: showError, warning } = useToastHelpers();
 
   const daysOfWeek = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -89,28 +91,28 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
 
     // Validate required fields
     if (!formData.section?.trim()) {
-      alert('Please enter section');
+      showError('Please enter section', 'Missing Section');
       return;
     }
     if (formData.dayTimeSlots.length === 0) {
-      alert('Please select at least one day');
+      showError('Please select at least one day', 'Missing Schedule');
       return;
     }
     
     // Validate that all selected days have times
     for (const slot of formData.dayTimeSlots) {
       if (!slot.startTime || !slot.endTime) {
-        alert(`Please enter start and end time for ${slot.day}`);
+        showError(`Please enter start and end time for ${slot.day}`, 'Incomplete Time Schedule');
         return;
       }
     }
     
     if (!formData.instructor?.trim()) {
-      alert('Please enter instructor');
+      showError('Please enter instructor', 'Missing Instructor');
       return;
     }
     if (!formData.seat?.trim()) {
-      alert('Please enter seat capacity');
+      showError('Please enter seat capacity', 'Missing Seat Capacity');
       return;
     }
 

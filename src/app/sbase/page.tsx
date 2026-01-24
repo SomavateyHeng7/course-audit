@@ -18,14 +18,15 @@ import { getPublicFaculties, getPublicDepartments } from '@/lib/api/laravel';
 interface Faculty {
   id: string;
   name: string;
-  code: string;
+  code?: string;
 }
 
 interface Department {
   id: string;
   name: string;
-  code: string;
-  facultyId: string;
+  code?: string;
+  facultyId?: string;
+  faculty_id?: string;
 }
 
 export default function StudentPage() {
@@ -40,7 +41,8 @@ export default function StudentPage() {
     const fetchFaculties = async () => {
       try {
         const data = await getPublicFaculties();
-        setFaculties(data);
+        const facultiesList = data.faculties || data;
+        setFaculties(Array.isArray(facultiesList) ? facultiesList : []);
       } catch (error) {
         console.error('Error fetching faculties:', error);
       }
@@ -49,7 +51,8 @@ export default function StudentPage() {
     const fetchDepartments = async () => {
       try {
         const data = await getPublicDepartments();
-        setDepartments(data);
+        const departmentsList = data.departments || data;
+        setDepartments(Array.isArray(departmentsList) ? departmentsList : []);
       } catch (error) {
         console.error('Error fetching departments:', error);
       }

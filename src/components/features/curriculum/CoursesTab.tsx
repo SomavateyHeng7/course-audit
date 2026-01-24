@@ -151,7 +151,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
   };
 
   const selectAllCourses = () => {
-    setSelectedCourses(filteredCourses.map(course => course.id));
+    setSelectedCourses(filteredCourses.map(c => c.curriculumCourseId || c.id));
   };
 
   const clearSelection = () => {
@@ -354,8 +354,8 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                   <td className="px-6 py-4 text-center">
                     <input
                       type="checkbox"
-                      checked={selectedCourses.includes(course.id)}
-                      onChange={() => toggleCourseSelection(course.id)}
+                      checked={selectedCourses.includes(course.curriculumCourseId || course.id)}
+                      onChange={() => toggleCourseSelection(course.curriculumCourseId || course.id)}
                       className="rounded border-gray-300 text-primary focus:ring-primary"
                     />
                   </td>
@@ -658,7 +658,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
                 </p>
                 <div className="max-h-32 overflow-y-auto bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-border">
                   {selectedCourses.map(courseId => {
-                    const course = courses.find(c => c.id === courseId);
+                    const course = courses.find(c => (c.curriculumCourseId || c.id) === courseId);
                     return course ? (
                       <div key={courseId} className="text-xs text-foreground mb-1">
                         {course.code} - {course.title}

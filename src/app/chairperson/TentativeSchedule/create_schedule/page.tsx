@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { Search, Plus, Trash2, Save, BookOpen, Calendar, Users, ArrowLeft, Upload, FileSpreadsheet, X } from 'lucide-react';
+import { useRouter, useSearchParams } from "next/navigation";
+import { Search, Plus, Trash2, Save, BookOpen, Calendar, Users, ArrowLeft, Upload, FileSpreadsheet, X, Download } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
 import CourseDetailForm from '@/components/features/schedule/CourseDetailForm';
 import * as XLSX from 'xlsx';
-import { getPublicCurricula } from '@/lib/api/laravel';
+import { getPublicCurricula, createTentativeSchedule, getTentativeSchedule, updateTentativeSchedule } from '@/lib/api/laravel';
+import { exportScheduleToPDF } from '@/lib/pdfExport';
 
 // Import chairperson components
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
@@ -64,9 +65,10 @@ interface CurriculumCourse {
   course: {
     id: string;
     code: string;
-    title: string;
+    name: string;
     credits: number;
     description?: string;
+    category?: string;
   };
   departmentCourseType?: {
     name: string;
@@ -76,7 +78,11 @@ interface CurriculumCourse {
 
 const TentativeSchedulePage: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const scheduleId = searchParams.get('id');
   const { success, error: showError, warning } = useToastHelpers();
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
 
   const [schedule, setSchedule] = useState<ScheduleData>({
     name: '',
@@ -131,6 +137,80 @@ const TentativeSchedulePage: React.FC = () => {
     fetchCurricula();
   }, []);
 
+  // Load existing schedule if in edit mode
+  useEffect(() => {
+    const loadSchedule = async () => {
+      if (!scheduleId) {
+        setIsEditMode(false);
+        return;
+      }
+
+      setIsEditMode(true);
+      setLoadingSchedule(true);
+
+      try {
+        const response = await getTentativeSchedule(scheduleId);
+        const existingSchedule = response.schedule;
+
+        // Transform the schedule data to match the component's format
+        const transformedCourses: Course[] = existingSchedule.courses.map((sc: any) => ({
+          id: sc.courseId || sc.course?.id || sc.id || '',
+          code: sc.code || sc.course?.code || '',
+          name: sc.name || sc.course?.name || '',
+          credits: sc.credits || sc.course?.credits || 0,
+          section: sc.section || '',
+          days: sc.days || [],
+          time: sc.time || '',
+          instructor: sc.instructor || '',
+          seatLimit: sc.seatLimit || sc.seat_limit || 0,
+        }));
+
+        setSchedule({
+          id: existingSchedule.id,
+          name: existingSchedule.name,
+          semester: existingSchedule.semester,
+          version: existingSchedule.version.toString(),
+          department: existingSchedule.department || '',
+          batch: existingSchedule.batch || '',
+          curriculumId: existingSchedule.curriculum?.id || '',
+          curriculumName: existingSchedule.curriculum?.name || '',
+          courses: transformedCourses,
+        });
+
+        // If there's a curriculum ID, load the curriculum to populate available courses
+        const curriculumId = existingSchedule.curriculum?.id;
+        if (curriculumId) {
+          const curriculum = curricula.find(c => c.id === curriculumId);
+          if (curriculum) {
+            setSelectedCurriculum(curriculum);
+            
+            const curriculumCourses: Course[] = curriculum.curriculumCourses?.map(cc => ({
+              id: cc.course.id,
+              code: cc.course.code,
+              name: cc.course.name,
+              credits: cc.course.credits,
+              description: cc.course.description,
+              category: cc.course.category || cc.departmentCourseType?.name || (cc.isRequired ? 'Required' : 'Elective')
+            })) || [];
+
+            setAvailableCourses(curriculumCourses);
+            setFilteredCourses(curriculumCourses);
+          }
+        }
+
+        success('Schedule loaded for editing');
+      } catch (err: any) {
+        console.error('Failed to load schedule:', err);
+        showError(err.message || 'Failed to load schedule');
+        router.push('/chairperson/TentativeSchedule');
+      } finally {
+        setLoadingSchedule(false);
+      }
+    };
+
+    loadSchedule();
+  }, [scheduleId, curricula]);
+
   // Handle curriculum selection
   const handleCurriculumChange = (curriculumId: string) => {
     const curriculum = curricula.find(c => c.id === curriculumId);
@@ -141,10 +221,10 @@ const TentativeSchedulePage: React.FC = () => {
       const curriculumCourses: Course[] = curriculum.curriculumCourses?.map(cc => ({
         id: cc.course.id,
         code: cc.course.code,
-        name: cc.course.title,
+        name: cc.course.name,
         credits: cc.course.credits,
         description: cc.course.description,
-        category: cc.departmentCourseType?.name || (cc.isRequired ? 'Required' : 'Elective')
+        category: cc.course.category || cc.departmentCourseType?.name || (cc.isRequired ? 'Required' : 'Elective')
       })) || [];
 
       setAvailableCourses(curriculumCourses);
@@ -199,28 +279,7 @@ const TentativeSchedulePage: React.FC = () => {
     } catch (error) {
       console.error('Error loading saved versions:', error);
     }
-    loadAvailableCourses();
   }, []);
-
-  const loadAvailableCourses = async () => {
-    setLoading(true);
-    try {
-      const mockCourses: Course[] = [
-        { id: '1', code: 'CSX3003', name: 'Data Structure', credits: 3, category: 'Core' },
-        { id: '2', code: 'CSX3001', name: 'Database Systems', credits: 3, category: 'Core' },
-        { id: '3', code: 'CSX3002', name: 'Software Engineering', credits: 3, category: 'Core' },
-        { id: '4', code: 'CSX3004', name: 'Computer Networks', credits: 3, category: 'Core' },
-        { id: '5', code: 'CSX4001', name: 'Machine Learning', credits: 3, category: 'Elective' },
-        { id: '6', code: 'CSX4002', name: 'Web Development', credits: 3, category: 'Elective' }
-      ];
-      setAvailableCourses(mockCourses);
-      setFilteredCourses(mockCourses);
-    } catch {
-      showError('Error loading courses. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAddCourse = (course: Course) => {
     if (schedule.courses.some(selected => selected.id === course.id)) {
@@ -280,6 +339,71 @@ const TentativeSchedulePage: React.FC = () => {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
+      // Extract unique course codes from Excel
+      const courseCodes = [...new Set(
+        jsonData
+          .map(row => (row['Course'] || row['course'])?.toString().toUpperCase())
+          .filter(code => code)
+      )];
+
+      // Day name mapping from abbreviations to full names
+      const dayMapping: { [key: string]: string } = {
+        'MON': 'Monday',
+        'MONDAY': 'Monday',
+        'TUE': 'Tuesday',
+        'TUESDAY': 'Tuesday',
+        'WED': 'Wednesday',
+        'WEDNESDAY': 'Wednesday',
+        'THU': 'Thursday',
+        'THURSDAY': 'Thursday',
+        'FRI': 'Friday',
+        'FRIDAY': 'Friday',
+        'SAT': 'Saturday',
+        'SATURDAY': 'Saturday',
+        'SUN': 'Sunday',
+        'SUNDAY': 'Sunday'
+      };
+
+      // Fetch course details from database by codes
+      const courseMap = new Map<string, { id: string; name: string; credits: number }>();
+      
+      try {
+        // Fetch all curricula which contain courses we can use
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/public-curricula`);
+        if (response.ok) {
+          const data = await response.json();
+          const curricula = data.curricula || [];
+          
+          console.log('Fetched curricula:', curricula.length);
+          
+          // Build map of course code to course details from all curricula
+          curricula.forEach((curriculum: any) => {
+            curriculum.curriculumCourses?.forEach((cc: any) => {
+              if (cc.course) {
+                const courseCode = cc.course.code.toUpperCase();
+                // Only add if not already in map (first curriculum takes precedence)
+                if (!courseMap.has(courseCode)) {
+                  courseMap.set(courseCode, {
+                    id: cc.course.id,
+                    name: cc.course.name,
+                    credits: cc.course.credits || 3
+                  });
+                }
+              }
+            });
+          });
+          
+          console.log('Course map built:', courseMap.size, 'courses');
+        } else {
+          console.error('Failed to fetch curricula:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        showError('Could not fetch course details from database. Please check your connection.');
+        setLoading(false);
+        return;
+      }
+
       // Map Excel columns to Course interface
       const courses: Course[] = jsonData.map((row, index) => {
         const course = row['Course'] || row['course'];
@@ -292,7 +416,10 @@ const TentativeSchedulePage: React.FC = () => {
 
         // Parse days - support comma or semicolon separated values
         const days: string[] = dayInput 
-          ? dayInput.toString().split(/[,;]/).map((d: string) => d.trim()).filter((d: string) => d.length > 0)
+          ? dayInput.toString().split(/[,;]/).map((d: string) => {
+              const dayName = d.trim().toUpperCase();
+              return dayMapping[dayName] || d.trim();
+            }).filter((d: string) => d.length > 0)
           : [];
 
         // Create dayTimeSlots if we have days and time
@@ -315,17 +442,28 @@ const TentativeSchedulePage: React.FC = () => {
           warning(`Row ${index + 1}: Missing required fields (Course or Course Name)`);
         }
 
+        // Try to match course code to actual course ID
+        const courseCode = course ? course.toString().toUpperCase() : '';
+        const matchedCourse = courseMap.get(courseCode);
+        
+        if (!matchedCourse) {
+          console.warn(`Course code "${courseCode}" not found in database`);
+          warning(`Row ${index + 1}: Course code "${courseCode}" not found in database`);
+        } else {
+          console.log(`Matched ${courseCode} to ID:`, matchedCourse.id);
+        }
+
         return {
-          id: `upload-${index}-${Date.now()}`,
-          code: course || '',
-          name: courseName || '',
-          credits: 3, // Default value
-          section: section || '',
+          id: matchedCourse?.id || '', // Use matched ID or empty string (will fail validation)
+          code: course ? course.toString() : '',
+          name: matchedCourse?.name || (courseName ? courseName.toString() : ''), // Use DB name or Excel name
+          credits: matchedCourse?.credits || 3, // Use DB credits or default
+          section: section ? section.toString() : '', // Convert to string to handle both numbers and letters
           dayTimeSlots: dayTimeSlots,
           days: days.length > 0 ? days : undefined, // Keep for backwards compatibility
-          time: time || '', // Keep for backwards compatibility
-          instructor: instructor || '',
-          seatLimit: seatLimit ? parseInt(seatLimit) : undefined,
+          time: time ? time.toString() : '', // Keep for backwards compatibility
+          instructor: instructor ? instructor.toString() : '',
+          seatLimit: seatLimit ? parseInt(seatLimit.toString()) : undefined,
           category: 'Uploaded'
         };
       }).filter(course => course.code && course.name);
@@ -375,54 +513,126 @@ const TentativeSchedulePage: React.FC = () => {
     }
     setLoading(true);
     
-    // Generate automatic version with timestamp
-    const timestamp = new Date();
-    const versionNumber = scheduleVersions.length + 1;
-    const formattedTime = timestamp.toLocaleString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-    const versionName = `v${versionNumber}.0 - ${formattedTime}`;
-    
-    // Create new version entry
-    const newVersion: ScheduleData = {
-      ...schedule,
-      id: `schedule-${Date.now()}`,
-      version: versionName,
-      versionTimestamp: timestamp.toISOString(),
-      createdAt: timestamp.toISOString(),
-      updatedAt: timestamp.toISOString()
-    };
-    
-    // Add to version history
-    const updatedVersions = [...scheduleVersions, newVersion];
-    setScheduleVersions(updatedVersions);
-    setSelectedVersion(newVersion.id || null);
-    
-    // Store in localStorage for persistence
     try {
-      localStorage.setItem('tentativeScheduleVersions', JSON.stringify(updatedVersions));
+      // Prepare course data for API
+      const coursesForApi = schedule.courses.map(course => {
+        // Ensure days is an array of valid day strings or null
+        let validDays = null;
+        if (course.days && Array.isArray(course.days) && course.days.length > 0) {
+          validDays = course.days.filter(day => day && typeof day === 'string' && day.trim().length > 0);
+          if (validDays.length === 0) validDays = null;
+        }
+
+        return {
+          courseId: course.id,
+          section: course.section || '',
+          dayTimeSlots: course.dayTimeSlots || undefined,
+          days: validDays || undefined,
+          time: course.time || '',
+          instructor: course.instructor || '',
+          seatLimit: course.seatLimit || undefined,
+        };
+      });
+
+      let response;
+      
+      if (isEditMode && schedule.id) {
+        // Update existing schedule
+        response = await updateTentativeSchedule(schedule.id, {
+          name: schedule.name,
+          semester: schedule.semester,
+          version: schedule.version || 'v1.0',
+          department: schedule.department,
+          batch: schedule.batch,
+          curriculumId: schedule.curriculumId,
+          courses: coursesForApi,
+        });
+        
+        success(`Schedule "${schedule.name}" updated successfully!`);
+      } else {
+        // Create new schedule with automatic version
+        const timestamp = new Date();
+        const versionNumber = scheduleVersions.length + 1;
+        const formattedTime = timestamp.toLocaleString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+        const versionName = `v${versionNumber}.0 - ${formattedTime}`;
+        
+        response = await createTentativeSchedule({
+          name: schedule.name,
+          semester: schedule.semester,
+          version: versionName,
+          department: schedule.department,
+          batch: schedule.batch,
+          curriculumId: schedule.curriculumId,
+          courses: coursesForApi,
+        });
+        
+        success(`Schedule "${schedule.name}" saved successfully!`);
+        
+        // Save to localStorage for backup (new schedules only)
+        const newVersion: ScheduleData = {
+          ...schedule,
+          id: response.schedule.id,
+          version: versionName,
+          versionTimestamp: timestamp.toISOString(),
+          createdAt: timestamp.toISOString(),
+          updatedAt: timestamp.toISOString()
+        };
+        
+        const updatedVersions = [...scheduleVersions, newVersion];
+        setScheduleVersions(updatedVersions);
+        setSelectedVersion(newVersion.id || null);
+        
+        try {
+          localStorage.setItem('tentativeScheduleVersions', JSON.stringify(updatedVersions));
+        } catch (error) {
+          console.error('Error saving to localStorage:', error);
+        }
+      }
+      
+      // Navigate back to the list page after a brief delay
+      setTimeout(() => {
+        router.push('/chairperson/TentativeSchedule');
+      }, 1500);
+      
     } catch (error) {
-      console.error('Error saving to localStorage:', error);
+      console.error('Error saving schedule:', error);
+      showError(error instanceof Error ? error.message : 'Failed to save schedule. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    
-    await new Promise(r => setTimeout(r, 1000));
-    success(`Schedule saved as ${versionName}!`);
-    setSchedule({ 
-      name: '', 
-      semester: '', 
-      version: '', 
-      courses: [], 
-      department: '', 
-      batch: '',
-      curriculumId: '',
-      curriculumName: ''
-    });
-    setLoading(false);
+  };
+
+  // Export schedule to PDF
+  const handleExportPDF = () => {
+    if (schedule.courses.length === 0) {
+      warning('Please add courses to the schedule before exporting');
+      return;
+    }
+
+    // Check if courses have time slots
+    const coursesWithTimeSlots = schedule.courses.filter(
+      course => course.dayTimeSlots && course.dayTimeSlots.length > 0
+    );
+
+    if (coursesWithTimeSlots.length === 0) {
+      warning('Please add day and time information to courses before exporting the timetable');
+      return;
+    }
+
+    try {
+      exportScheduleToPDF(schedule);
+      success('Schedule exported to PDF successfully!');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      showError('Failed to export PDF. Please try again.');
+    }
   };
 
   // Loading state handled by loading state variable below
@@ -430,11 +640,19 @@ const TentativeSchedulePage: React.FC = () => {
 
   const totalCredits = schedule.courses.reduce((sum, course) => sum + course.credits, 0);
 
+  if (loadingSchedule) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner text="Loading schedule..." />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <PageHeader
-          title="Create Tentative Schedule"
+          title={isEditMode ? "Edit Tentative Schedule" : "Create Tentative Schedule"}
           description="Plan, review, and finalize course schedules for upcoming semesters"
           backButton={{
             label: "Back to Dashboard",
@@ -442,7 +660,14 @@ const TentativeSchedulePage: React.FC = () => {
           }}
           actions={[
             {
-              label: "Save Schedule",
+              label: "Export PDF",
+              onClick: handleExportPDF,
+              disabled: loading || schedule.courses.length === 0,
+              icon: <Download size={16} />,
+              variant: "outline" as const
+            },
+            {
+              label: isEditMode ? "Update Schedule" : "Save Schedule",
               onClick: handleSaveSchedule,
               disabled: loading || !schedule.name || !schedule.semester || schedule.courses.length === 0,
               icon: <Save size={16} />
@@ -479,32 +704,43 @@ const TentativeSchedulePage: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Schedule Information</CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  <span className="text-red-500">*</span> Required fields
+                </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Schedule Name</Label>
+                  <Label htmlFor="name">
+                    Schedule Name <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="name"
                     type="text"
                     value={schedule.name}
                     onChange={e => setSchedule(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Enter schedule name"
+                    required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="semester">Semester</Label>
+                  <Label htmlFor="semester">
+                    Semester <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="semester"
                     type="text"
                     value={schedule.semester}
                     onChange={e => setSchedule(prev => ({ ...prev, semester: e.target.value }))}
                     placeholder="e.g., Fall 2024"
+                    required
                   />
                 </div>
                 
                 {/* Curriculum Selection */}
                 <div>
-                  <Label htmlFor="curriculum">Select Curriculum</Label>
+                  <Label htmlFor="curriculum">
+                    Select Curriculum <span className="text-sm text-muted-foreground">(Optional)</span>
+                  </Label>
                   <select
                     id="curriculum"
                     value={schedule.curriculumId}
@@ -531,7 +767,9 @@ const TentativeSchedulePage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="department">Department</Label>
+                    <Label htmlFor="department">
+                      Department <span className="text-sm text-muted-foreground">(Optional)</span>
+                    </Label>
                     <select
                       id="department"
                       value={schedule.department}
@@ -545,7 +783,9 @@ const TentativeSchedulePage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="batch">Batch/Year</Label>
+                    <Label htmlFor="batch">
+                      Batch/Year <span className="text-sm text-muted-foreground">(Optional)</span>
+                    </Label>
                     <Input
                       id="batch"
                       type="text"

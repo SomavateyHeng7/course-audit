@@ -145,6 +145,7 @@ export default function EditCurriculum() {
         // Normalize keys for frontend (snake_case to camelCase)
         const normalizedCurriculum = {
           ...data.curriculum,
+          departmentId: data.curriculum.department_id || data.curriculum.departmentId,
           curriculumCourses: data.curriculum.curriculum_courses || [],
           curriculumConstraints: data.curriculum.curriculum_constraints || [],
           curriculumBlacklists: data.curriculum.curriculum_blacklists || [],
@@ -820,10 +821,10 @@ export default function EditCurriculum() {
   };
   
   return (
-    <div className="flex min-h-screen bg-white dark:bg-background">
+    <div className="flex min-h-screen bg-white dark:bg-background overflow-x-hidden">
       {/* Sidebar is assumed to be rendered by layout */}
-      <div className="flex-1 flex flex-col items-center py-3 sm:py-6 lg:py-10 px-2 sm:px-4">
-        <div className="w-full max-w-6xl bg-white dark:bg-card rounded-lg sm:rounded-xl lg:rounded-2xl border border-gray-200 dark:border-border p-3 sm:p-6 lg:p-10">
+      <div className="flex-1 flex flex-col items-center py-3 sm:py-6 lg:py-10 px-2 sm:px-4 lg:px-6">
+        <div className="w-full max-w-7xl bg-white dark:bg-card rounded-lg sm:rounded-xl lg:rounded-2xl border border-gray-200 dark:border-border p-3 sm:p-6 lg:p-10 overflow-x-hidden">
           {/* Loading State */}
           {isLoading && (
             <div className="flex items-center justify-center py-20">

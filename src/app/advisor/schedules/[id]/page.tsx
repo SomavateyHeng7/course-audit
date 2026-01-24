@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, BookOpen, Users, Clock } from 'lucide-react';
+import { useToastHelpers } from '@/hooks/useToast';
+import { getPublishedSchedule } from '@/lib/api/laravel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
@@ -14,6 +16,11 @@ interface Course {
   credits: number;
   semester: number;
   year: number;
+  section?: string;
+  days?: string[];
+  time?: string;
+  instructor?: string;
+  seatLimit?: number;
 }
 
 interface ScheduleDetails {
@@ -33,51 +40,71 @@ interface ScheduleDetails {
   courses: Course[];
 }
 
-export default function AdvisorScheduleDetailsPage({ params }: { params: { id: string } }) {
+export default function AdvisorScheduleDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const { error: showError } = useToastHelpers();
   const [schedule, setSchedule] = useState<ScheduleDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scheduleId, setScheduleId] = useState<string>('');
 
   useEffect(() => {
-    // Mock data - replace with actual API call
+    const initializeParams = async () => {
+      const resolvedParams = await params;
+      setScheduleId(resolvedParams.id);
+    };
+    initializeParams();
+  }, [params]);
+
+  useEffect(() => {
+    if (!scheduleId) return;
+    
     const fetchScheduleDetails = async () => {
       try {
         setLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        const response = await getPublishedSchedule(scheduleId);
         
-        // Mock data
-        const mockSchedule: ScheduleDetails = {
-          id: params.id,
-          name: 'Fall 2024 Schedule',
-          semester: 'Fall 2024',
-          version: '1.0',
-          department: 'Computer Science',
-          batch: '2022-2026',
-          createdAt: '2024-01-15',
-          updatedAt: '2024-01-20',
-          curriculum: {
-            id: 'curr-1',
-            name: 'Computer Science 2022',
-            year: '2022'
-          },
-          courses: [
-            { id: '1', code: 'CS101', name: 'Introduction to Programming', credits: 3, semester: 1, year: 1 },
-            { id: '2', code: 'CS102', name: 'Data Structures', credits: 3, semester: 1, year: 1 },
-            { id: '3', code: 'CS201', name: 'Algorithms', credits: 3, semester: 2, year: 1 },
-            { id: '4', code: 'CS202', name: 'Database Systems', credits: 3, semester: 2, year: 1 },
-          ]
+        // Transform API response to match component format
+        const apiSchedule = response.schedule;
+        const transformedSchedule: ScheduleDetails = {
+          id: apiSchedule.id,
+          name: apiSchedule.name,
+          semester: apiSchedule.semester,
+          version: apiSchedule.version?.toString() || '1.0',
+          department: apiSchedule.department || '',
+          batch: apiSchedule.batch || '',
+          createdAt: apiSchedule.createdAt,
+          updatedAt: apiSchedule.updatedAt,
+          curriculum: apiSchedule.curriculumName ? {
+            id: '',
+            name: apiSchedule.curriculumName,
+            year: apiSchedule.curriculumYear || ''
+          } : undefined,
+          courses: apiSchedule.courses.map((c: any) => ({
+            id: c.course.id,
+            code: c.course.code,
+            name: c.course.title,
+            credits: c.course.credits,
+            semester: 1,
+            year: 1,
+            section: c.section,
+            days: c.days,
+            time: c.time,
+            instructor: c.instructor,
+            seatLimit: c.capacity
+          }))
         };
         
-        setSchedule(mockSchedule);
+        setSchedule(transformedSchedule);
       } catch (error) {
         console.error('Error fetching schedule details:', error);
+        showError('Failed to fetch schedule details');
       } finally {
         setLoading(false);
       }
     };
 
     fetchScheduleDetails();
-  }, [params.id]);
+  }, [scheduleId, showError]);
 
   if (loading) {
     return (
@@ -202,9 +229,11 @@ export default function AdvisorScheduleDetailsPage({ params }: { params: { id: s
                   <tr className="border-b border-border">
                     <th className="text-left p-3 text-sm font-medium text-muted-foreground">Course Code</th>
                     <th className="text-left p-3 text-sm font-medium text-muted-foreground">Course Name</th>
+                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Section</th>
                     <th className="text-left p-3 text-sm font-medium text-muted-foreground">Credits</th>
-                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Year</th>
-                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Semester</th>
+                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Schedule</th>
+                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Instructor</th>
+                    <th className="text-left p-3 text-sm font-medium text-muted-foreground">Seats</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -212,9 +241,20 @@ export default function AdvisorScheduleDetailsPage({ params }: { params: { id: s
                     <tr key={course.id} className="border-b border-border hover:bg-muted/50">
                       <td className="p-3 font-mono text-sm">{course.code}</td>
                       <td className="p-3">{course.name}</td>
+                      <td className="p-3 text-sm">{course.section || '-'}</td>
                       <td className="p-3">{course.credits}</td>
-                      <td className="p-3">Year {course.year}</td>
-                      <td className="p-3">Semester {course.semester}</td>
+                      <td className="p-3 text-sm">
+                        {course.days && course.days.length > 0 ? (
+                          <>
+                            <div className="font-medium">{course.days.join(', ')}</div>
+                            <div className="text-muted-foreground">{course.time || 'TBA'}</div>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">TBA</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-sm">{course.instructor || 'TBA'}</td>
+                      <td className="p-3 text-sm">{course.seatLimit || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

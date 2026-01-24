@@ -2,11 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Calendar, BookOpen, Users, Clock, Search, ArrowLeft } from 'lucide-react';
+import { Plus, Calendar, BookOpen, Users, Clock, Search, ArrowLeft, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
+import { getTentativeSchedules, togglePublishTentativeSchedule, deleteTentativeSchedule } from '@/lib/api/laravel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
 import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
 import { EmptyState } from '@/components/role-specific/chairperson/EmptyState';
@@ -19,6 +29,7 @@ interface TentativeSchedule {
   department?: string;
   batch?: string;
   coursesCount: number;
+  isPublished?: boolean;
   createdAt: string;
   updatedAt: string;
   curriculum?: {
@@ -34,53 +45,51 @@ const TentativeSchedulePage: React.FC = () => {
   const [schedules, setSchedules] = useState<TentativeSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [scheduleToDelete, setScheduleToDelete] = useState<TentativeSchedule | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [scheduleToPublish, setScheduleToPublish] = useState<TentativeSchedule | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
 
-  // Mock data for now - replace with actual API call
+  // Fetch schedules from database via API
   const fetchSchedules = async () => {
     try {
       setLoading(true);
-      // For now, using mock data. Replace with actual API call
-      const mockSchedules: TentativeSchedule[] = [
-        {
-          id: '1',
-          name: 'Fall 2024 Schedule',
-          semester: 'Fall 2024',
-          version: '1.0',
-          department: 'Computer Science',
-          batch: '2022-2026',
-          coursesCount: 25,
-          createdAt: '2024-01-15',
-          updatedAt: '2024-01-20',
-          curriculum: {
-            id: 'curr-1',
-            name: 'Computer Science 2022',
-            year: '2022'
-          }
-        },
-        {
-          id: '2',
-          name: 'Spring 2024 Schedule',
-          semester: 'Spring 2024',
-          version: '2.1',
-          department: 'Computer Science',
-          batch: '2021-2025',
-          coursesCount: 30,
-          createdAt: '2024-02-01',
-          updatedAt: '2024-02-10',
-          curriculum: {
-            id: 'curr-2',
-            name: 'Computer Science 2021',
-            year: '2021'
-          }
-        }
-      ];
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setSchedules(mockSchedules);
+      // Fetch from database via API
+      const response = await getTentativeSchedules({ limit: 100 });
+      setSchedules(response.schedules || []);
+      
     } catch (error) {
       console.error('Error fetching schedules:', error);
       showError('Failed to fetch tentative schedules');
+      // Fallback to localStorage if API fails
+      try {
+        const savedVersions = localStorage.getItem('tentativeScheduleVersions');
+        if (savedVersions) {
+          const versions = JSON.parse(savedVersions);
+          const loadedSchedules: TentativeSchedule[] = versions.map((schedule: any) => ({
+            id: schedule.id || '',
+            name: schedule.name || '',
+            semester: schedule.semester || '',
+            version: schedule.version || '1.0',
+            department: schedule.department || '',
+            batch: schedule.batch || '',
+            coursesCount: schedule.courses?.length || 0,
+            createdAt: schedule.createdAt || new Date().toISOString(),
+            updatedAt: schedule.updatedAt || new Date().toISOString(),
+            curriculum: schedule.curriculumName ? {
+              id: schedule.curriculumId || '',
+              name: schedule.curriculumName,
+              year: schedule.curriculumName.match(/\d{4}/)?.[0] || ''
+            } : undefined
+          }));
+          setSchedules(loadedSchedules);
+        }
+      } catch (localStorageError) {
+        console.error('Error reading localStorage:', localStorageError);
+      }
     } finally {
       setLoading(false);
     }
@@ -88,6 +97,27 @@ const TentativeSchedulePage: React.FC = () => {
 
   useEffect(() => {
     fetchSchedules();
+    
+    // Refetch schedules when page becomes visible (e.g., after creating a schedule)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchSchedules();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also refetch when window gains focus
+    const handleFocus = () => {
+      fetchSchedules();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const filteredSchedules = schedules.filter(schedule =>
@@ -104,6 +134,69 @@ const TentativeSchedulePage: React.FC = () => {
   const handleViewSchedule = (scheduleId: string) => {
     // Navigate to schedule details page (to be implemented)
     router.push(`/chairperson/TentativeSchedule/${scheduleId}`);
+  };
+
+  const handleTogglePublishClick = (schedule: TentativeSchedule, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setScheduleToPublish(schedule);
+    setPublishDialogOpen(true);
+  };
+
+  const handleConfirmPublish = async () => {
+    if (!scheduleToPublish) return;
+
+    setIsPublishing(true);
+    try {
+      const response = await togglePublishTentativeSchedule(scheduleToPublish.id);
+      
+      // Update local state
+      setSchedules(prevSchedules => 
+        prevSchedules.map(schedule => 
+          schedule.id === scheduleToPublish.id 
+            ? { ...schedule, isPublished: response.schedule.isPublished }
+            : schedule
+        )
+      );
+      
+      success(response.message);
+      
+      // Close dialog
+      setPublishDialogOpen(false);
+      setScheduleToPublish(null);
+    } catch (error) {
+      console.error('Error toggling publish status:', error);
+      showError('Failed to update publish status');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleDeleteClick = (schedule: TentativeSchedule, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setScheduleToDelete(schedule);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!scheduleToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteTentativeSchedule(scheduleToDelete.id);
+      success(`Schedule "${scheduleToDelete.name}" deleted successfully`);
+      
+      // Remove from local state
+      setSchedules(schedules.filter(s => s.id !== scheduleToDelete.id));
+      
+      // Close dialog
+      setDeleteDialogOpen(false);
+      setScheduleToDelete(null);
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+      showError('Failed to delete schedule. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -173,8 +266,7 @@ const TentativeSchedulePage: React.FC = () => {
           <CardContent>
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <LoadingSpinner />
-                <span className="ml-2 text-muted-foreground">Loading schedules...</span>
+                <LoadingSpinner text="Loading schedules..." />
               </div>
             ) : filteredSchedules.length === 0 ? (
               <EmptyState
@@ -191,11 +283,12 @@ const TentativeSchedulePage: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 {/* Table Header */}
-                <div className="hidden lg:grid lg:grid-cols-7 gap-4 p-4 border-b border-border font-medium text-sm text-muted-foreground">
-                  <div className="col-span-2">Schedule Name</div>
+                <div className="hidden lg:grid lg:grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_1fr_1.5fr] gap-4 p-4 border-b border-border font-medium text-sm text-muted-foreground">
+                  <div>Schedule Name</div>
                   <div>Semester</div>
                   <div>Curriculum/Batch</div>
                   <div>Courses</div>
+                  <div>Status</div>
                   <div>Last Updated</div>
                   <div>Actions</div>
                 </div>
@@ -205,11 +298,11 @@ const TentativeSchedulePage: React.FC = () => {
                   {filteredSchedules.map((schedule) => (
                     <div
                       key={schedule.id}
-                      className="p-4 lg:grid lg:grid-cols-7 gap-4 lg:items-center hover:bg-muted/50 transition-colors cursor-pointer"
+                      className="p-4 lg:grid lg:grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_1fr_1.5fr] gap-4 lg:items-center hover:bg-muted/50 transition-colors cursor-pointer"
                       onClick={() => handleViewSchedule(schedule.id)}
                     >
                       {/* Schedule Info */}
-                      <div className="col-span-2 mb-3 lg:mb-0">
+                      <div className="mb-3 lg:mb-0">
                         <h3 className="font-semibold text-foreground text-lg">
                           {schedule.name}
                         </h3>
@@ -245,20 +338,58 @@ const TentativeSchedulePage: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <BookOpen className="w-4 h-4 text-muted-foreground" />
                           <span className="text-sm text-foreground">
-                            {schedule.coursesCount} courses
+                            {schedule.coursesCount}
                           </span>
                         </div>
                       </div>
 
+                      {/* Publish Status */}
+                      <div className="mb-2 lg:mb-0">
+                        <Badge 
+                          variant={schedule.isPublished ? "default" : "secondary"}
+                          className="gap-1 whitespace-nowrap"
+                        >
+                          {schedule.isPublished ? (
+                            <>
+                              <Eye className="w-3 h-3" />
+                              Published
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff className="w-3 h-3" />
+                              Draft
+                            </>
+                          )}
+                        </Badge>
+                      </div>
+
                       {/* Last Updated */}
                       <div className="mb-3 lg:mb-0">
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">
                           {formatDate(schedule.updatedAt)}
                         </span>
                       </div>
 
                       {/* Actions */}
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant={schedule.isPublished ? "outline" : "default"}
+                          onClick={(e) => handleTogglePublishClick(schedule, e)}
+                          className="gap-1 whitespace-nowrap flex-shrink-0"
+                        >
+                          {schedule.isPublished ? (
+                            <>
+                              <EyeOff className="w-3 h-3" />
+                              Unpublish
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-3 h-3" />
+                              Publish
+                            </>
+                          )}
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
@@ -266,8 +397,18 @@ const TentativeSchedulePage: React.FC = () => {
                             e.stopPropagation();
                             handleViewSchedule(schedule.id);
                           }}
+                          className="whitespace-nowrap flex-shrink-0"
                         >
                           View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={(e) => handleDeleteClick(schedule, e)}
+                          className="gap-1 whitespace-nowrap flex-shrink-0"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Delete
                         </Button>
                       </div>
                     </div>
@@ -278,6 +419,80 @@ const TentativeSchedulePage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Publish/Unpublish Confirmation Dialog */}
+      <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {scheduleToPublish?.isPublished ? 'Unpublish' : 'Publish'} Schedule
+            </DialogTitle>
+            <DialogDescription>
+              {scheduleToPublish?.isPublished ? (
+                <>
+                  Are you sure you want to unpublish "{scheduleToPublish?.name}"?
+                  <br /><br />
+                  This will remove the schedule from the student and advisor view pages.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to publish "{scheduleToPublish?.name}"?
+                  <br /><br />
+                  Once published, this schedule will be visible to students and advisors.
+                  They will be able to view it at:
+                  <br />• Student view: /student/SemesterCourse
+                  <br />• Advisor view: /advisor/schedules
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPublishDialogOpen(false)}
+              disabled={isPublishing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={scheduleToPublish?.isPublished ? "outline" : "default"}
+              onClick={handleConfirmPublish}
+              disabled={isPublishing}
+            >
+              {isPublishing ? 'Processing...' : scheduleToPublish?.isPublished ? 'Unpublish' : 'Publish'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Schedule</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the schedule "{scheduleToDelete?.name}"?
+              This action cannot be undone and will permanently remove the schedule and all its courses.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Schedule'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

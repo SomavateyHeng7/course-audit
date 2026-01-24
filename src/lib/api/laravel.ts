@@ -1016,3 +1016,261 @@ export async function getSubmissionReport(
     `/graduation-portals/${portalId}/cache-submissions/${submissionId}/report`
   );
 }
+
+// ===== TENTATIVE SCHEDULE ENDPOINTS =====
+
+export interface TentativeScheduleCourse {
+  courseId: string;
+  section?: string;
+  dayTimeSlots?: Array<{
+    day: string;
+    startTime: string;
+    endTime: string;
+  }>;
+  days?: string[];
+  time?: string;
+  instructor?: string;
+  seatLimit?: number;
+}
+
+export interface TentativeScheduleData {
+  name: string;
+  semester: string;
+  version: string;
+  department?: string;
+  batch?: string;
+  curriculumId?: string;
+  courses: TentativeScheduleCourse[];
+}
+
+export interface TentativeSchedule {
+  id: string;
+  name: string;
+  semester: string;
+  version: string;
+  year: string;
+  department?: string;
+  batch?: string;
+  coursesCount: number;
+  isPublished?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  curriculumName?: string;
+  curriculumYear?: string;
+  curriculum?: {
+    id: string;
+    name: string;
+    year: string;
+  };
+  courses?: Array<{
+    id: string;
+    course: {
+      id: string;
+      code: string;
+      title: string;
+      credits: number;
+    };
+    section?: string;
+    day?: string;
+    timeStart?: string;
+    timeEnd?: string;
+    room?: string;
+    instructor?: string;
+    capacity?: number;
+    enrolled?: number;
+    courseType?: string;
+  }>;
+}
+
+/**
+ * Get list of tentative schedules
+ * GET /api/tentative-schedules
+ */
+export async function getTentativeSchedules(params?: {
+  search?: string;
+  limit?: number;
+  page?: number;
+}): Promise<{
+  schedules: TentativeSchedule[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}> {
+  const queryParams = new URLSearchParams();
+  if (params?.search) queryParams.append('search', params.search);
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  if (params?.page) queryParams.append('page', params.page.toString());
+
+  const url = `/tentative-schedules${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  return authenticatedRequest(url);
+}
+
+/**
+ * Create a new tentative schedule
+ * POST /api/tentative-schedules
+ */
+export async function createTentativeSchedule(
+  data: TentativeScheduleData
+): Promise<{
+  message: string;
+  schedule: TentativeSchedule;
+}> {
+  return authenticatedRequest('/tentative-schedules', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Get a specific tentative schedule
+ * GET /api/tentative-schedules/{id}
+ */
+export async function getTentativeSchedule(id: string): Promise<{
+  schedule: TentativeSchedule & {
+    courses: Array<{
+      id: string;
+      course: {
+        id: string;
+        code: string;
+        title: string;
+        credits: number;
+      };
+      section?: string;
+      days?: string[];
+      time?: string;
+      instructor?: string;
+      seatLimit?: number;
+    }>;
+  };
+}> {
+  return authenticatedRequest(`/tentative-schedules/${id}`);
+}
+
+/**
+ * Update a tentative schedule
+ * PUT /api/tentative-schedules/{id}
+ */
+export async function updateTentativeSchedule(
+  id: string,
+  data: TentativeScheduleData
+): Promise<{
+  message: string;
+  schedule: TentativeSchedule;
+}> {
+  return authenticatedRequest(`/tentative-schedules/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete a tentative schedule
+ * DELETE /api/tentative-schedules/{id}
+ */
+export async function deleteTentativeSchedule(id: string): Promise<{
+  message: string;
+}> {
+  return authenticatedRequest(`/tentative-schedules/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Toggle publish status of a tentative schedule
+ * POST /api/tentative-schedules/{id}/toggle-publish
+ */
+export async function togglePublishTentativeSchedule(id: string): Promise<{
+  message: string;
+  schedule: {
+    id: string;
+    isPublished: boolean;
+  };
+}> {
+  return authenticatedRequest(`/tentative-schedules/${id}/toggle-publish`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Get list of published tentative schedules (Public - No Authentication Required)
+ * GET /api/published-schedules
+ */
+export async function getPublishedSchedules(params?: {
+  search?: string;
+  limit?: number;
+  page?: number;
+}): Promise<{
+  schedules: TentativeSchedule[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}> {
+  const queryParams = new URLSearchParams();
+  if (params?.search) queryParams.append('search', params.search);
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  if (params?.page) queryParams.append('page', params.page.toString());
+
+  const url = `${API_BASE}/published-schedules${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch published schedules');
+  }
+
+  return response.json();
+}
+
+/**
+ * Get a specific published tentative schedule (Public - No Authentication Required)
+ * GET /api/published-schedules/{id}
+ */
+export async function getPublishedSchedule(id: string): Promise<{
+  schedule: TentativeSchedule & {
+    courses: Array<{
+      id: string;
+      course: {
+        id: string;
+        code: string;
+        title: string;
+        credits: number;
+      };
+      section?: string;
+      day?: string;
+      days?: string[];
+      timeStart?: string;
+      timeEnd?: string;
+      time?: string;
+      room?: string;
+      instructor?: string;
+      capacity?: number;
+      enrolled?: number;
+      courseType?: string;
+    }>;
+  };
+}> {
+  const response = await fetch(`${API_BASE}/published-schedules/${id}`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch published schedule');
+  }
+
+  return response.json();
+}
