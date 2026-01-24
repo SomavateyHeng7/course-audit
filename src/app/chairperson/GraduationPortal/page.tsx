@@ -76,7 +76,8 @@ import {
   type CacheSubmission,
   type ValidationResult
 } from '@/lib/api/laravel';
-import { getCurricula, type Curriculum } from '@/lib/api/laravel';
+import { getCurricula } from '@/lib/api/laravel';
+import type { Curriculum } from '@/components/role-specific/chairperson/management/types';
 
 // Helper functions
 const formatDate = (dateString: string) => {
@@ -425,15 +426,16 @@ const GraduationPortalChairpersonPage: React.FC = () => {
         getCurricula()
       ]);
       
-      setPortals(portalsRes.portals);
-      setCurricula(curriculaRes.curricula || curriculaRes);
+      const portalsList = portalsRes.data || [];
+      setPortals(portalsList);
+      setCurricula(curriculaRes.curricula || curriculaRes.data || curriculaRes);
       
       // Select first active portal by default
-      const activePortal = portalsRes.portals.find((p: GraduationPortal) => p.status === 'active');
+      const activePortal = portalsList.find((p: GraduationPortal) => p.status === 'active');
       if (activePortal) {
         setSelectedPortal(activePortal);
-      } else if (portalsRes.portals.length > 0) {
-        setSelectedPortal(portalsRes.portals[0]);
+      } else if (portalsList.length > 0) {
+        setSelectedPortal(portalsList[0]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -465,10 +467,22 @@ const GraduationPortalChairpersonPage: React.FC = () => {
     setIsRefreshing(false);
   };
 
-  const handleCreatePortal = async (data: Parameters<typeof createGraduationPortal>[0]) => {
+  const handleCreatePortal = async (data: {
+    name: string;
+    description: string;
+    batch: string;
+    deadline: string;
+    accepted_formats: string[];
+    max_file_size_mb: number;
+  }) => {
     setIsCreatingPortal(true);
     try {
-      const response = await createGraduationPortal(data);
+      // Add required curriculum_id field - use empty string or first curriculum
+      const curriculum_id = curricula && curricula.length > 0 ? curricula[0].id : '';
+      const response = await createGraduationPortal({
+        ...data,
+        curriculum_id
+      });
       setPortals(prev => [...prev, response.portal]);
       setSelectedPortal(response.portal);
       setShowCreateModal(false);
@@ -698,7 +712,8 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                         variant="ghost" 
                         size="sm" 
                         className="h-6 w-6 p-0"
-                        onClick={() => handleCopyPin(selectedPortal.pin)}
+                        onClick={() => selectedPortal.pin && handleCopyPin(selectedPortal.pin)}
+                        disabled={!selectedPortal.pin}
                       >
                         <Copy className="w-3 h-3" />
                       </Button>

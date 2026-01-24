@@ -33,17 +33,28 @@ interface CurriculumDetails {
   courses: Course[];
 }
 
-export default function AdvisorCurriculumDetailsPage({ params }: { params: { id: string } }) {
+export default function AdvisorCurriculumDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { error: showError } = useToastHelpers();
   const [curriculum, setCurriculum] = useState<CurriculumDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [curriculumId, setCurriculumId] = useState<string>('');
 
   useEffect(() => {
+    const initializeParams = async () => {
+      const resolvedParams = await params;
+      setCurriculumId(resolvedParams.id);
+    };
+    initializeParams();
+  }, [params]);
+
+  useEffect(() => {
+    if (!curriculumId) return;
+    
     const fetchCurriculumDetails = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_BASE}/curricula/${params.id}`, {
+        const response = await fetch(`${API_BASE}/curricula/${curriculumId}`, {
           credentials: 'include'
         });
         const data = await response.json();
@@ -63,7 +74,7 @@ export default function AdvisorCurriculumDetailsPage({ params }: { params: { id:
     };
 
     fetchCurriculumDetails();
-  }, [params.id]);
+  }, [curriculumId, showError]);
 
   if (loading) {
     return (

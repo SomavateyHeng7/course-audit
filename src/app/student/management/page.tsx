@@ -100,7 +100,7 @@ export default function ManagementPage() {
 
 
         {/* Feature Status Indicators */}
-        <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground">
+        {/* <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
             <span>Course Tracking</span>
@@ -113,7 +113,7 @@ export default function ManagementPage() {
             <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
             <span>Course Planning</span>
           </div>
-        </div>
+        </div> */}
       </div>
     </ProgressProvider>
   )

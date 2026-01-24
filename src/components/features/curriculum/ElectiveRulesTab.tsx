@@ -413,7 +413,18 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
                     type="number"
                     min="0"
                     max="200"
-                    defaultValue="0"
+                    value={getSelectedCourseData()?.minCreditThreshold || 0}
+                    onChange={(e) => {
+                      const originalIndex = electiveCourses.findIndex(c => c.code === selectedCourse);
+                      if (originalIndex >= 0) {
+                        const updatedCourses = [...electiveCourses];
+                        updatedCourses[originalIndex] = {
+                          ...updatedCourses[originalIndex],
+                          minCreditThreshold: parseInt(e.target.value) || 0
+                        };
+                        setElectiveCourses(updatedCourses);
+                      }
+                    }}
                     className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">

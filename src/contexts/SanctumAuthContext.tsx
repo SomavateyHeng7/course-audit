@@ -33,12 +33,25 @@ export function SanctumAuthProvider({ children }: { children: ReactNode }) {
   // Fetch user on mount or when authVersion changes
   useEffect(() => {
     const fetchUser = async () => {
+      // Skip auth check on public student and advisor pages
+      if (typeof window !== 'undefined') {
+        const path = window.location.pathname;
+        if (path.startsWith('/student/') || path.startsWith('/advisor/')) {
+          setIsLoading(false);
+          setUser(null);
+          return;
+        }
+      }
+
       setIsLoading(true);
       try {
         const userData = await getUser();
         setUser(userData);
       } catch (error) {
-        // User not authenticated
+        // User not authenticated - this is expected, don't log as error
+        if (error instanceof Error && error.message !== 'Unauthenticated') {
+          console.warn('Unexpected error fetching user:', error);
+        }
         setUser(null);
       } finally {
         setIsLoading(false);

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToastHelpers } from '@/hooks/useToast';
-import { API_BASE } from '@/lib/api/laravel';
+import { API_BASE, getPublishedSchedules, getPublishedSchedule, TentativeSchedule } from '@/lib/api/laravel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,7 +20,8 @@ import {
   Clock,
   ArrowLeft,
   BarChart3,
-  Target
+  Target,
+  FileText
 } from 'lucide-react';
 import { CourseCard, AvailableCourse as MgmtAvailableCourse } from '@/components/features/management/CourseCard';
 import { CourseSearch } from '@/components/features/management/CourseSearch';
@@ -109,7 +110,7 @@ const ensureSemesterLabel = (label: string | undefined, fallbackValue?: string) 
 
 export default function CoursePlanningPage() {
   const router = useRouter();
-  const toast = useToastHelpers();
+  const { success, error: showError, warning, info } = useToastHelpers();
   
   // Check for data entry context
   const [dataEntryContext, setDataEntryContext] = useState<DataEntryContext | null>(null);
@@ -129,6 +130,11 @@ export default function CoursePlanningPage() {
   const [selectedSemesterLabel, setSelectedSemesterLabel] = useState(getSuggestedSemesterLabel('1'));
   const [loading, setLoading] = useState(true);
   const [blacklistedCourses, setBlacklistedCourses] = useState<Set<string>>(new Set());
+  
+  // Tentative schedule state
+  const [tentativeSchedules, setTentativeSchedules] = useState<TentativeSchedule[]>([]);
+  const [selectedTentativeSchedule, setSelectedTentativeSchedule] = useState<string>('');
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
   
   const handleSemesterSelect = (value: string) => {
     setSelectedSemester(value);
@@ -285,6 +291,7 @@ export default function CoursePlanningPage() {
       fetchAvailableCourses();
       fetchConcentrations();
       fetchBlacklistedCourses();
+      fetchTentativeSchedules();
       loadSavedCoursePlan();
     }
   }, [hasValidContext, dataEntryContext]);
@@ -497,7 +504,10 @@ export default function CoursePlanningPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to fetch blacklisted courses');
+        // Silently handle error - no blacklists is okay
+        console.log('No blacklists found for curriculum (this is okay)');
+        setBlacklistedCourses(new Set());
+        return;
       }
       
       const data = await response.json();
@@ -515,8 +525,8 @@ export default function CoursePlanningPage() {
       console.log('Blacklisted courses for curriculum:', Array.from(blacklistedCodesSet));
       setBlacklistedCourses(blacklistedCodesSet);
     } catch (error) {
-      console.error('Error fetching blacklisted courses:', error);
-      // Set empty set on error
+      console.log('Error fetching blacklisted courses (continuing with empty set):', error);
+      // Set empty set on error - this is not critical
       setBlacklistedCourses(new Set());
     }
   };
@@ -566,6 +576,148 @@ export default function CoursePlanningPage() {
       });
     } catch (error) {
       console.error('Error loading saved course plan:', error);
+    }
+  };
+
+  // Fetch tentative schedules
+  const fetchTentativeSchedules = async () => {
+    if (!dataEntryContext) return;
+    
+    try {
+      setLoadingSchedules(true);
+      const response = await getPublishedSchedules({ limit: 100 });
+      
+      // Show all published schedules - students can choose any published schedule
+      // Or filter to show only schedules matching student's curriculum or schedules with no curriculum
+      const filteredSchedules = response.schedules.filter(schedule => {
+        // If schedule has no curriculum, show it (available to all students)
+        if (!schedule.curriculum) {
+          return true;
+        }
+        // If student has a curriculum selected, only show matching schedules
+        if (dataEntryContext.selectedCurriculum) {
+          return schedule.curriculum.id === dataEntryContext.selectedCurriculum;
+        }
+        // If no curriculum filter, show all
+        return true;
+      });
+      
+      setTentativeSchedules(filteredSchedules);
+      console.log('Loaded published tentative schedules:', filteredSchedules);
+    } catch (error) {
+      console.error('Error fetching tentative schedules:', error);
+      showError('Failed to load tentative schedules');
+    } finally {
+      setLoadingSchedules(false);
+    }
+  };
+
+  // Load courses from tentative schedule
+  const loadCoursesFromSchedule = async (scheduleId: string) => {
+    if (!scheduleId || !dataEntryContext) return;
+    
+    try {
+      info('Loading courses from tentative schedule...');
+      const response = await getPublishedSchedule(scheduleId);
+      const schedule = response.schedule;
+      
+      // Convert tentative schedule courses to planned courses
+      const newPlannedCourses: PlannedCourse[] = [];
+      const coursesToAdd: string[] = [];
+      const alreadyPlanned: string[] = [];
+      const alreadyCompleted: string[] = [];
+      const notAvailable: string[] = [];
+      
+      for (const schedCourse of schedule.courses) {
+        const courseCode = schedCourse.course.code;
+        
+        // Skip if already completed
+        if (completedCourses.has(courseCode)) {
+          alreadyCompleted.push(courseCode);
+          continue;
+        }
+        
+        // Skip if already in progress
+        if (inProgressCourses.has(courseCode)) {
+          continue;
+        }
+        
+        // Skip if already planned
+        if (plannedCourses.some(p => p.code === courseCode)) {
+          alreadyPlanned.push(courseCode);
+          continue;
+        }
+        
+        // Find the course in available courses
+        const availableCourse = availableCourses.find(c => c.code === courseCode);
+        
+        if (!availableCourse) {
+          notAvailable.push(courseCode);
+          continue;
+        }
+        
+        // Validate banned combinations
+        const bannedValidation = validateBannedCombinations(availableCourse);
+        if (!bannedValidation.valid) {
+          continue;
+        }
+        
+        // Create planned course
+        const plannedCourse: PlannedCourse = {
+          id: `${courseCode}-${schedule.semester}-${Date.now()}`,
+          code: courseCode,
+          title: schedCourse.course.title,
+          credits: schedCourse.course.credits,
+          semester: getSemesterValueFromLabel(schedule.semester),
+          semesterLabel: schedule.semester,
+          status: 'planning',
+          validationStatus: 'valid',
+          prerequisites: availableCourse.prerequisites,
+          corequisites: availableCourse.corequisites,
+        };
+        
+        newPlannedCourses.push(plannedCourse);
+        coursesToAdd.push(courseCode);
+      }
+      
+      // Add new courses to the plan
+      if (newPlannedCourses.length > 0) {
+        setPlannedCourses(prev => [...prev, ...newPlannedCourses]);
+        success(
+          `Added ${newPlannedCourses.length} course${newPlannedCourses.length > 1 ? 's' : ''} from "${schedule.name}"`,
+          'Courses Loaded'
+        );
+      } else {
+        warning('No new courses to add from this schedule', 'Already Planned');
+      }
+      
+      // Show summary if some courses were skipped
+      const skippedMessages: string[] = [];
+      if (alreadyCompleted.length > 0) {
+        skippedMessages.push(`${alreadyCompleted.length} already completed`);
+      }
+      if (alreadyPlanned.length > 0) {
+        skippedMessages.push(`${alreadyPlanned.length} already planned`);
+      }
+      if (notAvailable.length > 0) {
+        skippedMessages.push(`${notAvailable.length} not available in curriculum`);
+      }
+      
+      if (skippedMessages.length > 0) {
+        console.log('Skipped courses:', { alreadyCompleted, alreadyPlanned, notAvailable });
+      }
+      
+    } catch (error) {
+      console.error('Error loading courses from schedule:', error);
+      showError('Failed to load courses from tentative schedule');
+    }
+  };
+
+  // Handle tentative schedule selection
+  const handleTentativeScheduleSelect = (scheduleId: string) => {
+    setSelectedTentativeSchedule(scheduleId);
+    if (scheduleId && scheduleId !== 'none') {
+      loadCoursesFromSchedule(scheduleId);
     }
   };
 
@@ -712,7 +864,7 @@ export default function CoursePlanningPage() {
   // Add course to plan with advanced validation and corequisite handling
   const addCourseToPlan = (course: AvailableCourse, status: PlannedCourse['status'] = 'planning') => {
     if (!selectedSemester) {
-      toast.warning('Please select a semester first', 'Semester Required');
+      warning('Please select a semester first', 'Semester Required');
       return;
     }
 
@@ -746,7 +898,7 @@ export default function CoursePlanningPage() {
     
     // Show errors and stop if any critical issues
     if (flagErrors.length > 0) {
-      toast.error(flagErrors.join(' • '), 'Cannot Add Course');
+      showError(flagErrors.join(' • '), 'Cannot Add Course');
       return;
     }
     
@@ -777,7 +929,7 @@ export default function CoursePlanningPage() {
     // 1. Validate banned combinations
     const bannedValidation = validateBannedCombinations(course);
     if (!bannedValidation.valid) {
-      toast.error(bannedValidation.reason || `Cannot add ${course.code} due to banned combination`, 'Banned Combination');
+      showError(bannedValidation.reason || `Cannot add ${course.code} due to banned combination`, 'Banned Combination');
       return;
     }
 
@@ -825,9 +977,9 @@ export default function CoursePlanningPage() {
     // 7. Show notification if corequisites were added
     if (corequisitesToAdd.length > 0) {
       const coreqNames = corequisitesToAdd.map(c => c.code).join(', ');
-      toast.success(`Added ${course.code} and corequisites: ${coreqNames} to ${selectedSemester}`, 'Courses Added', 5000);
+      success(`Added ${course.code} and corequisites: ${coreqNames} to ${selectedSemester}`, 'Courses Added', 5000);
     } else {
-      toast.success(`Added ${course.code} to ${selectedSemester}`, 'Course Added');
+      success(`Added ${course.code} to ${selectedSemester}`, 'Course Added');
     }
   };
 
@@ -969,7 +1121,7 @@ export default function CoursePlanningPage() {
       
     } catch (error) {
       console.error('Error saving course plan:', error);
-      toast.error('Failed to save course plan. Please try again.', 'Save Failed');
+      showError('Failed to save course plan. Please try again.', 'Save Failed');
     }
   };
 
@@ -1090,6 +1242,52 @@ export default function CoursePlanningPage() {
                 <p className="text-xs text-muted-foreground">
                   Use the format term/year such as 1/2025 for Semester 1, 2/2025 for Semester 2, or 3/2025 for Summer Session.
                 </p>
+              </div>
+
+              {/* Tentative Schedule Selector - Always visible */}
+              <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-start gap-2 mb-3">
+                  <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+                  <div className="flex-1">
+                    <label className="text-sm font-medium text-blue-900 dark:text-blue-100 block mb-2">
+                      Load from Tentative Schedule
+                    </label>
+                    {loadingSchedules ? (
+                      <div className="flex items-center gap-2 py-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        <span className="text-sm text-blue-700 dark:text-blue-300">Loading schedules...</span>
+                      </div>
+                    ) : tentativeSchedules.length > 0 ? (
+                      <>
+                        <Select 
+                          value={selectedTentativeSchedule} 
+                          onValueChange={handleTentativeScheduleSelect}
+                        >
+                          <SelectTrigger className="w-full bg-white dark:bg-gray-900">
+                            <SelectValue placeholder="Select a tentative schedule..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">-- None --</SelectItem>
+                            {tentativeSchedules.map((schedule) => (
+                              <SelectItem key={schedule.id} value={schedule.id}>
+                                {schedule.name} ({schedule.semester}) - {schedule.coursesCount} courses
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                          Select a tentative schedule created by your department to automatically add courses to your plan.
+                        </p>
+                      </>
+                    ) : (
+                      <div className="py-2">
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          No published tentative schedules available yet. Your chairperson can create and publish schedules for you.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Course Flags Legend - Mobile-optimized */}
