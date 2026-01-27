@@ -282,10 +282,7 @@ const TentativeSchedulePage: React.FC = () => {
   }, []);
 
   const handleAddCourse = (course: Course) => {
-    if (schedule.courses.some(selected => selected.id === course.id)) {
-      warning('Course already added');
-      return;
-    }
+    // Allow adding the same course multiple times for different sections
     setSelectedCourseForDetail(course);
     setShowCourseDetailModal(true);
   };
@@ -293,9 +290,13 @@ const TentativeSchedulePage: React.FC = () => {
   const handleCourseDetailSave = (courseData?: any) => {
     if (!selectedCourseForDetail) return;
     
+    // Generate a unique ID for each course-section combination to allow duplicates
+    const uniqueId = `${selectedCourseForDetail.id}-${courseData?.section || 'default'}-${Date.now()}`;
+    
     // Merge the selected course with the form data from CourseDetailForm
     const courseWithDetails: Course = {
       ...selectedCourseForDetail,
+      id: uniqueId, // Use unique ID for this specific section
       section: courseData?.section,
       dayTimeSlots: courseData?.dayTimeSlots || [],
       instructor: courseData?.instructor,
@@ -306,7 +307,7 @@ const TentativeSchedulePage: React.FC = () => {
       ...prev,
       courses: [...prev.courses, courseWithDetails]
     }));
-    success(`${selectedCourseForDetail.code} added with ${courseData?.dayTimeSlots?.length || 0} time slot(s)`);
+    success(`${selectedCourseForDetail.code} Section ${courseData?.section || 'N/A'} added with ${courseData?.dayTimeSlots?.length || 0} time slot(s)`);
     setShowCourseDetailModal(false);
     setSelectedCourseForDetail(null);
   };
@@ -516,19 +517,33 @@ const TentativeSchedulePage: React.FC = () => {
     try {
       // Prepare course data for API
       const coursesForApi = schedule.courses.map(course => {
-        // Ensure days is an array of valid day strings or null
-        let validDays = null;
-        if (course.days && Array.isArray(course.days) && course.days.length > 0) {
-          validDays = course.days.filter(day => day && typeof day === 'string' && day.trim().length > 0);
-          if (validDays.length === 0) validDays = null;
+        // Extract the original course ID (before the unique suffix we added)
+        const originalCourseId = course.id.includes('-') ? course.id.split('-')[0] : course.id;
+        
+        // Handle dayTimeSlots: convert to days array and time string for backend
+        let days: string[] | undefined = undefined;
+        let time: string | undefined = undefined;
+        
+        if (course.dayTimeSlots && course.dayTimeSlots.length > 0) {
+          // Extract days from dayTimeSlots
+          days = course.dayTimeSlots.map(slot => slot.day);
+          
+          // Format time from first slot (assuming all slots have same time range)
+          const firstSlot = course.dayTimeSlots[0];
+          if (firstSlot.startTime && firstSlot.endTime) {
+            time = `${firstSlot.startTime} - ${firstSlot.endTime}`;
+          }
+        } else if (course.days && Array.isArray(course.days) && course.days.length > 0) {
+          // Fallback to legacy days array
+          days = course.days.filter(day => day && typeof day === 'string' && day.trim().length > 0);
+          time = course.time || undefined;
         }
 
         return {
-          courseId: course.id,
+          courseId: originalCourseId,
           section: course.section || '',
-          dayTimeSlots: course.dayTimeSlots || undefined,
-          days: validDays || undefined,
-          time: course.time || '',
+          days: days,
+          time: time,
           instructor: course.instructor || '',
           seatLimit: course.seatLimit || undefined,
         };
@@ -928,9 +943,8 @@ const TentativeSchedulePage: React.FC = () => {
                               variant="default"
                               size="sm"
                               onClick={() => handleAddCourse(course)}
-                              disabled={schedule.courses.some(c => c.id === course.id)}
                               icon={<Plus size={14} />}
-                              tooltip="Add to schedule"
+                              tooltip="Add to schedule (you can add multiple sections)"
                             >
                               Add
                             </ActionButton>
@@ -982,8 +996,13 @@ const TentativeSchedulePage: React.FC = () => {
                           className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                         >
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-foreground truncate">
+                            <div className="font-medium text-foreground truncate flex items-center gap-2">
                               {course.code}
+                              {course.section && (
+                                <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                                  Sec {course.section}
+                                </span>
+                              )}
                             </div>
                             <div className="text-sm text-muted-foreground truncate">
                               {course.name}
@@ -991,6 +1010,7 @@ const TentativeSchedulePage: React.FC = () => {
                             <div className="text-xs text-muted-foreground">
                               {course.credits} credits
                               {course.category && ` • ${course.category}`}
+                              {course.seatLimit && ` • ${course.seatLimit} seats`}
                             </div>
                             {course.dayTimeSlots && course.dayTimeSlots.length > 0 && (
                               <div className="text-xs text-teal-600 dark:text-teal-400 mt-1 space-y-0.5">
