@@ -342,14 +342,14 @@ export async function createCourseType(data: any) {
   });
 }
 
-export async function updateCourseType(id: number, data: any) {
+export async function updateCourseType(id: string, data: any) {
   return authenticatedRequest(`/course-types/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteCourseType(id: number) {
+export async function deleteCourseType(id: string) {
   return authenticatedRequest(`/course-types/${id}`, {
     method: 'DELETE',
   });
