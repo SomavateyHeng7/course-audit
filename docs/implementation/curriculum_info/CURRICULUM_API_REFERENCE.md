@@ -396,6 +396,15 @@ DELETE /api/curricula/{curriculumId}/credit-pools/attachments/{attachmentId}
 
 Course types define **categories** for courses (e.g., Core, Elective, GE).
 
+> **🚧 HIERARCHY SUPPORT (Pending Backend Implementation)**  
+> The frontend is ready for hierarchical course types. See [COURSE_TYPE_HIERARCHY_COORDINATION.md](../config_page/COURSE_TYPE_HIERARCHY_COORDINATION.md) for full requirements.
+> 
+> **Required additions:**
+> - `parentId` (nullable UUID) – parent course type for hierarchy
+> - `position` (int) – sibling ordering
+> - `childCount` (int) – number of direct children
+> - `usageCount` (int) – courses assigned to this type
+
 ### 1. List Course Types
 ```
 GET /api/course-types
@@ -406,7 +415,7 @@ GET /api/course-types
 |-------|------|-------------|
 | `departmentId` | UUID | Filter by department |
 
-**Response:**
+**Response (Current):**
 ```json
 {
   "courseTypes": [
@@ -425,12 +434,81 @@ GET /api/course-types
 }
 ```
 
+**Response (With Hierarchy – Required for Frontend Tree UI):**
+```json
+{
+  "courseTypes": [
+    {
+      "id": "uuid-1",
+      "name": "General Education",
+      "color": "#6366f1",
+      "departmentId": "uuid",
+      "parentId": null,
+      "position": 0,
+      "childCount": 2,
+      "usageCount": 15,
+      "seeded": false,
+      "createdAt": "2026-01-10T10:00:00Z",
+      "updatedAt": "2026-01-10T10:00:00Z"
+    },
+    {
+      "id": "uuid-2",
+      "name": "Humanities",
+      "color": "#8b5cf6",
+      "departmentId": "uuid",
+      "parentId": "uuid-1",
+      "position": 0,
+      "childCount": 0,
+      "usageCount": 8,
+      "seeded": false,
+      "createdAt": "2026-01-10T10:00:00Z",
+      "updatedAt": "2026-01-10T10:00:00Z"
+    }
+  ],
+  "seeded": true,
+  "total": 10
+}
+```
+
+### 1b. Get Course Types Tree (New Endpoint – Optional)
+```
+GET /api/course-types/tree
+```
+
+**Query Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `departmentId` | UUID | Filter by department |
+
+**Response:**
+```json
+{
+  "tree": [
+    {
+      "id": "uuid-1",
+      "name": "General Education",
+      "color": "#6366f1",
+      "usageCount": 15,
+      "children": [
+        {
+          "id": "uuid-2",
+          "name": "Humanities",
+          "color": "#8b5cf6",
+          "usageCount": 8,
+          "children": []
+        }
+      ]
+    }
+  ]
+}
+```
+
 ### 2. Create Course Type
 ```
 POST /api/course-types
 ```
 
-**Body:**
+**Body (Current):**
 ```json
 {
   "name": "Major Elective",
@@ -439,9 +517,48 @@ POST /api/course-types
 }
 ```
 
+**Body (With Hierarchy – Frontend Already Sends This):**
+```json
+{
+  "name": "Humanities",
+  "color": "#8b5cf6",
+  "departmentId": "uuid",
+  "parentId": "uuid-parent-ge",
+  "position": 0
+}
+```
+
 ### 3. Update Course Type
 ```
 PUT /api/course-types/{id}
+```
+
+**Body (With Hierarchy):**
+```json
+{
+  "name": "Humanities & Social Sciences",
+  "color": "#8b5cf6",
+  "parentId": "uuid-parent-ge",
+  "position": 1
+}
+```
+
+> ⚠️ **Cycle Detection Required**: Backend must reject updates where `parentId` is a descendant of the type being edited.
+
+### 3b. Reorder Course Types (New Endpoint – Optional)
+```
+POST /api/course-types/reorder
+```
+
+**Body:**
+```json
+{
+  "updates": [
+    { "id": "uuid-1", "parentId": null, "position": 0 },
+    { "id": "uuid-2", "parentId": "uuid-1", "position": 0 },
+    { "id": "uuid-3", "parentId": "uuid-1", "position": 1 }
+  ]
+}
 ```
 
 ### 4. Delete Course Type

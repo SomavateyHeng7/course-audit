@@ -70,14 +70,14 @@ export const courseTypesApi = {
     id: string,
     data: UpdateCourseTypeRequest
   ): Promise<CourseTypeData> {
-    return await laravelUpdateCourseType(Number(id), data);
+    return await laravelUpdateCourseType(id, data);
   },
 
   /* =====================================================
    * DELETE /course-types/{id}
    * ===================================================== */
   async deleteCourseType(id: string): Promise<{ message: string }> {
-    await laravelDeleteCourseType(Number(id));
+    await laravelDeleteCourseType(id);
     return { message: 'Course type deleted successfully' };
   },
 

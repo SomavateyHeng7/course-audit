@@ -2,7 +2,13 @@
 
 Front-end work is moving ahead per [CONFIG_PAGE_CREDIT_POOLS_PLAN.md](CONFIG_PAGE_CREDIT_POOLS_PLAN.md). This note captures the backend additions required so the new UI can fully function. Please keep column names aligned with the existing naming style in [docs/architecture/Databse_DDL.txt](../../architecture/Databse_DDL.txt) (snake_case, varchar PKs, timestamps, etc.).
 
+> **📋 Coordination Document**: For detailed frontend implementation status, testing checklist, and action items, see [COURSE_TYPE_HIERARCHY_COORDINATION.md](COURSE_TYPE_HIERARCHY_COORDINATION.md).
+
 ## 1. Course Type Hierarchy
+
+> **Frontend Status**: ✅ Tree UI, parentId in forms, expand/collapse, add-child button all implemented.  
+> **Backend Status**: ⏳ Pending migration and controller updates.
+
 ### Schema Changes (table: `course_types`)
 - Add nullable `parent_course_type_id varchar(255)` → FK to `course_types(id)` (ON DELETE SET NULL).
 - Add `position int4` (default 0) to preserve sibling ordering.

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaInfoCircle, FaTags, FaLayerGroup } from 'react-icons/fa';
 import { API_BASE } from '@/lib/api/laravel';
+import { useToastHelpers } from '@/hooks/useToast';
 
 interface Course {
   id: string;
@@ -49,6 +50,7 @@ interface CoursesTabProps {
 }
 
 export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAddCourse, curriculumId, departmentId, onRefreshCurriculum }: CoursesTabProps) {
+  const { success, error: showError } = useToastHelpers();
   const [search, setSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -94,7 +96,7 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
 
   const assignCourseTypes = async (courseIds: string[], courseTypeId: string) => {
     if (!departmentId || !curriculumId) {
-      console.error('Cannot assign course types without department and curriculum context');
+      showError('Cannot assign course types without department and curriculum context');
       return;
     }
 
@@ -115,6 +117,8 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
       });
 
       if (response.ok) {
+        const selectedType = courseTypes.find(t => t.id === courseTypeId);
+        success(`Successfully assigned ${courseIds.length} course(s) to "${selectedType?.name || 'category'}"`);
         // Call the refresh callback if provided
         if (onRefreshCurriculum) {
           onRefreshCurriculum();
@@ -123,10 +127,12 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
           window.location.reload();
         }
       } else {
-        console.error('Failed to assign course types');
+        const errorData = await response.json().catch(() => ({}));
+        showError(errorData.message || 'Failed to assign course types');
       }
     } catch (error) {
       console.error('Error assigning course types:', error);
+      showError('Failed to assign course types. Please try again.');
     } finally {
       setIsAssigning(false);
       setIsBulkAssignOpen(false);
