@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 
 interface Course {
   id: string;
+  originalCourseId?: string; // Store the original course ID before adding unique suffix
   code: string;
   name: string;
   credits: number;
@@ -153,17 +154,21 @@ const TentativeSchedulePage: React.FC = () => {
         const existingSchedule = response.schedule;
 
         // Transform the schedule data to match the component's format
-        const transformedCourses: Course[] = existingSchedule.courses.map((sc: any) => ({
-          id: sc.courseId || sc.course?.id || sc.id || '',
-          code: sc.code || sc.course?.code || '',
-          name: sc.name || sc.course?.name || '',
-          credits: sc.credits || sc.course?.credits || 0,
-          section: sc.section || '',
-          days: sc.days || [],
-          time: sc.time || '',
-          instructor: sc.instructor || '',
-          seatLimit: sc.seatLimit || sc.seat_limit || 0,
-        }));
+        const transformedCourses: Course[] = existingSchedule.courses.map((sc: any) => {
+          const courseId = sc.courseId || sc.course?.id || sc.id || '';
+          return {
+            id: courseId,
+            originalCourseId: courseId, // Store original ID for later use
+            code: sc.code || sc.course?.code || '',
+            name: sc.name || sc.course?.name || '',
+            credits: sc.credits || sc.course?.credits || 0,
+            section: sc.section || '',
+            days: sc.days || [],
+            time: sc.time || '',
+            instructor: sc.instructor || '',
+            seatLimit: sc.seatLimit || sc.seat_limit || 0,
+          };
+        });
 
         setSchedule({
           id: existingSchedule.id,
@@ -186,6 +191,7 @@ const TentativeSchedulePage: React.FC = () => {
             
             const curriculumCourses: Course[] = curriculum.curriculumCourses?.map(cc => ({
               id: cc.course.id,
+              originalCourseId: cc.course.id, // Store original ID
               code: cc.course.code,
               name: cc.course.name,
               credits: cc.course.credits,
@@ -220,6 +226,7 @@ const TentativeSchedulePage: React.FC = () => {
       // Convert curriculum courses to available courses
       const curriculumCourses: Course[] = curriculum.curriculumCourses?.map(cc => ({
         id: cc.course.id,
+        originalCourseId: cc.course.id, // Store original ID
         code: cc.course.code,
         name: cc.course.name,
         credits: cc.course.credits,
@@ -291,12 +298,13 @@ const TentativeSchedulePage: React.FC = () => {
     if (!selectedCourseForDetail) return;
     
     // Generate a unique ID for each course-section combination to allow duplicates
-    const uniqueId = `${selectedCourseForDetail.id}-${courseData?.section || 'default'}-${Date.now()}`;
+    const uniqueId = `${selectedCourseForDetail.id}___${courseData?.section || 'default'}___${Date.now()}`;
     
     // Merge the selected course with the form data from CourseDetailForm
     const courseWithDetails: Course = {
       ...selectedCourseForDetail,
       id: uniqueId, // Use unique ID for this specific section
+      originalCourseId: selectedCourseForDetail.id, // Store the original course ID
       section: courseData?.section,
       dayTimeSlots: courseData?.dayTimeSlots || [],
       instructor: courseData?.instructor,
@@ -518,7 +526,16 @@ const TentativeSchedulePage: React.FC = () => {
       // Prepare course data for API
       const coursesForApi = schedule.courses.map(course => {
         // Extract the original course ID (before the unique suffix we added)
-        const originalCourseId = course.id.includes('-') ? course.id.split('-')[0] : course.id;
+        // Use stored originalCourseId if available, otherwise try to parse from id
+        const originalCourseId = course.originalCourseId || 
+          (course.id.includes('___') ? course.id.split('___')[0] : course.id);
+        
+        console.log('Course ID mapping:', {
+          displayId: course.id,
+          originalCourseId: course.originalCourseId,
+          extractedId: originalCourseId,
+          courseName: course.name
+        });
         
         // Handle dayTimeSlots: convert to days array and time string for backend
         let days: string[] | undefined = undefined;
@@ -616,9 +633,22 @@ const TentativeSchedulePage: React.FC = () => {
         router.push('/chairperson/TentativeSchedule');
       }, 1500);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving schedule:', error);
-      showError(error instanceof Error ? error.message : 'Failed to save schedule. Please try again.');
+      let errorMessage = 'Failed to save schedule. Please try again.';
+      
+      // Extract error message from different error formats
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error?.error?.message) {
+        errorMessage = error.error.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }

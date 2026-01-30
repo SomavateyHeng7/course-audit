@@ -99,8 +99,18 @@ const SemesterCoursePage: React.FC = () => {
       const response = await getPublishedSchedule(draftId);
       const schedule = response.schedule;
       
+      console.log('Published schedule response:', response);
+      console.log('Schedule courses:', schedule.courses);
+      console.log('Courses count:', schedule.courses?.length);
+      
+      if (!schedule.courses || !Array.isArray(schedule.courses)) {
+        console.error('Schedule courses is not an array:', schedule.courses);
+        setCourseSchedules([]);
+        return;
+      }
+      
       // Transform API data to CourseSchedule format
-      const courses: CourseSchedule[] = schedule.courses.map((scheduleCourse: any, index: number) => {
+      const courses: CourseSchedule[] = (schedule.courses || []).map((scheduleCourse: any, index: number) => {
         
         const course = scheduleCourse.course;
         const categoryColors: Record<string, string> = {
@@ -174,8 +184,20 @@ const SemesterCoursePage: React.FC = () => {
     return acc;
   }, {} as Record<string, CourseSchedule[]>);
 
-  const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const sortedDays = dayOrder.filter(day => groupedCourses[day]);
+  const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'TBA'];
+  // Get all days that have courses (including TBA or any other day)
+  const sortedDays = Object.keys(groupedCourses).sort((a, b) => {
+    const aIndex = dayOrder.indexOf(a);
+    const bIndex = dayOrder.indexOf(b);
+    // If both are in dayOrder, sort by their position
+    if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+    // If only a is in dayOrder, it comes first
+    if (aIndex !== -1) return -1;
+    // If only b is in dayOrder, it comes first
+    if (bIndex !== -1) return 1;
+    // Otherwise, sort alphabetically
+    return a.localeCompare(b);
+  });
 
   return (
     <div className="flex min-h-screen">
