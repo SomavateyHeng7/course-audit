@@ -181,7 +181,26 @@ async function authenticatedRequest(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Request failed' }));
     // Handle different error response formats from backend
-    const errorMessage = error.error || error.message || `Request failed with status ${response.status}`;
+    let errorMessage = `Request failed with status ${response.status}`;
+    
+    if (error.error) {
+      // Handle nested error object { error: { message: '...', details: {...} } }
+      if (typeof error.error === 'object' && error.error.message) {
+        errorMessage = error.error.message;
+        // Add validation details if present
+        if (error.error.details) {
+          const details = typeof error.error.details === 'object' 
+            ? Object.values(error.error.details).flat().join(', ')
+            : error.error.details;
+          errorMessage += `: ${details}`;
+        }
+      } else if (typeof error.error === 'string') {
+        errorMessage = error.error;
+      }
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     throw new Error(errorMessage);
   }
 
