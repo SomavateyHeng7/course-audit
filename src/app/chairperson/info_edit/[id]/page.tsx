@@ -126,6 +126,18 @@ export default function EditCurriculum() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper function to validate and sanitize credit hours format
+  // Valid formats: "X-Y-Z" where X, Y, Z are numbers (e.g., "3-0-6", "2-3-6")
+  const sanitizeCreditHours = (value: any): string => {
+    if (!value || typeof value !== 'string') return '';
+    const trimmed = value.replace(/[\r\n]+/g, '').trim();
+    // Match patterns like "3-0-6", "2-3-6", "0-9-9", etc.
+    const creditHoursPattern = /^\d+-\d+-\d+$/;
+    if (creditHoursPattern.test(trimmed)) {
+      return trimmed;
+    }
+    return '';
+  };
 
   // Helper function to normalize curriculum response from backend (snake_case → camelCase)
   const normalizeCurriculumResponse = (rawCurriculum: any) => {
@@ -157,7 +169,7 @@ export default function EditCurriculum() {
     
     const normalizedCourse = {
       ...rawCourse,
-      creditHours: rawCourse.credit_hours || rawCourse.creditHours || '3-0-6',
+      creditHours: sanitizeCreditHours(rawCourse.credit_hours) || sanitizeCreditHours(rawCourse.creditHours) || '',
       requiresPermission: rawCourse.requires_permission ?? rawCourse.requiresPermission ?? false,
       summerOnly: rawCourse.summer_only ?? rawCourse.summerOnly ?? false,
       requiresSeniorStanding: rawCourse.requires_senior_standing ?? rawCourse.requiresSeniorStanding ?? false,
@@ -429,7 +441,7 @@ export default function EditCurriculum() {
       code: cc.course.code,
       title: cc.course.name,
       credits: cc.course.credits,
-      creditHours: cc.course.creditHours || '3-0-6',
+      creditHours: cc.course.creditHours || '',
       type: cc.course.category || '',
       description: cc.course.description || '',
       courseType: cc.course.courseType || null,
