@@ -81,11 +81,15 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
     setIsLoadingCourseTypes(true);
     try {
       const response = await fetch(`${API_BASE}/course-types?departmentId=${departmentId}`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        },
       });
       if (response.ok) {
         const data = await response.json();
-        setCourseTypes(data.courseTypes || []);
+        console.log('Fetched course types:', data);
+        setCourseTypes(data.courseTypes || data || []);
       }
     } catch (error) {
       console.error('Error fetching course types:', error);
@@ -102,10 +106,12 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
 
     setIsAssigning(true);
     try {
+      console.log('Assigning course types:', { courseIds, courseTypeId, departmentId, curriculumId });
       const response = await fetch(`${API_BASE}/course-types/assign`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -144,7 +150,15 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
   // Bulk Assignment Functions
   const handleBulkAssign = () => {
     if (selectedCourses.length > 0 && selectedCourseType) {
-      assignCourseTypes(selectedCourses, selectedCourseType);
+      // Map curriculumCourseIds to actual course IDs for the API
+      const actualCourseIds = selectedCourses.map(ccId => {
+        const course = courses.find(c => (c.curriculumCourseId || c.id) === ccId);
+        return course?.id;
+      }).filter((id): id is string => !!id);
+      
+      if (actualCourseIds.length > 0) {
+        assignCourseTypes(actualCourseIds, selectedCourseType);
+      }
     }
   };
 

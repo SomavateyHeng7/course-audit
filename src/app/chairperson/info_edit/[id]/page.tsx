@@ -126,81 +126,6 @@ export default function EditCurriculum() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Helper function to validate and sanitize credit hours format
-  // Valid formats: "X-Y-Z" where X, Y, Z are numbers (e.g., "3-0-6", "2-3-6")
-  const sanitizeCreditHours = (value: any): string => {
-    if (!value || typeof value !== 'string') return '';
-    const trimmed = value.replace(/[\r\n]+/g, '').trim();
-    // Match patterns like "3-0-6", "2-3-6", "0-9-9", etc.
-    const creditHoursPattern = /^\d+-\d+-\d+$/;
-    if (creditHoursPattern.test(trimmed)) {
-      return trimmed;
-    }
-    return '';
-  };
-
-  // Helper function to normalize curriculum response from backend (snake_case → camelCase)
-  const normalizeCurriculumResponse = (rawCurriculum: any) => {
-    const rawCourses = rawCurriculum.curriculum_courses || rawCurriculum.curriculumCourses || [];
-    const normalizedCourses = rawCourses.map((cc: any) => {
-      // Normalize the nested course object
-      const rawCourse = cc.course || {};
-      
-      // 🔥 EXTRACT courseType from department_course_types array
-      let courseType = null;
-      if (rawCourse.department_course_types && Array.isArray(rawCourse.department_course_types)) {
-        // Find the course type assignment for THIS curriculum
-        const relevantAssignment = rawCourse.department_course_types.find(
-          (dct: any) => dct.curriculum_id === rawCurriculum.id
-        );
-        
-        if (relevantAssignment && relevantAssignment.course_type) {
-          courseType = {
-            id: relevantAssignment.course_type.id,
-            name: relevantAssignment.course_type.name,
-            color: relevantAssignment.course_type.color,
-            departmentId: relevantAssignment.course_type.department_id,
-            parentId: relevantAssignment.course_type.parent_course_type_id,
-            position: relevantAssignment.course_type.position,
-            seeded: relevantAssignment.course_type.seeded
-          };
-      }
-    }
-    
-    const normalizedCourse = {
-      ...rawCourse,
-      creditHours: sanitizeCreditHours(rawCourse.credit_hours) || sanitizeCreditHours(rawCourse.creditHours) || '',
-      requiresPermission: rawCourse.requires_permission ?? rawCourse.requiresPermission ?? false,
-      summerOnly: rawCourse.summer_only ?? rawCourse.summerOnly ?? false,
-      requiresSeniorStanding: rawCourse.requires_senior_standing ?? rawCourse.requiresSeniorStanding ?? false,
-      minCreditThreshold: rawCourse.min_credit_threshold ?? rawCourse.minCreditThreshold ?? null,
-      // Use the extracted courseType
-      courseType: courseType,
-    };
-
-    return {
-      ...cc,
-      isRequired: cc.is_required ?? cc.isRequired ?? true,
-      curriculumPrerequisites: cc.curriculum_prerequisites || cc.curriculumPrerequisites || [],
-      curriculumCorequisites: cc.curriculum_corequisites || cc.curriculumCorequisites || [],
-      overrideRequiresPermission: cc.override_requires_permission ?? cc.overrideRequiresPermission,
-      overrideSummerOnly: cc.override_summer_only ?? cc.overrideSummerOnly,
-      overrideRequiresSeniorStanding: cc.override_requires_senior_standing ?? cc.overrideRequiresSeniorStanding,
-      overrideMinCreditThreshold: cc.override_min_credit_threshold ?? cc.overrideMinCreditThreshold,
-      course: normalizedCourse,
-    };
-  });
-
-  return {
-    ...rawCurriculum,
-    departmentId: rawCurriculum.department_id || rawCurriculum.departmentId,
-    curriculumCourses: normalizedCourses,
-    curriculumConstraints: rawCurriculum.curriculum_constraints || rawCurriculum.curriculumConstraints || [],
-    curriculumBlacklists: rawCurriculum.curriculum_blacklists || rawCurriculum.curriculumBlacklists || [],
-    curriculumConcentrations: rawCurriculum.curriculum_concentrations || rawCurriculum.curriculumConcentrations || [],
-  };
-};
-
   // Fetch curriculum data
   useEffect(() => {
     const fetchCurriculum = async () => {
@@ -208,7 +133,6 @@ export default function EditCurriculum() {
         setIsLoading(true);
         const response = await fetch(`${API_BASE}/curricula/${curriculumId}`, {
           credentials: 'include',
-          
         });
 
         if (!response.ok) {
@@ -218,49 +142,16 @@ export default function EditCurriculum() {
 
         const data = await response.json();
 
-        // DEBUG: Check what backend actually returns
-        console.log('=== BACKEND RESPONSE DEBUG ===');
-        console.log('Full response keys:', Object.keys(data));
-        console.log('Curriculum keys:', Object.keys(data.curriculum || {}));
-
-        // Check first curriculum course structure
-        const firstCC = data.curriculum?.curriculum_courses?.[0] || data.curriculum?.curriculumCourses?.[0];
-        if (firstCC) {
-          console.log('First curriculum_course keys:', Object.keys(firstCC));
-          console.log('First course object:', firstCC.course);
-          console.log('Course keys:', Object.keys(firstCC.course || {}));
-          console.log('Has course_type?', 'course_type' in (firstCC.course || {}));
-          console.log('Has courseType?', 'courseType' in (firstCC.course || {}));
-          console.log('course_type value:', firstCC.course?.course_type);
-          console.log('courseType value:', firstCC.course?.courseType);
-          console.log('\nFull course JSON:');
-        console.log(JSON.stringify(firstCC.course, null, 2));
-      } else {
-        console.log('❌ No curriculum courses found in response!');
-      }
-      
-      // Check if it's nested somewhere else
-      console.log('\n--- Checking Alternative Locations ---');
-      console.log('curriculum.course_types?', data.curriculum?.course_types);
-      console.log('curriculum.department_course_types?', data.curriculum?.department_course_types);
-      // ============================================================
-
-        // DEBUG: Log raw backend response to check courseType
-        console.log('Raw curriculum response:', JSON.stringify(data.curriculum, null, 2).slice(0, 2000));
-        const sampleCourse = data.curriculum.curriculum_courses?.[0]?.course || data.curriculum.curriculumCourses?.[0]?.course;
-        console.log('Sample course from backend:', sampleCourse);
-        console.log('Sample course.courseType:', sampleCourse?.courseType);
-        console.log('Sample course.course_type:', sampleCourse?.course_type);
-
-        // Normalize curriculum using the helper function
-        const normalizedCurriculum = normalizeCurriculumResponse(data.curriculum);
-        console.log('Normalized curriculum sample course:', normalizedCurriculum.curriculumCourses?.[0]?.course?.courseType);
-        console.log('=== AFTER NORMALIZATION ===');
-        const firstNormalized = normalizedCurriculum.curriculumCourses?.[0];
-        if (firstNormalized) {
-          console.log('Normalized course keys:', Object.keys(firstNormalized.course || {}));
-          console.log('Normalized courseType:', firstNormalized.course?.courseType);
-        }
+        // Normalize keys for frontend (snake_case to camelCase) - SIMPLE approach like working branch
+        const normalizedCurriculum = {
+          ...data.curriculum,
+          departmentId: data.curriculum.department_id || data.curriculum.departmentId,
+          curriculumCourses: data.curriculum.curriculum_courses || [],
+          curriculumConstraints: data.curriculum.curriculum_constraints || [],
+          curriculumBlacklists: data.curriculum.curriculum_blacklists || [],
+          curriculumConcentrations: data.curriculum.curriculum_concentrations || [],
+          // add more mappings if needed
+        };
 
         setCurriculum(normalizedCurriculum);
 
@@ -388,35 +279,57 @@ export default function EditCurriculum() {
     electiveCredits: curriculum.curriculumCourses?.filter((cc: any) => !cc.isRequired).reduce((total: number, cc: any) => total + cc.course.credits, 0) || 0,
   } : { totalCredits: 0, requiredCore: 0, electiveCredits: 0 };
 
+  // Helper to extract courseType from department_course_types array (if backend returns it that way)
+  const extractCourseType = (course: any, curriculumId: string) => {
+    // First check if courseType is directly available
+    if (course.courseType) {
+      return course.courseType;
+    }
+    // Otherwise, try to extract from department_course_types array
+    if (course.department_course_types && Array.isArray(course.department_course_types)) {
+      const relevantAssignment = course.department_course_types.find(
+        (dct: any) => dct.curriculum_id === curriculumId
+      );
+      if (relevantAssignment && relevantAssignment.course_type) {
+        return {
+          id: relevantAssignment.course_type.id,
+          name: relevantAssignment.course_type.name,
+          color: relevantAssignment.course_type.color,
+        };
+      }
+    }
+    return null;
+  };
+
   const curriculumCourseMeta: CurriculumCourseMeta[] = [];
 
   const coursesData = (curriculum?.curriculumCourses ?? []).map((cc: any) => {
-    const normalizedPrereqs = (cc.curriculumPrerequisites ?? []).map((pr: any) => ({
+    const normalizedPrereqs = (cc.curriculum_prerequisites ?? cc.curriculumPrerequisites ?? []).map((pr: any) => ({
       id: pr?.id ?? pr?.courseId ?? pr?.course?.id,
       code: pr?.code ?? pr?.course?.code ?? '',
       name: pr?.name ?? pr?.course?.name ?? null
     })).filter((pr: any) => pr.code);
 
-    const normalizedCoreqs = (cc.curriculumCorequisites ?? []).map((coreq: any) => ({
+    const normalizedCoreqs = (cc.curriculum_corequisites ?? cc.curriculumCorequisites ?? []).map((coreq: any) => ({
       id: coreq?.id ?? coreq?.courseId ?? coreq?.course?.id,
       code: coreq?.code ?? coreq?.course?.code ?? '',
       name: coreq?.name ?? coreq?.course?.name ?? null
     })).filter((coreq: any) => coreq.code);
 
-    const overrideRequiresPermission = cc.overrideRequiresPermission;
-    const overrideSummerOnly = cc.overrideSummerOnly;
-    const overrideRequiresSeniorStanding = cc.overrideRequiresSeniorStanding;
-    const overrideMinCreditThreshold = cc.overrideMinCreditThreshold;
+    const overrideRequiresPermission = cc.override_requires_permission ?? cc.overrideRequiresPermission;
+    const overrideSummerOnly = cc.override_summer_only ?? cc.overrideSummerOnly;
+    const overrideRequiresSeniorStanding = cc.override_requires_senior_standing ?? cc.overrideRequiresSeniorStanding;
+    const overrideMinCreditThreshold = cc.override_min_credit_threshold ?? cc.overrideMinCreditThreshold;
 
     const hasPermissionOverride = overrideRequiresPermission !== null && overrideRequiresPermission !== undefined;
     const hasSummerOnlyOverride = overrideSummerOnly !== null && overrideSummerOnly !== undefined;
     const hasSeniorStandingOverride = overrideRequiresSeniorStanding !== null && overrideRequiresSeniorStanding !== undefined;
     const hasMinCreditOverride = overrideMinCreditThreshold !== null && overrideMinCreditThreshold !== undefined;
 
-    const baseRequiresPermission = Boolean(cc.course.requiresPermission);
-    const baseSummerOnly = Boolean(cc.course.summerOnly);
-    const baseRequiresSeniorStanding = Boolean(cc.course.requiresSeniorStanding);
-    const baseMinCreditThreshold = cc.course.minCreditThreshold ?? null;
+    const baseRequiresPermission = Boolean(cc.course.requires_permission ?? cc.course.requiresPermission);
+    const baseSummerOnly = Boolean(cc.course.summer_only ?? cc.course.summerOnly);
+    const baseRequiresSeniorStanding = Boolean(cc.course.requires_senior_standing ?? cc.course.requiresSeniorStanding);
+    const baseMinCreditThreshold = cc.course.min_credit_threshold ?? cc.course.minCreditThreshold ?? null;
 
     const requiresPermission = hasPermissionOverride ? Boolean(overrideRequiresPermission) : baseRequiresPermission;
     const summerOnly = hasSummerOnlyOverride ? Boolean(overrideSummerOnly) : baseSummerOnly;
@@ -435,19 +348,22 @@ export default function EditCurriculum() {
       overrideMinCreditThreshold
     });
 
+    // Extract courseType - try direct property first, then department_course_types array
+    const courseType = extractCourseType(cc.course, curriculum?.id);
+
     return {
       id: cc.course.id,
       curriculumCourseId: cc.id,
       code: cc.course.code,
       title: cc.course.name,
       credits: cc.course.credits,
-      creditHours: cc.course.creditHours || '',
+      creditHours: cc.course.creditHours || '3-0-6',
       type: cc.course.category || '',
       description: cc.course.description || '',
-      courseType: cc.course.courseType || null,
+      courseType: courseType,
       year: cc.year,
       semester: cc.semester,
-      isRequired: cc.isRequired,
+      isRequired: cc.is_required ?? cc.isRequired,
       curriculumPrerequisites: normalizedPrereqs,
       curriculumCorequisites: normalizedCoreqs,
       requiresPermission,
@@ -468,9 +384,6 @@ export default function EditCurriculum() {
       overrideMinCreditThreshold
     };
   });
-
-  // DEBUG: Log courses with their course types
-  console.log('Courses with types:', coursesData.slice(0, 3).map((c: any) => ({ code: c.code, courseType: c.courseType })));
 
   const allCourses = coursesData.map((course: any) => ({
     id: course.id,
@@ -1162,21 +1075,22 @@ export default function EditCurriculum() {
               curriculumId={curriculumId}
               departmentId={curriculum?.departmentId}
               onRefreshCurriculum={async () => {
-                // Refetch curriculum data with proper normalization
+                // Refetch curriculum data
                 try {
                   const response = await fetch(`${API_BASE}/curricula/${curriculumId}`, {
                     credentials: 'include'
                   });
                   if (response.ok) {
                     const data = await response.json();
-                    // Use the same normalization as initial fetch
-                    const normalizedCurriculum = normalizeCurriculumResponse(data.curriculum);
-                    console.log('Refresh: Normalized curriculum course types:', 
-                      normalizedCurriculum.curriculumCourses?.slice(0, 3).map((cc: any) => ({
-                        code: cc.course?.code,
-                        courseType: cc.course?.courseType
-                      }))
-                    );
+                    // Use the same simple normalization as initial fetch
+                    const normalizedCurriculum = {
+                      ...data.curriculum,
+                      departmentId: data.curriculum.department_id || data.curriculum.departmentId,
+                      curriculumCourses: data.curriculum.curriculum_courses || [],
+                      curriculumConstraints: data.curriculum.curriculum_constraints || [],
+                      curriculumBlacklists: data.curriculum.curriculum_blacklists || [],
+                      curriculumConcentrations: data.curriculum.curriculum_concentrations || [],
+                    };
                     setCurriculum(normalizedCurriculum);
                   }
                 } catch (error) {
