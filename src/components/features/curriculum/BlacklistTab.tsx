@@ -117,10 +117,12 @@ export default function BlacklistTab({ curriculumId }: BlacklistTabProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
-          <FaSpinner className="w-5 h-5 animate-spin" />
-          <span>Loading blacklists...</span>
+      <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-xl p-8">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading blacklists...</p>
+          </div>
         </div>
       </div>
     );

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   FaLayerGroup,
   FaPlus,
@@ -13,6 +13,7 @@ import {
   FaTrash,
   FaEdit,
   FaMagic,
+  FaSync,
 } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +32,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/useToast';
 import type {
   CurriculumCreditPool,
   SubCategoryPool,
@@ -39,6 +41,23 @@ import type {
   CurriculumCourseLite,
   CourseTypeTreeNode,
 } from '@/types/creditPool';
+import {
+  fetchCurriculumCreditPools,
+  createCreditPool,
+  updateCreditPool,
+  deleteCreditPool,
+  addSubCategory,
+  updateSubCategory,
+  deleteSubCategory,
+  attachCoursesToSubCategory,
+  detachCourseByAttachmentId,
+  fetchAvailableCoursesForSubCategory,
+  fetchAvailableCourseTypes,
+  fetchAvailableSubTypes,
+  type CreditPool,
+  type SubCategory,
+  type AvailableCourse,
+} from '@/lib/api/creditPools';
 
 // =============================================================================
 // Helper Functions
@@ -83,126 +102,55 @@ const getTopLevelTypes = (types: CourseTypeLite[]): CourseTypeLite[] => {
 };
 
 // =============================================================================
-// Mock Data for Demo
+// Mock Data for Demo - COMMENTED OUT (Now using real API)
 // =============================================================================
 
+/*
 const generateMockPools = (
   courseTypes: CourseTypeLite[],
   courses: CurriculumCourseLite[]
 ): CurriculumCreditPool[] => {
-  // If we have course types, use them to generate realistic mock data
-  const topLevelTypes = getTopLevelTypes(courseTypes);
-  
-  // Always generate at least 2 demo pools for demonstration
-  const mockPools: CurriculumCreditPool[] = [];
-  
-  if (topLevelTypes.length > 0) {
-    // Create pools from actual course types
-    topLevelTypes.slice(0, 2).forEach((topLevel, poolIdx) => {
-      const descendants = getDescendants(topLevel.id, courseTypes);
-      const subCatTypes = descendants.length > 0 ? descendants : [topLevel];
-
-      const subCategories: SubCategoryPool[] = subCatTypes.slice(0, 4).map((type, idx) => {
-        const matchingCourses = courses.filter(c => c.courseType?.id === type.id);
-        const attachedCourses: AttachedPoolCourse[] = matchingCourses.slice(0, 3).map(c => ({
-          id: `attached-${c.id}`,
-          courseId: c.id,
-          code: c.code || 'N/A',
-          name: c.name || 'Unknown Course',
-          credits: c.credits,
-          attachedAt: new Date().toISOString(),
-        }));
-
-        const requiredCredits = poolIdx === 0 ? [12, 9, 6, 3][idx] || 6 : [15, 12, 9, 6][idx] || 9;
-
-        return {
-          id: `subcat-${poolIdx}-${idx}`,
-          poolId: `pool-${poolIdx + 1}`,
-          courseTypeId: type.id,
-          courseTypeName: type.name,
-          courseTypeColor: type.color,
-          requiredCredits,
-          attachedCourses,
-          attachedCredits: attachedCourses.reduce((sum, c) => sum + c.credits, 0),
-        };
-      });
-
-      mockPools.push({
-        id: `pool-${poolIdx + 1}`,
-        curriculumId: 'curr-1',
-        name: topLevel.name,
-        topLevelCourseTypeId: topLevel.id,
-        topLevelCourseTypeColor: topLevel.color,
-        enabled: true,
-        subCategories,
-        totalRequiredCredits: subCategories.reduce((sum, sc) => sum + sc.requiredCredits, 0),
-        totalAttachedCredits: subCategories.reduce((sum, sc) => sum + sc.attachedCredits, 0),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    });
-  } else {
-    // Fallback: Create demo pools with placeholder data
-    const demoCategories = [
-      { id: 'demo-major', name: 'Major Courses', color: '#22c55e' },
-      { id: 'demo-ge', name: 'General Education', color: '#6366f1' },
-    ];
-
-    demoCategories.forEach((category, poolIdx) => {
-      const subCatNames = poolIdx === 0 
-        ? ['Core Requirements', 'Major Electives', 'Capstone']
-        : ['Humanities', 'Social Sciences', 'Natural Sciences'];
-      
-      const subCatColors = poolIdx === 0
-        ? ['#16a34a', '#4ade80', '#86efac']
-        : ['#818cf8', '#a5b4fc', '#c7d2fe'];
-
-      const subCategories: SubCategoryPool[] = subCatNames.map((name, idx) => ({
-        id: `subcat-${poolIdx}-${idx}`,
-        poolId: `pool-${poolIdx + 1}`,
-        courseTypeId: `demo-subcat-${poolIdx}-${idx}`,
-        courseTypeName: name,
-        courseTypeColor: subCatColors[idx],
-        requiredCredits: [12, 9, 6][idx] || 6,
-        attachedCourses: idx === 0 ? [
-          {
-            id: `attached-demo-${poolIdx}-${idx}-1`,
-            courseId: `course-demo-${poolIdx}-${idx}-1`,
-            code: poolIdx === 0 ? 'CS 101' : 'GE 101',
-            name: poolIdx === 0 ? 'Introduction to Programming' : 'Critical Thinking',
-            credits: 3,
-            attachedAt: new Date().toISOString(),
-          },
-          {
-            id: `attached-demo-${poolIdx}-${idx}-2`,
-            courseId: `course-demo-${poolIdx}-${idx}-2`,
-            code: poolIdx === 0 ? 'CS 102' : 'GE 102',
-            name: poolIdx === 0 ? 'Data Structures' : 'Ethics and Society',
-            credits: 3,
-            attachedAt: new Date().toISOString(),
-          },
-        ] : [],
-        attachedCredits: idx === 0 ? 6 : 0,
-      }));
-
-      mockPools.push({
-        id: `pool-${poolIdx + 1}`,
-        curriculumId: 'curr-1',
-        name: category.name,
-        topLevelCourseTypeId: category.id,
-        topLevelCourseTypeColor: category.color,
-        enabled: poolIdx === 0, // First pool enabled, second disabled for demo
-        subCategories,
-        totalRequiredCredits: subCategories.reduce((sum, sc) => sum + sc.requiredCredits, 0),
-        totalAttachedCredits: subCategories.reduce((sum, sc) => sum + sc.attachedCredits, 0),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    });
-  }
-
-  return mockPools;
+  // MOCK DATA GENERATION REMOVED - Using real backend API now
+  return [];
 };
+*/
+
+// =============================================================================
+// API Data Transformation Helpers
+// =============================================================================
+
+/**
+ * Transform API CreditPool response to frontend CurriculumCreditPool type
+ */
+const transformApiPoolToFrontend = (apiPool: CreditPool): CurriculumCreditPool => ({
+  id: String(apiPool.id),
+  curriculumId: apiPool.curriculumId,
+  name: apiPool.name,
+  topLevelCourseTypeId: apiPool.topLevelCourseTypeId,
+  topLevelCourseTypeColor: apiPool.topLevelCourseTypeColor,
+  enabled: apiPool.enabled,
+  subCategories: apiPool.subCategories.map(sc => ({
+    id: String(sc.id),
+    poolId: String(sc.poolId),
+    courseTypeId: sc.courseTypeId,
+    courseTypeName: sc.courseTypeName,
+    courseTypeColor: sc.courseTypeColor,
+    requiredCredits: sc.requiredCredits,
+    attachedCourses: sc.attachedCourses.map(ac => ({
+      id: String(ac.id),
+      courseId: ac.courseId,
+      code: ac.code,
+      name: ac.name,
+      credits: ac.credits,
+      attachedAt: ac.attachedAt,
+    })),
+    attachedCredits: sc.attachedCredits,
+  })),
+  totalRequiredCredits: apiPool.totalRequiredCredits,
+  totalAttachedCredits: apiPool.totalAttachedCredits,
+  createdAt: apiPool.createdAt,
+  updatedAt: apiPool.updatedAt,
+});
 
 // =============================================================================
 // Sub Components
@@ -230,22 +178,78 @@ const SubCategoryRow: React.FC<SubCategoryRowProps> = ({
   onToggleExpand,
 }) => {
   const isSatisfied = subCategory.attachedCredits >= subCategory.requiredCredits;
+  const [localCredits, setLocalCredits] = useState(subCategory.requiredCredits);
+  const [isSaving, setIsSaving] = useState(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSavedValueRef = useRef(subCategory.requiredCredits);
+
+  // Sync local state when prop changes (e.g., from server refresh)
+  useEffect(() => {
+    setLocalCredits(subCategory.requiredCredits);
+    lastSavedValueRef.current = subCategory.requiredCredits;
+  }, [subCategory.requiredCredits]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCreditsChange = (value: number) => {
+    setLocalCredits(value);
+    
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    // Set new timer for autosave after 2 seconds
+    debounceTimerRef.current = setTimeout(async () => {
+      if (value !== lastSavedValueRef.current) {
+        console.log('[SubCategoryRow] Autosaving credits:', value, 'for subCategory:', subCategory.id);
+        setIsSaving(true);
+        try {
+          await onUpdateCredits(value);
+          console.log('[SubCategoryRow] Credits saved successfully:', value);
+          lastSavedValueRef.current = value;
+        } catch (error) {
+          console.error('[SubCategoryRow] Failed to save credits:', error);
+        } finally {
+          setIsSaving(false);
+        }
+      }
+    }, 2000);
+  };
   
   return (
-    <div className="border rounded-lg bg-muted/30 overflow-hidden">
-      <div 
-        className="p-3 flex items-center justify-between cursor-pointer hover:bg-muted/50"
-        onClick={onToggleExpand}
-      >
+    <TooltipProvider>
+      <div className="border rounded-lg bg-muted/30 overflow-hidden">
+        <div 
+          className="p-3 flex items-center justify-between cursor-pointer hover:bg-muted/50"
+          onClick={onToggleExpand}
+        >
         <div className="flex items-center gap-3">
           <span
             className="w-3 h-3 rounded-full"
             style={{ backgroundColor: subCategory.courseTypeColor || '#6b7280' }}
           />
           <span className="font-medium text-sm">{subCategory.courseTypeName}</span>
-          <Badge variant={isSatisfied ? 'default' : 'secondary'} className="text-xs">
-            {subCategory.attachedCredits}/{subCategory.requiredCredits} cr
-          </Badge>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge 
+                variant={isSatisfied ? 'default' : 'secondary'} 
+                className={`text-xs cursor-help ${isSatisfied ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}
+              >
+                {localCredits} of {subCategory.attachedCredits} cr
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{localCredits} credits required out of {subCategory.attachedCredits} total available</p>
+            </TooltipContent>
+          </Tooltip>
           {isSatisfied ? (
             <FaCheck className="w-3 h-3 text-green-500" />
           ) : (
@@ -253,18 +257,24 @@ const SubCategoryRow: React.FC<SubCategoryRowProps> = ({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            min={0}
-            value={subCategory.requiredCredits}
-            onChange={(e) => {
-              e.stopPropagation();
-              onUpdateCredits(Math.max(0, parseInt(e.target.value) || 0));
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-20 h-8 text-sm"
-          />
-          <span className="text-xs text-muted-foreground">req.</span>
+          <div className="relative flex items-center gap-1.5 bg-background border rounded-md px-2 py-1">
+            <Input
+              type="number"
+              min={0}
+              value={localCredits}
+              onChange={(e) => {
+                e.stopPropagation();
+                handleCreditsChange(Math.max(0, parseInt(e.target.value) || 0));
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className={`w-14 h-6 text-sm text-center border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isSaving ? 'text-primary' : ''}`}
+            />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">req.</span>
+            {isSaving && (
+              <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            )}
+            {!isSaving && <FaCheck className="w-3 h-3 text-green-500" />}
+          </div>
           {isExpanded ? <FaChevronUp className="w-4 h-4" /> : <FaChevronDown className="w-4 h-4" />}
         </div>
       </div>
@@ -310,7 +320,8 @@ const SubCategoryRow: React.FC<SubCategoryRowProps> = ({
           )}
         </div>
       )}
-    </div>
+      </div>
+    </TooltipProvider>
   );
 };
 
@@ -352,6 +363,10 @@ const PoolCard: React.FC<PoolCardProps> = ({
   };
 
   const isComplete = pool.subCategories.every(sc => sc.attachedCredits >= sc.requiredCredits);
+  
+  // Calculate pool totals
+  const totalRequired = pool.subCategories.reduce((sum, sc) => sum + sc.requiredCredits, 0);
+  const totalAvailable = pool.subCategories.reduce((sum, sc) => sum + sc.attachedCredits, 0);
 
   return (
     <Card className={`${!pool.enabled ? 'opacity-60' : ''}`}>
@@ -363,9 +378,18 @@ const PoolCard: React.FC<PoolCardProps> = ({
               style={{ backgroundColor: pool.topLevelCourseTypeColor || '#6b7280' }}
             />
             <CardTitle className="text-lg">{pool.name}</CardTitle>
-            <Badge variant="outline">
-              Total: {pool.totalRequiredCredits} credits
-            </Badge>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="cursor-help">
+                    {totalRequired} of {totalAvailable} cr
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{totalRequired} credits required out of {totalAvailable} total available in pool</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             {isComplete ? (
               <Badge className="bg-green-100 text-green-700">
                 <FaCheck className="w-3 h-3 mr-1" /> Complete
@@ -552,6 +576,7 @@ interface AddCourseModalProps {
   onAdd: (courses: CurriculumCourseLite[]) => void;
   availableCourses: CurriculumCourseLite[];
   subCategoryName: string;
+  isLoading?: boolean;
 }
 
 const AddCourseModal: React.FC<AddCourseModalProps> = ({
@@ -560,6 +585,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   onAdd,
   availableCourses,
   subCategoryName,
+  isLoading = false,
 }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -587,7 +613,12 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
         </DialogHeader>
         
         <div className="max-h-60 overflow-y-auto space-y-1">
-          {availableCourses.length > 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <FaSync className="w-5 h-5 animate-spin text-primary mr-2" />
+              <span className="text-sm text-muted-foreground">Loading available courses...</span>
+            </div>
+          ) : availableCourses.length > 0 ? (
             availableCourses.map(course => (
               <div
                 key={course.id}
@@ -684,23 +715,79 @@ export default function CurriculumPoolsTab({
   courseTypes,
   courses,
 }: CurriculumPoolsTabProps) {
+  const { showToast } = useToast();
+  
   // State
-  const [pools, setPools] = useState<CurriculumCreditPool[]>(() => 
-    generateMockPools(courseTypes, courses)
-  );
+  const [pools, setPools] = useState<CurriculumCreditPool[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [addCourseModal, setAddCourseModal] = useState<{
     isOpen: boolean;
     poolId: string;
     subCatId: string;
     subCatName: string;
-  }>({ isOpen: false, poolId: '', subCatId: '', subCatName: '' });
+    availableCourses: AvailableCourse[];
+    isLoadingCourses: boolean;
+  }>({ isOpen: false, poolId: '', subCatId: '', subCatName: '', availableCourses: [], isLoadingCourses: false });
+  const [availableTopLevelTypes, setAvailableTopLevelTypes] = useState<CourseTypeLite[]>([]);
+
+  // Fetch pools from API
+  const loadPools = useCallback(async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) setIsRefreshing(true);
+      else setIsLoading(true);
+      
+      const response = await fetchCurriculumCreditPools(curriculumId);
+      const transformedPools = (response.pools || []).map(transformApiPoolToFrontend);
+      setPools(transformedPools);
+    } catch (error) {
+      console.error('Failed to fetch pools:', error);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to load credit pools',
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [curriculumId, showToast]);
+
+  // Initial load
+  useEffect(() => {
+    loadPools();
+  }, [loadPools]);
+
+  // Fetch available top-level types for create modal
+  const loadAvailableTypes = useCallback(async () => {
+    try {
+      const response = await fetchAvailableCourseTypes(curriculumId);
+      // Transform response to CourseTypeLite format
+      const types: CourseTypeLite[] = (response.courseTypes || []).map((t: { id: string; name: string; color?: string; position?: number }) => ({
+        id: t.id,
+        name: t.name,
+        color: t.color || '#6366f1',
+        parentId: null,
+      }));
+      setAvailableTopLevelTypes(types);
+    } catch (error) {
+      console.error('Failed to fetch available types:', error);
+    }
+  }, [curriculumId]);
+
+  // Load available types when opening create modal
+  useEffect(() => {
+    if (isCreateModalOpen) {
+      loadAvailableTypes();
+    }
+  }, [isCreateModalOpen, loadAvailableTypes]);
 
   // Computed values
   const topLevelTypes = useMemo(() => getTopLevelTypes(courseTypes), [courseTypes]);
   const usedTypeIds = useMemo(() => pools.map(p => p.topLevelCourseTypeId), [pools]);
 
-  // Get courses matching a course type
+  // Get courses matching a course type (for UI display)
   const getCoursesForType = useCallback((typeId: string): CurriculumCourseLite[] => {
     return courses.filter(c => c.courseType?.id === typeId);
   }, [courses]);
@@ -710,189 +797,289 @@ export default function CurriculumPoolsTab({
     return pool.subCategories.flatMap(sc => sc.attachedCourses.map(c => c.courseId));
   }, []);
 
-  // Handlers
-  const handleCreatePool = useCallback((
+  // Handlers - Now using API calls
+  const handleCreatePool = useCallback(async (
     topLevelTypeId: string,
     subCategories: { courseTypeId: string; requiredCredits: number }[]
   ) => {
     const topLevelType = courseTypes.find(t => t.id === topLevelTypeId);
     if (!topLevelType) return;
 
-    const newPool: CurriculumCreditPool = {
-      id: `pool-${Date.now()}`,
-      curriculumId,
-      name: topLevelType.name,
-      topLevelCourseTypeId: topLevelTypeId,
-      topLevelCourseTypeColor: topLevelType.color,
-      enabled: true,
-      subCategories: subCategories.map((sc, idx) => {
-        const type = courseTypes.find(t => t.id === sc.courseTypeId);
-        return {
-          id: `subcat-${Date.now()}-${idx}`,
-          poolId: `pool-${Date.now()}`,
-          courseTypeId: sc.courseTypeId,
-          courseTypeName: type?.name || 'Unknown',
-          courseTypeColor: type?.color,
-          requiredCredits: sc.requiredCredits,
-          attachedCourses: [],
-          attachedCredits: 0,
-        };
-      }),
-      totalRequiredCredits: subCategories.reduce((sum, sc) => sum + sc.requiredCredits, 0),
-      totalAttachedCredits: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    setPools(prev => [...prev, newPool]);
-  }, [courseTypes, curriculumId]);
-
-  const handleToggleEnabled = useCallback((poolId: string, enabled: boolean) => {
-    setPools(prev => prev.map(p => 
-      p.id === poolId ? { ...p, enabled, updatedAt: new Date().toISOString() } : p
-    ));
-  }, []);
-
-  const handleDeletePool = useCallback((poolId: string) => {
-    if (confirm('Are you sure you want to delete this pool?')) {
-      setPools(prev => prev.filter(p => p.id !== poolId));
+    try {
+      await createCreditPool(curriculumId, {
+        name: topLevelType.name,
+        topLevelCourseTypeId: topLevelTypeId,
+        enabled: true,
+        subCategories,
+      });
+      
+      showToast({
+        type: 'success',
+        title: 'Success',
+        message: `Credit pool "${topLevelType.name}" created successfully`,
+      });
+      
+      // Refresh pools list
+      await loadPools(true);
+    } catch (error) {
+      console.error('Failed to create pool:', error);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to create credit pool',
+      });
     }
-  }, []);
+  }, [courseTypes, curriculumId, loadPools, showToast]);
 
-  const handleUpdateSubCategory = useCallback((poolId: string, subCatId: string, credits: number) => {
-    setPools(prev => prev.map(p => {
-      if (p.id !== poolId) return p;
-      const updatedSubCats = p.subCategories.map(sc =>
-        sc.id === subCatId ? { ...sc, requiredCredits: credits } : sc
-      );
-      return {
-        ...p,
-        subCategories: updatedSubCats,
-        totalRequiredCredits: updatedSubCats.reduce((sum, sc) => sum + sc.requiredCredits, 0),
-        updatedAt: new Date().toISOString(),
-      };
-    }));
-  }, []);
-
-  const handleDetachCourse = useCallback((poolId: string, subCatId: string, courseId: string) => {
-    setPools(prev => prev.map(p => {
-      if (p.id !== poolId) return p;
-      const updatedSubCats = p.subCategories.map(sc => {
-        if (sc.id !== subCatId) return sc;
-        const updatedCourses = sc.attachedCourses.filter(c => c.courseId !== courseId);
-        return {
-          ...sc,
-          attachedCourses: updatedCourses,
-          attachedCredits: updatedCourses.reduce((sum, c) => sum + c.credits, 0),
-        };
+  const handleToggleEnabled = useCallback(async (poolId: string, enabled: boolean) => {
+    try {
+      await updateCreditPool(curriculumId, Number(poolId), { enabled });
+      
+      // Optimistically update UI
+      setPools(prev => prev.map(p => 
+        p.id === poolId ? { ...p, enabled, updatedAt: new Date().toISOString() } : p
+      ));
+    } catch (error) {
+      console.error('Failed to toggle pool:', error);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to update pool',
       });
-      return {
-        ...p,
-        subCategories: updatedSubCats,
-        totalAttachedCredits: updatedSubCats.reduce((sum, sc) => sum + sc.attachedCredits, 0),
-        updatedAt: new Date().toISOString(),
-      };
-    }));
-  }, []);
+      // Refresh to get correct state
+      loadPools(true);
+    }
+  }, [curriculumId, loadPools, showToast]);
 
-  const handleAutoAttach = useCallback((poolId: string, subCatId: string) => {
-    setPools(prev => prev.map(p => {
-      if (p.id !== poolId) return p;
-      
-      const poolAttachedIds = new Set(getPoolAttachedIds(p));
-      
-      const updatedSubCats = p.subCategories.map(sc => {
-        if (sc.id !== subCatId) return sc;
-        
-        const availableCourses = getCoursesForType(sc.courseTypeId)
-          .filter(c => !poolAttachedIds.has(c.id));
-        
-        const newAttached: AttachedPoolCourse[] = availableCourses.map(c => ({
-          id: `attached-${c.id}`,
-          courseId: c.id,
-          code: c.code || 'N/A',
-          name: c.name || 'Unknown',
-          credits: c.credits,
-          attachedAt: new Date().toISOString(),
-        }));
-        
-        const allAttached = [...sc.attachedCourses, ...newAttached];
-        return {
-          ...sc,
-          attachedCourses: allAttached,
-          attachedCredits: allAttached.reduce((sum, c) => sum + c.credits, 0),
-        };
-      });
-      
-      return {
-        ...p,
-        subCategories: updatedSubCats,
-        totalAttachedCredits: updatedSubCats.reduce((sum, sc) => sum + sc.attachedCredits, 0),
-        updatedAt: new Date().toISOString(),
-      };
-    }));
-  }, [getCoursesForType, getPoolAttachedIds]);
-
-  const handleAddCourses = useCallback((coursesToAdd: CurriculumCourseLite[]) => {
-    const { poolId, subCatId } = addCourseModal;
+  const handleDeletePool = useCallback(async (poolId: string) => {
+    if (!confirm('Are you sure you want to delete this pool?')) return;
     
-    setPools(prev => prev.map(p => {
-      if (p.id !== poolId) return p;
+    try {
+      await deleteCreditPool(curriculumId, Number(poolId));
       
-      const updatedSubCats = p.subCategories.map(sc => {
-        if (sc.id !== subCatId) return sc;
-        
-        const newAttached: AttachedPoolCourse[] = coursesToAdd.map(c => ({
-          id: `attached-${c.id}`,
-          courseId: c.id,
-          code: c.code || 'N/A',
-          name: c.name || 'Unknown',
-          credits: c.credits,
-          attachedAt: new Date().toISOString(),
-        }));
-        
-        const allAttached = [...sc.attachedCourses, ...newAttached];
-        return {
-          ...sc,
-          attachedCourses: allAttached,
-          attachedCredits: allAttached.reduce((sum, c) => sum + c.credits, 0),
-        };
+      showToast({
+        type: 'success',
+        title: 'Success',
+        message: 'Credit pool deleted successfully',
       });
       
-      return {
-        ...p,
-        subCategories: updatedSubCats,
-        totalAttachedCredits: updatedSubCats.reduce((sum, sc) => sum + sc.attachedCredits, 0),
-        updatedAt: new Date().toISOString(),
-      };
-    }));
-  }, [addCourseModal]);
+      // Remove from local state
+      setPools(prev => prev.filter(p => p.id !== poolId));
+    } catch (error) {
+      console.error('Failed to delete pool:', error);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to delete credit pool',
+      });
+    }
+  }, [curriculumId, showToast]);
 
-  const openAddCourseModal = useCallback((poolId: string, subCatId: string) => {
+  const handleUpdateSubCategory = useCallback(async (poolId: string, subCatId: string, credits: number) => {
+    console.log('[handleUpdateSubCategory] Called with:', { poolId, subCatId, credits, curriculumId });
+    try {
+      const result = await updateSubCategory(curriculumId, Number(poolId), Number(subCatId), {
+        requiredCredits: credits,
+      });
+      console.log('[handleUpdateSubCategory] API response:', result);
+      
+      // Optimistically update UI
+      setPools(prev => prev.map(p => {
+        if (p.id !== poolId) return p;
+        const updatedSubCats = p.subCategories.map(sc =>
+          sc.id === subCatId ? { ...sc, requiredCredits: credits } : sc
+        );
+        return {
+          ...p,
+          subCategories: updatedSubCats,
+          totalRequiredCredits: updatedSubCats.reduce((sum, sc) => sum + sc.requiredCredits, 0),
+          updatedAt: new Date().toISOString(),
+        };
+      }));
+    } catch (error) {
+      console.error('Failed to update sub-category:', error);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to update credit requirement',
+      });
+      loadPools(true);
+    }
+  }, [curriculumId, loadPools, showToast]);
+
+  const handleDetachCourse = useCallback(async (poolId: string, subCatId: string, courseId: string) => {
+    try {
+      // Find the attachment ID
+      const pool = pools.find(p => p.id === poolId);
+      const subCat = pool?.subCategories.find(sc => sc.id === subCatId);
+      const attachment = subCat?.attachedCourses.find(c => c.courseId === courseId);
+      
+      console.log('[handleDetachCourse] Detaching:', { poolId, subCatId, courseId, attachmentId: attachment?.id });
+      
+      if (!attachment) {
+        throw new Error('Attachment not found');
+      }
+      
+      // Use attachment ID for deletion (more reliable)
+      await detachCourseByAttachmentId(curriculumId, Number(attachment.id));
+      
+      // Optimistically update UI
+      setPools(prev => prev.map(p => {
+        if (p.id !== poolId) return p;
+        const updatedSubCats = p.subCategories.map(sc => {
+          if (sc.id !== subCatId) return sc;
+          const updatedCourses = sc.attachedCourses.filter(c => c.courseId !== courseId);
+          return {
+            ...sc,
+            attachedCourses: updatedCourses,
+            attachedCredits: updatedCourses.reduce((sum, c) => sum + c.credits, 0),
+          };
+        });
+        return {
+          ...p,
+          subCategories: updatedSubCats,
+          totalAttachedCredits: updatedSubCats.reduce((sum, sc) => sum + sc.attachedCredits, 0),
+          updatedAt: new Date().toISOString(),
+        };
+      }));
+      
+      showToast({
+        type: 'success',
+        title: 'Success',
+        message: 'Course detached successfully',
+      });
+    } catch (error) {
+      console.error('Failed to detach course:', error);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to detach course',
+      });
+      loadPools(true);
+    }
+  }, [curriculumId, pools, loadPools, showToast]);
+
+  const handleAutoAttach = useCallback(async (poolId: string, subCatId: string) => {
+    try {
+      // Fetch available courses for this sub-category from API
+      const response = await fetchAvailableCoursesForSubCategory(curriculumId, Number(poolId), Number(subCatId));
+      const availableCourses = response.courses || [];
+      
+      if (availableCourses.length === 0) {
+        showToast({
+          type: 'info',
+          title: 'No courses available',
+          message: 'All matching courses are already attached',
+        });
+        return;
+      }
+      
+      // Attach all available courses
+      const courseIds = availableCourses.map((c: AvailableCourse) => c.id);
+      await attachCoursesToSubCategory(curriculumId, Number(subCatId), courseIds);
+      
+      showToast({
+        type: 'success',
+        title: 'Success',
+        message: `Attached ${courseIds.length} course(s) automatically`,
+      });
+      
+      // Refresh pools to get updated state
+      await loadPools(true);
+    } catch (error) {
+      console.error('Failed to auto-attach courses:', error);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to auto-attach courses',
+      });
+    }
+  }, [curriculumId, loadPools, showToast]);
+
+  const handleAddCourses = useCallback(async (coursesToAdd: CurriculumCourseLite[]) => {
+    const { subCatId } = addCourseModal;
+    
+    try {
+      const courseIds = coursesToAdd.map(c => c.id);
+      await attachCoursesToSubCategory(curriculumId, Number(subCatId), courseIds);
+      
+      showToast({
+        type: 'success',
+        title: 'Success',
+        message: `Attached ${courseIds.length} course(s) successfully`,
+      });
+      
+      // Close modal and refresh
+      setAddCourseModal(prev => ({ ...prev, isOpen: false }));
+      await loadPools(true);
+    } catch (error) {
+      console.error('Failed to attach courses:', error);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to attach courses',
+      });
+    }
+  }, [addCourseModal, curriculumId, loadPools, showToast]);
+
+  const openAddCourseModal = useCallback(async (poolId: string, subCatId: string) => {
     const pool = pools.find(p => p.id === poolId);
     const subCat = pool?.subCategories.find(sc => sc.id === subCatId);
-    if (subCat) {
-      setAddCourseModal({
-        isOpen: true,
-        poolId,
-        subCatId,
-        subCatName: subCat.courseTypeName,
+    if (!subCat) return;
+    
+    // Open modal with loading state
+    setAddCourseModal({
+      isOpen: true,
+      poolId,
+      subCatId,
+      subCatName: subCat.courseTypeName,
+      availableCourses: [],
+      isLoadingCourses: true,
+    });
+    
+    try {
+      // Fetch available courses from API
+      const response = await fetchAvailableCoursesForSubCategory(curriculumId, Number(poolId), Number(subCatId));
+      setAddCourseModal(prev => ({
+        ...prev,
+        availableCourses: response.courses || [],
+        isLoadingCourses: false,
+      }));
+    } catch (error) {
+      console.error('Failed to fetch available courses:', error);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to load available courses',
       });
+      setAddCourseModal(prev => ({ ...prev, isLoadingCourses: false }));
     }
-  }, [pools]);
+  }, [pools, curriculumId, showToast]);
 
-  // Get available courses for add modal
-  const getAvailableCoursesForModal = useCallback(() => {
-    const { poolId, subCatId } = addCourseModal;
-    const pool = pools.find(p => p.id === poolId);
-    if (!pool) return [];
-    
-    const subCat = pool.subCategories.find(sc => sc.id === subCatId);
-    if (!subCat) return [];
-    
-    const poolAttachedIds = new Set(getPoolAttachedIds(pool));
-    return getCoursesForType(subCat.courseTypeId).filter(c => !poolAttachedIds.has(c.id));
-  }, [addCourseModal, pools, getCoursesForType, getPoolAttachedIds]);
+  // Transform available courses to CurriculumCourseLite for modal
+  const getAvailableCoursesForModal = useCallback((): CurriculumCourseLite[] => {
+    return addCourseModal.availableCourses.map(c => ({
+      id: c.id,
+      code: c.code,
+      name: c.name,
+      credits: c.credits,
+      courseType: null,
+    }));
+  }, [addCourseModal.availableCourses]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-border rounded-xl p-8">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading credit pools...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -907,10 +1094,21 @@ export default function CurriculumPoolsTab({
             Manage credit requirements based on course categories
           </p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)} disabled={topLevelTypes.length === usedTypeIds.length}>
-          <FaPlus className="w-4 h-4 mr-2" />
-          Add Pool
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => loadPools(true)}
+            disabled={isRefreshing}
+          >
+            <FaSync className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button onClick={() => setIsCreateModalOpen(true)} disabled={availableTopLevelTypes.length === 0 && topLevelTypes.length === usedTypeIds.length}>
+            <FaPlus className="w-4 h-4 mr-2" />
+            Add Pool
+          </Button>
+        </div>
       </div>
 
       {/* Summary */}
@@ -952,7 +1150,7 @@ export default function CurriculumPoolsTab({
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSave={handleCreatePool}
-        availableTopLevelTypes={topLevelTypes}
+        availableTopLevelTypes={availableTopLevelTypes.length > 0 ? availableTopLevelTypes : topLevelTypes}
         courseTypes={courseTypes}
         usedTypeIds={usedTypeIds}
       />
@@ -963,6 +1161,7 @@ export default function CurriculumPoolsTab({
         onAdd={handleAddCourses}
         availableCourses={getAvailableCoursesForModal()}
         subCategoryName={addCourseModal.subCatName}
+        isLoading={addCourseModal.isLoadingCourses}
       />
     </div>
   );
