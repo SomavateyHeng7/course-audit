@@ -237,45 +237,41 @@ const SubCategoryRow: React.FC<SubCategoryRowProps> = ({
             style={{ backgroundColor: subCategory.courseTypeColor || '#6b7280' }}
           />
           <span className="font-medium text-sm">{subCategory.courseTypeName}</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant={isSatisfied ? 'default' : 'secondary'} 
-                className={`text-xs cursor-help ${isSatisfied ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}
-              >
-                {localCredits} of {subCategory.attachedCredits} cr
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{localCredits} credits required out of {subCategory.attachedCredits} total available</p>
-            </TooltipContent>
-          </Tooltip>
           {isSatisfied ? (
             <FaCheck className="w-3 h-3 text-green-500" />
           ) : (
             <FaExclamationTriangle className="w-3 h-3 text-amber-500" />
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative flex items-center gap-1.5 bg-background border rounded-md px-2 py-1">
+        <div className="flex items-center gap-3">
+          {/* Credits Progress Display */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Available:</span>
+            <span className="font-medium">{subCategory.attachedCredits} cr</span>
+          </div>
+          
+          {/* Required Credits Input */}
+          <div className="flex items-center gap-1.5 bg-background border rounded-md px-2 py-1">
+            <span className="text-xs text-muted-foreground">Required:</span>
             <Input
               type="number"
               min={0}
+              max={subCategory.attachedCredits}
               value={localCredits}
               onChange={(e) => {
                 e.stopPropagation();
                 handleCreditsChange(Math.max(0, parseInt(e.target.value) || 0));
               }}
               onClick={(e) => e.stopPropagation()}
-              className={`w-14 h-6 text-sm text-center border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isSaving ? 'text-primary' : ''}`}
+              className={`w-12 h-6 text-sm text-center border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isSaving ? 'text-primary' : ''}`}
             />
-            <span className="text-xs text-muted-foreground whitespace-nowrap">req.</span>
+            <span className="text-xs text-muted-foreground">cr</span>
             {isSaving && (
               <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             )}
-            {!isSaving && <FaCheck className="w-3 h-3 text-green-500" />}
           </div>
-          {isExpanded ? <FaChevronUp className="w-4 h-4" /> : <FaChevronDown className="w-4 h-4" />}
+          
+          {isExpanded ? <FaChevronUp className="w-4 h-4 text-muted-foreground" /> : <FaChevronDown className="w-4 h-4 text-muted-foreground" />}
         </div>
       </div>
       
@@ -378,49 +374,65 @@ const PoolCard: React.FC<PoolCardProps> = ({
               style={{ backgroundColor: pool.topLevelCourseTypeColor || '#6b7280' }}
             />
             <CardTitle className="text-lg">{pool.name}</CardTitle>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge variant="outline" className="cursor-help">
-                    {totalRequired} of {totalAvailable} cr
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{totalRequired} credits required out of {totalAvailable} total available in pool</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
             {isComplete ? (
-              <Badge className="bg-green-100 text-green-700">
+              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                 <FaCheck className="w-3 h-3 mr-1" /> Complete
               </Badge>
             ) : (
-              <Badge className="bg-amber-100 text-amber-700">
-                <FaExclamationTriangle className="w-3 h-3 mr-1" /> Needs Attention
+              <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                <FaExclamationTriangle className="w-3 h-3 mr-1" /> Incomplete
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => onToggleEnabled(!pool.enabled)}
-                    className={`p-2 rounded ${pool.enabled ? 'text-green-600' : 'text-gray-400'}`}
-                  >
-                    {pool.enabled ? <FaToggleOn className="w-5 h-5" /> : <FaToggleOff className="w-5 h-5" />}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{pool.enabled ? 'Disable pool' : 'Enable pool'}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <button onClick={onDelete} className="p-2 text-red-500 hover:text-red-700 rounded">
-              <FaTrash className="w-4 h-4" />
-            </button>
+          <div className="flex items-center gap-4">
+            {/* Pool Summary */}
+            <div className="flex items-center gap-4 text-sm">
+              <div className="text-center">
+                <span className="text-muted-foreground">Required: </span>
+                <span className="font-semibold">{totalRequired} cr</span>
+              </div>
+              <div className="text-center">
+                <span className="text-muted-foreground">Available: </span>
+                <span className="font-semibold">{totalAvailable} cr</span>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => onToggleEnabled(!pool.enabled)}
+                      className={`p-2 rounded hover:bg-muted ${pool.enabled ? 'text-green-600' : 'text-gray-400'}`}
+                    >
+                      {pool.enabled ? <FaToggleOn className="w-5 h-5" /> : <FaToggleOff className="w-5 h-5" />}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>{pool.enabled ? 'Disable pool' : 'Enable pool'}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <button onClick={onDelete} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
+                <FaTrash className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+        {/* Progress Bar */}
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <span>Credit Pool Progress</span>
+            <span>{totalAvailable >= totalRequired ? '✓ Sufficient' : `${totalRequired - totalAvailable} cr needed`}</span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2">
+            <div 
+              className={`h-2 rounded-full transition-all ${totalAvailable >= totalRequired ? 'bg-green-500' : 'bg-amber-500'}`}
+              style={{ width: `${Math.min(100, totalRequired > 0 ? (totalAvailable / totalRequired) * 100 : 100)}%` }}
+            />
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
+        <p className="text-xs text-muted-foreground mb-2">Sub-categories (click to expand and manage courses):</p>
         {pool.subCategories.map((subCat) => {
           const availableCourses = getAvailableCourses(subCat.courseTypeId);
           const attachedIds = new Set(subCat.attachedCourses.map(c => c.courseId));
@@ -663,33 +675,43 @@ interface SummaryCardProps {
 const SummaryCard: React.FC<SummaryCardProps> = ({ pools }) => {
   const enabledPools = pools.filter(p => p.enabled);
   const totalRequired = enabledPools.reduce((sum, p) => sum + p.totalRequiredCredits, 0);
+  const totalAvailable = enabledPools.reduce((sum, p) => sum + p.totalAttachedCredits, 0);
   const completePools = enabledPools.filter(p => 
     p.subCategories.every(sc => sc.attachedCredits >= sc.requiredCredits)
   ).length;
   const needsAttention = enabledPools.length - completePools;
 
   return (
-    <Card className="bg-gradient-to-r from-primary/5 to-primary/10">
+    <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div>
-              <p className="text-2xl font-bold">{pools.length}</p>
-              <p className="text-xs text-muted-foreground">Total Pools</p>
+          <div className="flex items-center gap-8">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-primary">{pools.length}</p>
+              <p className="text-xs text-muted-foreground">Credit Pools</p>
             </div>
-            <div>
+            <div className="h-8 w-px bg-border" />
+            <div className="text-center">
               <p className="text-2xl font-bold">{totalRequired}</p>
-              <p className="text-xs text-muted-foreground">Total Credits</p>
+              <p className="text-xs text-muted-foreground">Required Credits</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold">{totalAvailable}</p>
+              <p className="text-xs text-muted-foreground">Available Credits</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-center">
-              <Badge className="bg-green-100 text-green-700">{completePools} Complete</Badge>
-            </div>
+          <div className="flex items-center gap-3">
+            {completePools > 0 && (
+              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-3 py-1">
+                <FaCheck className="w-3 h-3 mr-1" />
+                {completePools} Complete
+              </Badge>
+            )}
             {needsAttention > 0 && (
-              <div className="text-center">
-                <Badge className="bg-amber-100 text-amber-700">{needsAttention} Needs Attention</Badge>
-              </div>
+              <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1">
+                <FaExclamationTriangle className="w-3 h-3 mr-1" />
+                {needsAttention} Incomplete
+              </Badge>
             )}
           </div>
         </div>
