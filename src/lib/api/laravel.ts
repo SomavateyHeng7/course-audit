@@ -532,6 +532,7 @@ export interface CacheSubmission {
   submittedAt?: string; // Backend might use either
   expires_at: string;
   expiresAt?: string; // Backend might use either
+  deletion_date?: string; // NEW: Simple date for display (YYYY-MM-DD)
   time_remaining_minutes?: number;
   course_count?: number;
   courses?: SubmissionCourse[];
@@ -544,6 +545,13 @@ export interface CacheSubmission {
   approved_at?: string;
   rejected_at?: string;
   rejection_reason?: string;
+}
+
+// Retention info for submissions list response
+export interface SubmissionRetentionInfo {
+  portal_deadline: string;
+  retention_days: number;
+  deletion_date: string;
 }
 
 export interface ValidationResult {
@@ -919,7 +927,7 @@ export async function regeneratePortalPin(portalId: string): Promise<{
   });
 }
 
-// ===== CACHE SUBMISSIONS (Temporary Data - 30 min TTL) =====
+// ===== CACHE SUBMISSIONS (Retained until 7 days after portal deadline) =====
 
 /**
  * List cached submissions for a portal
@@ -928,6 +936,8 @@ export async function regeneratePortalPin(portalId: string): Promise<{
 export async function getCacheSubmissions(portalId: string): Promise<{
   submissions: CacheSubmission[];
   total: number;
+  retention_info?: SubmissionRetentionInfo;
+  note?: string;
 }> {
   return authenticatedRequest(`/graduation-portals/${portalId}/cache-submissions`);
 }
@@ -995,6 +1005,103 @@ export async function rejectCacheSubmission(
       body: JSON.stringify({ reason })
     }
   );
+}
+
+// ===== GRADUATION NOTIFICATIONS API =====
+
+/**
+ * Notification types for graduation portal
+ */
+export interface GraduationNotification {
+  id: string;
+  type: 'new_submission' | 'submission_validated';
+  title: string;
+  message: string;
+  data: {
+    submission_id?: string;
+    student_identifier?: string;
+    course_count?: number;
+    portal_name?: string;
+  };
+  read: boolean;
+  read_at: string | null;
+  created_at: string;
+  portal: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+/**
+ * List graduation notifications
+ * GET /api/graduation-notifications
+ */
+export async function getGraduationNotifications(): Promise<{
+  notifications: GraduationNotification[];
+  total: number;
+}> {
+  return authenticatedRequest('/graduation-notifications');
+}
+
+/**
+ * Get unread notification count
+ * GET /api/graduation-notifications/unread-count
+ */
+export async function getGraduationNotificationUnreadCount(): Promise<{
+  unread_count: number;
+}> {
+  return authenticatedRequest('/graduation-notifications/unread-count');
+}
+
+/**
+ * Mark single notification as read
+ * POST /api/graduation-notifications/{id}/read
+ */
+export async function markGraduationNotificationRead(notificationId: string): Promise<{
+  message: string;
+  notification: GraduationNotification;
+}> {
+  return authenticatedRequest(`/graduation-notifications/${notificationId}/read`, {
+    method: 'POST'
+  });
+}
+
+/**
+ * Mark all notifications as read
+ * POST /api/graduation-notifications/mark-all-read
+ */
+export async function markAllGraduationNotificationsRead(): Promise<{
+  message: string;
+  marked_count: number;
+}> {
+  return authenticatedRequest('/graduation-notifications/mark-all-read', {
+    method: 'POST'
+  });
+}
+
+/**
+ * Delete a notification
+ * DELETE /api/graduation-notifications/{id}
+ */
+export async function deleteGraduationNotification(notificationId: string): Promise<{
+  message: string;
+}> {
+  return authenticatedRequest(`/graduation-notifications/${notificationId}`, {
+    method: 'DELETE'
+  });
+}
+
+/**
+ * Clear all read notifications
+ * DELETE /api/graduation-notifications/clear-read
+ */
+export async function clearReadGraduationNotifications(): Promise<{
+  message: string;
+  deleted_count: number;
+}> {
+  return authenticatedRequest('/graduation-notifications/clear-read', {
+    method: 'DELETE'
+  });
 }
 
 /**

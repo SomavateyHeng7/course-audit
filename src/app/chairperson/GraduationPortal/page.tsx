@@ -60,6 +60,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
 import { EmptyState } from '@/components/role-specific/chairperson/EmptyState';
+import { useToastHelpers } from '@/hooks/useToast';
 import {
   getGraduationPortals,
   createGraduationPortal,
@@ -180,10 +181,31 @@ const DonutChart = ({
   );
 };
 
-// Expiry Timer Component
-const ExpiryTimer = ({ expiresAt }: { expiresAt: string }) => {
+// Expiry/Retention Timer Component
+const RetentionTimer = ({ expiresAt, deletionDate }: { expiresAt: string; deletionDate?: string }) => {
   const [time, setTime] = useState(getTimeRemaining(expiresAt || ''));
   
+  // If we have a deletion date (new system - 7 days after deadline), show that
+  if (deletionDate) {
+    const deletionDateTime = new Date(deletionDate);
+    const now = new Date();
+    const isExpired = deletionDateTime < now;
+    
+    if (isExpired) {
+      return <Badge variant="destructive" className="text-xs">Expired</Badge>;
+    }
+    
+    const daysUntilDeletion = Math.ceil((deletionDateTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return (
+      <Badge variant="outline" className={`text-xs ${daysUntilDeletion <= 2 ? 'border-orange-500 text-orange-600' : 'border-gray-300'}`}>
+        <Calendar className="w-3 h-3 mr-1" />
+        {daysUntilDeletion <= 0 ? 'Today' : `${daysUntilDeletion} day${daysUntilDeletion > 1 ? 's' : ''} left`}
+      </Badge>
+    );
+  }
+  
+  // Fallback to old countdown timer (for backwards compatibility)
   useEffect(() => {
     if (!expiresAt) return;
     const interval = setInterval(() => {
@@ -203,6 +225,9 @@ const ExpiryTimer = ({ expiresAt }: { expiresAt: string }) => {
     </Badge>
   );
 };
+
+// Legacy alias for backwards compatibility
+const ExpiryTimer = RetentionTimer;
 
 // Create Portal Modal Component
 const CreatePortalModal = ({ 
@@ -364,6 +389,7 @@ const ConfirmDialog = ({
 // Main Page Component
 const GraduationPortalChairpersonPage: React.FC = () => {
   const router = useRouter();
+  const { success: showSuccess, error: showError } = useToastHelpers();
   
   // Loading states
   const [loading, setLoading] = useState(true);
@@ -426,7 +452,13 @@ const GraduationPortalChairpersonPage: React.FC = () => {
         getCurricula()
       ]);
       
-      const portalsList = portalsRes.data || [];
+      // Debug logging for API response
+      console.log('Graduation portals API response:', portalsRes);
+      
+      // Handle different response structures from backend
+      const portalsList = portalsRes.data || portalsRes.portals || (Array.isArray(portalsRes) ? portalsRes : []);
+      console.log('Parsed portals list:', portalsList);
+      
       setPortals(portalsList);
       setCurricula(curriculaRes.curricula || curriculaRes.data || curriculaRes);
       
@@ -438,6 +470,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
         setSelectedPortal(portalsList[0]);
       }
     } catch (err) {
+      console.error('Failed to load graduation portal data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
@@ -486,14 +519,17 @@ const GraduationPortalChairpersonPage: React.FC = () => {
       setPortals(prev => [...prev, response.portal]);
       setSelectedPortal(response.portal);
       setShowCreateModal(false);
+      showSuccess(`Portal "${data.name}" created successfully`, 'Portal Created');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to create portal');
+      showError(err instanceof Error ? err.message : 'Failed to create portal', 'Error');
     } finally {
       setIsCreatingPortal(false);
     }
   };
 
   const handleClosePortal = async (portalId: string) => {
+    // Close dialog immediately to prevent UI freeze
+    setConfirmDialog(null);
     setIsProcessingAction(true);
     try {
       await closeGraduationPortal(portalId);
@@ -501,11 +537,11 @@ const GraduationPortalChairpersonPage: React.FC = () => {
       if (selectedPortal?.id === portalId) {
         setSelectedPortal(prev => prev ? { ...prev, status: 'closed' } : null);
       }
+      showSuccess('Portal closed successfully', 'Portal Closed');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to close portal');
+      showError(err instanceof Error ? err.message : 'Failed to close portal', 'Error');
     } finally {
       setIsProcessingAction(false);
-      setConfirmDialog(null);
     }
   };
 
@@ -517,27 +553,37 @@ const GraduationPortalChairpersonPage: React.FC = () => {
       if (selectedPortal?.id === portalId) {
         setSelectedPortal(prev => prev ? { ...prev, pin: response.pin } : null);
       }
-      alert(`New PIN: ${response.pin}`);
+      showSuccess(`New PIN: ${response.pin}`, 'PIN Regenerated');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to regenerate PIN');
+      showError(err instanceof Error ? err.message : 'Failed to regenerate PIN', 'Error');
     } finally {
       setIsProcessingAction(false);
     }
   };
 
   const handleDeletePortal = async (portalId: string) => {
+    // Close dialog immediately to prevent UI freeze
+    setConfirmDialog(null);
     setIsProcessingAction(true);
     try {
+      const portalName = portals.find(p => p.id === portalId)?.name || 'Portal';
       await deleteGraduationPortal(portalId);
-      setPortals(prev => prev.filter(p => p.id !== portalId));
+      
+      // Update portals and find new selection
+      const remainingPortals = portals.filter(p => p.id !== portalId);
+      setPortals(remainingPortals);
+      
+      // Select another portal if the deleted one was selected
       if (selectedPortal?.id === portalId) {
-        setSelectedPortal(portals.find(p => p.id !== portalId) || null);
+        const newSelection = remainingPortals.find(p => p.status === 'active') || remainingPortals[0] || null;
+        setSelectedPortal(newSelection);
       }
+      
+      showSuccess(`Portal "${portalName}" deleted successfully`, 'Portal Deleted');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete portal');
+      showError(err instanceof Error ? err.message : 'Failed to delete portal', 'Error');
     } finally {
       setIsProcessingAction(false);
-      setConfirmDialog(null);
     }
   };
 
@@ -550,8 +596,9 @@ const GraduationPortalChairpersonPage: React.FC = () => {
           ? { ...s, status: canGraduate ? 'validated' : 'has_issues', validationResult: response.validation || response.submission?.validation_result }
           : s
       ));
+      showSuccess(canGraduate ? 'Student can graduate!' : 'Validation complete - issues found', 'Validated');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to validate submission');
+      showError(err instanceof Error ? err.message : 'Failed to validate submission', 'Error');
     }
   };
 
@@ -561,8 +608,9 @@ const GraduationPortalChairpersonPage: React.FC = () => {
       setSubmissions(prev => prev.map(s => 
         s.id === submissionId ? { ...s, status: 'approved' } : s
       ));
+      showSuccess('Submission approved', 'Approved');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to approve submission');
+      showError(err instanceof Error ? err.message : 'Failed to approve submission', 'Error');
     }
   };
 
@@ -572,8 +620,9 @@ const GraduationPortalChairpersonPage: React.FC = () => {
       setSubmissions(prev => prev.map(s => 
         s.id === submissionId ? { ...s, status: 'rejected' } : s
       ));
+      showSuccess('Submission rejected', 'Rejected');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to reject submission');
+      showError(err instanceof Error ? err.message : 'Failed to reject submission', 'Error');
     }
   };
 
@@ -587,8 +636,9 @@ const GraduationPortalChairpersonPage: React.FC = () => {
       const response = await batchValidateSubmissions(selectedPortal.id, pendingIds);
       // Reload submissions to get updated statuses
       await loadSubmissions(selectedPortal.id);
+      showSuccess(`Validated ${pendingIds.length} submission(s)`, 'Batch Validation Complete');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to batch validate');
+      showError(err instanceof Error ? err.message : 'Failed to batch validate', 'Error');
     } finally {
       setIsProcessingAction(false);
     }
@@ -600,7 +650,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
 
   const handleCopyPin = (pin: string) => {
     navigator.clipboard.writeText(pin);
-    // Could add a toast notification here
+    showSuccess('PIN copied to clipboard', 'Copied');
   };
 
   // Filtered submissions
@@ -658,13 +708,13 @@ const GraduationPortalChairpersonPage: React.FC = () => {
         </div>
 
         {/* Portal Selector */}
-        {portals.length > 0 && (
-          <Card className="mb-6">
-            <CardContent className="p-4">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Active Portal</label>
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Active Portal</label>
+                  {portals.length > 0 ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-full justify-between mt-1">
@@ -693,10 +743,13 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1">No portals available. Create one to get started.</p>
+                  )}
                 </div>
+              </div>
 
-                {selectedPortal && (
+              {selectedPortal && (
                   <div className="flex flex-wrap items-center gap-3 text-sm">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -769,7 +822,6 @@ const GraduationPortalChairpersonPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
@@ -967,9 +1019,12 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                         </Badge>
                       </div>
 
-                      {/* Expiry */}
+                      {/* Expiry/Retention */}
                       <div className="mb-3 lg:mb-0">
-                        <ExpiryTimer expiresAt={submission.expiresAt || submission.expires_at} />
+                        <ExpiryTimer 
+                          expiresAt={submission.expiresAt || submission.expires_at} 
+                          deletionDate={submission.deletion_date}
+                        />
                       </div>
 
                       {/* Actions */}
