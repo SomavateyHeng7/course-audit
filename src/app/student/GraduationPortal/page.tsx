@@ -21,7 +21,8 @@ import {
   AlertTriangle,
   Loader2,
   BookOpen,
-  Search
+  Search,
+  Calendar
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -1086,11 +1087,11 @@ const GraduationPortalPage: React.FC = () => {
                 <p><strong>Curriculum:</strong> {selectedCurriculum?.name ?? 'Unknown Curriculum'}</p>
               </div>
 
-              <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-amber-700 dark:text-amber-300">
-                  Submission data is temporary and will expire after 30 minutes. 
-                  Your chairperson will review it during this window.
+              <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <Clock className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Your submission will be retained until 7 days after the portal deadline for review.
+                  Data is automatically deleted afterward for privacy (PDPA compliance).
                 </p>
               </div>
               
@@ -1132,9 +1133,9 @@ const GraduationPortalPage: React.FC = () => {
                 <div className="bg-muted/50 rounded-lg p-3 mb-4 text-left text-sm">
                   <p><strong>Submission ID:</strong> {submissionId.slice(0, 8)}...</p>
                   {submissionExpiresAt && (
-                    <p className="text-amber-600 dark:text-amber-400 mt-1">
-                      <Clock className="w-3 h-3 inline mr-1" />
-                      Data expires: {new Date(submissionExpiresAt).toLocaleString()}
+                    <p className="text-blue-600 dark:text-blue-400 mt-1">
+                      <Calendar className="w-3 h-3 inline mr-1" />
+                      Data retained until: {new Date(submissionExpiresAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                     </p>
                   )}
                 </div>
@@ -1149,11 +1150,15 @@ const GraduationPortalPage: React.FC = () => {
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                    The chairperson will validate your courses within 30 minutes
+                    The chairperson will review and validate your courses
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                     Results will be communicated according to department policy
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Clock className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    Your data will be automatically deleted 7 days after the deadline
                   </li>
                 </ul>
               </div>

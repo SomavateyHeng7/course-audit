@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/common-utils";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useSidebar } from "@/contexts/SidebarContext";
+import NotificationDropdown from "@/components/common/NotificationDropdown";
 import {
   LayoutDashboard,
   User,
@@ -297,8 +298,15 @@ export default function Sidebar() {
       </div>
       {/* Theme Toggle */}
       <div className="px-3 py-2 border-b border-teal-200/60 dark:border-teal-800/40">
-        <div className="flex justify-center">
+        <div className={cn(
+          "flex items-center",
+          isCollapsed ? "flex-col gap-2" : "justify-between"
+        )}>
           <ThemeToggle />
+          {/* Notification Bell - Only for Chairperson and Advisor */}
+          {(user?.role === 'CHAIRPERSON' || user?.role === 'ADVISOR') && (
+            <NotificationDropdown isCollapsed={isCollapsed} />
+          )}
         </div>
       </div>
       {/* Navigation */}
