@@ -354,7 +354,10 @@ async function generateRecommendations(
 
 async function fetchBlacklists(curriculumId: string): Promise<BlacklistData[]> {
   const response = await fetch(`${API_BASE}/public-curricula/${curriculumId}/blacklists`, {
-    credentials: 'include'
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    }
   });
   if (!response.ok) throw new Error('Failed to fetch blacklists');
   const data = await response.json();
@@ -362,19 +365,14 @@ async function fetchBlacklists(curriculumId: string): Promise<BlacklistData[]> {
 }
 
 async function fetchCourses(departmentId: string, curriculumId?: string): Promise<CourseInfo[]> {
-  // If we have both IDs, use the available-courses endpoint which includes departmentCourseTypes
-  if (curriculumId && departmentId) {
-    const response = await fetch(`${API_BASE}/available-courses?curriculumId=${curriculumId}&departmentId=${departmentId}`, {
-      credentials: 'include'
-    });
-    if (!response.ok) throw new Error('Failed to fetch available courses');
-    const data = await response.json();
-    return data.courses || [];
+  try {
+    // Use public courses endpoint for unauthenticated access
+    const courses = await getPublicCourses();
+    return courses.filter((c: any) => c.departmentId === parseInt(departmentId));
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+    throw new Error('Failed to fetch available courses');
   }
-  
-  // Use public courses endpoint
-  const courses = await getPublicCourses();
-  return courses.filter((c: any) => c.departmentId === parseInt(departmentId));
 }
 
 // Validation helper functions

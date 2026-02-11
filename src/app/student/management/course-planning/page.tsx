@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToastHelpers } from '@/hooks/useToast';
-import { API_BASE, getPublishedSchedules, getPublishedSchedule, TentativeSchedule } from '@/lib/api/laravel';
+import { API_BASE, getPublicDepartments, getPublishedSchedules, getPublishedSchedule } from '@/lib/api/laravel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,65 +11,118 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
-  Search,
-  Plus,
-  Calendar, 
-  BookOpen, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock,
-  ArrowLeft,
-  BarChart3,
-  Target,
-  FileText
-} from 'lucide-react';
-import { CourseCard, AvailableCourse as MgmtAvailableCourse } from '@/components/features/management/CourseCard';
-import { CourseSearch } from '@/components/features/management/CourseSearch';
-import { PlannedCourseCard, PlannedCourse as MgmtPlannedCourse } from '@/components/features/management/PlannedCourseCard';
-import { ConcentrationAnalysis, ConcentrationProgress as MgmtConcentrationProgress } from '@/components/features/management/ConcentrationAnalysis';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { CourseSearch } from '@/components/features/management/CourseSearch';
+import { CourseCard } from '@/components/features/management/CourseCard';
+import { CourseWithSections } from '@/components/features/management/CourseWithSections';
+import { PlannedCourseCard } from '@/components/features/management/PlannedCourseCard';
+import { WeeklyScheduleCalendar } from '@/components/features/management/WeeklyScheduleCalendar';
+import { CourseScheduleCalendar } from '@/components/features/management/CourseScheduleCalendar';
+import { ConcentrationAnalysis } from '@/components/features/management/ConcentrationAnalysis';
+import { NotificationSubscribeDialog } from '@/components/features/notifications/NotificationSubscribeDialog';
+import { 
+  Search,
+  Plus,
+  Calendar, 
+  BookOpen, 
+  AlertTriangle, 
+  CheckCircle,
+  ArrowLeft,
+  Trash2,
+  Save,
+  X,
+  FileText,
+  List,
+  Clock,
+  Target,
+  LayoutGrid
+} from 'lucide-react';
 
+// Simplified interfaces for course planning
+interface CourseSection {
+  id: string;
+  section: string;
+  instructor?: string;
+  days?: string[];
+  timeStart?: string;
+  timeEnd?: string;
+  room?: string;
+  capacity?: number;
+  enrolled?: number;
+}
 
-// Extended interfaces to maintain compatibility
-interface PlannedCourse extends MgmtPlannedCourse {
+interface PlannedCourse {
+  id: string;
+  code: string;
+  title: string;
+  credits: number;
+  category?: string;
   semester?: string;
   semesterLabel?: string;
   prerequisites?: string[];
   corequisites?: string[];
+  sections?: CourseSection[];
+  selectedSection?: CourseSection;
+  validationStatus?: 'valid' | 'warning' | 'error';
+  validationMessage?: string;
+  validationNotes?: string[];
+  status: string;
 }
 
-interface AvailableCourse extends MgmtAvailableCourse {
+interface AvailableCourse {
+  id?: string;
+  code: string;
+  title: string;
+  credits: string | number;
+  description?: string;
+  prerequisites?: string[];
+  corequisites?: string[];
+  category: string;
+  sections?: CourseSection[];
+  selectedSection?: CourseSection;
+  requiresPermission?: boolean;
   bannedWith?: string[];
   level?: number;
-  blockingCourse?: string;
+  summerOnly?: boolean;
+  requiresSeniorStanding?: boolean;
   minCreditThreshold?: number;
 }
 
-// Custom concentration interfaces
-interface ConcentrationCourse {
-  code: string;
-  name: string;
-  credits: number;
-  description?: string;
+interface DataEntryContext {
+  selectedCurriculum: string;
+  selectedDepartment: string;
+  actualDepartmentId?: string;
+  selectedConcentration?: string;
+  completedCourses: Record<string, any>;
+  freeElectives?: any[];
 }
 
 interface Concentration {
   id: string;
   name: string;
+  curriculumId?: string;
   description?: string;
   requiredCourses: number;
-  totalCourses: number;
-  courses: ConcentrationCourse[];
+  totalCourses?: number;
+  courses?: Array<{
+    code: string;
+    name: string;
+    credits: number;
+    description: string;
+  }>;
 }
 
 interface ConcentrationProgress {
   concentration: Concentration;
+  completed?: number;
+  required?: number;
+  remaining?: number;
+  percentage?: number;
   completedCourses: string[];
   plannedCourses: string[];
   progress: number;
@@ -77,13 +130,19 @@ interface ConcentrationProgress {
   remainingCourses: number;
 }
 
-interface DataEntryContext {
-  selectedDepartment: string;
-  selectedCurriculum: string;
-  selectedConcentration: string;
-  completedCourses: { [code: string]: { status: string; grade?: string } };
-  freeElectives: { code: string; title: string; credits: number }[];
-  actualDepartmentId?: string;
+interface TentativeSchedule {
+  id: string;
+  name: string;
+  semester: string;
+  coursesCount: number;
+  courses?: any[];
+}
+
+interface ScheduleCombination {
+  id: string;
+  courses: any[];
+  hasConflicts: boolean;
+  conflicts: string[];
 }
 
 const getSuggestedSemesterLabel = (value?: string) => {
@@ -124,6 +183,7 @@ export default function CoursePlanningPage() {
   const [concentrations, setConcentrations] = useState<Concentration[]>([]);
   const [concentrationAnalysis, setConcentrationAnalysis] = useState<ConcentrationProgress[]>([]);
   const [showConcentrationModal, setShowConcentrationModal] = useState(false);
+  const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedSemester, setSelectedSemester] = useState('');
@@ -133,8 +193,20 @@ export default function CoursePlanningPage() {
   
   // Tentative schedule state
   const [tentativeSchedules, setTentativeSchedules] = useState<TentativeSchedule[]>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedScheduleDepartmentId, setSelectedScheduleDepartmentId] = useState<string>('my-department');
+  
+  // Schedule combination state
+  const [scheduleCombinations, setScheduleCombinations] = useState<ScheduleCombination[]>([]);
+  const [selectedCombination, setSelectedCombination] = useState<string | null>(null);
+  const [showScheduleViewer, setShowScheduleViewer] = useState(false);
+  const [generatingSchedules, setGeneratingSchedules] = useState(false);
+  
+  // View mode state - default to calendar for better schedule visualization
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
   const [selectedTentativeSchedule, setSelectedTentativeSchedule] = useState<string>('');
   const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [showSectionsInList, setShowSectionsInList] = useState(false); // Don't show sections until tentative schedule is loaded
   
   const handleSemesterSelect = (value: string) => {
     setSelectedSemester(value);
@@ -288,6 +360,10 @@ export default function CoursePlanningPage() {
   // Fetch available courses when context is ready
   useEffect(() => {
     if (hasValidContext && dataEntryContext) {
+      // Load departments if not already loaded
+      if (departments.length === 0) {
+        loadDepartmentsForSchedule();
+      }
       fetchAvailableCourses();
       fetchConcentrations();
       fetchBlacklistedCourses();
@@ -295,6 +371,13 @@ export default function CoursePlanningPage() {
       loadSavedCoursePlan();
     }
   }, [hasValidContext, dataEntryContext]);
+  
+  // Refetch schedules when selected department changes
+  useEffect(() => {
+    if (hasValidContext && dataEntryContext && selectedScheduleDepartmentId) {
+      fetchTentativeSchedules();
+    }
+  }, [selectedScheduleDepartmentId]);
 
   // Remove currently taking courses from any persisted plan state
   useEffect(() => {
@@ -305,6 +388,15 @@ export default function CoursePlanningPage() {
       return filtered.length === prev.length ? prev : filtered;
     });
   }, [inProgressCourses]);
+  
+  const loadDepartmentsForSchedule = async () => {
+    try {
+      const response = await getPublicDepartments();
+      setDepartments(response.departments);
+    } catch (error) {
+      console.error('Error loading departments:', error);
+    }
+  };
 
   const fetchAvailableCourses = async () => {
     if (!dataEntryContext) return;
@@ -585,12 +677,22 @@ export default function CoursePlanningPage() {
     
     try {
       setLoadingSchedules(true);
-      const response = await getPublishedSchedules({ limit: 100 });
       
-      // Show all published schedules - students can choose any published schedule
-      // Or filter to show only schedules matching student's curriculum or schedules with no curriculum
+      // Determine which department to fetch schedules for
+      const studentDepartmentId = dataEntryContext.actualDepartmentId || dataEntryContext.selectedDepartment;
+      const departmentId = selectedScheduleDepartmentId === 'my-department' 
+        ? studentDepartmentId 
+        : (selectedScheduleDepartmentId === 'all' ? undefined : selectedScheduleDepartmentId);
+      
+      // Fetch schedules filtered by department
+      const response = await getPublishedSchedules({ 
+        limit: 100,
+        departmentId: departmentId 
+      });
+      
+      // Optionally filter by curriculum as well
       const filteredSchedules = response.schedules.filter(schedule => {
-        // If schedule has no curriculum, show it (available to all students)
+        // If schedule has no curriculum, show it (available to all students in this department)
         if (!schedule.curriculum) {
           return true;
         }
@@ -598,7 +700,7 @@ export default function CoursePlanningPage() {
         if (dataEntryContext.selectedCurriculum) {
           return schedule.curriculum.id === dataEntryContext.selectedCurriculum;
         }
-        // If no curriculum filter, show all
+        // If no curriculum filter, show all schedules from this department
         return true;
       });
       
@@ -621,6 +723,17 @@ export default function CoursePlanningPage() {
       const response = await getPublishedSchedule(scheduleId);
       const schedule = response.schedule;
       
+      // Group schedule courses by course code to collect all sections
+      const coursesByCode = new Map<string, Array<typeof schedule.courses[0]>>();
+      
+      for (const schedCourse of schedule.courses) {
+        const courseCode = schedCourse.course.code;
+        if (!coursesByCode.has(courseCode)) {
+          coursesByCode.set(courseCode, []);
+        }
+        coursesByCode.get(courseCode)!.push(schedCourse);
+      }
+      
       // Convert tentative schedule courses to planned courses
       const newPlannedCourses: PlannedCourse[] = [];
       const coursesToAdd: string[] = [];
@@ -628,9 +741,7 @@ export default function CoursePlanningPage() {
       const alreadyCompleted: string[] = [];
       const notAvailable: string[] = [];
       
-      for (const schedCourse of schedule.courses) {
-        const courseCode = schedCourse.course.code;
-        
+      for (const [courseCode, sections] of coursesByCode.entries()) {
         // Skip if already completed
         if (completedCourses.has(courseCode)) {
           alreadyCompleted.push(courseCode);
@@ -662,18 +773,36 @@ export default function CoursePlanningPage() {
           continue;
         }
         
-        // Create planned course
+        // Create course sections array from all sections
+        const courseSections: CourseSection[] = sections.map(schedCourse => ({
+          id: schedCourse.id,
+          section: schedCourse.section || 'A',
+          instructor: schedCourse.instructor,
+          days: schedCourse.days,
+          timeStart: schedCourse.timeStart,
+          timeEnd: schedCourse.timeEnd,
+          room: schedCourse.room,
+          capacity: schedCourse.capacity,
+          enrolled: schedCourse.enrolled,
+        }));
+        
+        // Use first section as default selected section
+        const firstSection = courseSections[0];
+        const firstSchedCourse = sections[0];
+        
         const plannedCourse: PlannedCourse = {
           id: `${courseCode}-${schedule.semester}-${Date.now()}`,
           code: courseCode,
-          title: schedCourse.course.title,
-          credits: schedCourse.course.credits,
+          title: firstSchedCourse.course.title,
+          credits: firstSchedCourse.course.credits,
           semester: getSemesterValueFromLabel(schedule.semester),
           semesterLabel: schedule.semester,
           status: 'planning',
           validationStatus: 'valid',
           prerequisites: availableCourse.prerequisites,
           corequisites: availableCourse.corequisites,
+          sections: courseSections,
+          selectedSection: firstSection,
         };
         
         newPlannedCourses.push(plannedCourse);
@@ -718,7 +847,151 @@ export default function CoursePlanningPage() {
     setSelectedTentativeSchedule(scheduleId);
     if (scheduleId && scheduleId !== 'none') {
       loadCoursesFromSchedule(scheduleId);
+      setShowSectionsInList(true); // Show sections once tentative schedule is loaded
+    } else {
+      setShowSectionsInList(false); // Hide sections if no schedule selected
     }
+  };
+  
+  // Generate all possible schedule combinations
+  const generateScheduleCombinations = (): ScheduleCombination[] => {
+    const coursesWithSections = plannedCourses.filter(course => 
+      course.sections && course.sections.length > 0
+    );
+    
+    if (coursesWithSections.length === 0) {
+      return [];
+    }
+    
+    // Generate all combinations using cartesian product
+    const combinations: ScheduleCombination[] = [];
+    
+    function generateCombos(
+      currentIndex: number, 
+      currentCombo: Array<PlannedCourse & { selectedSection: CourseSection }>
+    ) {
+      if (currentIndex === coursesWithSections.length) {
+        const { hasConflicts, conflicts } = detectTimeConflicts(currentCombo);
+        combinations.push({
+          id: `combo-${combinations.length}`,
+          courses: [...currentCombo],
+          hasConflicts,
+          conflicts,
+        });
+        return;
+      }
+      
+      const course = coursesWithSections[currentIndex];
+      const sections = course.sections || [];
+      
+      for (const section of sections) {
+        generateCombos(currentIndex + 1, [
+          ...currentCombo,
+          { ...course, selectedSection: section }
+        ]);
+      }
+    }
+    
+    generateCombos(0, []);
+    
+    // Sort: conflict-free first, then by number of conflicts
+    return combinations.sort((a, b) => {
+      if (a.hasConflicts === b.hasConflicts) {
+        return a.conflicts.length - b.conflicts.length;
+      }
+      return a.hasConflicts ? 1 : -1;
+    });
+  };
+  
+  // Detect time conflicts in a schedule
+  const detectTimeConflicts = (
+    courses: Array<PlannedCourse & { selectedSection: CourseSection }>
+  ): { hasConflicts: boolean; conflicts: string[] } => {
+    const conflicts: string[] = [];
+    
+    for (let i = 0; i < courses.length; i++) {
+      for (let j = i + 1; j < courses.length; j++) {
+        const course1 = courses[i];
+        const course2 = courses[j];
+        const section1 = course1.selectedSection;
+        const section2 = course2.selectedSection;
+        
+        if (!section1.days || !section2.days || !section1.timeStart || !section2.timeStart) {
+          continue;
+        }
+        
+        // Check if they have overlapping days
+        const overlappingDays = section1.days.filter(day => 
+          section2.days?.includes(day)
+        );
+        
+        if (overlappingDays.length > 0) {
+          // Check if times overlap
+          const time1Start = section1.timeStart;
+          const time1End = section1.timeEnd || section1.timeStart;
+          const time2Start = section2.timeStart;
+          const time2End = section2.timeEnd || section2.timeStart;
+          
+          if (timesOverlap(time1Start, time1End, time2Start, time2End)) {
+            conflicts.push(
+              `${course1.code} (${section1.section}) conflicts with ${course2.code} (${section2.section}) on ${overlappingDays.join(', ')}`
+            );
+          }
+        }
+      }
+    }
+    
+    return { hasConflicts: conflicts.length > 0, conflicts };
+  };
+  
+  // Check if two time ranges overlap
+  const timesOverlap = (start1: string, end1: string, start2: string, end2: string): boolean => {
+    return start1 < end2 && start2 < end1;
+  };
+  
+  // Handle "View Schedule Options" button click
+  const handleViewScheduleOptions = () => {
+    setGeneratingSchedules(true);
+    setTimeout(() => {
+      const combinations = generateScheduleCombinations();
+      setScheduleCombinations(combinations);
+      setGeneratingSchedules(false);
+      
+      if (combinations.length > 0) {
+        setShowScheduleViewer(true);
+        // Auto-select first conflict-free combination
+        const conflictFree = combinations.find(c => !c.hasConflicts);
+        if (conflictFree) {
+          setSelectedCombination(conflictFree.id);
+          applyScheduleCombination(conflictFree);
+        }
+      } else {
+        warning('No schedule combinations available. Please add sections to your courses.', 'No Schedules');
+      }
+    }, 100);
+  };
+  
+  // Apply selected schedule combination
+  const applyScheduleCombination = (combination: ScheduleCombination) => {
+    const updatedCourses = plannedCourses.map(course => {
+      const courseInCombo = combination.courses.find(c => c.code === course.code);
+      if (courseInCombo) {
+        return { ...course, selectedSection: courseInCombo.selectedSection };
+      }
+      return course;
+    });
+    setPlannedCourses(updatedCourses);
+  };
+  
+  // Handle section selection from calendar
+  const handleSectionSelect = (courseId: string, section: CourseSection) => {
+    setPlannedCourses(prev => prev.map(course => {
+      if (course.id === courseId) {
+        return { ...course, selectedSection: section };
+      }
+      return course;
+    }));
+    success(`Selected Section ${section.section} for course`, 'Section Updated');
   };
 
   // Validate banned combinations for a course
@@ -862,7 +1135,7 @@ export default function CoursePlanningPage() {
   };
 
   // Add course to plan with advanced validation and corequisite handling
-  const addCourseToPlan = (course: AvailableCourse, status: PlannedCourse['status'] = 'planning') => {
+  const addCourseToPlan = (course: AvailableCourse, status: PlannedCourse['status'] = 'planning', selectedSection?: CourseSection) => {
     if (!selectedSemester) {
       warning('Please select a semester first', 'Semester Required');
       return;
@@ -912,7 +1185,7 @@ export default function CoursePlanningPage() {
         onConfirm: () => {
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
           // Continue with adding the course
-          proceedWithAddingCourse(course, status, normalizedSemesterLabel);
+          proceedWithAddingCourse(course, status, normalizedSemesterLabel, selectedSection);
         }
       });
       return;
@@ -920,11 +1193,11 @@ export default function CoursePlanningPage() {
     // ===== END: Course Flags Validation =====
     
     // If no warnings, proceed directly
-    proceedWithAddingCourse(course, status, normalizedSemesterLabel);
+    proceedWithAddingCourse(course, status, normalizedSemesterLabel, selectedSection);
   };
   
   // Helper function to proceed with adding course after validation
-  const proceedWithAddingCourse = (course: AvailableCourse, status: PlannedCourse['status'], semesterLabel: string) => {
+  const proceedWithAddingCourse = (course: AvailableCourse, status: PlannedCourse['status'], semesterLabel: string, selectedSection?: CourseSection) => {
 
     // 1. Validate banned combinations
     const bannedValidation = validateBannedCombinations(course);
@@ -950,6 +1223,8 @@ export default function CoursePlanningPage() {
       status,
       prerequisites: course.prerequisites,
       corequisites: course.corequisites,
+      sections: course.sections,
+      selectedSection: selectedSection,
       validationStatus: prerequisiteValidation.valid ? 'valid' : 'warning',
       validationNotes: prerequisiteValidation.missing.length > 0 
         ? [`Missing prerequisites: ${prerequisiteValidation.missing.join(', ')}`]
@@ -1063,7 +1338,7 @@ export default function CoursePlanningPage() {
     }
 
     return concentrationsToAnalyze.map(concentration => {
-      const concentrationCourseCodes = concentration.courses.map(c => c.code);
+      const concentrationCourseCodes = concentration.courses?.map(c => c.code) || [];
       const completedInConcentration = allCompletedCodes.filter(code => 
         concentrationCourseCodes.includes(code)
       );
@@ -1072,9 +1347,9 @@ export default function CoursePlanningPage() {
       );
       
       const totalProgress = completedInConcentration.length + plannedInConcentration.length;
-      const progress = (totalProgress / concentration.requiredCourses) * 100;
-      const isEligible = totalProgress >= concentration.requiredCourses;
-      const remainingCourses = Math.max(0, concentration.requiredCourses - totalProgress);
+      const progress = (totalProgress / (concentration.requiredCourses || 1)) * 100;
+      const isEligible = totalProgress >= (concentration.requiredCourses || 0);
+      const remainingCourses = Math.max(0, (concentration.requiredCourses || 0) - totalProgress);
 
       console.log(`🔍 DEBUG: Concentration '${concentration.name}':`, {
         requiredCourses: concentration.requiredCourses,
@@ -1118,6 +1393,16 @@ export default function CoursePlanningPage() {
       
       setConcentrationAnalysis(analysis);
       setShowConcentrationModal(true);
+      
+      // Check if we should show notification dialog
+      const hasSeenNotification = localStorage.getItem('course-planning-notification-shown');
+      if (!hasSeenNotification && plannedCourses.length > 0) {
+        // Show notification dialog after concentration modal
+        setTimeout(() => {
+          setShowNotificationDialog(true);
+          localStorage.setItem('course-planning-notification-shown', 'true');
+        }, 500);
+      }
       
     } catch (error) {
       console.error('Error saving course plan:', error);
@@ -1179,15 +1464,48 @@ export default function CoursePlanningPage() {
           className="flex items-center gap-2 mb-3 sm:mb-4"
         >
           <ArrowLeft size={16} />
-          <span className="hidden xs:inline">Back to Data Entry</span>
-          <span className="xs:hidden">Back</span>
+          <span className="hidden xs:inline">Add/Edit Completed Courses</span>
+          <span className="xs:hidden">Completed Courses</span>
         </Button>
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Course Planning</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
-            Plan your future courses for {dataEntryContext.selectedDepartment} - {dataEntryContext.selectedCurriculum}
+            Browse and select courses for your future semesters
           </p>
         </div>
+      </div>
+
+      {/* Prompt to load tentative schedule and add completed courses */}
+      <div className="space-y-3 mb-4 sm:mb-6">
+        {!selectedTentativeSchedule && (
+          <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+            <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <AlertDescription className="text-amber-900 dark:text-amber-100">
+              <p className="font-medium mb-1">Load a Tentative Schedule to see available sections</p>
+              <p className="text-sm">
+                Select a tentative schedule below to see which courses are actually being offered with their sections and schedules.
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+        {completedCourses.size === 0 && (
+          <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+            <AlertTriangle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <AlertDescription className="text-blue-900 dark:text-blue-100">
+              <p className="font-medium mb-1">Add completed courses for prerequisite validation</p>
+              <p className="text-sm">
+                <Button 
+                  variant="link" 
+                  className="h-auto p-0 text-blue-600 dark:text-blue-400 underline"
+                  onClick={() => router.push('/student/management/data-entry')}
+                >
+                  Add your completed courses
+                </Button> 
+                {' '}to validate prerequisites and get personalized course recommendations.
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
@@ -1252,6 +1570,33 @@ export default function CoursePlanningPage() {
                     <label className="text-sm font-medium text-blue-900 dark:text-blue-100 block mb-2">
                       Load from Tentative Schedule
                     </label>
+                    
+                    {/* Department Filter */}
+                    {departments.length > 0 && (
+                      <div className="mb-3">
+                        <label className="text-xs text-blue-700 dark:text-blue-300 block mb-1">
+                          Department
+                        </label>
+                        <Select 
+                          value={selectedScheduleDepartmentId} 
+                          onValueChange={setSelectedScheduleDepartmentId}
+                        >
+                          <SelectTrigger className="w-full bg-white dark:bg-gray-900">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="my-department">My Department</SelectItem>
+                            <SelectItem value="all">All Departments</SelectItem>
+                            {departments.map((dept) => (
+                              <SelectItem key={dept.id} value={dept.id}>
+                                {dept.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    
                     {loadingSchedules ? (
                       <div className="flex items-center gap-2 py-2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
@@ -1276,13 +1621,13 @@ export default function CoursePlanningPage() {
                           </SelectContent>
                         </Select>
                         <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
-                          Select a tentative schedule created by your department to automatically add courses to your plan.
+                          Select a tentative schedule to automatically add courses to your plan.
                         </p>
                       </>
                     ) : (
                       <div className="py-2">
                         <p className="text-sm text-blue-700 dark:text-blue-300">
-                          No published tentative schedules available yet. Your chairperson can create and publish schedules for you.
+                          No published tentative schedules available for the selected department.
                         </p>
                       </div>
                     )}
@@ -1312,7 +1657,23 @@ export default function CoursePlanningPage() {
                 {filteredCourses.map((course) => {
                   const prerequisiteValidation = validatePrerequisites(course);
                   const bannedValidation = validateBannedCombinations(course);
+                  const hasSections = course.sections && course.sections.length > 0;
                   
+                  // Only show sections if a tentative schedule is loaded AND course has sections
+                  if (hasSections && showSectionsInList && selectedTentativeSchedule) {
+                    return (
+                      <CourseWithSections
+                        key={course.code}
+                        course={course}
+                        onAddToPlan={(course, section) => addCourseToPlan(course, 'planning', section)}
+                        prerequisiteValidation={prerequisiteValidation}
+                        bannedValidation={bannedValidation}
+                        selectedSemester={selectedSemester}
+                      />
+                    );
+                  }
+                  
+                  // Use regular card - either no sections or no schedule selected
                   return (
                     <CourseCard
                       key={course.code}
@@ -1411,6 +1772,26 @@ export default function CoursePlanningPage() {
                 </span>
               </div>
               
+              {/* Navigation Buttons */}
+              <div className="pt-4 border-t space-y-2">
+                <Button 
+                  className="w-full" 
+                  variant="outline"
+                  onClick={() => router.push('/student/management/schedule-view')}
+                  disabled={plannedCourses.length === 0}
+                >
+                  <Calendar size={16} className="mr-2" />
+                  Visualize Schedule
+                </Button>
+                <Button 
+                  className="w-full" 
+                  onClick={() => router.push('/student/management/progress')}
+                >
+                  <CheckCircle size={16} className="mr-2" />
+                  View Progress
+                </Button>
+              </div>
+              
               <Button 
                 className="w-full mt-3 sm:mt-4 text-sm sm:text-base" 
                 onClick={saveCoursePlan}
@@ -1418,10 +1799,145 @@ export default function CoursePlanningPage() {
                 <Clock size={14} className="mr-2 sm:w-4 sm:h-4" />
                 Save Course Plan
               </Button>
+              
+              {plannedCourses.some(c => c.sections && c.sections.length > 0) && (
+                <Button 
+                  className="w-full mt-2 text-sm sm:text-base" 
+                  variant="secondary"
+                  onClick={handleViewScheduleOptions}
+                  disabled={generatingSchedules}
+                >
+                  {generatingSchedules ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Calendar size={14} className="mr-2 sm:w-4 sm:h-4" />
+                      View Schedule Options
+                    </>
+                  )}
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
       </div>
+      
+      {/* Schedule Calendar View - Full Width */}
+      {plannedCourses.length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <Calendar size={20} />
+              Your Schedule
+            </h2>
+            <div className="flex gap-2">
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                <List size={16} className="mr-1" />
+                List View
+              </Button>
+              <Button
+                variant={viewMode === 'calendar' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('calendar')}
+              >
+                <LayoutGrid size={16} className="mr-1" />
+                Calendar View
+              </Button>
+            </div>
+          </div>
+          
+          {viewMode === 'calendar' ? (
+            <CourseScheduleCalendar
+              courses={plannedCourses}
+              onSelectSection={handleSectionSelect}
+              showSectionSelector={true}
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Planned Courses List</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {Object.entries(
+                    plannedCourses.reduce((acc, course) => {
+                      const label = course.semesterLabel || (course.semester === 'summer' ? 'Summer Session' : `Semester ${course.semester || '1'}`);
+                      if (!acc[label]) acc[label] = [];
+                      acc[label].push(course);
+                      return acc;
+                    }, {} as Record<string, PlannedCourse[]>)
+                  ).map(([semesterLabel, courses]) => (
+                    <div key={semesterLabel} className="space-y-3">
+                      <h3 className="font-semibold text-lg border-b pb-2">
+                        {semesterLabel}
+                      </h3>
+                      <div className="grid gap-3">
+                        {courses.map((course) => (
+                          <div key={course.id} className="border rounded-lg p-4 hover:bg-muted/50">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <div className="font-semibold text-lg">{course.code}</div>
+                                <div className="text-sm text-muted-foreground">{course.title}</div>
+                              </div>
+                              <Badge>{course.credits} credits</Badge>
+                            </div>
+                            {course.selectedSection && (
+                              <div className="mt-3 p-3 bg-muted rounded-lg text-sm space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">Section:</span>
+                                  <span>{course.selectedSection.section}</span>
+                                </div>
+                                {course.selectedSection.instructor && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">Instructor:</span>
+                                    <span>{course.selectedSection.instructor}</span>
+                                  </div>
+                                )}
+                                {course.selectedSection.days && course.selectedSection.days.length > 0 && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">Days:</span>
+                                    <span>{course.selectedSection.days.join(', ')}</span>
+                                  </div>
+                                )}
+                                {course.selectedSection.timeStart && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">Time:</span>
+                                    <span>{course.selectedSection.timeStart} - {course.selectedSection.timeEnd}</span>
+                                  </div>
+                                )}
+                                {course.selectedSection.room && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">Room:</span>
+                                    <span>{course.selectedSection.room}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {course.sections && course.sections.length > 1 && (
+                              <div className="mt-2">
+                                <Badge variant="secondary" className="text-xs">
+                                  {course.sections.length} sections available
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Concentration Analysis Modal */}
       <Dialog open={showConcentrationModal} onOpenChange={setShowConcentrationModal}>
@@ -1487,6 +2003,126 @@ export default function CoursePlanningPage() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Schedule Viewer Modal */}
+      <Dialog open={showScheduleViewer} onOpenChange={setShowScheduleViewer}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Available Schedule Combinations</DialogTitle>
+            <DialogDescription>
+              {scheduleCombinations.length > 0 ? (
+                <>
+                  Found {scheduleCombinations.length} possible schedule{scheduleCombinations.length > 1 ? 's' : ''}. 
+                  {scheduleCombinations.filter(c => !c.hasConflicts).length > 0 && (
+                    <span className="text-green-600 font-medium ml-1">
+                      ({scheduleCombinations.filter(c => !c.hasConflicts).length} conflict-free)
+                    </span>
+                  )}
+                </>
+              ) : (
+                'No schedules available'
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {scheduleCombinations.map((combination, index) => (
+              <div
+                key={combination.id}
+                className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                  selectedCombination === combination.id
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'
+                }`}
+                onClick={() => setSelectedCombination(combination.id)}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">Schedule Option {index + 1}</span>
+                    {!combination.hasConflicts && (
+                      <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded-full">
+                        ✓ No Conflicts
+                      </span>
+                    )}
+                    {combination.hasConflicts && (
+                      <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs rounded-full">
+                        {combination.conflicts.length} Conflict{combination.conflicts.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  {selectedCombination === combination.id && (
+                    <span className="text-primary font-medium text-sm">Selected</span>
+                  )}
+                </div>
+                
+                {/* Course Details */}
+                <div className="space-y-2">
+                  {combination.courses.map((course) => (
+                    <div key={course.id} className="flex flex-wrap items-center gap-2 text-sm bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
+                      <span className="font-medium">{course.code}</span>
+                      <span className="text-gray-600 dark:text-gray-400">Section {course.selectedSection.section}</span>
+                      {course.selectedSection.instructor && (
+                        <span className="text-gray-600 dark:text-gray-400">• {course.selectedSection.instructor}</span>
+                      )}
+                      {course.selectedSection.days && course.selectedSection.days.length > 0 && (
+                        <span className="text-gray-600 dark:text-gray-400">
+                          • {course.selectedSection.days.join(', ')}
+                        </span>
+                      )}
+                      {course.selectedSection.timeStart && (
+                        <span className="text-gray-600 dark:text-gray-400">
+                          • {course.selectedSection.timeStart} - {course.selectedSection.timeEnd}
+                        </span>
+                      )}
+                      {course.selectedSection.room && (
+                        <span className="text-gray-600 dark:text-gray-400">• Room {course.selectedSection.room}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Conflicts */}
+                {combination.hasConflicts && (
+                  <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
+                    <div className="font-medium text-red-700 dark:text-red-300 text-sm mb-1">Conflicts:</div>
+                    <ul className="text-xs text-red-600 dark:text-red-400 space-y-1">
+                      {combination.conflicts.map((conflict, idx) => (
+                        <li key={idx}>• {conflict}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowScheduleViewer(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                const selected = scheduleCombinations.find(c => c.id === selectedCombination);
+                if (selected) {
+                  applyScheduleCombination(selected);
+                  setShowScheduleViewer(false);
+                  success('Schedule applied to your course plan', 'Schedule Selected');
+                }
+              }}
+              disabled={!selectedCombination}
+            >
+              Apply Selected Schedule
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Notification Subscription Dialog */}
+      <NotificationSubscribeDialog
+        isOpen={showNotificationDialog}
+        onClose={() => setShowNotificationDialog(false)}
+        departmentId={dataEntryContext.selectedDepartment}
+      />
     </div>
   );
 }

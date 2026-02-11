@@ -1059,6 +1059,7 @@ export interface TentativeScheduleData {
   department?: string;
   batch?: string;
   curriculumId?: string;
+  status?: 'draft' | 'published';
   courses: TentativeScheduleCourse[];
 }
 
@@ -1071,7 +1072,9 @@ export interface TentativeSchedule {
   department?: string;
   batch?: string;
   coursesCount: number;
+  status?: 'draft' | 'published';
   isPublished?: boolean;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
   curriculumName?: string;
@@ -1214,6 +1217,22 @@ export async function togglePublishTentativeSchedule(id: string): Promise<{
 }
 
 /**
+ * Toggle active status of a tentative schedule
+ * POST /api/tentative-schedules/{id}/toggle-active
+ */
+export async function toggleActiveTentativeSchedule(id: string): Promise<{
+  message: string;
+  schedule: {
+    id: string;
+    isActive: boolean;
+  };
+}> {
+  return authenticatedRequest(`/tentative-schedules/${id}/toggle-active`, {
+    method: 'POST',
+  });
+}
+
+/**
  * Get list of published tentative schedules (Public - No Authentication Required)
  * GET /api/published-schedules
  */
@@ -1221,6 +1240,7 @@ export async function getPublishedSchedules(params?: {
   search?: string;
   limit?: number;
   page?: number;
+  departmentId?: string;
 }): Promise<{
   schedules: TentativeSchedule[];
   pagination: {
@@ -1234,6 +1254,7 @@ export async function getPublishedSchedules(params?: {
   if (params?.search) queryParams.append('search', params.search);
   if (params?.limit) queryParams.append('limit', params.limit.toString());
   if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.departmentId) queryParams.append('department_id', params.departmentId);
 
   const url = `${API_BASE}/published-schedules${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
   const response = await fetch(url, {

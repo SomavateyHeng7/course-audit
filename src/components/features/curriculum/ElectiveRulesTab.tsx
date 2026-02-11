@@ -13,6 +13,7 @@ interface ElectiveCourse {
   requirement: 'Required' | 'Elective';
   semester: string;
   year: number;
+  minCreditThreshold?: number;
 }
 
 interface ElectiveRulesTabProps {
