@@ -6,7 +6,7 @@ import { useRef, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToastHelpers } from '@/hooks/useToast';
 import { curriculumBlacklistApi, type CurriculumBlacklistsResponse } from '@/services/curriculumBlacklistApi';
-import { getPublicCurricula, API_BASE } from '@/lib/api/laravel';
+import { getPublicCurricula, getPublicCurriculum, API_BASE } from '@/lib/api/laravel';
 import { AlertTriangle, ArrowLeft, Download, ChevronDown, BookOpen, Calendar, Plus, Target, Award, Clock } from "lucide-react";
 import { GiGraduateCap } from "react-icons/gi";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -311,8 +311,17 @@ export default function ProgressPage() {
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [curriculumProgress, setCurriculumProgress] = useState<CurriculumProgress | null>(null);
   
+  // Debug: Track when curriculumData changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      console.log('🔍 CURRICULUM DATA CHANGED:', curriculumData);
+      console.log('🔍 CURRICULUM totalCreditsRequired:', curriculumData?.totalCreditsRequired);
+    }
+  }, [curriculumData]);
+  
   // Load all data from localStorage and fetch curriculum data
   useEffect(() => {
+    console.log('🔥 USEEFFECT STARTED - Loading progress page data');
     const loadData = async () => {
       try {
         // Only run debugging during client-side execution, not during build
@@ -351,6 +360,11 @@ export default function ProgressPage() {
           // Support both array and object
           const auditObj = Array.isArray(parsedData) ? parsedData[0] : parsedData;
           curriculumId = auditObj?.selectedCurriculum || null;
+          
+          if (typeof window !== 'undefined') {
+            console.log('Step 3a: Extracted curriculumId:', curriculumId);
+            console.log('Step 3b: auditObj keys:', auditObj ? Object.keys(auditObj) : 'null');
+          }
 
           // Extract and save total credits from localStorage
           if (auditObj?.curriculumCreditsRequired) {
@@ -371,20 +385,28 @@ export default function ProgressPage() {
               console.log('Step 4: Fetching curriculum for ID:', curriculumId);
             }
             try {
-              const data = await getPublicCurricula();
+              const data = await getPublicCurriculum(curriculumId);
               if (typeof window !== 'undefined') {
                 console.log('Step 5: API response:', data);
+                console.log('Step 5a: API response type:', typeof data);
+                console.log('Step 5b: API curriculum object:', data.curriculum);
+                console.log('Step 5c: API totalCreditsRequired:', data.curriculum?.totalCreditsRequired);
               }
-              const curriculum = data.curricula?.find((c: any) => c.id === curriculumId);
+              // The API returns { curriculum: {...} } for single curriculum fetch
+              const curriculum = data.curriculum || data;
               if (curriculum) {
                 if (typeof window !== 'undefined') {
                   console.log('Step 6: Found curriculum data:', curriculum);
+                  console.log('Step 6a: Curriculum totalCreditsRequired:', curriculum.totalCreditsRequired);
+                  console.log('Step 6b: Setting curriculum data...');
                 }
                 setCurriculumData(curriculum);
+                if (typeof window !== 'undefined') {
+                  console.log('Step 6c: Curriculum data set successfully');
+                }
               } else {
                 if (typeof window !== 'undefined') {
                   console.log('Step 6: No curriculum found with ID:', curriculumId);
-                  console.log('Available curricula:', data.curricula?.map((c: any) => ({ id: c.id, name: c.name })));
                 }
               }
             } catch (error) {
@@ -395,6 +417,23 @@ export default function ProgressPage() {
           } else {
             if (typeof window !== 'undefined') {
               console.log('Step 4: No curriculum ID found in saved data');
+              console.log('Step 4a: Trying fallback with selectedCurriculum from completedData state');
+              
+              // Try to get curriculum ID from the completedData state as fallback
+              if (completedData?.selectedCurriculum) {
+                console.log('Step 4b: Found fallback curriculum ID:', completedData.selectedCurriculum);
+                try {
+                  const data = await getPublicCurriculum(completedData.selectedCurriculum);
+                  console.log('Step 4c: Fallback API response:', data);
+                  const curriculum = data.curriculum || data;
+                  if (curriculum) {
+                    console.log('Step 4d: Setting curriculum data from fallback');
+                    setCurriculumData(curriculum);
+                  }
+                } catch (error) {
+                  console.error('Step 4e: Fallback curriculum fetch failed:', error);
+                }
+              }
             }
           }
         } else {
@@ -472,6 +511,49 @@ export default function ProgressPage() {
 
     loadData();
   }, []);
+
+  // Fallback useEffect: If we have a curriculum ID but no curriculum data, try to fetch it
+  useEffect(() => {
+    if (completedData?.selectedCurriculum && !curriculumData) {
+      console.log('🚀 FALLBACK USEEFFECT: Attempting to fetch curriculum data for:', completedData.selectedCurriculum);
+      const fetchCurriculumFallback = async () => {
+        try {
+          const data = await getPublicCurriculum(completedData.selectedCurriculum);
+          console.log('🚀 FALLBACK: API response:', data);
+          const curriculum = data.curriculum || data;
+          if (curriculum) {
+            console.log('🚀 FALLBACK: Setting curriculum data');
+            setCurriculumData(curriculum);
+          }
+        } catch (error) {
+          console.error('🚀 FALLBACK: Error:', error);
+        }
+      };
+      fetchCurriculumFallback();
+    }
+  }, [completedData?.selectedCurriculum, curriculumData]);
+
+  // Debug function to check localStorage content
+  const debugLocalStorage = () => {
+    if (typeof window !== 'undefined') {
+      const studentData = localStorage.getItem('studentAuditData');
+      console.log('🔍 CURRENT localStorage studentAuditData:', studentData);
+      if (studentData) {
+        try {
+          const parsed = JSON.parse(studentData);
+          console.log('🔍 PARSED data:', parsed);
+          console.log('🔍 selectedCurriculum:', parsed?.selectedCurriculum);
+        } catch (e) {
+          console.log('🔍 PARSE ERROR:', e);
+        }
+      }
+    }
+  };
+
+  // Call debug function on component render to see current state
+  if (typeof window !== 'undefined') {
+    debugLocalStorage();
+  }
 
   // Re-run enhanced validation when key data changes
   useEffect(() => {
@@ -1374,11 +1456,26 @@ export default function ProgressPage() {
   }
   
   const totalCreditsRequired = (() => {
+    if (typeof window !== 'undefined') {
+      console.log('🔍 CALCULATING TOTAL CREDITS REQUIRED...');
+      console.log('🔍 CURRENT curriculumData state:', curriculumData);
+      console.log('🔍 CURRENT savedTotalCredits:', savedTotalCredits);
+    }
+    
     // First priority: credits saved from data-entry page (most accurate)
     if (typeof savedTotalCredits === 'number' && savedTotalCredits > 0) {
       console.log('Using saved total credits from localStorage:', savedTotalCredits);
       return savedTotalCredits;
     }
+    
+    // Debug: Show what's in curriculumData
+    if (typeof window !== 'undefined') {
+      console.log('🔍 DEBUG: curriculumData object:', curriculumData);
+      console.log('🔍 DEBUG: curriculumData.totalCreditsRequired:', curriculumData?.totalCreditsRequired);
+      console.log('🔍 DEBUG: curriculumData.totalCredits:', curriculumData?.totalCredits);
+      console.log('🔍 DEBUG: curriculumProgress:', curriculumProgress);
+    }
+    
     // Second priority: try multiple possible paths for total credits in the curriculum data
     if (typeof curriculumData?.totalCreditsRequired === 'number' && curriculumData.totalCreditsRequired > 0) {
       console.log('Using totalCreditsRequired from curriculumData:', curriculumData.totalCreditsRequired);

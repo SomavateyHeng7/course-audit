@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Clock, User, Book, ChevronDown, Search } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
-import { getPublishedSchedules, getPublishedSchedule } from '@/lib/api/laravel';
+import { getPublishedSchedules, getPublishedSchedule, getPublicDepartments } from '@/lib/api/laravel';
 
 // Import chairperson components
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
@@ -51,18 +51,63 @@ const SemesterCoursePage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
+  
+  // Department selection
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('all');
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
 
-  // Load schedule drafts on mount
+  // Load departments on mount
   useEffect(() => {
-    loadScheduleDrafts();
+    loadDepartments();
   }, []);
+  
+  // Load schedule drafts when department changes
+  useEffect(() => {
+    if (departments.length > 0) {
+      loadScheduleDrafts();
+    }
+  }, [selectedDepartmentId]);
+  
+  const loadDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      const response = await getPublicDepartments();
+      setDepartments(response.departments);
+      
+      // Get student's department from localStorage as default
+      const savedContext = localStorage.getItem('studentDataEntryContext');
+      if (savedContext) {
+        try {
+          const parsedContext = JSON.parse(savedContext);
+          const studentDeptId = parsedContext.actualDepartmentId || parsedContext.selectedDepartment;
+          if (studentDeptId) {
+            setSelectedDepartmentId(studentDeptId);
+          }
+        } catch (e) {
+          console.error('Error parsing student context:', e);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading departments:', error);
+      showError('Failed to load departments');
+    } finally {
+      setLoadingDepartments(false);
+    }
+  };
 
   const loadScheduleDrafts = async () => {
     try {
       setLoading(true);
       
-      // Fetch published schedules from API
-      const response = await getPublishedSchedules({ limit: 100 });
+      // Use selected department (or all if 'all' is selected)
+      const departmentId = selectedDepartmentId !== 'all' ? selectedDepartmentId : undefined;
+      
+      // Fetch published schedules from API, filtered by department
+      const response = await getPublishedSchedules({ 
+        limit: 100,
+        departmentId: departmentId 
+      });
       
       // Map schedules to local format
       const publishedSchedules = response.schedules.map((schedule: any) => ({
@@ -244,6 +289,29 @@ const SemesterCoursePage: React.FC = () => {
             {/* Schedule Selection and Search */}
             <div className="mb-6 sm:mb-8 space-y-3 sm:space-y-4">
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                
+                {/* Department Selector */}
+                <div className="flex-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Department
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedDepartmentId}
+                      onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                      disabled={loadingDepartments}
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-background text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary appearance-none text-sm sm:text-base disabled:opacity-50"
+                    >
+                      <option value="all">All Departments</option>
+                      {departments.map((dept) => (
+                        <option key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4 pointer-events-none" />
+                  </div>
+                </div>
                 
                 {/* Available Class Schedule Dropdown */}
                 <div className="flex-1">

@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Calendar, BookOpen, Users, Clock, Search, ArrowLeft, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Plus, Calendar, BookOpen, Users, Clock, Search, ArrowLeft, Eye, EyeOff, Trash2, CheckCircle2 } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
-import { getTentativeSchedules, togglePublishTentativeSchedule, deleteTentativeSchedule } from '@/lib/api/laravel';
+import { getTentativeSchedules, togglePublishTentativeSchedule, toggleActiveTentativeSchedule, deleteTentativeSchedule } from '@/lib/api/laravel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +30,7 @@ interface TentativeSchedule {
   batch?: string;
   coursesCount: number;
   isPublished?: boolean;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
   curriculum?: {
@@ -51,6 +52,9 @@ const TentativeSchedulePage: React.FC = () => {
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [scheduleToPublish, setScheduleToPublish] = useState<TentativeSchedule | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [activeDialogOpen, setActiveDialogOpen] = useState(false);
+  const [scheduleToActivate, setScheduleToActivate] = useState<TentativeSchedule | null>(null);
+  const [isActivating, setIsActivating] = useState(false);
 
   // Fetch schedules from database via API
   const fetchSchedules = async () => {
@@ -168,6 +172,40 @@ const TentativeSchedulePage: React.FC = () => {
       showError('Failed to update publish status');
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleToggleActiveClick = (schedule: TentativeSchedule, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setScheduleToActivate(schedule);
+    setActiveDialogOpen(true);
+  };
+
+  const handleConfirmActive = async () => {
+    if (!scheduleToActivate) return;
+
+    setIsActivating(true);
+    try {
+      const response = await toggleActiveTentativeSchedule(scheduleToActivate.id);
+      
+      // Update local state - deactivate all others, activate this one
+      setSchedules(prevSchedules => 
+        prevSchedules.map(schedule => ({
+          ...schedule,
+          isActive: schedule.id === scheduleToActivate.id ? response.schedule.isActive : false
+        }))
+      );
+      
+      success(response.message);
+      
+      // Close dialog
+      setActiveDialogOpen(false);
+      setScheduleToActivate(null);
+    } catch (error) {
+      console.error('Error toggling active status:', error);
+      showError('Failed to update active status');
+    } finally {
+      setIsActivating(false);
     }
   };
 
@@ -345,22 +383,33 @@ const TentativeSchedulePage: React.FC = () => {
 
                       {/* Publish Status */}
                       <div className="mb-2 lg:mb-0">
-                        <Badge 
-                          variant={schedule.isPublished ? "default" : "secondary"}
-                          className="gap-1 whitespace-nowrap"
-                        >
-                          {schedule.isPublished ? (
-                            <>
-                              <Eye className="w-3 h-3" />
-                              Published
-                            </>
-                          ) : (
-                            <>
-                              <EyeOff className="w-3 h-3" />
-                              Draft
-                            </>
+                        <div className="flex flex-col gap-1">
+                          <Badge 
+                            variant={schedule.isPublished ? "default" : "secondary"}
+                            className="gap-1 whitespace-nowrap w-fit"
+                          >
+                            {schedule.isPublished ? (
+                              <>
+                                <Eye className="w-3 h-3" />
+                                Published
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="w-3 h-3" />
+                                Draft
+                              </>
+                            )}
+                          </Badge>
+                          {schedule.isActive && (
+                            <Badge 
+                              variant="outline"
+                              className="gap-1 whitespace-nowrap w-fit bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              Active
+                            </Badge>
                           )}
-                        </Badge>
+                        </div>
                       </div>
 
                       {/* Last Updated */}
@@ -390,6 +439,26 @@ const TentativeSchedulePage: React.FC = () => {
                             </>
                           )}
                         </Button>
+                        {schedule.isPublished && (
+                          <Button
+                            size="sm"
+                            variant={schedule.isActive ? "outline" : "default"}
+                            onClick={(e) => handleToggleActiveClick(schedule, e)}
+                            className="gap-1 whitespace-nowrap flex-shrink-0"
+                          >
+                            {schedule.isActive ? (
+                              <>
+                                <CheckCircle2 className="w-3 h-3" />
+                                Active
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-3 h-3" />
+                                Set Active
+                              </>
+                            )}
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -489,6 +558,51 @@ const TentativeSchedulePage: React.FC = () => {
               disabled={isDeleting}
             >
               {isDeleting ? 'Deleting...' : 'Delete Schedule'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Active Status Confirmation Dialog */}
+      <Dialog open={activeDialogOpen} onOpenChange={setActiveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {scheduleToActivate?.isActive ? 'Deactivate' : 'Set as Active'} Schedule
+            </DialogTitle>
+            <DialogDescription>
+              {scheduleToActivate?.isActive ? (
+                <>
+                  Are you sure you want to deactivate "{scheduleToActivate?.name}"?
+                  <br /><br />
+                  Students will no longer see this as the active schedule for planning.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to set "{scheduleToActivate?.name}" as the active schedule?
+                  <br /><br />
+                  <strong>Note:</strong> Only one schedule can be active per department. 
+                  All other active schedules in this department will be automatically deactivated.
+                  <br /><br />
+                  Students will use this schedule for course planning.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setActiveDialogOpen(false)}
+              disabled={isActivating}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleConfirmActive}
+              disabled={isActivating}
+            >
+              {isActivating ? 'Processing...' : scheduleToActivate?.isActive ? 'Deactivate' : 'Set Active'}
             </Button>
           </DialogFooter>
         </DialogContent>

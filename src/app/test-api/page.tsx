@@ -27,9 +27,9 @@ export default function TestAPIPage() {
           getPublicCurricula(),
         ]);
 
-        setFaculties(facultiesData);
-        setDepartments(departmentsData);
-        setCurricula(curriculaData);
+        setFaculties(facultiesData.faculties || []);
+        setDepartments(departmentsData.departments || []);
+        setCurricula(curriculaData.curricula || []);
         setError('');
       } catch (err: any) {
         setError(err.message);

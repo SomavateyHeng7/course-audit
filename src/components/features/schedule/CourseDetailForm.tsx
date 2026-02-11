@@ -77,11 +77,44 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
     });
   };
 
+  const roundToNearestHalfHour = (time: string): string => {
+    if (!time) return '';
+    try {
+      // Handle both HH:MM and HH:MM:SS formats
+      const timeParts = time.split(':');
+      const hours = parseInt(timeParts[0], 10);
+      const minutes = parseInt(timeParts[1], 10);
+      
+      // Round to nearest 30 minutes
+      const roundedMinutes = Math.round(minutes / 30) * 30;
+      
+      // Handle overflow
+      let adjustedHours = hours;
+      let finalMinutes = roundedMinutes;
+      
+      if (roundedMinutes === 60) {
+        adjustedHours = hours + 1;
+        finalMinutes = 0;
+      }
+      
+      // Wrap hours if they exceed 23
+      if (adjustedHours >= 24) {
+        adjustedHours = 0;
+      }
+      
+      return `${String(adjustedHours).padStart(2, '0')}:${String(finalMinutes).padStart(2, '0')}`;
+    } catch (error) {
+      console.error('Error rounding time:', error);
+      return time; // Return original value if parsing fails
+    }
+  };
+
   const handleTimeChange = (day: string, field: 'startTime' | 'endTime', value: string) => {
+    const roundedTime = roundToNearestHalfHour(value);
     setFormData(prev => ({
       ...prev,
       dayTimeSlots: prev.dayTimeSlots.map(slot =>
-        slot.day === day ? { ...slot, [field]: value } : slot
+        slot.day === day ? { ...slot, [field]: roundedTime } : slot
       )
     }));
   };
@@ -213,21 +246,67 @@ const CourseDetailForm: React.FC<CourseDetailFormProps> = ({
                         {slot.day}
                       </div>
                       <div className="flex items-center gap-2 flex-1">
-                        <input
-                          type="time"
-                          value={slot.startTime}
-                          onChange={(e) => handleTimeChange(slot.day, 'startTime', e.target.value)}
-                          className="flex-1 px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-                          placeholder="Start"
-                        />
+                        <div className="flex items-center gap-1 flex-1">
+                          <select
+                            value={slot.startTime.split(':')[0] || ''}
+                            onChange={(e) => {
+                              const minutes = slot.startTime.split(':')[1] || '00';
+                              handleTimeChange(slot.day, 'startTime', `${e.target.value}:${minutes}`);
+                            }}
+                            className="px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                          >
+                            <option value="">HH</option>
+                            {Array.from({ length: 24 }, (_, i) => (
+                              <option key={i} value={String(i).padStart(2, '0')}>
+                                {String(i).padStart(2, '0')}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="text-gray-400">:</span>
+                          <select
+                            value={slot.startTime.split(':')[1] || ''}
+                            onChange={(e) => {
+                              const hours = slot.startTime.split(':')[0] || '00';
+                              handleTimeChange(slot.day, 'startTime', `${hours}:${e.target.value}`);
+                            }}
+                            className="px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                          >
+                            <option value="">MM</option>
+                            <option value="00">00</option>
+                            <option value="30">30</option>
+                          </select>
+                        </div>
                         <span className="text-gray-400 text-sm">-</span>
-                        <input
-                          type="time"
-                          value={slot.endTime}
-                          onChange={(e) => handleTimeChange(slot.day, 'endTime', e.target.value)}
-                          className="flex-1 px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-                          placeholder="End"
-                        />
+                        <div className="flex items-center gap-1 flex-1">
+                          <select
+                            value={slot.endTime.split(':')[0] || ''}
+                            onChange={(e) => {
+                              const minutes = slot.endTime.split(':')[1] || '00';
+                              handleTimeChange(slot.day, 'endTime', `${e.target.value}:${minutes}`);
+                            }}
+                            className="px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                          >
+                            <option value="">HH</option>
+                            {Array.from({ length: 24 }, (_, i) => (
+                              <option key={i} value={String(i).padStart(2, '0')}>
+                                {String(i).padStart(2, '0')}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="text-gray-400">:</span>
+                          <select
+                            value={slot.endTime.split(':')[1] || ''}
+                            onChange={(e) => {
+                              const hours = slot.endTime.split(':')[0] || '00';
+                              handleTimeChange(slot.day, 'endTime', `${hours}:${e.target.value}`);
+                            }}
+                            className="px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                          >
+                            <option value="">MM</option>
+                            <option value="00">00</option>
+                            <option value="30">30</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
                   ))}
