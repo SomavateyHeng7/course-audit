@@ -46,6 +46,30 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   // Use CourseStatus for completedCourses state
   const [completedCourses, setCompletedCourses] = useState<{ [code: string]: CourseStatus }>({});
   const [freeElectives, setFreeElectives] = useState<{ code: string; title: string; credits: number }[]>([]);
+  const [initialized, setInitialized] = useState(false);
+
+  // Load saved data from localStorage on mount
+  useEffect(() => {
+    if (initialized) return;
+    
+    try {
+      const savedData = localStorage.getItem('studentAuditData');
+      if (savedData) {
+        const data = JSON.parse(savedData);
+        console.log('Loading saved data from workflow:', data);
+        
+        if (data.selectedDepartment) setSelectedDepartment(data.selectedDepartment);
+        if (data.selectedCurriculum) setSelectedCurriculum(data.selectedCurriculum);
+        if (data.selectedConcentration) setSelectedConcentration(data.selectedConcentration);
+        if (data.completedCourses) setCompletedCourses(data.completedCourses);
+        if (data.freeElectives) setFreeElectives(data.freeElectives);
+      }
+    } catch (error) {
+      console.error('Error loading saved data:', error);
+    } finally {
+      setInitialized(true);
+    }
+  }, [initialized]);
 
   return (
     <ProgressContext.Provider value={{
@@ -74,6 +98,9 @@ export default function DataEntryPage() {
     selectedConcentration, setSelectedConcentration,
     freeElectives, // <-- add this line
   } = useProgressContext();
+
+  // Local state for faculty (loaded from localStorage)
+  const [selectedFaculty, setSelectedFaculty] = useState('');
 
   // Auto-populate semester labels for planning courses that do not have one yet
   useEffect(() => {
@@ -178,7 +205,7 @@ export default function DataEntryPage() {
   // Dynamic faculty and department options from API
   const [facultyOptions, setFacultyOptions] = useState<{ value: string; label: string }[]>([]);
   const [departmentOptions, setDepartmentOptions] = useState<{ value: string; label: string }[]>([]);
-  const [selectedFaculty, setSelectedFaculty] = useState('');
+  // selectedFaculty is already defined above
 
   // New state for enhanced transcript import
   const [unmatchedCourses, setUnmatchedCourses] = useState<UnmatchedCourse[]>([]);
@@ -186,6 +213,11 @@ export default function DataEntryPage() {
   const [assignedFreeElectives, setAssignedFreeElectives] = useState<FreeElectiveCourse[]>([]);
   const [electiveRules, setElectiveRules] = useState<any[]>([]);
   const [assignedFreeElectiveCodes, setAssignedFreeElectiveCodes] = useState<Set<string>>(new Set());
+
+  // Check if user has any completed courses
+  const hasCompletedCourses = Object.values(completedCourses).some(
+    course => course.status === 'completed' || course.grade
+  );
 
   // Fetch curricula and faculties on component mount
   useEffect(() => {
@@ -203,7 +235,20 @@ export default function DataEntryPage() {
           value: f.id, 
           label: f.name 
         })));
-        // Don't fetch departments here - wait until faculty is selected
+        
+        // Load pre-selected faculty from localStorage (from workflow)
+        try {
+          const savedData = localStorage.getItem('studentAuditData');
+          if (savedData) {
+            const data = JSON.parse(savedData);
+            if (data.selectedFaculty) {
+              console.log('Pre-selecting faculty from workflow:', data.selectedFaculty);
+              setSelectedFaculty(data.selectedFaculty);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading faculty from localStorage:', error);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         showError('Failed to load initial data. Please refresh the page.');
@@ -620,7 +665,16 @@ export default function DataEntryPage() {
       localStorage.removeItem('planningData');
     }
     // Data is automatically stored in localStorage via useEffect
-    // Navigate to course planning
+    // Navigate to course planning page
+    router.push('/student/management/course-planning');
+  };
+
+  const handleSkipToPlanning = () => {
+    if (!selectedDepartment || !selectedCurriculum) {
+      showError('Please select your faculty, department, and curriculum first');
+      return;
+    }
+    // Save minimal data and skip to planning
     router.push('/student/management/course-planning');
   };
 
@@ -1089,18 +1143,37 @@ export default function DataEntryPage() {
               />
             )}
             <div className="flex flex-col items-stretch sm:items-end gap-2">
-              <Button 
-                onClick={handleCoursePlanning}
-                className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 text-primary-foreground flex items-center gap-2 px-8 py-3 text-lg shadow-md transform transition-all duration-200 hover:scale-[1.01] border-0"
-                disabled={!selectedCurriculum || !selectedDepartment}
-                size="lg"
-              >
-                <Calendar className="w-5 h-5" />
-                Continue to Course Planning
-              </Button>
+              {!hasCompletedCourses && selectedCurriculum && selectedDepartment && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-2">
+                  <p className="text-sm text-blue-900 dark:text-blue-100">
+                    ℹ️ No completed courses detected. You can skip to planning.
+                  </p>
+                </div>
+              )}
+              <div className="flex gap-2">
+                {!hasCompletedCourses && selectedCurriculum && selectedDepartment && (
+                  <Button 
+                    onClick={handleSkipToPlanning}
+                    variant="outline"
+                    className="flex items-center gap-2 px-6 py-3 text-lg"
+                    size="lg"
+                  >
+                    Skip to Planning
+                  </Button>
+                )}
+                <Button 
+                  onClick={handleCoursePlanning}
+                  className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 text-primary-foreground flex items-center gap-2 px-8 py-3 text-lg shadow-md transform transition-all duration-200 hover:scale-[1.01] border-0"
+                  disabled={!selectedCurriculum || !selectedDepartment}
+                  size="lg"
+                >
+                  <Calendar className="w-5 h-5" />
+                  {hasCompletedCourses ? 'Continue to Course Planning' : 'Enter Data & Continue'}
+                </Button>
+              </div>
               {(!selectedCurriculum || !selectedDepartment) && (
                 <p className="text-sm text-muted-foreground text-left sm:text-right">
-                  Please select a faculty and department first
+                  Please select a faculty, department and curriculum first
                 </p>
               )}
             </div>

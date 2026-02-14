@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, Plus, Trash2, Save, BookOpen, Calendar, Users, ArrowLeft, Upload, FileSpreadsheet, X, Download } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
@@ -47,6 +47,7 @@ interface ScheduleData {
   curriculumId?: string;
   curriculumName?: string;
   courses: Course[];
+  status?: 'draft' | 'published';
   createdAt?: string;
   updatedAt?: string;
 }
@@ -94,7 +95,8 @@ const TentativeSchedulePage: React.FC = () => {
     batch: '',
     curriculumId: '',
     curriculumName: '',
-    courses: []
+    courses: [],
+    status: 'draft'
   });
 
   // Curriculum data
@@ -105,6 +107,8 @@ const TentativeSchedulePage: React.FC = () => {
   const [scheduleVersions, setScheduleVersions] = useState<ScheduleData[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
   const [instructorsList, setInstructorsList] = useState<string[]>(['Dr. Smith', 'Dr. Johnson', 'Dr. Williams', 'Prof. Brown', 'Prof. Davis']);
+  const [showCustomDepartment, setShowCustomDepartment] = useState(false);
+  const [customDepartment, setCustomDepartment] = useState('');
 
   const [courseSearch, setCourseSearch] = useState('');
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
@@ -577,10 +581,15 @@ const TentativeSchedulePage: React.FC = () => {
           department: schedule.department,
           batch: schedule.batch,
           curriculumId: schedule.curriculumId,
+          status: schedule.status || 'draft',
           courses: coursesForApi,
         });
         
-        success(`Schedule "${schedule.name}" updated successfully!`);
+        if (schedule.status === 'published') {
+          success(`Schedule "${schedule.name}" updated and published! This is now the active schedule for ${schedule.department || 'the department'}.`);
+        } else {
+          success(`Schedule "${schedule.name}" updated as draft.`);
+        }
       } else {
         // Create new schedule with automatic version
         const timestamp = new Date();
@@ -602,10 +611,15 @@ const TentativeSchedulePage: React.FC = () => {
           department: schedule.department,
           batch: schedule.batch,
           curriculumId: schedule.curriculumId,
+          status: schedule.status || 'draft',
           courses: coursesForApi,
         });
         
-        success(`Schedule "${schedule.name}" saved successfully!`);
+        if (schedule.status === 'published') {
+          success(`Schedule "${schedule.name}" created and published! This is now the active schedule for ${schedule.department || 'the department'}.`);
+        } else {
+          success(`Schedule "${schedule.name}" saved as draft.`);
+        }
         
         // Save to localStorage for backup (new schedules only)
         const newVersion: ScheduleData = {
@@ -815,17 +829,61 @@ const TentativeSchedulePage: React.FC = () => {
                     <Label htmlFor="department">
                       Department <span className="text-sm text-muted-foreground">(Optional)</span>
                     </Label>
-                    <select
-                      id="department"
-                      value={schedule.department}
-                      onChange={e => setSchedule(prev => ({ ...prev, department: e.target.value }))}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <option value="">Select Department</option>
-                      <option value="CS">Computer Science</option>
-                      <option value="IT">Information Technology</option>
-                      <option value="Both">Both (CS & IT)</option>
-                    </select>
+                    {!showCustomDepartment ? (
+                      <select
+                        id="department"
+                        value={schedule.department}
+                        onChange={e => {
+                          if (e.target.value === '__custom__') {
+                            setShowCustomDepartment(true);
+                            setSchedule(prev => ({ ...prev, department: '' }));
+                          } else {
+                            setSchedule(prev => ({ ...prev, department: e.target.value }));
+                          }
+                        }}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <option value="">Select Department</option>
+                        <option value="CS">Computer Science</option>
+                        <option value="IT">Information Technology</option>
+                        <option value="Both">Both (CS & IT)</option>
+                        <option value="__custom__">+ Add Custom Department</option>
+                      </select>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          value={customDepartment}
+                          onChange={e => setCustomDepartment(e.target.value)}
+                          placeholder="Enter department name"
+                          className="flex-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (customDepartment.trim()) {
+                              setSchedule(prev => ({ ...prev, department: customDepartment.trim() }));
+                              setCustomDepartment('');
+                              setShowCustomDepartment(false);
+                              success(`Department "${customDepartment.trim()}" added`);
+                            }
+                          }}
+                          className="px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm"
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowCustomDepartment(false);
+                            setCustomDepartment('');
+                          }}
+                          className="px-3 py-2 border rounded-md hover:bg-muted transition-colors text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="batch">
@@ -837,9 +895,29 @@ const TentativeSchedulePage: React.FC = () => {
                       value={schedule.batch}
                       onChange={e => setSchedule(prev => ({ ...prev, batch: e.target.value }))}
                       placeholder="e.g., 651, 652, 653"
-                      readOnly={!!selectedCurriculum}
                     />
                   </div>
+                </div>
+                
+                {/* Status Selection */}
+                <div>
+                  <Label htmlFor="status">
+                    Schedule Status <span className="text-red-500">*</span>
+                  </Label>
+                  <select
+                    id="status"
+                    value={schedule.status || 'draft'}
+                    onChange={e => setSchedule(prev => ({ ...prev, status: e.target.value as 'draft' | 'published' }))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="draft">Draft (Not visible to students)</option>
+                    <option value="published">Published (Active - visible to students)</option>
+                  </select>
+                  {schedule.status === 'published' && schedule.department && (
+                    <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-xs text-yellow-800 dark:text-yellow-200">
+                      ⚠️ Publishing will make this the active schedule for <strong>{schedule.department}</strong> department. Only one schedule can be active per department.
+                    </div>
+                  )}
                 </div>
                 
                 {/* Version History Selector */}
@@ -1192,4 +1270,10 @@ const TentativeSchedulePage: React.FC = () => {
   );
 };
 
-export default TentativeSchedulePage;
+export default function TentativeSchedulePageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <TentativeSchedulePage />
+    </Suspense>
+  );
+}
