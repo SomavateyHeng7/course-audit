@@ -2,13 +2,13 @@
 
 ## ✅ IMPLEMENTATION COMPLETE (Backend + Frontend)
 
-**Status:** Both Backend and Frontend integration complete.
+**Status:** REQ-1 through REQ-6 (except REQ-4) fully implemented. REQ-3 File Pre-Validation complete. Breaking changes reviewed and resolved.
 
-**Last Updated:** February 6, 2026
+**Last Updated:** February 11, 2026
 
 ---
 
-## 🔄 IMPLEMENTATION STATUS (February 6, 2026)
+## 🔄 IMPLEMENTATION STATUS (February 11, 2026)
 
 ### Completed
 
@@ -17,6 +17,8 @@
 | 1 | **Submission Retention Change** | ✅ Complete | Backend + Frontend updated. Now 1 week after portal deadline |
 | 2 | **Chairperson Notification System** | ✅ Complete | Backend API + NotificationDropdown component |
 | 3 | **File Pre-Validation** | 🟡 Pending | Frontend validation not yet implemented |
+| 5 | **Grace Period** | ✅ Complete | Backend + Frontend done. Config: `GRADUATION_GRACE_PERIOD_DAYS=7` |
+| 6 | **Enhanced Validation Response** | ✅ Complete | Backend returns `requirements[]`, `categoryProgress`, `summary` with all needed fields |
 
 ### Future Consideration
 
@@ -32,11 +34,12 @@
 
 | File | Change |
 |------|--------|
-| `src/lib/api/laravel.ts` | Added `GraduationNotification` type, notification API functions, updated `CacheSubmission` type with `deletion_date`, added `SubmissionRetentionInfo` type |
+| `src/lib/api/laravel.ts` | Added `GraduationNotification` type, notification API functions, updated `CacheSubmission` type with `deletion_date`, added `SubmissionRetentionInfo` type, added `GRACE_PERIOD_DAYS` constant, added `grace_period_end` and `is_in_grace_period` fields to `GraduationPortal` and `SubmissionRetentionInfo` |
 | `src/components/common/NotificationDropdown.tsx` | **NEW** - Discord-style notification dropdown component |
 | `src/components/common/layout/Sidebar.tsx` | Integrated NotificationDropdown for chairperson/advisor roles |
 | `src/app/chairperson/GraduationPortal/page.tsx` | Updated `ExpiryTimer` → `RetentionTimer` component to show days until deletion |
-| `src/app/student/GraduationPortal/page.tsx` | Updated retention messages (removed "30 minutes" references) |
+| `src/app/student/GraduationPortal/page.tsx` | Updated retention messages; Added Grace Period logic (grace period helpers, portal card amber styling, upload banner, preview/success retention messages) |
+| `src/app/chairperson/GraduationPortal/[submissionId]/page.tsx` | **ENHANCED** - Added DonutChart, SegmentedProgressBar, GPA calculation, per-status course lists (completed/in-progress/planned/failed), graduation requirements checklist, validation summary, credit breakdown |
 
 ### API Functions Added (`src/lib/api/laravel.ts`):
 
@@ -280,20 +283,149 @@ GraduationNotification::notifyDepartmentStaff(
            
 ---
 
-### REQ-3: File Pre-Validation (Frontend Only)
+### REQ-3: File Pre-Validation (Frontend Only) ✅
 
 **Note:** This is primarily a **frontend responsibility** (client-side validation before submission).
 
-**Frontend is responsible for:**
-- File format validation (.xlsx, .xls, .csv)
-- File size validation (max 5MB by default)
-- File parsing (corrupt file detection)
-- Required column detection
-- Data type validation
-- Course code format hints
-- Grade format validation
+**Frontend Implementation (✅ Done):**
+
+New files created:
+- `src/lib/utils/filePreValidation.ts` — Pre-validation engine with 8 structured checks
+- `src/components/graduation/FilePreValidator.tsx` — Checklist UI component
+
+Modified:
+- `src/app/student/GraduationPortal/page.tsx` — Replaced inline `alert()` error handling with `FilePreValidator` component; `processFile` now calls `preValidateGraduationFile()` instead of `parseGraduationFile()` directly
+
+**Validation checks performed (in order):**
+1. **File format** — Validates extension against portal's `acceptedFormats` (.xlsx, .xls, .csv)
+2. **File size** — Validates against portal's `maxFileSizeMb` (default 5 MB)
+3. **File readable** — Attempts parse via existing `parseGraduationFile()`; detects corrupt/unreadable files
+4. **Course data found** — Ensures ≥1 and ≤200 courses parsed
+5. **Data validation** — Per-row checks: course code presence + format, credits range (0–12), grade recognition
+6. **Status distribution** — Warns if no completed/in-progress courses detected
+7. **Duplicate detection** — Surfaces any duplicate course codes from parser
+8. **Submission readiness** — Runs `validateCoursesForSubmission()` for final checks
+
+**UI behaviour:**
+- Dropzone shown when no file selected
+- On file drop/select: pre-validation runs, results shown as pass/fail/warn checklist
+- Errors block advancement; warnings allow continuation with advisory alert
+- "Re-upload" button to pick a different file
+- "Continue" button (+ footer "Preview" button) enabled only when `canProceed === true`
+- Issues section is collapsible with row/column details
 
 Backend validation is already handled by `StoreGraduationSubmissionRequest.php`.
+
+---
+
+### REQ-5: Grace Period ✅
+
+**Concept:** Students can still submit graduation files for 7 days after the portal deadline. This "Grace Period" gives students extra time while still auto-deleting data for PDPA compliance.
+
+**Frontend Implementation (✅ Done):**
+- `GRACE_PERIOD_DAYS = 7` constant added to `laravel.ts`
+- Helper functions: `getGracePeriodEnd()`, `isInGracePeriod()`, `isAcceptingSubmissions()`, `getDaysUntilGracePeriodEnd()`
+- Portal selection: portals in grace period shown with amber badge "Grace Period" and countdown
+- Upload step: amber banner warning that submission is during grace period
+- Preview/success steps: retention messages reference grace period end date
+- Chairperson portal page: info alert mentions grace period
+
+**Backend Implementation (✅ Done):**
+
+1. **Config (`config/graduation.php`):**
+   ```php
+   'grace_period_days' => (int) env('GRADUATION_GRACE_PERIOD_DAYS', 7),
+   ```
+
+2. **Model (`GraduationPortal.php`):**
+   - `isActive()` — returns `true` during grace period (not just before deadline)
+   - `scopeActive()` — includes portals in grace period in listings
+   - `getGracePeriodEnd()` — returns `Carbon` of `deadline + grace_period_days`
+   - `isInGracePeriod()` — returns `true` if now is between deadline and grace period end
+
+3. **Portal API responses now include:**
+   ```json
+   {
+     "deadline": "2026-02-15",
+     "grace_period_end": "2026-02-22T00:00:00.000000Z",
+     "is_in_grace_period": true
+   }
+   ```
+   Note: `deadline` stays in `Y-m-d` format. `grace_period_end` uses ISO 8601.
+
+4. **Submission Endpoint (`POST /api/graduation-portals/{id}/submit`):**
+   - Accepts submissions when `now <= portal.deadline + grace_period_days`
+   - Rejects with 422 + `GRACE_PERIOD_ENDED` error code when past grace period
+   - Retention/deletion date is still `portal.deadline + submission_retention_days`
+
+5. **Submissions List (`GET .../cache-submissions`) — `retention_info` now includes:**
+   ```json
+   { "is_in_grace_period": true }
+   ```
+
+6. **PDPA Note:** Grace period submissions follow the same retention policy (deleted `retention_days` after portal deadline). The grace period only extends the *submission window*, not the *data retention window*.
+
+---
+
+### REQ-6: Enhanced Validation Response ✅
+
+**Requirement:** The chairperson's submission review page should show the same level of detail as the student progress page.
+
+**Frontend Implementation (✅ Done):**
+
+| Component | Description |
+|-----------|-------------|
+| `DonutChart` | Multi-segment SVG donut showing credit distribution (completed/in-progress/planned/failed/remaining) |
+| `SegmentedProgressBar` | Gradient bar with legend showing credit progress toward required total |
+| GPA Calculation | Client-side GPA from `GRADE_GPA_MAP` (A=4.0, B+=3.5, ..., F=0) |
+| Stats Row | 6 stat cards: Total Courses, Completed, In Progress, Planned, Credits Earned, GPA |
+| Credit Breakdown | Side-by-side: donut chart + itemized credit rows with color indicators |
+| Course Lists | 4 collapsible sections: Completed (with grades), In Progress (with semester), Planned (with semester), Failed/Withdrawn |
+| Requirements Checklist | Uses `validation.requirements[]` from backend to show met/unmet checklist |
+| Validation Summary | Uses `validation.summary` for matched/unmatched courses, required credits |
+
+**Backend Implementation (✅ Done):**
+
+The `POST .../cache-submissions/{id}/validate` response now returns:
+
+```json
+{
+  "message": "Validation completed",
+  "submission": {
+    "id": "uuid", "status": "validated",
+    "student_identifier": "...", "curriculum_id": "...",
+    "courses": [...], "submitted_at": "...", "expires_at": "...", "deletion_date": "..."
+  },
+  "validation": {
+    "valid": true,
+    "can_graduate": true,
+    "canGraduate": true,
+    "summary": {
+      "totalCreditsRequired": 120, "totalCreditsEarned": 95,
+      "creditsCompleted": 95, "creditsInProgress": 15, "creditsPlanned": 6,
+      "completionPercentage": 79.2, "gpa": 3.20,
+      "matchedCourses": 30, "unmatchedCourses": 2,
+      "coursesMatched": 30, "coursesUnmatched": 2
+    },
+    "categoryProgress": { "Core": { "creditsRequired": 60, "creditsCompleted": 45, ... } },
+    "requirements": [
+      { "name": "Minimum Credits", "met": false, "label": "...", "description": "...", "message": "...", "required": 120, "current": 95 },
+      { "name": "GPA Requirement", "met": true, ... }
+    ],
+    "errors": [], "warnings": [],
+    "matchedCourses": [ { "code": "CS101", "name": "...", "credits": 3, "grade": "A", "status": "completed", "semester": "1/2025", "category": "Core", "matched": true } ],
+    "unmatchedCourses": [ { "code": "BUS201", "name": "...", "credits": 3, "grade": "B+", "status": "completed", "reason": "Not in curriculum" } ]
+  }
+}
+```
+
+**Key decisions (reviewed Feb 11, 2026):**
+- `validation_result` stays in cached submission (for `show()` endpoint)
+- Top-level `validation` key used in validate response (for frontend)
+- `requirements` is an indexed array (not keyed object)
+- `unmatchedCourses` kept as objects (not stripped to strings)
+- `deadline` format stays `Y-m-d` (no ISO 8601 change)
+- `matchedCourses` stripped internal IDs (`is_required`, `curriculum_course_id`, `course_id`) — frontend confirmed safe
 
 ---
 
@@ -777,65 +909,99 @@ POST /api/graduation-portals/{portal}/cache-submissions/{submissionId}/validate
 Authorization: Bearer {sanctum_token}
 ```
 
-**Response:**
+**Response (v1.4+):**
 ```json
 {
   "message": "Validation completed",
   "submission": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "status": "validated",
-    "validation_result": {
-      "valid": false,
-      "canGraduate": false,
-      "summary": {
-        "totalCreditsRequired": 139,
-        "creditsCompleted": 85,
-        "creditsInProgress": 12,
-        "creditsPlanned": 42,
-        "completionPercentage": 61.2,
-        "gpa": 3.45,
-        "coursesMatched": 42,
-        "coursesUnmatched": 3
+    "student_identifier": "John Doe - 6512345",
+    "curriculum_id": "019b2d53-f1da-70ff-8814-38ddac90427c",
+    "courses": [...],
+    "submitted_at": "2026-02-11T10:00:00.000000Z",
+    "expires_at": "2026-02-22T00:00:00.000000Z",
+    "deletion_date": "2026-02-22"
+  },
+  "validation": {
+    "valid": false,
+    "can_graduate": false,
+    "canGraduate": false,
+    "summary": {
+      "totalCreditsRequired": 139,
+      "totalCreditsEarned": 85,
+      "creditsCompleted": 85,
+      "creditsInProgress": 12,
+      "creditsPlanned": 42,
+      "completionPercentage": 61.2,
+      "gpa": 3.45,
+      "matchedCourses": 42,
+      "unmatchedCourses": 3,
+      "coursesMatched": 42,
+      "coursesUnmatched": 3
+    },
+    "categoryProgress": {
+      "Core": {
+        "name": "Core",
+        "creditsRequired": 45,
+        "creditsCompleted": 40,
+        "creditsInProgress": 3,
+        "creditsPlanned": 6,
+        "coursesCompleted": 12,
+        "coursesInProgress": 1,
+        "coursesPlanned": 2,
+        "percentComplete": 88.9,
+        "isComplete": false
+      }
+    },
+    "requirements": [
+      {
+        "name": "Minimum Credits",
+        "met": false,
+        "label": "Minimum credit requirement: 85/139 completed — need 54 more",
+        "description": "Minimum credit requirement: 85/139 completed — need 54 more",
+        "message": "Minimum credit requirement: 85/139 completed — need 54 more",
+        "required": 139,
+        "current": 85
       },
-      "categoryProgress": {
-        "Core": {
-          "name": "Core",
-          "creditsRequired": 45,
-          "creditsCompleted": 40,
-          "percentComplete": 88.9,
-          "isComplete": false
-        }
+      {
+        "name": "GPA Requirement",
+        "met": true,
+        "label": "Current GPA: 3.45 (meets requirement)",
+        "description": "Current GPA: 3.45 (meets requirement)",
+        "message": "Current GPA: 3.45 (meets requirement)",
+        "required": 2.0,
+        "current": 3.45
       },
-      "requirements": {
-        "totalCredits": {
-          "name": "Total Credits",
-          "required": 139,
-          "current": 85,
-          "met": false,
-          "message": "Need 54 more credits"
-        },
-        "gpa": {
-          "name": "Minimum GPA",
-          "required": 2.0,
-          "current": 3.45,
-          "met": true,
-          "message": "GPA of 3.45 meets minimum 2.0"
-        }
-      },
-      "errors": [
-        "Missing prerequisite: CS301 requires CS201 to be completed first",
-        "Missing 5 credits for Core requirement"
-      ],
-      "warnings": [
-        "Course XYZ999 not found in curriculum",
-        "12 credits still in progress"
-      ],
-      "matchedCourses": [...],
-      "unmatchedCourses": [...]
-    }
+      {
+        "name": "No Validation Errors",
+        "met": false,
+        "label": "2 validation error(s) found",
+        "description": "2 validation error(s) found",
+        "message": "2 validation error(s) found",
+        "required": 0,
+        "current": 2
+      }
+    ],
+    "errors": [
+      "Missing prerequisite: CS301 requires CS201 to be completed first",
+      "Missing 5 credits for Core requirement"
+    ],
+    "warnings": [
+      "Course XYZ999 not found in curriculum",
+      "12 credits still in progress"
+    ],
+    "matchedCourses": [
+      { "code": "CS101", "name": "Intro to CS", "credits": 3, "grade": "A", "status": "completed", "semester": "1/2024", "category": "Core", "matched": true }
+    ],
+    "unmatchedCourses": [
+      { "code": "XYZ999", "name": "Unknown Course", "credits": 3, "grade": "B", "status": "completed", "reason": "Not in curriculum" }
+    ]
   }
 }
 ```
+
+> **Note:** The `validation_result` key is still stored inside the cached submission (for the `GET .../cache-submissions/{id}` endpoint). The `POST .../validate` response uses the top-level `validation` key.
 
 #### Approve Submission
 ```http
@@ -1865,11 +2031,15 @@ Automatically map student IDs to their correct curriculum instead of letting stu
 
 ---
 
-**Document Version:** 1.2  
-**Last Updated:** February 6, 2026  
+**Document Version:** 1.5  
+**Last Updated:** February 11, 2026  
 **Author:** Backend Team / Frontend Team
 
 **Changelog:**
+- v1.6 (Feb 11, 2026): REQ-3 File Pre-Validation implemented. Created `filePreValidation.ts` (pre-validation engine with 8 checks), `FilePreValidator.tsx` (checklist UI component). Updated student portal upload step to replace `alert()` calls with structured validation UI. File is no longer auto-advanced to preview — student reviews validation checklist first.
+- v1.5 (Feb 11, 2026): Frontend integration complete for REQ-5/REQ-6 backend changes. Updated `ValidationResult` type to match actual backend response (`fulfilled`/`met`, `earned`/`current`, optional `categoryProgress` fields, `is_active` on portal). Added `GRACE_PERIOD_ENDED` error handling in student submit flow. Updated `isInGracePeriod`/`isAcceptingSubmissions` to prefer backend-computed values (`is_in_grace_period`, `is_active`). Requirements checklist now shows `earned/required` detail and handles both `fulfilled` and `met` field names.
+- v1.4 (Feb 11, 2026): REQ-5 backend complete (grace period config, model, controller, submission gate). REQ-6 backend complete (enhanced validation response shape). Breaking changes reviewed with frontend — 6 items resolved. `deadline` stays `Y-m-d`, `unmatchedCourses` kept as objects, `requirements` converted to array, `validation` moved to top-level key.
+- v1.3 (Feb 7, 2026): Added REQ-5 (Grace Period) - frontend complete, backend requirements documented. Added REQ-6 (Enhanced Submission Detail) - frontend complete with DonutChart, SegmentedProgressBar, GPA, course breakdowns, validation checklist. Updated files modified table.
 - v1.2 (Feb 6, 2026): Added detailed backend requirements for REQ-1 (retention), REQ-2 (notifications), REQ-3 (validation)
 - v1.1 (Feb 6, 2026): Added pending updates - submission retention change, notification system, file pre-validation, auto curriculum mapping note
 - v1.0 (Feb 6, 2026): Initial document
@@ -1921,8 +2091,7 @@ Automatically map student IDs to their correct curriculum instead of letting stu
 
 | Owner | Task | Priority |
 |-------|------|----------|
-| **Frontend** | Implement FilePreValidator component | 🟢 Start Now |
-| **Frontend** | Implement NotificationDropdown component (can mock data) | 🟢 Start Now |
-| **Backend** | REQ-1: Update submission retention logic | 🟡 High |
-| **Backend** | REQ-2: Create notification model & API | 🟡 High |
-| **Both** | Integration testing | After backend ready |
+| ~~**Frontend**~~ | ~~Implement FilePreValidator component (REQ-3)~~ | ✅ Done |
+| **Both** | Integration testing — verify REQ-3/REQ-5/REQ-6 end-to-end | 🔴 High |
+| **Backend** | Add `GRADUATION_GRACE_PERIOD_DAYS=7` to production `.env` | 🟢 Before deploy |
+| **Both** | QA: run regression checklist (portal list, submit, validate, approve/reject) | 🟡 Medium |

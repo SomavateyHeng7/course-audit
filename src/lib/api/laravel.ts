@@ -468,6 +468,11 @@ export async function downloadSampleCsv() {
 
 // ===== GRADUATION PORTAL API =====
 
+// ===== GRACE PERIOD CONFIGURATION =====
+// The "Grace Period" is the window after the portal deadline during which
+// students can still submit files and submissions are retained before auto-deletion.
+export const GRACE_PERIOD_DAYS = 7;
+
 // Types for Graduation Portal
 export interface GraduationPortal {
   id: string;
@@ -494,6 +499,10 @@ export interface GraduationPortal {
   submissionsCount?: number;
   createdAt?: string;
   closedAt?: string;
+  // Grace period: submissions are accepted for GRACE_PERIOD_DAYS after the deadline
+  grace_period_end?: string; // ISO date string: deadline + GRACE_PERIOD_DAYS
+  is_in_grace_period?: boolean; // Computed: true if past deadline but within grace period
+  is_active?: boolean; // Backend computed: true if deadline not passed or in grace period
 }
 
 export interface GraduationSession {
@@ -548,42 +557,61 @@ export interface CacheSubmission {
 }
 
 // Retention info for submissions list response
+// Submissions are retained for the duration of the Grace Period (GRACE_PERIOD_DAYS after deadline)
 export interface SubmissionRetentionInfo {
   portal_deadline: string;
-  retention_days: number;
-  deletion_date: string;
+  retention_days: number; // Same as GRACE_PERIOD_DAYS
+  deletion_date: string;  // portal_deadline + GRACE_PERIOD_DAYS
+  is_in_grace_period: boolean;
 }
 
 export interface ValidationResult {
   valid: boolean;
   canGraduate: boolean;
+  can_graduate?: boolean;
   summary: {
     totalCreditsRequired: number;
-    creditsCompleted: number;
-    creditsInProgress: number;
-    creditsPlanned: number;
-    gpa: number;
-    coursesMatched: number;
-    coursesUnmatched: number;
+    totalCreditsEarned?: number;
+    // Backend may or may not send these; frontend computes locally as fallback
+    creditsCompleted?: number;
+    creditsInProgress?: number;
+    creditsPlanned?: number;
+    gpa?: number;
+    // Backend sends these as counts
+    matchedCourses?: number;
+    unmatchedCourses?: number;
+    // Legacy aliases
+    coursesMatched?: number;
+    coursesUnmatched?: number;
   };
-  categoryProgress: Record<string, {
-    name: string;
-    creditsRequired: number;
-    creditsCompleted: number;
-    percentComplete: number;
-    isComplete: boolean;
+  categoryProgress?: Record<string, {
+    name?: string;
+    // Backend sends earned/required/percentage
+    earned?: number;
+    required?: number;
+    percentage?: number;
+    // Frontend aliases (for compatibility)
+    creditsRequired?: number;
+    creditsCompleted?: number;
+    percentComplete?: number;
+    isComplete?: boolean;
   }>;
-  requirements: Record<string, {
+  requirements: Array<{
     name: string;
-    required: number;
-    current: number;
-    met: boolean;
-    message: string;
+    label?: string;
+    description?: string;
+    required?: number;
+    earned?: number;    // Backend sends this
+    current?: number;   // Frontend alias
+    fulfilled?: boolean; // Backend sends this
+    met?: boolean;       // Frontend alias
+    message?: string;
+    courses?: Array<{ code: string; name?: string; credits?: number; status?: string }>;
   }>;
-  errors: string[];
-  warnings: string[];
-  matchedCourses: Array<{ code: string; matched: boolean; status: string }>;
-  unmatchedCourses: string[];
+  errors?: string[];
+  warnings?: string[];
+  matchedCourses?: Array<{ code: string; name?: string; credits?: number; grade?: string; matched?: boolean; status?: string; semester?: string; category?: string }>;
+  unmatchedCourses?: Array<string | { code: string; name?: string; credits?: number; grade?: string; status?: string }>;
 }
 
 // ===== PUBLIC GRADUATION PORTAL ENDPOINTS (No Auth) =====
@@ -807,8 +835,17 @@ export async function submitGraduationCourses(
         message: errorData.message || 'Session expired. Please verify PIN again.'
       }));
     }
+
+    // Handle grace period ended (422)
+    if (response.status === 422 && (errorData.code === 'GRACE_PERIOD_ENDED' || error.code === 'GRACE_PERIOD_ENDED')) {
+      throw new Error(JSON.stringify({
+        code: 'GRACE_PERIOD_ENDED',
+        message: errorData.message || error.error || 'The submission period (including grace period) has ended.',
+        grace_period_end: errorData.grace_period_end || error.grace_period_end
+      }));
+    }
     
-    throw new Error(errorData.message || 'Submission failed');
+    throw new Error(errorData.message || error.error || 'Submission failed');
   }
   
   return response.json();

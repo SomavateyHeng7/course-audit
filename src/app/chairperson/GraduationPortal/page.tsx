@@ -73,6 +73,7 @@ import {
   approveCacheSubmission,
   rejectCacheSubmission,
   batchValidateSubmissions,
+  GRACE_PERIOD_DAYS,
   type GraduationPortal,
   type CacheSubmission,
   type ValidationResult
@@ -528,20 +529,18 @@ const GraduationPortalChairpersonPage: React.FC = () => {
   };
 
   const handleClosePortal = async (portalId: string) => {
-    // Close dialog immediately to prevent UI freeze
-    setConfirmDialog(null);
     setIsProcessingAction(true);
     try {
       await closeGraduationPortal(portalId);
-      setPortals(prev => prev.map(p => p.id === portalId ? { ...p, status: 'closed' as const } : p));
-      if (selectedPortal?.id === portalId) {
-        setSelectedPortal(prev => prev ? { ...prev, status: 'closed' } : null);
-      }
       showSuccess('Portal closed successfully', 'Portal Closed');
+      // Refresh page after short delay to let toast show
+      setTimeout(() => {
+        window.location.href = '/chairperson/GraduationPortal';
+      }, 500);
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to close portal', 'Error');
-    } finally {
       setIsProcessingAction(false);
+      setConfirmDialog(null);
     }
   };
 
@@ -562,28 +561,19 @@ const GraduationPortalChairpersonPage: React.FC = () => {
   };
 
   const handleDeletePortal = async (portalId: string) => {
-    // Close dialog immediately to prevent UI freeze
-    setConfirmDialog(null);
     setIsProcessingAction(true);
     try {
       const portalName = portals.find(p => p.id === portalId)?.name || 'Portal';
       await deleteGraduationPortal(portalId);
-      
-      // Update portals and find new selection
-      const remainingPortals = portals.filter(p => p.id !== portalId);
-      setPortals(remainingPortals);
-      
-      // Select another portal if the deleted one was selected
-      if (selectedPortal?.id === portalId) {
-        const newSelection = remainingPortals.find(p => p.status === 'active') || remainingPortals[0] || null;
-        setSelectedPortal(newSelection);
-      }
-      
       showSuccess(`Portal "${portalName}" deleted successfully`, 'Portal Deleted');
+      // Refresh page after short delay to let toast show
+      setTimeout(() => {
+        window.location.href = '/chairperson/GraduationPortal';
+      }, 500);
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to delete portal', 'Error');
-    } finally {
       setIsProcessingAction(false);
+      setConfirmDialog(null);
     }
   };
 
@@ -897,7 +887,8 @@ const GraduationPortalChairpersonPage: React.FC = () => {
           <Alert className="mb-6">
             <Clock className="w-4 h-4" />
             <AlertDescription>
-              Submissions are cached for 30 minutes due to privacy requirements. Review and approve them before they expire.
+              Submissions are retained during the <strong>Grace Period</strong> ({GRACE_PERIOD_DAYS} days after the portal deadline).
+              Students can still submit during this period. Data is auto-deleted once the Grace Period ends.
               Auto-refreshing every 10 seconds.
             </AlertDescription>
           </Alert>
