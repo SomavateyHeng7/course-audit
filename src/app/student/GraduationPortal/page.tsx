@@ -36,17 +36,22 @@ import {
   getPortalCurricula,
   getPublicFaculties,
   getPublicDepartments,
+  GRACE_PERIOD_DAYS,
   type GraduationPortal,
   type GraduationSession,
   type SubmissionCourse,
   type PortalCurriculum
 } from '@/lib/api/laravel';
 import { 
-  parseGraduationFile, 
   validateCoursesForSubmission,
   getStatusDisplayLabel,
   type ParseResult 
 } from '@/lib/utils/graduationFileParser';
+import {
+  preValidateGraduationFile,
+  type PreValidationResult,
+} from '@/lib/utils/filePreValidation';
+import { FilePreValidator } from '@/components/graduation/FilePreValidator';
 
 type SubmissionStep = 'select' | 'pin' | 'curriculum' | 'upload' | 'preview' | 'success';
 
@@ -85,6 +90,8 @@ const GraduationPortalPage: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [isParsing, setIsParsing] = useState(false);
+  const [preValidation, setPreValidation] = useState<PreValidationResult | null>(null);
+  const [isPreValidating, setIsPreValidating] = useState(false);
   
   // Submission state
   const [studentIdentifier, setStudentIdentifier] = useState('');
@@ -145,7 +152,7 @@ const GraduationPortalPage: React.FC = () => {
   };
 
   const handleSelectPortal = (portal: GraduationPortal) => {
-    if (portal.status === 'closed') return;
+    if (!isAcceptingSubmissions(portal)) return;
     setSelectedPortal(portal);
     setCurrentStep('pin');
     setPin('');
@@ -307,41 +314,47 @@ const GraduationPortalPage: React.FC = () => {
   };
 
   const processFile = async (file: File) => {
-    const validExtensions = selectedPortal?.acceptedFormats || ['.xlsx', '.xls', '.csv'];
-    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-    
-    if (!validExtensions.includes(fileExtension)) {
-      alert(`Invalid file format. Accepted formats: ${validExtensions.join(', ')}`);
-      return;
-    }
-    
-    // Check file size
-    const maxSizeMb = selectedPortal?.maxFileSizeMb || 5;
-    if (file.size > maxSizeMb * 1024 * 1024) {
-      alert(`File too large. Maximum size: ${maxSizeMb}MB`);
-      return;
-    }
-    
     setUploadedFile(file);
+    setPreValidation(null);
+    setParseResult(null);
+    setIsPreValidating(true);
     setIsParsing(true);
     
     try {
-      const result = await parseGraduationFile(file);
-      setParseResult(result);
+      const result = await preValidateGraduationFile(file, {
+        acceptedFormats: selectedPortal?.acceptedFormats || ['.xlsx', '.xls', '.csv'],
+        maxSizeMb: selectedPortal?.maxFileSizeMb || 5,
+      });
       
-      if (result.success) {
-        setCurrentStep('preview');
+      setPreValidation(result);
+      if (result.parseResult) {
+        setParseResult(result.parseResult);
       }
+      // Don't auto-advance — user reviews validation results first
     } catch (error) {
+      setPreValidation(null);
       setParseResult({
         success: false,
         courses: [],
         summary: { totalCourses: 0, byCategory: {}, byStatus: {}, totalCredits: 0 },
-        errors: [error instanceof Error ? error.message : 'Failed to parse file'],
+        errors: [error instanceof Error ? error.message : 'Failed to validate file'],
         warnings: []
       });
     } finally {
+      setIsPreValidating(false);
       setIsParsing(false);
+    }
+  };
+
+  const handleReupload = () => {
+    setUploadedFile(null);
+    setParseResult(null);
+    setPreValidation(null);
+  };
+
+  const handleValidationContinue = () => {
+    if (preValidation?.canProceed && parseResult) {
+      setCurrentStep('preview');
     }
   };
 
@@ -396,6 +409,10 @@ const GraduationPortalPage: React.FC = () => {
             handleSessionExpired();
             return;
           }
+          if (errorData.code === 'GRACE_PERIOD_ENDED') {
+            alert(`The submission period has ended. The grace period expired on ${errorData.grace_period_end ? new Date(errorData.grace_period_end).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'a previous date'}.`);
+            return;
+          }
           alert(errorData.message || 'Submission failed');
         } catch {
           alert(error.message || 'Submission failed');
@@ -445,6 +462,59 @@ const GraduationPortalPage: React.FC = () => {
     const diffTime = deadlineDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  /**
+   * Grace Period: Students can still submit for GRACE_PERIOD_DAYS after the deadline.
+   * Returns the end date of the grace period.
+   */
+  const getGracePeriodEnd = (deadline: string): Date => {
+    const deadlineDate = new Date(deadline);
+    const graceEnd = new Date(deadlineDate);
+    graceEnd.setDate(graceEnd.getDate() + GRACE_PERIOD_DAYS);
+    return graceEnd;
+  };
+
+  /**
+   * Check if a portal is currently in the Grace Period.
+   * Uses backend-computed `is_in_grace_period` if available.
+   * Grace Period = past deadline but within GRACE_PERIOD_DAYS after it.
+   */
+  const isInGracePeriod = (deadline: string, portal?: GraduationPortal | null): boolean => {
+    // Prefer backend-computed value when portal is available
+    if (portal?.is_in_grace_period !== undefined) return portal.is_in_grace_period;
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const graceEnd = getGracePeriodEnd(deadline);
+    return now > deadlineDate && now <= graceEnd;
+  };
+
+  /**
+   * Check if the portal is still accepting submissions.
+   * Uses backend-computed `is_active` if available, otherwise computes locally.
+   * A portal accepts submissions if:
+   * 1. It's before the deadline, OR
+   * 2. It's within the Grace Period (GRACE_PERIOD_DAYS after deadline)
+   * AND the portal is not explicitly closed.
+   */
+  const isAcceptingSubmissions = (portal: GraduationPortal): boolean => {
+    if (portal.status === 'closed') return false;
+    // Prefer backend-computed value
+    if (portal.is_active !== undefined) return portal.is_active;
+    const now = new Date();
+    const graceEnd = getGracePeriodEnd(portal.deadline);
+    return now <= graceEnd;
+  };
+
+  /**
+   * Get days remaining until the grace period ends.
+   * Negative means grace period has expired.
+   */
+  const getDaysUntilGracePeriodEnd = (deadline: string): number => {
+    const now = new Date();
+    const graceEnd = getGracePeriodEnd(deadline);
+    const diffTime = graceEnd.getTime() - now.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
   const formatSessionTime = (seconds: number) => {
@@ -514,7 +584,7 @@ const GraduationPortalPage: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Available Portals</h2>
               <Badge variant="outline" className="text-xs">
-                {portals.filter(p => p.status === 'active').length} Active
+                {portals.filter(p => isAcceptingSubmissions(p)).length} Accepting Submissions
               </Badge>
             </div>
             
@@ -544,12 +614,15 @@ const GraduationPortalPage: React.FC = () => {
                 {portals.map((portal) => {
                   const daysLeft = portal.daysRemaining ?? getDaysUntilDeadline(portal.deadline);
                   const isUrgent = daysLeft <= 7 && daysLeft > 0;
+                  const inGracePeriod = isInGracePeriod(portal.deadline, portal);
+                  const canSubmit = isAcceptingSubmissions(portal);
+                  const graceDaysLeft = getDaysUntilGracePeriodEnd(portal.deadline);
                   
                   return (
                     <Card 
                       key={portal.id}
                       className={`cursor-pointer transition-all hover:shadow-lg ${
-                        portal.status === 'closed' 
+                        !canSubmit 
                           ? 'opacity-60 cursor-not-allowed' 
                           : 'hover:border-primary'
                       }`}
@@ -560,21 +633,45 @@ const GraduationPortalPage: React.FC = () => {
                           <div className="flex-1">
                             <div className="flex items-start gap-3">
                               <div className={`p-2 rounded-lg ${
-                                portal.status === 'active' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-800'
+                                canSubmit 
+                                  ? inGracePeriod 
+                                    ? 'bg-amber-100 dark:bg-amber-900/30' 
+                                    : 'bg-green-100 dark:bg-green-900/30' 
+                                  : 'bg-gray-100 dark:bg-gray-800'
                               }`}>
                                 <FileSpreadsheet className={`w-5 h-5 ${
-                                  portal.status === 'active' ? 'text-green-600 dark:text-green-400' : 'text-gray-400'
+                                  canSubmit 
+                                    ? inGracePeriod 
+                                      ? 'text-amber-600 dark:text-amber-400' 
+                                      : 'text-green-600 dark:text-green-400' 
+                                    : 'text-gray-400'
                                 }`} />
                               </div>
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <h3 className="font-semibold text-lg">{portal.name}</h3>
-                                  <Badge variant={portal.status === 'active' ? 'default' : 'secondary'}>
-                                    {portal.status === 'active' ? 'Open' : 'Closed'}
-                                  </Badge>
-                                  {isUrgent && portal.status === 'active' && (
+                                  {inGracePeriod ? (
+                                    <Badge variant="outline" className="text-xs border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20">
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      Grace Period
+                                    </Badge>
+                                  ) : canSubmit ? (
+                                    <Badge variant="default">
+                                      Open
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary">
+                                      Closed
+                                    </Badge>
+                                  )}
+                                  {isUrgent && canSubmit && !inGracePeriod && (
                                     <Badge variant="destructive" className="text-xs">
                                       {daysLeft} days left
+                                    </Badge>
+                                  )}
+                                  {inGracePeriod && graceDaysLeft > 0 && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      {graceDaysLeft} day{graceDaysLeft !== 1 ? 's' : ''} left to submit
                                     </Badge>
                                   )}
                                 </div>
@@ -602,10 +699,15 @@ const GraduationPortalPage: React.FC = () => {
                             <div className="text-right">
                               <p className="text-xs text-muted-foreground">Deadline</p>
                               <p className="font-medium">{formatDate(portal.deadline)}</p>
+                              {inGracePeriod && (
+                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                  Grace Period until {formatDate(getGracePeriodEnd(portal.deadline).toISOString())}
+                                </p>
+                              )}
                             </div>
-                            {portal.status === 'active' && (
-                              <Button size="sm" className="mt-2">
-                                Select <ArrowRight className="w-4 h-4 ml-1" />
+                            {canSubmit && (
+                              <Button size="sm" className={`mt-2 ${inGracePeriod ? 'bg-amber-600 hover:bg-amber-700' : ''}`}>
+                                {inGracePeriod ? 'Submit (Grace Period)' : 'Select'} <ArrowRight className="w-4 h-4 ml-1" />
                               </Button>
                             )}
                           </div>
@@ -892,6 +994,18 @@ const GraduationPortalPage: React.FC = () => {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Grace Period Banner */}
+              {isInGracePeriod(selectedPortal.deadline, selectedPortal) && (
+                <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-900/20">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm">
+                    <strong>Grace Period Active:</strong> The deadline has passed, but you can still submit for{' '}
+                    {getDaysUntilGracePeriodEnd(selectedPortal.deadline)} more day{getDaysUntilGracePeriodEnd(selectedPortal.deadline) !== 1 ? 's' : ''}.
+                    Your submission will be retained until {formatDate(getGracePeriodEnd(selectedPortal.deadline).toISOString())}.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="bg-muted/50 rounded-lg p-3 mb-4">
                 <p className="text-sm font-medium">{selectedPortal.name}</p>
                 <p className="text-xs text-muted-foreground">
@@ -912,54 +1026,18 @@ const GraduationPortalPage: React.FC = () => {
                 </p>
               </div>
               
-              {/* Drop Zone */}
-              <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  dragOver 
-                    ? 'border-primary bg-primary/5' 
-                    : 'border-muted-foreground/25 hover:border-primary/50'
-                }`}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-              >
-                {isParsing ? (
-                  <div className="space-y-3">
-                    <Loader2 className="w-8 h-8 mx-auto animate-spin text-primary" />
-                    <p className="text-sm text-muted-foreground">Parsing file...</p>
-                  </div>
-                ) : uploadedFile ? (
-                  <div className="space-y-3">
-                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30">
-                      <FileSpreadsheet className="w-6 h-6 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{uploadedFile.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {(uploadedFile.size / 1024).toFixed(1)} KB
-                      </p>
-                    </div>
-                    {parseResult && !parseResult.success && (
-                      <Alert variant="destructive" className="text-left">
-                        <AlertTriangle className="w-4 h-4" />
-                        <AlertDescription>
-                          {parseResult.errors.join('. ')}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => {
-                        setUploadedFile(null);
-                        setParseResult(null);
-                      }}
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      <X className="w-4 h-4 mr-1" /> Remove
-                    </Button>
-                  </div>
-                ) : (
+              {/* Drop Zone (only shown when no file selected yet) */}
+              {!uploadedFile && (
+                <div
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    dragOver 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-muted-foreground/25 hover:border-primary/50'
+                  }`}
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                >
                   <div className="space-y-3">
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted">
                       <Upload className="w-6 h-6 text-muted-foreground" />
@@ -983,17 +1061,28 @@ const GraduationPortalPage: React.FC = () => {
                       Browse Files
                     </Button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* Pre-Validation Results (shown after file selected) */}
+              {(uploadedFile || isPreValidating) && (
+                <FilePreValidator
+                  result={preValidation}
+                  isValidating={isPreValidating}
+                  file={uploadedFile}
+                  onReupload={handleReupload}
+                  onContinue={handleValidationContinue}
+                />
+              )}
               
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={() => setCurrentStep('curriculum')} className="flex-1">
                   Back
                 </Button>
                 <Button 
-                  onClick={() => parseResult?.success && setCurrentStep('preview')}
+                  onClick={handleValidationContinue}
                   className="flex-1" 
-                  disabled={!parseResult?.success || !studentIdentifier.trim()}
+                  disabled={!preValidation?.canProceed || !studentIdentifier.trim()}
                 >
                   Preview <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
@@ -1090,8 +1179,13 @@ const GraduationPortalPage: React.FC = () => {
               <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <Clock className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
                 <p className="text-xs text-blue-700 dark:text-blue-300">
-                  Your submission will be retained until 7 days after the portal deadline for review.
-                  Data is automatically deleted afterward for privacy (PDPA compliance).
+                  Your submission will be retained during the <strong>Grace Period</strong> ({GRACE_PERIOD_DAYS} days after the portal deadline).
+                  Data is automatically deleted once the Grace Period ends for privacy (PDPA compliance).
+                  {selectedPortal && isInGracePeriod(selectedPortal.deadline, selectedPortal) && (
+                    <span className="block mt-1 text-amber-700 dark:text-amber-300 font-medium">
+                      Note: This portal is currently in its Grace Period. You can still submit, but the data will be deleted sooner.
+                    </span>
+                  )}
                 </p>
               </div>
               
@@ -1158,7 +1252,7 @@ const GraduationPortalPage: React.FC = () => {
                   </li>
                   <li className="flex items-start gap-2">
                     <Clock className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                    Your data will be automatically deleted 7 days after the deadline
+                    Your data will be automatically deleted after the Grace Period ({GRACE_PERIOD_DAYS} days after the deadline)
                   </li>
                 </ul>
               </div>

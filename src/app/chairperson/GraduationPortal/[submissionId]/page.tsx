@@ -20,7 +20,10 @@ import {
   Loader2,
   User,
   Calendar,
-  Hash
+  Hash,
+  Percent,
+  BarChart3,
+  TrendingUp
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +44,7 @@ import {
   validateCacheSubmission,
   approveCacheSubmission,
   rejectCacheSubmission,
+  GRACE_PERIOD_DAYS,
   type CacheSubmission,
   type ValidationResult,
   type SubmissionCourse
@@ -53,8 +57,37 @@ interface CategoryProgress {
   completedCredits: number;
   inProgressCredits: number;
   plannedCredits: number;
+  failedCredits: number;
   courses: SubmissionCourse[];
 }
+
+// GPA Mapping (standard 4.0 scale)
+const GRADE_GPA_MAP: Record<string, number> = {
+  'A+': 4.0, 'A': 4.0, 'A-': 3.7,
+  'B+': 3.3, 'B': 3.0, 'B-': 2.7,
+  'C+': 2.3, 'C': 2.0, 'C-': 1.7,
+  'D+': 1.3, 'D': 1.0, 'D-': 0.7,
+  'F': 0.0,
+};
+
+/** Calculate GPA from submission courses */
+const calculateGPA = (courses: SubmissionCourse[]): { gpa: number; gradedCredits: number } => {
+  let totalPoints = 0;
+  let gradedCredits = 0;
+  for (const course of courses) {
+    if (course.grade && course.status === 'completed') {
+      const gradeUpper = course.grade.toUpperCase().trim();
+      if (GRADE_GPA_MAP[gradeUpper] !== undefined) {
+        totalPoints += GRADE_GPA_MAP[gradeUpper] * course.credits;
+        gradedCredits += course.credits;
+      }
+    }
+  }
+  return {
+    gpa: gradedCredits > 0 ? totalPoints / gradedCredits : 0,
+    gradedCredits
+  };
+};
 
 // Helper functions
 const formatDateTime = (dateString: string) => {
@@ -146,6 +179,109 @@ const ProgressBar = ({
           className={`h-full ${color} transition-all duration-300`} 
           style={{ width: `${percent}%` }}
         />
+      </div>
+    </div>
+  );
+};
+
+// Donut chart (matching the progress page style)
+const DonutChart = ({ 
+  completed, 
+  inProgress,
+  planned,
+  total, 
+  size = 100, 
+  strokeWidth = 10 
+}: { 
+  completed: number; 
+  inProgress?: number;
+  planned?: number;
+  total: number; 
+  size?: number; 
+  strokeWidth?: number;
+}) => {
+  const center = size / 2;
+  const radius = center - strokeWidth / 2;
+  const circumference = 2 * Math.PI * radius;
+  
+  const completedPct = total > 0 ? (completed / total) * 100 : 0;
+  const inProgressPct = total > 0 ? ((inProgress || 0) / total) * 100 : 0;
+  const plannedPct = total > 0 ? ((planned || 0) / total) * 100 : 0;
+  
+  const completedOffset = circumference - (completedPct / 100) * circumference;
+  const inProgressStart = (completedPct / 100) * circumference;
+  const inProgressOffset = circumference - (inProgressPct / 100) * circumference;
+  const plannedStart = ((completedPct + inProgressPct) / 100) * circumference;
+  const plannedOffset = circumference - (plannedPct / 100) * circumference;
+  
+  return (
+    <div className="relative flex items-center justify-center">
+      <svg width={size} height={size} className="transform -rotate-90">
+        {/* Background */}
+        <circle cx={center} cy={center} r={radius} fill="transparent" stroke="#e5e7eb" strokeWidth={strokeWidth - 2} className="dark:stroke-gray-700" />
+        {/* Planned */}
+        {plannedPct > 0 && (
+          <circle cx={center} cy={center} r={radius} fill="transparent" stroke="#a78bfa" strokeWidth={strokeWidth - 1}
+            strokeDasharray={circumference} strokeDashoffset={plannedOffset} strokeLinecap="round"
+            style={{ transform: `rotate(${(completedPct + inProgressPct) * 3.6}deg)`, transformOrigin: 'center' }} />
+        )}
+        {/* In Progress */}
+        {inProgressPct > 0 && (
+          <circle cx={center} cy={center} r={radius} fill="transparent" stroke="#60a5fa" strokeWidth={strokeWidth}
+            strokeDasharray={circumference} strokeDashoffset={inProgressOffset} strokeLinecap="round"
+            style={{ transform: `rotate(${completedPct * 3.6}deg)`, transformOrigin: 'center' }} />
+        )}
+        {/* Completed */}
+        <circle cx={center} cy={center} r={radius} fill="transparent" stroke="#10b981" strokeWidth={strokeWidth}
+          strokeDasharray={circumference} strokeDashoffset={completedOffset} strokeLinecap="round"
+          className="transition-all duration-500" />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-sm font-bold leading-none">{Math.round(completedPct)}%</span>
+        <span className="text-[9px] text-muted-foreground">complete</span>
+      </div>
+    </div>
+  );
+};
+
+// Segmented progress bar (matching the progress page style)
+const SegmentedProgressBar = ({
+  completed,
+  inProgress,
+  planned,
+  total,
+}: {
+  completed: number;
+  inProgress: number;
+  planned: number;
+  total: number;
+}) => {
+  const completedPct = total > 0 ? Math.min(100, (completed / total) * 100) : 0;
+  const inProgressPct = total > 0 ? Math.min(100 - completedPct, (inProgress / total) * 100) : 0;
+  const plannedPct = total > 0 ? Math.min(100 - completedPct - inProgressPct, (planned / total) * 100) : 0;
+  
+  return (
+    <div className="w-full">
+      <div className="flex justify-between text-xs mb-1.5">
+        <span className="text-muted-foreground">{completed + inProgress + planned} / {total} credits</span>
+        <span className="font-medium">{Math.round(completedPct + inProgressPct + plannedPct)}% projected</span>
+      </div>
+      <div className="h-3 bg-muted rounded-full overflow-hidden flex">
+        {completedPct > 0 && (
+          <div className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-500" style={{ width: `${completedPct}%` }} />
+        )}
+        {inProgressPct > 0 && (
+          <div className="h-full bg-gradient-to-r from-blue-400 to-blue-500 transition-all duration-500" style={{ width: `${inProgressPct}%` }} />
+        )}
+        {plannedPct > 0 && (
+          <div className="h-full bg-gradient-to-r from-indigo-400 to-purple-400 transition-all duration-500" style={{ width: `${plannedPct}%` }} />
+        )}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs">
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Completed ({completed})</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> In Progress ({inProgress})</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-purple-400"></span> Planned ({planned})</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-muted"></span> Remaining ({Math.max(0, total - completed - inProgress - planned)})</span>
       </div>
     </div>
   );
@@ -407,6 +543,7 @@ const SubmissionDetailPage: React.FC = () => {
           completedCredits: 0,
           inProgressCredits: 0,
           plannedCredits: 0,
+          failedCredits: 0,
           courses: []
         });
       }
@@ -424,6 +561,9 @@ const SubmissionDetailPage: React.FC = () => {
           break;
         case 'planned':
           cat.plannedCredits += course.credits;
+          break;
+        case 'failed':
+          cat.failedCredits += course.credits;
           break;
       }
     });
@@ -454,11 +594,25 @@ const SubmissionDetailPage: React.FC = () => {
   const validation = submission.validation_result;
   
   // Calculate totals
+  const allCourses = submission.courses || [];
   const totalCredits = categories.reduce((sum, c) => sum + c.totalCredits, 0);
   const completedCredits = categories.reduce((sum, c) => sum + c.completedCredits, 0);
   const inProgressCredits = categories.reduce((sum, c) => sum + c.inProgressCredits, 0);
-  const totalCourses = submission.courses?.length || 0;
-  const completedCourses = (submission.courses || []).filter(c => c.status === 'completed').length;
+  const plannedCredits = categories.reduce((sum, c) => sum + c.plannedCredits, 0);
+  const failedCredits = categories.reduce((sum, c) => sum + c.failedCredits, 0);
+  const totalCourses = allCourses.length;
+  const completedCourses = allCourses.filter(c => c.status === 'completed').length;
+  const inProgressCourses = allCourses.filter(c => c.status === 'in_progress').length;
+  const plannedCoursesList = allCourses.filter(c => c.status === 'planned');
+  const failedCoursesList = allCourses.filter(c => c.status === 'failed');
+  const withdrawnCoursesList = allCourses.filter(c => c.status === 'withdrawn');
+
+  // Calculate GPA
+  const { gpa, gradedCredits } = calculateGPA(allCourses);
+  
+  // Requirements from validation result (if available)
+  const requiredCredits = validation?.summary?.totalCreditsRequired || 0;
+  const remainingCredits = Math.max(0, requiredCredits - completedCredits - inProgressCredits);
 
   return (
     <div className="min-h-screen bg-background p-4 sm:p-8">
@@ -593,63 +747,115 @@ const SubmissionDetailPage: React.FC = () => {
         </div>
 
         {/* Progress Overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <FileSpreadsheet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{totalCourses}</p>
-                  <p className="text-xs text-muted-foreground">Total Courses</p>
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Progress Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Segmented Progress Bar */}
+            <SegmentedProgressBar
+              completed={completedCredits}
+              inProgress={inProgressCredits}
+              planned={plannedCredits}
+              total={requiredCredits > 0 ? requiredCredits : completedCredits + inProgressCredits + plannedCredits}
+            />
+
+            {/* Stats Row */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-2xl font-bold">{totalCourses}</p>
+                <p className="text-xs text-muted-foreground">Total Courses</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{completedCourses}</p>
+                <p className="text-xs text-muted-foreground">Completed</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{inProgressCourses}</p>
+                <p className="text-xs text-muted-foreground">In Progress</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20">
+                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{plannedCoursesList.length}</p>
+                <p className="text-xs text-muted-foreground">Planned</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-primary/5">
+                <p className="text-2xl font-bold">{completedCredits}<span className="text-sm font-normal text-muted-foreground">/{requiredCredits > 0 ? requiredCredits : '?'}</span></p>
+                <p className="text-xs text-muted-foreground">Credits Earned</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{gpa > 0 ? gpa.toFixed(2) : 'N/A'}</p>
+                <p className="text-xs text-muted-foreground">GPA{gradedCredits > 0 ? ` (${gradedCredits} cr)` : ''}</p>
+              </div>
+            </div>
+
+            {/* Donut Chart + Credit Breakdown Side by Side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="flex justify-center">
+                <DonutChart
+                  segments={[
+                    { value: completedCredits, color: '#22c55e', label: 'Completed' },
+                    { value: inProgressCredits, color: '#3b82f6', label: 'In Progress' },
+                    { value: plannedCredits, color: '#a855f7', label: 'Planned' },
+                    ...(failedCredits > 0 ? [{ value: failedCredits, color: '#ef4444', label: 'Failed' }] : []),
+                    ...(remainingCredits > 0 ? [{ value: remainingCredits, color: '#e5e7eb', label: 'Remaining' }] : []),
+                  ]}
+                  size={180}
+                  centerLabel={`${requiredCredits > 0 ? Math.round((completedCredits / requiredCredits) * 100) : Math.round((completedCredits / (completedCredits + inProgressCredits + plannedCredits || 1)) * 100)}%`}
+                  centerSubLabel="Complete"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Credit Breakdown</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center py-1.5 border-b">
+                    <span className="text-sm flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-green-500 inline-block" /> Completed Credits
+                    </span>
+                    <span className="font-semibold">{completedCredits}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1.5 border-b">
+                    <span className="text-sm flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-blue-500 inline-block" /> In Progress Credits
+                    </span>
+                    <span className="font-semibold">{inProgressCredits}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1.5 border-b">
+                    <span className="text-sm flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-purple-500 inline-block" /> Planned Credits
+                    </span>
+                    <span className="font-semibold">{plannedCredits}</span>
+                  </div>
+                  {failedCredits > 0 && (
+                    <div className="flex justify-between items-center py-1.5 border-b">
+                      <span className="text-sm flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> Failed Credits
+                      </span>
+                      <span className="font-semibold text-red-600">{failedCredits}</span>
+                    </div>
+                  )}
+                  {requiredCredits > 0 && (
+                    <>
+                      <div className="flex justify-between items-center py-1.5 border-b">
+                        <span className="text-sm flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-gray-300 inline-block" /> Remaining Credits
+                        </span>
+                        <span className="font-semibold text-muted-foreground">{remainingCredits}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-1.5 font-semibold">
+                        <span className="text-sm">Total Required</span>
+                        <span>{requiredCredits}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{completedCourses}</p>
-                  <p className="text-xs text-muted-foreground">Completed</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Target className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{completedCredits}</p>
-                  <p className="text-xs text-muted-foreground">Credits Earned</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                  <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{inProgressCredits}</p>
-                  <p className="text-xs text-muted-foreground">In Progress</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Validation Issues */}
         {validation && (validation.errors?.length || validation.warnings?.length) && (
@@ -720,9 +926,216 @@ const SubmissionDetailPage: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Approve Dialog */}
+        {/* Detailed Course Lists */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          {/* Completed Courses */}
+          {allCourses.filter(c => c.status === 'completed').length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  Completed Courses ({allCourses.filter(c => c.status === 'completed').length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1 max-h-64 overflow-y-auto">
+                  {allCourses.filter(c => c.status === 'completed').map((course, i) => (
+                    <div key={`comp-${i}`} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-xs text-muted-foreground w-20 flex-shrink-0">{course.courseCode}</span>
+                        <span className="truncate">{course.courseName}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge variant="outline" className="text-xs">{course.credits} cr</Badge>
+                        {course.grade && (
+                          <Badge className={`text-xs ${
+                            ['A', 'B+', 'B'].includes(course.grade) ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                            ['C+', 'C'].includes(course.grade) ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                            ['D+', 'D'].includes(course.grade) ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                            'bg-muted text-muted-foreground'
+                          }`}>
+                            {course.grade}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* In Progress Courses */}
+          {allCourses.filter(c => c.status === 'in_progress').length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-blue-500" />
+                  In Progress Courses ({allCourses.filter(c => c.status === 'in_progress').length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1 max-h-64 overflow-y-auto">
+                  {allCourses.filter(c => c.status === 'in_progress').map((course, i) => (
+                    <div key={`ip-${i}`} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-xs text-muted-foreground w-20 flex-shrink-0">{course.courseCode}</span>
+                        <span className="truncate">{course.courseName}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge variant="outline" className="text-xs">{course.credits} cr</Badge>
+                        {course.semester && (
+                          <Badge variant="secondary" className="text-xs">{course.semester}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Planned Courses */}
+          {plannedCoursesList.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Target className="w-4 h-4 text-purple-500" />
+                  Planned Courses ({plannedCoursesList.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1 max-h-64 overflow-y-auto">
+                  {plannedCoursesList.map((course, i) => (
+                    <div key={`plan-${i}`} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-xs text-muted-foreground w-20 flex-shrink-0">{course.courseCode}</span>
+                        <span className="truncate">{course.courseName}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge variant="outline" className="text-xs">{course.credits} cr</Badge>
+                        {course.semester && (
+                          <Badge variant="secondary" className="text-xs">{course.semester}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Failed / Withdrawn Courses */}
+          {(failedCoursesList.length > 0 || withdrawnCoursesList.length > 0) && (
+            <Card className="border-red-200 dark:border-red-900/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2 text-red-600 dark:text-red-400">
+                  <XCircle className="w-4 h-4" />
+                  Failed / Withdrawn ({failedCoursesList.length + withdrawnCoursesList.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1 max-h-64 overflow-y-auto">
+                  {[...failedCoursesList, ...withdrawnCoursesList].map((course, i) => (
+                    <div key={`fail-${i}`} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-xs text-muted-foreground w-20 flex-shrink-0">{course.courseCode}</span>
+                        <span className="truncate">{course.courseName}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge variant="outline" className="text-xs">{course.credits} cr</Badge>
+                        <Badge variant="destructive" className="text-xs">{course.status === 'failed' ? course.grade || 'F' : 'W'}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Validation Requirements Summary */}
+        {validation?.requirements && validation.requirements.length > 0 && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                Graduation Requirements Checklist
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {validation.requirements.map((req: { met?: boolean; fulfilled?: boolean; label?: string; description?: string; message?: string; name?: string; earned?: number; required?: number }, index: number) => {
+                  const isMet = req.met ?? req.fulfilled ?? false;
+                  const displayText = req.label || req.description || req.message || req.name || 'Requirement';
+                  const detail = (req.earned != null && req.required != null) ? `${req.earned} / ${req.required}` : null;
+                  return (
+                    <div
+                      key={`req-${index}`}
+                      className={`p-3 rounded-lg flex items-start gap-3 ${
+                        isMet
+                          ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                          : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                      }`}
+                    >
+                      {isMet ? (
+                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      )}
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{displayText}</p>
+                        {detail && <p className="text-xs text-muted-foreground mt-0.5">{detail} credits</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Validation Summary from Backend */}
+        {validation?.summary && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Percent className="w-5 h-5" />
+                Validation Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {validation.summary.totalCreditsRequired > 0 && (
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-lg font-bold">{validation.summary.totalCreditsRequired}</p>
+                    <p className="text-xs text-muted-foreground">Required Credits</p>
+                  </div>
+                )}
+                {validation.summary.totalCreditsEarned != null && (
+                  <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                    <p className="text-lg font-bold text-green-600 dark:text-green-400">{validation.summary.totalCreditsEarned}</p>
+                    <p className="text-xs text-muted-foreground">Credits Earned</p>
+                  </div>
+                )}
+                {validation.summary.matchedCourses != null && (
+                  <div className="text-center p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{validation.summary.matchedCourses}</p>
+                    <p className="text-xs text-muted-foreground">Matched Courses</p>
+                  </div>
+                )}
+                {validation.summary.unmatchedCourses != null && (
+                  <div className="text-center p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                    <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{validation.summary.unmatchedCourses}</p>
+                    <p className="text-xs text-muted-foreground">Unmatched Courses</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
       <Dialog open={approveDialog} onOpenChange={setApproveDialog}>
         <DialogContent>
           <DialogHeader>
