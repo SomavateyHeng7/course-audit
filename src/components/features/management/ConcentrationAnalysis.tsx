@@ -10,7 +10,7 @@ interface Concentration {
   id: string;
   name: string;
   description?: string;
-  requiredCourses: number;
+  requiredCredits: number;
 }
 
 interface Course {
@@ -69,7 +69,7 @@ export const ConcentrationAnalysis: React.FC<ConcentrationAnalysisProps> = ({
                   {Math.round(analysis.progress)}%
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {analysis.completedCourses.length + analysis.plannedCourses.length} / {analysis.concentration.requiredCourses} required
+                  {analysis.completedCourses.length + analysis.plannedCourses.length} / {analysis.concentration.requiredCredits} credits required
                 </div>
               </div>
             </div>

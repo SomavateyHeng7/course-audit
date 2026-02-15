@@ -189,17 +189,18 @@ export default function EditCurriculum() {
   // Load course types when curriculum is available
   useEffect(() => {
     const fetchCourseTypes = async () => {
-      const deptId = curriculum?.departmentId || curriculum?.department_id;
+      // Course types are now faculty-scoped, get faculty ID from curriculum or user
+      const facultyId = curriculum?.facultyId || curriculum?.faculty_id || user?.faculty?.id;
       
-      if (!deptId) {
-        console.log('No departmentId available for fetching course types. Curriculum:', curriculum);
+      if (!facultyId) {
+        console.log('No facultyId available for fetching course types. Curriculum:', curriculum);
         return;
       }
 
-      console.log('Fetching course types for department:', deptId);
+      console.log('Fetching course types for faculty:', facultyId);
       setIsLoadingCourseTypes(true);
       try {
-        const response = await fetch(`${API_BASE}/course-types?departmentId=${deptId}`, {
+        const response = await fetch(`${API_BASE}/course-types?facultyId=${facultyId}`, {
           credentials: 'include'
         });
         if (response.ok) {
@@ -217,7 +218,7 @@ export default function EditCurriculum() {
     };
 
     fetchCourseTypes();
-  }, [curriculum?.departmentId, curriculum?.department_id, curriculum]);
+  }, [curriculum?.facultyId, curriculum?.faculty_id, user?.faculty?.id, curriculum]);
 
   // Load pool data when curriculum is available (demo mode with mock data)
   useEffect(() => {
@@ -1074,6 +1075,7 @@ export default function EditCurriculum() {
               onAddCourse={handleAddCourse}
               curriculumId={curriculumId}
               departmentId={curriculum?.departmentId}
+              facultyId={curriculum?.facultyId || curriculum?.faculty_id || user?.faculty?.id}
               onRefreshCurriculum={async () => {
                 // Refetch curriculum data
                 try {

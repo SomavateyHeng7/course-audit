@@ -8,6 +8,7 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import {
   login as sanctumLogin,
   logout as sanctumLogout,
@@ -25,22 +26,34 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper to check if a path is a public (non-auth-required) page
+function isPublicPath(path: string): boolean {
+  return path.startsWith('/student/') || path.startsWith('/advisor/') || path === '/student' || path === '/advisor';
+}
+
 export function SanctumAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authVersion, setAuthVersion] = useState(0);
+  const pathname = usePathname();
+
+  // Clear user when navigating to public pages (student/advisor)
+  // This ensures stale auth data doesn't persist after logout
+  useEffect(() => {
+    if (isPublicPath(pathname)) {
+      setUser(null);
+      setIsLoading(false);
+    }
+  }, [pathname]);
 
   // Fetch user on mount or when authVersion changes
   useEffect(() => {
     const fetchUser = async () => {
       // Skip auth check on public student and advisor pages
-      if (typeof window !== 'undefined') {
-        const path = window.location.pathname;
-        if (path.startsWith('/student/') || path.startsWith('/advisor/')) {
-          setIsLoading(false);
-          setUser(null);
-          return;
-        }
+      if (isPublicPath(pathname)) {
+        setIsLoading(false);
+        setUser(null);
+        return;
       }
 
       setIsLoading(true);
@@ -59,7 +72,7 @@ export function SanctumAuthProvider({ children }: { children: ReactNode }) {
     };
 
     fetchUser();
-  }, [authVersion]);
+  }, [authVersion, pathname]);
 
   const login = async (email: string, password: string) => {
     try {
