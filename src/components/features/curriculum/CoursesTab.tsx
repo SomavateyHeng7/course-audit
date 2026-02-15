@@ -46,10 +46,11 @@ interface CoursesTabProps {
   onAddCourse: () => void;
   curriculumId?: string;
   departmentId?: string;
+  facultyId?: string;
   onRefreshCurriculum?: () => void;
 }
 
-export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAddCourse, curriculumId, departmentId, onRefreshCurriculum }: CoursesTabProps) {
+export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAddCourse, curriculumId, departmentId, facultyId, onRefreshCurriculum }: CoursesTabProps) {
   const { success, error: showError } = useToastHelpers();
   const [search, setSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -67,20 +68,20 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
   const [isLoadingCourseTypes, setIsLoadingCourseTypes] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
 
-  // Load course types when department changes
+  // Load course types when faculty changes (course types are faculty-scoped)
   useEffect(() => {
-    if (departmentId) {
+    if (facultyId) {
       fetchCourseTypes();
     }
-  }, [departmentId]);
+  }, [facultyId]);
 
   // API Functions
   const fetchCourseTypes = async () => {
-    if (!departmentId) return;
+    if (!facultyId) return;
     
     setIsLoadingCourseTypes(true);
     try {
-      const response = await fetch(`${API_BASE}/course-types?departmentId=${departmentId}`, {
+      const response = await fetch(`${API_BASE}/course-types?facultyId=${facultyId}`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',

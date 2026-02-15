@@ -21,7 +21,7 @@ interface Concentration {
 
 interface CurriculumConcentration {
   concentrationId: string;
-  requiredCourses: number;
+  requiredCredits: number;
 }
 
 interface ConcentrationsTabProps {
@@ -88,7 +88,7 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
         // await concentrationApi.addCurriculumConcentration(curriculumId, concentrationId, 1);
         const newConcentration: CurriculumConcentration = {
           concentrationId: concentrationId,
-          requiredCourses: 1
+          requiredCredits: 3
         };
         setSelectedConcentrations(prev => [...prev, newConcentration]);
       }
@@ -100,21 +100,21 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
     }
   };
 
-  const handleUpdateRequiredCourses = async (concentrationId: string, newCount: number) => {
+  const handleUpdateRequiredCredits = async (concentrationId: string, newCount: number) => {
     try {
       setLoading(true);
-      // TODO: Implement API endpoint for updating concentration requirement count
+      // TODO: Implement API endpoint for updating concentration credits requirement
       // await concentrationApi.updateCurriculumConcentration(curriculumId, concentrationId, newCount);
       setSelectedConcentrations(prev => 
         prev.map(c => 
           c.concentrationId === concentrationId 
-            ? { ...c, requiredCourses: newCount }
+            ? { ...c, requiredCredits: newCount }
             : c
         )
       );
     } catch (err) {
-      console.error('Error updating required courses:', err);
-      setError('Failed to update required courses');
+      console.error('Error updating required credits:', err);
+      setError('Failed to update required credits');
     } finally {
       setLoading(false);
     }
@@ -253,42 +253,42 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
 
                       <div>
                         <label className="block text-sm font-semibold mb-3 text-foreground">
-                          Required Courses
+                          Required Credits
                         </label>
                         <div className="flex items-center gap-4">
                           <button
                             onClick={() => {
-                              if (selected.requiredCourses > 1) {
-                                handleUpdateRequiredCourses(selected.concentrationId, selected.requiredCourses - 1);
+                              if (selected.requiredCredits > 1) {
+                                handleUpdateRequiredCredits(selected.concentrationId, selected.requiredCredits - 1);
                               }
                             }}
-                            disabled={loading || selected.requiredCourses <= 1}
+                            disabled={loading || selected.requiredCredits <= 1}
                             className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center font-medium text-lg transition-colors disabled:opacity-50"
                           >
                             -
                           </button>
                           <div className="flex-1 text-center">
                             <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                              {selected.requiredCourses}
+                              {selected.requiredCredits}
                             </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
-                              course{selected.requiredCourses !== 1 ? 's' : ''} required
+                              credit{selected.requiredCredits !== 1 ? 's' : ''} required
                             </div>
                           </div>
                           <button
                             onClick={() => {
-                              if (selected.requiredCourses < concentration.courses.length) {
-                                handleUpdateRequiredCourses(selected.concentrationId, selected.requiredCourses + 1);
+                              if (selected.requiredCredits < 30) {
+                                handleUpdateRequiredCredits(selected.concentrationId, selected.requiredCredits + 1);
                               }
                             }}
-                            disabled={loading || selected.requiredCourses >= concentration.courses.length}
+                            disabled={loading || selected.requiredCredits >= 30}
                             className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center font-medium text-lg transition-colors disabled:opacity-50"
                           >
                             +
                           </button>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 text-center">
-                          Students must complete this many courses from the {concentration.name} concentration
+                          Students must complete this many credits from the {concentration.name} concentration
                         </p>
                       </div>
 

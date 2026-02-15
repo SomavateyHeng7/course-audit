@@ -65,15 +65,12 @@ export default function CurriculumDetails() {
     // Fetch departments for user's faculty
     if (user?.faculty?.id) {
       fetchDepartments();
+      // Fetch course types using faculty ID (course types are faculty-scoped)
+      fetchCourseTypes(user.faculty.id);
     }
   }, [router, user]);
 
-  // Fetch course types when department changes
-  useEffect(() => {
-    if (selectedDepartmentId) {
-      fetchCourseTypes(selectedDepartmentId);
-    }
-  }, [selectedDepartmentId]);
+  // Removed department-based course type fetching - course types are now faculty-scoped
 
   const fetchDepartments = async () => {
     try {
@@ -94,7 +91,6 @@ export default function CurriculumDetails() {
         if (userDepartment) {
           console.log('Auto-selecting user department:', userDepartment.name);
           setSelectedDepartmentId(user.department_id);
-          fetchCourseTypes(user.department_id);
           return;
         }
       }
@@ -103,7 +99,6 @@ export default function CurriculumDetails() {
       if (departmentsArray.length === 1) {
         console.log('Auto-selecting single department:', departmentsArray[0].id);
         setSelectedDepartmentId(departmentsArray[0].id);
-        fetchCourseTypes(departmentsArray[0].id);
       } else if (departmentsArray.length > 1) {
         console.log('Multiple departments found, user needs to select one');
       }
@@ -112,17 +107,20 @@ export default function CurriculumDetails() {
     }
   };
 
-  const fetchCourseTypes = async (departmentId: string) => {
-    console.log('fetchCourseTypes called with departmentId:', departmentId);
+  // Fetch course types using faculty ID (course types are now faculty-scoped)
+  const fetchCourseTypes = async (facultyId?: string) => {
+    // Use provided facultyId or fall back to user's faculty
+    const targetFacultyId = facultyId || user?.faculty?.id;
+    console.log('fetchCourseTypes called with facultyId:', targetFacultyId);
     
-    if (!departmentId) {
-      console.log('No department ID provided, clearing course types');
+    if (!targetFacultyId) {
+      console.log('No faculty ID available, clearing course types');
       setCourseTypes([]);
       return;
     }
 
     try {
-      const url = `${API_BASE}/course-types?departmentId=${departmentId}`;
+      const url = `${API_BASE}/course-types?facultyId=${targetFacultyId}`;
       console.log('Fetching course types from:', url);
       
       const response = await fetch(url, {

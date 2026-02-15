@@ -12,7 +12,7 @@ export interface CourseTypeData {
   id: string;
   name: string;
   color: string;
-  departmentId: string;
+  facultyId: string;
   seeded?: boolean;
   createdAt: string;
   updatedAt: string;

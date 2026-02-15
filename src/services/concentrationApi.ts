@@ -415,7 +415,7 @@ export const curriculumConcentrationApi = {
   },
 
   // Add concentration to curriculum
-  addCurriculumConcentration: async (curriculumId: string, concentrationId: string, requiredCourses: number = 1) => {
+  addCurriculumConcentration: async (curriculumId: string, concentrationId: string, requiredCredits: number = 3) => {
     const response = await fetch(`${API_BASE}/curricula/${curriculumId}/concentrations`, {
       method: 'POST',
       credentials: 'include',
@@ -424,7 +424,7 @@ export const curriculumConcentrationApi = {
       },
       body: JSON.stringify({
         concentrationId,
-        requiredCourses
+        requiredCredits
       }),
     });
     
@@ -436,8 +436,8 @@ export const curriculumConcentrationApi = {
     return response.json();
   },
 
-  // Update concentration requirement count
-  updateCurriculumConcentration: async (curriculumId: string, concentrationId: string, requiredCourses: number) => {
+  // Update concentration credits requirement
+  updateCurriculumConcentration: async (curriculumId: string, concentrationId: string, requiredCredits: number) => {
     const response = await fetch(`${API_BASE}/curricula/${curriculumId}/concentrations/${concentrationId}`, {
       method: 'PUT',
       credentials: 'include',
@@ -445,7 +445,7 @@ export const curriculumConcentrationApi = {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        requiredCourses
+        requiredCredits
       }),
     });
     
