@@ -457,7 +457,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
       console.log('Graduation portals API response:', portalsRes);
       
       // Handle different response structures from backend
-      const portalsList = portalsRes.data || portalsRes.portals || (Array.isArray(portalsRes) ? portalsRes : []);
+      const portalsList = portalsRes.data || (Array.isArray(portalsRes) ? portalsRes : []);
       console.log('Parsed portals list:', portalsList);
       
       setPortals(portalsList);

@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToastHelpers } from '@/hooks/useToast';
 import { 
   getPublicGraduationPortals, 
   verifyGraduationPortalPin,
@@ -65,6 +66,7 @@ interface SessionState {
 const GraduationPortalPage: React.FC = () => {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { success: showSuccess, error: showError, warning: showWarning } = useToastHelpers();
   
   // Portal list state
   const [portals, setPortals] = useState<GraduationPortal[]>([]);
@@ -410,15 +412,18 @@ const GraduationPortalPage: React.FC = () => {
             return;
           }
           if (errorData.code === 'GRACE_PERIOD_ENDED') {
-            alert(`The submission period has ended. The grace period expired on ${errorData.grace_period_end ? new Date(errorData.grace_period_end).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'a previous date'}.`);
+            showError(
+              `The submission period has ended. The grace period expired on ${errorData.grace_period_end ? new Date(errorData.grace_period_end).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'a previous date'}.`,
+              'Submission Period Ended'
+            );
             return;
           }
-          alert(errorData.message || 'Submission failed');
+          showError(errorData.message || 'Submission failed', 'Submission Failed');
         } catch {
-          alert(error.message || 'Submission failed');
+          showError(error.message || 'Submission failed', 'Submission Failed');
         }
       } else {
-        alert('Submission failed');
+        showError('Submission failed', 'Submission Failed');
       }
     } finally {
       setIsSubmitting(false);
@@ -542,7 +547,7 @@ const GraduationPortalPage: React.FC = () => {
 
         {/* Session Timer (when active) */}
         {session && currentStep !== 'success' && (
-          <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 ${
+          <div className={`fixed top-4 right-4 z-40 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 ${
             sessionTimeRemaining < 120 ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
           }`}>
             <Clock className="w-4 h-4" />
@@ -1078,13 +1083,6 @@ const GraduationPortalPage: React.FC = () => {
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={() => setCurrentStep('curriculum')} className="flex-1">
                   Back
-                </Button>
-                <Button 
-                  onClick={handleValidationContinue}
-                  className="flex-1" 
-                  disabled={!preValidation?.canProceed || !studentIdentifier.trim()}
-                >
-                  Preview <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
             </CardContent>

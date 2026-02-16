@@ -24,10 +24,10 @@ export function ThemeToggle() {
     return (
       <div className="relative group">
         <button
-          className="relative flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors duration-200 shadow-sm hover:shadow-md"
+          className="relative flex items-center justify-center w-10 h-10 rounded-md bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
           aria-label="Toggle theme"
         >
-          <Sun className="h-5 w-5 text-emerald-600" />
+          <Sun className="h-5 w-5 text-gray-700 dark:text-gray-300" />
         </button>
       </div>
     )
@@ -41,7 +41,7 @@ export function ThemeToggle() {
         onClick={toggleTheme}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className="relative flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors duration-200 shadow-sm hover:shadow-md"
+        className="relative flex items-center justify-center w-10 h-10 rounded-md bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
         aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
       >
         <motion.div
@@ -53,7 +53,7 @@ export function ThemeToggle() {
           transition={{ duration: 0.3, ease: "easeInOut" }}
           className="absolute"
         >
-          <Sun className="h-5 w-5 text-emerald-600" />
+          <Sun className="h-5 w-5 text-amber-500" />
         </motion.div>
         <motion.div
           initial={false}
@@ -64,17 +64,8 @@ export function ThemeToggle() {
           transition={{ duration: 0.3, ease: "easeInOut" }}
           className="absolute"
         >
-          <Moon className="h-5 w-5 text-emerald-400" />
+          <Moon className="h-5 w-5 text-blue-400" />
         </motion.div>
-        
-        {/* Ripple effect on click */}
-        <motion.div
-          className="absolute inset-0 rounded-full bg-emerald-300/20 dark:bg-emerald-400/20"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 0, opacity: 0 }}
-          whileTap={{ scale: 1.4, opacity: 1 }}
-          transition={{ duration: 0.2 }}
-        />
       </motion.button>
       
       {/* Tooltip */}
@@ -86,7 +77,7 @@ export function ThemeToggle() {
           scale: isHovered ? 1 : 0.8
         }}
         transition={{ duration: 0.2 }}
-        className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-800 text-xs rounded whitespace-nowrap pointer-events-none"
+        className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-800 text-xs rounded whitespace-nowrap pointer-events-none z-50"
       >
         {theme === "dark" ? "Light mode" : "Dark mode"}
       </motion.div>

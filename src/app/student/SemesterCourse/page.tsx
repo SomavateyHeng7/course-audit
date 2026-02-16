@@ -127,6 +127,10 @@ const SemesterCoursePage: React.FC = () => {
         const latestDraft = publishedSchedules[0];
         setSelectedDraft(latestDraft);
         loadCourseSchedules(latestDraft.id);
+      } else {
+        // Clear selected draft and courses when no schedules available for this department
+        setSelectedDraft(null);
+        setCourseSchedules([]);
       }
     } catch (error: any) {
       console.error('Error loading schedule drafts:', error);

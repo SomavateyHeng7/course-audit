@@ -10,10 +10,11 @@ import { getPublicCurricula, getPublicDepartments, API_BASE } from '@/lib/api/la
 import { 
   ArrowRight, 
   Calendar, 
-  Sparkles,
-  FileUp,
-  ClipboardList,
-  GraduationCap
+  FileText,
+  BookOpen,
+  Coffee,
+  Users,
+  MapPin
 } from 'lucide-react';
 
 interface Curriculum {
@@ -144,7 +145,7 @@ export default function StudentWorkflowPage() {
 
   const handleStartJourney = () => {
     if (!selectedCurriculum || !selectedDepartment) {
-      showError('Please select your department and curriculum');
+      showError('Whoops! Just need you to pick your department and curriculum first 😊');
       return;
     }
 
@@ -165,37 +166,37 @@ export default function StudentWorkflowPage() {
     console.log('Workflow saved:', updatedData);
 
     // Route to course planning to browse courses with calendar view
-    success('Let\'s explore available courses!');
+    success('Perfect! Let\'s go explore what courses are available for you! 🎉');
     router.push('/student/management/course-planning');
   };
 
   const workflowSteps = [
     {
       step: 1,
-      title: 'Select Program',
-      description: 'Choose curriculum and department',
-      icon: <GraduationCap className="w-5 h-5" />,
+      title: 'Tell us about you',
+      description: 'What are you studying? We\'ll help you find the right path',
+      icon: <MapPin className="w-5 h-5" />,
       color: 'bg-primary/10 text-primary border-primary/20',
     },
     {
       step: 2,
-      title: 'Browse Courses',
-      description: 'View available courses',
-      icon: <Calendar className="w-5 h-5" />,
+      title: 'Discover cool courses',
+      description: 'Browse what\'s available - you might find something unexpected!',
+      icon: <BookOpen className="w-5 h-5" />,
       color: 'bg-primary/10 text-primary border-primary/20',
     },
     {
       step: 3,
-      title: 'Load Schedule',
-      description: 'See offered sections from tentative schedule',
-      icon: <ClipboardList className="w-5 h-5" />,
+      title: 'Check the schedule',
+      description: 'See when classes meet - find times that work for you',
+      icon: <Calendar className="w-5 h-5" />,
       color: 'bg-primary/10 text-primary border-primary/20',
     },
     {
       step: 4,
-      title: 'Add History',
-      description: 'Enter completed courses (optional)',
-      icon: <FileUp className="w-5 h-5" />,
+      title: 'Track your progress',
+      description: 'Already took some courses? Great! Add them anytime',
+      icon: <Coffee className="w-5 h-5" />,
       color: 'bg-primary/10 text-primary border-primary/20',
     }
   ];
@@ -216,23 +217,26 @@ export default function StudentWorkflowPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         
         {/* Hero Section */}
-        <div className="text-center mb-12 space-y-4">
-          <h1 className="text-4xl sm:text-5xl font-bold text-foreground">
-            Your Academic Journey
+        <div className="text-center mb-12 space-y-6">
+          <h1 className="text-4xl sm:text-5xl font-bold text-foreground leading-tight">
+            Hey there! Let's figure out 
+            <span className="text-primary"> your classes</span> 🎓
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
-            Plan your path to graduation with our intelligent course planning system
+            No stress, no complicated forms. Just a friendly way to explore your courses and plan ahead.
           </p>
         </div>
 
         {/* Main Content Card */}
-        <Card className="max-w-3xl mx-auto shadow-lg mb-12">
+        <Card className="max-w-3xl mx-auto shadow-xl mb-12 border-0 overflow-hidden">
           <div className="bg-primary p-6 sm:p-8">
-            <div className="flex items-center gap-3 text-primary-foreground">
-              <Sparkles className="w-6 h-6" />
+            <div className="flex items-center gap-4 text-primary-foreground">
+              <div className="bg-primary-foreground/20 backdrop-blur-sm p-3 rounded-full">
+                <Users className="w-6 h-6" />
+              </div>
               <div>
-                <h2 className="text-2xl font-bold">Get Started</h2>
-                <p className="text-primary-foreground/90">Choose your program to begin course planning</p>
+                <h2 className="text-2xl font-bold">Let's get started!</h2>
+                <p className="text-primary-foreground/90">Just need a few details to get you set up ✨</p>
               </div>
             </div>
           </div>
@@ -241,12 +245,13 @@ export default function StudentWorkflowPage() {
             
             {/* Department Selection */}
             <div className="space-y-3">
-              <label className="text-base font-semibold text-foreground flex items-center gap-2">
+              <label className="text-base font-semibold text-foreground flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold">
                   1
                 </div>
-                Select Your Department
+                What's your department?
               </label>
+              <p className="text-sm text-muted-foreground ml-11">Don't worry, this helps us show you the right courses for your major</p>
               <Select 
                 value={selectedDepartment} 
                 onValueChange={(value) => {
@@ -255,8 +260,8 @@ export default function StudentWorkflowPage() {
                 }}
                 disabled={loading}
               >
-                <SelectTrigger className="h-12 text-base hover:border-primary/50 transition-colors">
-                  <SelectValue placeholder="Choose your department..." />
+                <SelectTrigger className="h-12 text-base hover:border-primary/50 transition-all hover:shadow-md border-2">
+                  <SelectValue placeholder="Pick your department from the list 📚" />
                 </SelectTrigger>
                 <SelectContent>
                   {departments.map((dept) => (
@@ -273,22 +278,23 @@ export default function StudentWorkflowPage() {
 
             {/* Curriculum Selection */}
             <div className="space-y-3">
-              <label className="text-base font-semibold text-foreground flex items-center gap-2">
+              <label className="text-base font-semibold text-foreground flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold">
                   2
                 </div>
-                Select Your Curriculum
+                Which curriculum are you following?
               </label>
+              <p className="text-sm text-muted-foreground ml-11">This is basically your degree plan - it determines which courses you need to take</p>
               <Select 
                 value={selectedCurriculum} 
                 onValueChange={setSelectedCurriculum}
                 disabled={!selectedDepartment || loading}
               >
-                <SelectTrigger className="h-12 text-base hover:border-primary/50 transition-colors">
+                <SelectTrigger className="h-12 text-base hover:border-primary/50 transition-all hover:shadow-md border-2">
                   <SelectValue placeholder={
                     !selectedDepartment 
-                      ? "Please select a department first" 
-                      : "Choose your curriculum..."
+                      ? "Select your department first 😊" 
+                      : "Pick your curriculum here 📖"
                   } />
                 </SelectTrigger>
                 <SelectContent>
@@ -307,19 +313,20 @@ export default function StudentWorkflowPage() {
             {/* Concentration Selection (Optional) */}
             {concentrations.length > 0 && (
               <div className="space-y-3">
-                <label className="text-base font-semibold text-foreground flex items-center gap-2">
+                <label className="text-base font-semibold text-foreground flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold">
                     3
                   </div>
-                  Select Concentration (Optional)
+                  Got a concentration in mind?
                 </label>
+                <p className="text-sm text-muted-foreground ml-11">This is optional - you can skip it if you're not sure yet!</p>
                 <Select 
                   value={selectedConcentration} 
                   onValueChange={setSelectedConcentration}
                   disabled={loading}
                 >
-                  <SelectTrigger className="h-12 text-base hover:border-primary/50 transition-colors">
-                    <SelectValue placeholder="Choose a concentration (optional)..." />
+                <SelectTrigger className="h-12 text-base hover:border-primary/50 transition-all hover:shadow-md border-2">
+                  <SelectValue placeholder="Pick one if you want (totally optional!) 🎯" />
                   </SelectTrigger>
                   <SelectContent>
                     {concentrations.map((conc) => (
@@ -339,17 +346,18 @@ export default function StudentWorkflowPage() {
 
             {/* Info Message */}
             {selectedCurriculum && (
-              <div className="p-4 rounded-lg border bg-accent/50 mt-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Calendar className="w-5 h-5 text-primary" />
+              <div className="p-6 rounded-xl bg-accent/50 border-2 border-primary/20 mt-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-full bg-primary/10">
+                    <Calendar className="w-6 h-6 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground mb-1">
-                      Ready to Explore Courses!
+                    <p className="text-lg font-semibold text-foreground mb-2">
+                      Awesome! You're all set! 🎉
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      You&apos;ll see all available courses with a calendar view showing sections and schedules. You can add completed courses later for prerequisite validation.
+                    <p className="text-muted-foreground">
+                      I'll show you all the courses you can take, with a nice calendar view so you can see when everything meets. 
+                      Oh, and don't worry about adding courses you've already completed - you can do that anytime later!
                     </p>
                   </div>
                 </div>
@@ -357,19 +365,19 @@ export default function StudentWorkflowPage() {
             )}
 
             {/* Start Button */}
-            <div className="pt-6">
+            <div className="pt-8">
               <Button 
                 onClick={handleStartJourney}
                 disabled={!selectedCurriculum || !selectedDepartment || loading}
-                className="w-full h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                className="w-full h-16 text-lg font-bold shadow-lg hover:shadow-xl transition-all"
                 size="lg"
               >
                 {loading ? (
-                  'Loading...'
+                  <>🔄 Getting things ready...</>
                 ) : (
                   <>
-                    Start Course Planning
-                    <ArrowRight className="ml-2 w-5 h-5" />
+                    Let's explore your courses! 🚀
+                    <ArrowRight className="ml-3 w-6 h-6" />
                   </>
                 )}
               </Button>
@@ -379,12 +387,12 @@ export default function StudentWorkflowPage() {
 
         {/* Workflow Steps */}
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-8">
-            <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
-              What&apos;s Next?
+          <div className="text-center mb-10">
+            <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
+              What happens next? 🤔
             </h3>
-            <p className="text-muted-foreground">
-              Here&apos;s how our system will help you succeed
+            <p className="text-lg text-muted-foreground">
+              Don't worry, I've got you covered. Here's the fun part:
             </p>
           </div>
 
@@ -394,7 +402,7 @@ export default function StudentWorkflowPage() {
                 key={step.step}
                 className="group relative"
               >
-                <Card className="h-full border-2 hover:border-primary/50 transition-all hover:shadow-lg">
+                <Card className="h-full border-2 hover:border-primary/50 transition-all hover:shadow-xl hover:-translate-y-1">
                   <CardContent className="p-6">
                     <div className="flex flex-col items-center text-center space-y-4">
                       <div className={`relative p-4 rounded-xl ${step.color} border-2`}>

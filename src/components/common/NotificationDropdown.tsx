@@ -169,28 +169,34 @@ export default function NotificationDropdown({
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "relative p-2 hover:bg-teal-100/80 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300",
-          isCollapsed && "w-full justify-center"
+          "w-full justify-start gap-3 px-3 py-2 transition-all duration-200 text-black dark:text-white hover:bg-primary/10 dark:hover:bg-primary/20",
+          isCollapsed && "justify-center",
+          isOpen && "bg-primary/10 dark:bg-primary/20"
         )}
         title="Graduation Notifications"
       >
-        <Bell className="h-5 w-5" />
-        {/* Unread Badge */}
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
+        <div className="relative flex-shrink-0">
+          <Bell className="h-5 w-5" />
+          {/* Unread Badge */}
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 shadow-sm ring-2 ring-white dark:ring-gray-900">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </div>
+        {!isCollapsed && (
+          <span className="truncate">Notifications</span>
         )}
       </Button>
 
       {/* Dropdown Panel */}
       {isOpen && (
         <div className={cn(
-          "absolute z-[100] mt-2 w-80 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700",
-          "left-0"
+          "absolute z-[100] w-80 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden",
+          isCollapsed ? "left-full ml-2 top-0" : "left-full ml-2 top-0"
         )}>
           {/* Header */}
-          <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
             <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
               Graduation Submissions
             </h3>
@@ -200,10 +206,10 @@ export default function NotificationDropdown({
                   variant="ghost"
                   size="sm"
                   onClick={handleMarkAllRead}
-                  className="text-xs text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-200 px-2 py-1 h-auto"
+                  className="text-xs text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 px-2 py-1 h-auto rounded-md"
                   title="Mark all as read"
                 >
-                  <CheckCheck className="h-4 w-4 mr-1" />
+                  <CheckCheck className="h-3.5 w-3.5 mr-1" />
                   Mark all
                 </Button>
               )}
@@ -211,7 +217,7 @@ export default function NotificationDropdown({
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsOpen(false)}
-                className="p-1 h-auto hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="p-1.5 h-auto hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -286,7 +292,7 @@ export default function NotificationDropdown({
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div className="p-2 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <div className="p-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
               <Button
                 variant="ghost"
                 size="sm"
@@ -294,7 +300,7 @@ export default function NotificationDropdown({
                   setIsOpen(false);
                   router.push('/chairperson/GraduationPortal');
                 }}
-                className="text-xs text-teal-600 hover:text-teal-800 dark:text-teal-400"
+                className="text-xs text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 h-8 px-3 rounded-md font-medium"
               >
                 View all portals
               </Button>
@@ -303,7 +309,7 @@ export default function NotificationDropdown({
                   variant="ghost"
                   size="sm"
                   onClick={handleClearRead}
-                  className="text-xs text-gray-500 hover:text-red-500"
+                  className="text-xs text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 h-8 px-3 rounded-md"
                 >
                   Clear read
                 </Button>

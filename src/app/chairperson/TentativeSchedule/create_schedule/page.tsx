@@ -109,6 +109,7 @@ const TentativeSchedulePage: React.FC = () => {
   const [instructorsList, setInstructorsList] = useState<string[]>(['Dr. Smith', 'Dr. Johnson', 'Dr. Williams', 'Prof. Brown', 'Prof. Davis']);
   const [showCustomDepartment, setShowCustomDepartment] = useState(false);
   const [customDepartment, setCustomDepartment] = useState('');
+  const [customDepartments, setCustomDepartments] = useState<string[]>([]);
 
   const [courseSearch, setCourseSearch] = useState('');
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
@@ -208,7 +209,7 @@ const TentativeSchedulePage: React.FC = () => {
           }
         }
 
-        success('Schedule loaded for editing');
+        // Remove duplicate success toast to reduce notifications during edit
       } catch (err: any) {
         console.error('Failed to load schedule:', err);
         showError(err.message || 'Failed to load schedule');
@@ -847,6 +848,9 @@ const TentativeSchedulePage: React.FC = () => {
                         <option value="CS">Computer Science</option>
                         <option value="IT">Information Technology</option>
                         <option value="Both">Both (CS & IT)</option>
+                        {customDepartments.map((dept) => (
+                          <option key={dept} value={dept}>{dept}</option>
+                        ))}
                         <option value="__custom__">+ Add Custom Department</option>
                       </select>
                     ) : (
@@ -863,9 +867,10 @@ const TentativeSchedulePage: React.FC = () => {
                           onClick={() => {
                             if (customDepartment.trim()) {
                               setSchedule(prev => ({ ...prev, department: customDepartment.trim() }));
+                              setCustomDepartments(prev => [...prev, customDepartment.trim()]);
                               setCustomDepartment('');
                               setShowCustomDepartment(false);
-                              success(`Department "${customDepartment.trim()}" added`);
+                              success(`Department "${customDepartment.trim()}" added successfully`);
                             }
                           }}
                           className="px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm"
