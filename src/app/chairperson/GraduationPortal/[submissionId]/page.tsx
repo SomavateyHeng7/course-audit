@@ -39,6 +39,101 @@ import {
   DialogDescription
 } from '@/components/ui/dialog';
 import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
+
+// Simple Donut Chart Component for Credit Progress
+const DonutChart = ({ 
+  completed, 
+  inProgress,
+  planned, 
+  total, 
+  size = 180 
+}: { 
+  completed: number; 
+  inProgress?: number;
+  planned?: number; 
+  total: number; 
+  size?: number; 
+}) => {
+  const center = size / 2;
+  const radius = center - 15;
+  const circumference = 2 * Math.PI * radius;
+  
+  const completedPercent = total > 0 ? (completed / total) * 100 : 0;
+  const inProgressPercent = total > 0 ? ((inProgress || 0) / total) * 100 : 0;
+  const plannedPercent = total > 0 ? ((planned || 0) / total) * 100 : 0;
+  
+  const completedOffset = circumference - (completedPercent / 100) * circumference;
+  const inProgressOffset = circumference - ((completedPercent + inProgressPercent) / 100) * circumference;
+  const plannedOffset = circumference - ((completedPercent + inProgressPercent + plannedPercent) / 100) * circumference;
+
+  const displayPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  return (
+    <div className="relative flex items-center justify-center">
+      <svg width={size} height={size} className="transform -rotate-90">
+        {/* Background circle */}
+        <circle
+          cx={center}
+          cy={center}
+          r={radius}
+          stroke="#e5e7eb"
+          strokeWidth="15"
+          fill="transparent"
+        />
+        
+        {/* Completed segment */}
+        <circle
+          cx={center}
+          cy={center}
+          r={radius}
+          stroke="#22c55e"
+          strokeWidth="15"
+          fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={completedOffset}
+          strokeLinecap="round"
+        />
+        
+        {/* In Progress segment */}
+        {inProgress && inProgress > 0 && (
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            stroke="#3b82f6"
+            strokeWidth="15"
+            fill="transparent"
+            strokeDasharray={circumference}
+            strokeDashoffset={inProgressOffset}
+            strokeLinecap="round"
+          />
+        )}
+        
+        {/* Planned segment */}
+        {planned && planned > 0 && (
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            stroke="#a855f7"
+            strokeWidth="15"
+            fill="transparent"
+            strokeDasharray={circumference}
+            strokeDashoffset={plannedOffset}
+            strokeLinecap="round"
+          />
+        )}
+      </svg>
+      
+      {/* Center text */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-2xl font-bold">{displayPercent}%</span>
+        <span className="text-sm text-muted-foreground">Complete</span>
+      </div>
+    </div>
+  );
+};
+
 import {
   getCacheSubmission,
   validateCacheSubmission,
@@ -179,66 +274,6 @@ const ProgressBar = ({
           className={`h-full ${color} transition-all duration-300`} 
           style={{ width: `${percent}%` }}
         />
-      </div>
-    </div>
-  );
-};
-
-// Donut chart (matching the progress page style)
-const DonutChart = ({ 
-  completed, 
-  inProgress,
-  planned,
-  total, 
-  size = 100, 
-  strokeWidth = 10 
-}: { 
-  completed: number; 
-  inProgress?: number;
-  planned?: number;
-  total: number; 
-  size?: number; 
-  strokeWidth?: number;
-}) => {
-  const center = size / 2;
-  const radius = center - strokeWidth / 2;
-  const circumference = 2 * Math.PI * radius;
-  
-  const completedPct = total > 0 ? (completed / total) * 100 : 0;
-  const inProgressPct = total > 0 ? ((inProgress || 0) / total) * 100 : 0;
-  const plannedPct = total > 0 ? ((planned || 0) / total) * 100 : 0;
-  
-  const completedOffset = circumference - (completedPct / 100) * circumference;
-  const inProgressStart = (completedPct / 100) * circumference;
-  const inProgressOffset = circumference - (inProgressPct / 100) * circumference;
-  const plannedStart = ((completedPct + inProgressPct) / 100) * circumference;
-  const plannedOffset = circumference - (plannedPct / 100) * circumference;
-  
-  return (
-    <div className="relative flex items-center justify-center">
-      <svg width={size} height={size} className="transform -rotate-90">
-        {/* Background */}
-        <circle cx={center} cy={center} r={radius} fill="transparent" stroke="#e5e7eb" strokeWidth={strokeWidth - 2} className="dark:stroke-gray-700" />
-        {/* Planned */}
-        {plannedPct > 0 && (
-          <circle cx={center} cy={center} r={radius} fill="transparent" stroke="#a78bfa" strokeWidth={strokeWidth - 1}
-            strokeDasharray={circumference} strokeDashoffset={plannedOffset} strokeLinecap="round"
-            style={{ transform: `rotate(${(completedPct + inProgressPct) * 3.6}deg)`, transformOrigin: 'center' }} />
-        )}
-        {/* In Progress */}
-        {inProgressPct > 0 && (
-          <circle cx={center} cy={center} r={radius} fill="transparent" stroke="#60a5fa" strokeWidth={strokeWidth}
-            strokeDasharray={circumference} strokeDashoffset={inProgressOffset} strokeLinecap="round"
-            style={{ transform: `rotate(${completedPct * 3.6}deg)`, transformOrigin: 'center' }} />
-        )}
-        {/* Completed */}
-        <circle cx={center} cy={center} r={radius} fill="transparent" stroke="#10b981" strokeWidth={strokeWidth}
-          strokeDasharray={circumference} strokeDashoffset={completedOffset} strokeLinecap="round"
-          className="transition-all duration-500" />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-sm font-bold leading-none">{Math.round(completedPct)}%</span>
-        <span className="text-[9px] text-muted-foreground">complete</span>
       </div>
     </div>
   );
@@ -795,16 +830,11 @@ const SubmissionDetailPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="flex justify-center">
                 <DonutChart
-                  segments={[
-                    { value: completedCredits, color: '#22c55e', label: 'Completed' },
-                    { value: inProgressCredits, color: '#3b82f6', label: 'In Progress' },
-                    { value: plannedCredits, color: '#a855f7', label: 'Planned' },
-                    ...(failedCredits > 0 ? [{ value: failedCredits, color: '#ef4444', label: 'Failed' }] : []),
-                    ...(remainingCredits > 0 ? [{ value: remainingCredits, color: '#e5e7eb', label: 'Remaining' }] : []),
-                  ]}
+                  completed={completedCredits}
+                  inProgress={inProgressCredits}
+                  planned={plannedCredits + failedCredits}
+                  total={completedCredits + inProgressCredits + plannedCredits + failedCredits + remainingCredits}
                   size={180}
-                  centerLabel={`${requiredCredits > 0 ? Math.round((completedCredits / requiredCredits) * 100) : Math.round((completedCredits / (completedCredits + inProgressCredits + plannedCredits || 1)) * 100)}%`}
-                  centerSubLabel="Complete"
                 />
               </div>
 
@@ -943,8 +973,8 @@ const SubmissionDetailPage: React.FC = () => {
                   {allCourses.filter(c => c.status === 'completed').map((course, i) => (
                     <div key={`comp-${i}`} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono text-xs text-muted-foreground w-20 flex-shrink-0">{course.courseCode}</span>
-                        <span className="truncate">{course.courseName}</span>
+                        <span className="font-mono text-xs text-muted-foreground w-20 flex-shrink-0">{course.code}</span>
+                        <span className="truncate">{course.name}</span>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Badge variant="outline" className="text-xs">{course.credits} cr</Badge>
@@ -980,8 +1010,8 @@ const SubmissionDetailPage: React.FC = () => {
                   {allCourses.filter(c => c.status === 'in_progress').map((course, i) => (
                     <div key={`ip-${i}`} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono text-xs text-muted-foreground w-20 flex-shrink-0">{course.courseCode}</span>
-                        <span className="truncate">{course.courseName}</span>
+                        <span className="font-mono text-xs text-muted-foreground w-20 flex-shrink-0">{course.code}</span>
+                        <span className="truncate">{course.name}</span>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Badge variant="outline" className="text-xs">{course.credits} cr</Badge>
@@ -1010,8 +1040,8 @@ const SubmissionDetailPage: React.FC = () => {
                   {plannedCoursesList.map((course, i) => (
                     <div key={`plan-${i}`} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono text-xs text-muted-foreground w-20 flex-shrink-0">{course.courseCode}</span>
-                        <span className="truncate">{course.courseName}</span>
+                        <span className="font-mono text-xs text-muted-foreground w-20 flex-shrink-0">{course.code}</span>
+                        <span className="truncate">{course.name}</span>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Badge variant="outline" className="text-xs">{course.credits} cr</Badge>
@@ -1040,8 +1070,8 @@ const SubmissionDetailPage: React.FC = () => {
                   {[...failedCoursesList, ...withdrawnCoursesList].map((course, i) => (
                     <div key={`fail-${i}`} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono text-xs text-muted-foreground w-20 flex-shrink-0">{course.courseCode}</span>
-                        <span className="truncate">{course.courseName}</span>
+                        <span className="font-mono text-xs text-muted-foreground w-20 flex-shrink-0">{course.code}</span>
+                        <span className="truncate">{course.name}</span>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Badge variant="outline" className="text-xs">{course.credits} cr</Badge>

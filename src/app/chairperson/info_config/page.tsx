@@ -420,6 +420,7 @@ export default function InfoConfig() {
       setCourseTypes(defaultCourseTypes.map(type => ({
         ...type,
         departmentId: '',
+        facultyId: '',
         parentId: type.parentId ?? null,
         usageCount: 0,
         childCount: 0,

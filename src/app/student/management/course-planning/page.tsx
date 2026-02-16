@@ -23,7 +23,7 @@ import { CourseWithSections } from '@/components/features/management/CourseWithS
 import { PlannedCourseCard } from '@/components/features/management/PlannedCourseCard';
 import { WeeklyScheduleCalendar } from '@/components/features/management/WeeklyScheduleCalendar';
 import { CourseScheduleCalendar } from '@/components/features/management/CourseScheduleCalendar';
-import { ConcentrationAnalysis } from '@/components/features/management/ConcentrationAnalysis';
+import { ConcentrationAnalysis, type ConcentrationProgress as ConcentrationProgressProps } from '@/components/features/management/ConcentrationAnalysis';
 import { NotificationSubscribeDialog } from '@/components/features/notifications/NotificationSubscribeDialog';
 import { 
   Search,
@@ -1954,10 +1954,18 @@ export default function CoursePlanningPage() {
           
           <ConcentrationAnalysis
             concentrationAnalysis={concentrationAnalysis.map(analysis => ({
-              ...analysis,
+              concentration: {
+                id: analysis.concentration.id,
+                name: analysis.concentration.name,
+                description: analysis.concentration.description,
+                requiredCredits: analysis.concentration.requiredCourses || 0
+              },
+              isEligible: analysis.isEligible,
+              progress: analysis.progress,
               completedCourses: analysis.completedCourses.map(code => ({ id: code, code, name: code })),
-              plannedCourses: analysis.plannedCourses.map(code => ({ id: code, code, name: code }))
-            }))}
+              plannedCourses: analysis.plannedCourses.map(code => ({ id: code, code, name: code })),
+              remainingCourses: analysis.remainingCourses
+            } as ConcentrationProgressProps))}
             onClose={() => setShowConcentrationModal(false)}
           />
         </DialogContent>
@@ -2119,8 +2127,8 @@ export default function CoursePlanningPage() {
 
       {/* Notification Subscription Dialog */}
       <NotificationSubscribeDialog
-        isOpen={showNotificationDialog}
-        onClose={() => setShowNotificationDialog(false)}
+        open={showNotificationDialog}
+        onOpenChange={setShowNotificationDialog}
         departmentId={dataEntryContext.selectedDepartment}
       />
     </div>

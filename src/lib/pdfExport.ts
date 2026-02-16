@@ -101,13 +101,22 @@ const createTimetableGrid = (courses: Course[]): { [key: string]: { [key: string
       const endIndex = findTimeSlotIndex(slot.endTime);
       const duration = endIndex - startIndex;
 
-      // Store course info in the grid
-      grid[dayKey][startIndex] = {
+      // Store course info in the grid - support multiple courses at same time
+      if (!grid[dayKey][startIndex]) {
+        grid[dayKey][startIndex] = [];
+      }
+      
+      // Ensure grid[dayKey][startIndex] is always an array
+      if (!Array.isArray(grid[dayKey][startIndex])) {
+        grid[dayKey][startIndex] = [grid[dayKey][startIndex]];
+      }
+      
+      grid[dayKey][startIndex].push({
         course,
         color: courseColors.get(course.id),
         duration: Math.max(1, duration),
         slot
-      };
+      });
     });
   });
 

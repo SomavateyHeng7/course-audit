@@ -296,17 +296,10 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
-      {/* Theme Toggle */}
-      <div className="px-3 py-2 border-b border-teal-200/60 dark:border-teal-800/40">
-        <div className={cn(
-          "flex items-center",
-          isCollapsed ? "flex-col gap-2" : "justify-between"
-        )}>
+      {/* Theme Toggle Section */}
+      <div className="px-3 py-3 border-b border-teal-200/60 dark:border-teal-800/40">
+        <div className="flex items-center justify-center">
           <ThemeToggle />
-          {/* Notification Bell - Only for Chairperson and Advisor */}
-          {(user?.role === 'CHAIRPERSON' || user?.role === 'ADVISOR') && (
-            <NotificationDropdown isCollapsed={isCollapsed} />
-          )}
         </div>
       </div>
       {/* Navigation */}
@@ -361,6 +354,13 @@ export default function Sidebar() {
               </Link>
             );
           })}
+          
+          {/* Notification Dropdown - Only for Chairperson and Advisor */}
+          {(user?.role === 'CHAIRPERSON' || user?.role === 'ADVISOR') && (
+            <div className="pt-1">
+              <NotificationDropdown isCollapsed={isCollapsed} />
+            </div>
+          )}
         </div>
       </nav>
       {/* Logout/Clear Data Button */}

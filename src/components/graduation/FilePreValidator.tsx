@@ -18,6 +18,7 @@ import {
   ChevronUp,
   FileSpreadsheet,
   RefreshCw,
+  ArrowRight,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -258,7 +259,7 @@ export const FilePreValidator: React.FC<FilePreValidatorProps> = ({
         </Button>
         {result.canProceed && (
           <Button size="sm" onClick={onContinue} className="ml-auto gap-1.5">
-            Continue
+            Continue to Preview <ArrowRight className="w-3.5 h-3.5" />
           </Button>
         )}
       </div>
