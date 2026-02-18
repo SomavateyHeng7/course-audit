@@ -577,7 +577,7 @@ export default function DataEntryPage() {
       'Major',
       'Major Elective',
       'Free Elective',
-      'Unassigned'
+      'Uncategorized'
     ];
     
     // Start with preferred order categories that exist
@@ -633,7 +633,7 @@ export default function DataEntryPage() {
                 departmentId,
               });
               
-              const category = course.category || 'Unassigned';
+              const category = course.category || 'Uncategorized';
               const credits = typeof course.credits === 'number'
                 ? course.credits
                 : (typeof course.creditHours === 'number' ? course.creditHours : 0);

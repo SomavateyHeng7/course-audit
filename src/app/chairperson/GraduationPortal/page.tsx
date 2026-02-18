@@ -116,7 +116,7 @@ const getStatusColor = (status: CacheSubmission['status']) => {
   switch (status) {
     case 'pending': return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
     case 'processing': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-    case 'validated': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+    case 'validated': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
     case 'has_issues': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
     case 'approved': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
     case 'rejected': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400';
@@ -635,7 +635,11 @@ const GraduationPortalChairpersonPage: React.FC = () => {
   };
 
   const handleViewSubmission = (submission: CacheSubmission) => {
-    router.push(`/chairperson/GraduationPortal/${submission.id}?portalId=${selectedPortal?.id}`);
+    if (!selectedPortal?.id) {
+      showError('Please select a portal first', 'Portal Required');
+      return;
+    }
+    router.push(`/chairperson/GraduationPortal/${submission.id}?portalId=${selectedPortal.id}`);
   };
 
   const handleCopyPin = (pin: string) => {

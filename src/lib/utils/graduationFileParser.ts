@@ -25,6 +25,11 @@ export interface ParseResult {
   };
   errors: string[];
   warnings: string[];
+  curriculumMetadata?: {
+    id?: string;
+    name?: string;
+    year?: string;
+  };
 }
 
 // Grade to status mapping
@@ -154,6 +159,7 @@ function processRawData(data: string[][]): ParseResult {
   const errors: string[] = [];
   const warnings: string[] = [];
   const seenCodes = new Set<string>();
+  const curriculumMetadata: { id?: string; name?: string; year?: string } = {};
   
   let currentCategory = 'Uncategorized';
   let rowNum = 0;
@@ -174,9 +180,24 @@ function processRawData(data: string[][]): ParseResult {
     }
     
     const firstCell = String(row[0] || '').trim();
+    const secondCell = row[1] ? String(row[1]).trim() : '';
     
     // Skip header rows like "course data"
     if (firstCell.toLowerCase() === 'course data') {
+      continue;
+    }
+    
+    // Extract curriculum metadata
+    if (firstCell === 'CURRICULUM_ID' && secondCell) {
+      curriculumMetadata.id = secondCell;
+      continue;
+    }
+    if (firstCell === 'CURRICULUM_NAME' && secondCell) {
+      curriculumMetadata.name = secondCell;
+      continue;
+    }
+    if (firstCell === 'CURRICULUM_YEAR' && secondCell) {
+      curriculumMetadata.year = secondCell;
       continue;
     }
     
@@ -239,7 +260,8 @@ function processRawData(data: string[][]): ParseResult {
       totalCredits
     },
     errors,
-    warnings
+    warnings,
+    curriculumMetadata: Object.keys(curriculumMetadata).length > 0 ? curriculumMetadata : undefined
   };
 }
 

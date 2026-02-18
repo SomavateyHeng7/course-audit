@@ -193,7 +193,7 @@ export default function StudentTranscriptImport({
             course.category ||
             currCourse.category ||
             currCourse.courseType ||
-            'Unassigned';
+            'Uncategorized';
           
           console.log(`Course ${course.code}: category = ${category}`);
           

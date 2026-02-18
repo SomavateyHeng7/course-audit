@@ -76,7 +76,12 @@ const SemesterCoursePage: React.FC = () => {
       setDepartments(response.departments);
       
       // Get student's department from localStorage as default
-      const savedContext = localStorage.getItem('studentDataEntryContext');
+      // Try unified studentAuditData first, then fallback to legacy key
+      let savedContext = localStorage.getItem('studentAuditData');
+      if (!savedContext) {
+        savedContext = localStorage.getItem('studentDataEntryContext');
+      }
+      
       if (savedContext) {
         try {
           const parsedContext = JSON.parse(savedContext);

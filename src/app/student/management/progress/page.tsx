@@ -66,12 +66,12 @@ const DonutChart = ({
         {/* Define gradients */}
         <defs>
           <linearGradient id={completedGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#10b981" />
-            <stop offset="100%" stopColor="#059669" />
+            <stop offset="0%" stopColor="#14b8a6" />
+            <stop offset="100%" stopColor="#10b981" />
           </linearGradient>
           <linearGradient id={plannedGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#3b82f6" />
-            <stop offset="100%" stopColor="#1d4ed8" />
+            <stop offset="0%" stopColor="#818cf8" />
+            <stop offset="100%" stopColor="#c084fc" />
           </linearGradient>
           {/* Shadow filter */}
           <filter id="shadow">
@@ -127,11 +127,8 @@ const DonutChart = ({
       
       {/* Enhanced center content with better typography */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <div className="text-2xl font-bold bg-gradient-to-br from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
+        <div className="text-2xl font-bold bg-gradient-to-br from-teal-500 to-emerald-500 dark:from-teal-400 dark:to-emerald-400 bg-clip-text text-transparent">
           {Math.round(totalPercent)}%
-        </div>
-        <div className="text-xs font-medium text-gray-400 dark:text-gray-500 mt-0.5">
-          {completed + planned}/{total}
         </div>
       </div>
     </div>
@@ -303,6 +300,7 @@ export default function ProgressPage() {
   });
   const [curriculumData, setCurriculumData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [curriculumError, setCurriculumError] = useState<string | null>(null);
   const [blacklistData, setBlacklistData] = useState<CurriculumBlacklistsResponse | null>(null);
   const [blacklistWarnings, setBlacklistWarnings] = useState<string[]>([]);
   const [savedTotalCredits, setSavedTotalCredits] = useState<number | null>(null); // Store credits from localStorage
@@ -412,6 +410,22 @@ export default function ProgressPage() {
             } catch (error) {
               if (typeof window !== 'undefined') {
                 console.error('Step 6: Error fetching curriculum data:', error);
+                if (error instanceof Error) {
+                  console.error('Error message:', error.message);
+                  // Show user-friendly error if curriculum doesn't exist
+                  if (error.message.includes('404') || error.message.includes('not found')) {
+                    console.error('⚠️ CURRICULUM NOT FOUND: The curriculum ID saved in your data does not exist in the database.');
+                    console.error('This may happen if:');
+                    console.error('1. The curriculum was deleted from the system');
+                    console.error('2. You copied data from a different environment');
+                    console.error('3. The database was reset');
+                    console.error('');
+                    console.error('Solution: Go to Data Entry page and select a valid curriculum again.');
+                    setCurriculumError(`Curriculum not found in database (ID: ${curriculumId}). Please select a valid curriculum in Course Entry.`);
+                  } else {
+                    setCurriculumError(`Failed to load curriculum data: ${error.message}`);
+                  }
+                }
               }
             }
           } else {
@@ -947,6 +961,10 @@ export default function ProgressPage() {
 
   // Only log during client-side execution
   if (typeof window !== 'undefined') {
+    console.log('📊 PROGRESS STATE DEBUG:');
+    console.log('- completedCourses object:', completedCourses);
+    console.log('- completedCourses keys:', Object.keys(completedCourses));
+    console.log('- Sample completed course:', Object.keys(completedCourses)[0], completedCourses[Object.keys(completedCourses)[0]]);
     console.log('Progress Page - Current state:', {
       selectedCurriculum,
       selectedConcentration,
@@ -1001,6 +1019,41 @@ export default function ProgressPage() {
       console.log('🔍 DEBUG: Department course types mapping:', departmentCourseTypes);
     }
     
+    // Category name normalization mapping
+    const normalizeCategory = (category: string): string => {
+      const categoryMap: { [key: string]: string } = {
+        // General Education variations
+        'general education': 'General Education',
+        'general_education': 'General Education',
+        'gen ed': 'General Education',
+        'gened': 'General Education',
+        // Core Courses variations
+        'core': 'Core Courses',
+        'core courses': 'Core Courses',
+        'core_courses': 'Core Courses',
+        // Major variations
+        'major': 'Major',
+        'major courses': 'Major',
+        'major_courses': 'Major',
+        // Major Elective variations
+        'major elective': 'Major Elective',
+        'major electives': 'Major Elective',
+        'major_elective': 'Major Elective',
+        'major_electives': 'Major Elective',
+        // Free Elective variations
+        'free elective': 'Free Elective',
+        'free electives': 'Free Elective',
+        'free_elective': 'Free Elective',
+        'free_electives': 'Free Elective',
+        'elective': 'Free Elective',
+        // Uncategorized
+        'uncategorized': 'Uncategorized',
+        'unassigned': 'Uncategorized',
+      };
+      const normalized = categoryMap[category.toLowerCase()] || category;
+      return normalized;
+    };
+    
     // Transform real curriculum data into the format we need
     const coursesByCategory: { [category: string]: { code: string; title: string; credits: number }[] } = {};
     
@@ -1009,6 +1062,7 @@ export default function ProgressPage() {
         console.log(`🔍 DEBUG: Processing course ${index}:`, {
           fullCourse: course,
           courseObj: course.course,
+          directCategory: course.course?.category,
           departmentCourseTypes: course.course?.departmentCourseTypes,
           directDepartmentCourseType: course.departmentCourseType,
           hasDirectType: !!course.departmentCourseType,
@@ -1019,23 +1073,32 @@ export default function ProgressPage() {
       }
       
       // Use the curriculum-specific department course type mapping
-      let category = 'Unassigned';
+      let category = 'Uncategorized';
       
-      // Method 1: Direct departmentCourseType with curriculum mapping
-      if (course.departmentCourseType?.name) {
-        const departmentTypeName = course.departmentCourseType.name;
-        category = departmentCourseTypes[departmentTypeName] || departmentTypeName || 'Unassigned';
+      // Method 0: Use pre-computed category from API (most reliable)
+      if (course.course?.category && course.course.category !== 'Uncategorized') {
+        category = normalizeCategory(course.course.category);
         if (typeof window !== 'undefined') {
-          console.log(`🔍 Method 1 - Direct type: ${departmentTypeName} -> Mapped to: ${category}`);
+          console.log(`🔍 Method 0 - API category: ${course.course.category} -> Normalized: ${category}`);
+        }
+      }
+      // Method 1: Direct departmentCourseType with curriculum mapping
+      else if (course.departmentCourseType?.name) {
+        const departmentTypeName = course.departmentCourseType.name;
+        const mappedCategory = departmentCourseTypes[departmentTypeName] || departmentTypeName || 'Uncategorized';
+        category = normalizeCategory(mappedCategory);
+        if (typeof window !== 'undefined') {
+          console.log(`🔍 Method 1 - Direct type: ${departmentTypeName} -> Mapped: ${mappedCategory} -> Normalized: ${category}`);
         }
       }
       // Method 2: From nested departmentCourseTypes array with curriculum mapping
       else if (course.course?.departmentCourseTypes?.length > 0) {
         const firstType = course.course.departmentCourseTypes[0];
         const departmentTypeName = firstType.courseType?.name || firstType.name;
-        category = departmentCourseTypes[departmentTypeName] || departmentTypeName || 'Unassigned';
+        const mappedCategory = departmentCourseTypes[departmentTypeName] || departmentTypeName || 'Uncategorized';
+        category = normalizeCategory(mappedCategory);
         if (typeof window !== 'undefined') {
-          console.log(`🔍 Method 2 - Nested type: ${departmentTypeName} -> Mapped to: ${category}`, firstType);
+          console.log(`🔍 Method 2 - Nested type: ${departmentTypeName} -> Mapped: ${mappedCategory} -> Normalized: ${category}`, firstType);
         }
       }
       
@@ -1057,6 +1120,10 @@ export default function ProgressPage() {
     
     if (typeof window !== 'undefined') {
       console.log('🔍 DEBUG: Built coursesByCategory:', coursesByCategory);
+      console.log('🔍 DEBUG: Categories found:', Object.keys(coursesByCategory));
+      console.log('🔍 DEBUG: Course counts per category:', 
+        Object.fromEntries(Object.entries(coursesByCategory).map(([k, v]) => [k, v.length]))
+      );
     }
     curriculumCourses[selectedCurriculum] = coursesByCategory;
   } else {
@@ -1169,6 +1236,20 @@ export default function ProgressPage() {
     allCoursesByCategory["Free Elective"] = freeElectives;
   }
 
+  // Debug: Show what categories exist in allCoursesByCategory
+  if (typeof window !== 'undefined') {
+    console.log('📊 FINAL allCoursesByCategory:');
+    console.log('- Categories:', Object.keys(allCoursesByCategory));
+    console.log('- Course counts:', Object.fromEntries(
+      Object.entries(allCoursesByCategory).map(([k, v]) => [k, v.length])
+    ));
+    console.log('- Looking for: General Education =', allCoursesByCategory['General Education']?.length || 0);
+    console.log('- Looking for: Core Courses =', allCoursesByCategory['Core Courses']?.length || 0);
+    console.log('- Looking for: Major =', allCoursesByCategory['Major']?.length || 0);
+    console.log('- Looking for: Major Elective =', allCoursesByCategory['Major Elective']?.length || 0);
+    console.log('- Looking for: Free Elective =', allCoursesByCategory['Free Elective']?.length || 0);
+  }
+
   // Also collect categories from completed courses that aren't in curriculum
   const allPossibleCategories = new Set<string>();
   
@@ -1183,7 +1264,7 @@ export default function ProgressPage() {
       const courseStatus = completedCourses[courseCode];
       if (courseStatus.status === 'completed') {
         // Simple categorization logic for completed courses not in curriculum
-        let category = 'Unassigned';
+        let category = 'Uncategorized';
         if (courseCode.startsWith('CSX') || courseCode.startsWith('CS')) {
           category = 'Major';
         } else if (courseCode.startsWith('ITX') || courseCode.startsWith('IT')) {
@@ -1224,7 +1305,7 @@ export default function ProgressPage() {
       'Major Elective',
       'Free Elective',
       'General',
-      'Unassigned'
+      'Uncategorized'
     ];
     
     // Start with preferred order categories that exist
@@ -1267,6 +1348,15 @@ export default function ProgressPage() {
 
   // Get planned courses by code for easy lookup
   const plannedCoursesMap = new Map(plannedCourses.map(course => [course.code, course]));
+
+  // Debug credit calculation
+  if (typeof window !== 'undefined') {
+    console.log('💰 CREDIT CALCULATION DEBUG:');
+    console.log('- Total categories to process:', categoryOrder.length);
+    console.log('- Categories:', categoryOrder);
+    console.log('- completedCourses available:', Object.keys(completedCourses).length);
+    console.log('- First 5 completed course codes:', Object.keys(completedCourses).slice(0, 5));
+  }
 
   for (const category of categoryOrder) {
     const courses = allCoursesByCategory[category] || [];
@@ -1489,12 +1579,39 @@ export default function ProgressPage() {
       console.log('Using totalCreditsRequired from curriculumProgress:', curriculumProgress.totalCreditsRequired);
       return curriculumProgress.totalCreditsRequired;
     }
+    
+    // Third priority: calculate from course data if available
+    if (curriculumData?.curriculumCourses?.length > 0) {
+      const calculatedTotal = curriculumData.curriculumCourses.reduce((sum: number, cc: any) => {
+        const credits = parseCredits(cc.course?.credits);
+        return sum + credits;
+      }, 0);
+      if (calculatedTotal > 0) {
+        console.log('Calculated total credits from curriculum courses:', calculatedTotal);
+        return calculatedTotal;
+      }
+    }
+    
     // Fallback to 132 only if no curriculum data is available
     console.warn('No total credits found in any source, using fallback of 132');
     return 132;
   })();
 
   const gpa = totalGpaCredits > 0 ? (totalGradePoints / totalGpaCredits).toFixed(2) : 'N/A';
+
+  // Debug final calculation results
+  if (typeof window !== 'undefined') {
+    console.log('✅ FINAL CREDIT CALCULATION RESULTS:');
+    console.log('- Earned Credits:', earnedCredits);
+    console.log('- Planned Credits:', plannedCredits);
+    console.log('- In Progress Credits:', inProgressCredits);
+    console.log('- Total Credits Required:', totalCreditsRequired);
+    console.log('- GPA:', gpa);
+    console.log('- Total Grade Points:', totalGradePoints);
+    console.log('- Total GPA Credits:', totalGpaCredits);
+    console.log('- Completed Courses Count:', completedList.length);
+    console.log('- Planned Courses Count:', plannedFromPlannerList.length);
+  }
 
   // For each category, count completed, planned and total courses
   const coreCompleted = categoryStats['Core Courses']?.completed || 0;
@@ -1544,9 +1661,9 @@ export default function ProgressPage() {
   const generalPlanned = categoryStats['General']?.planned || 0;
   const generalTotal = allCoursesByCategory['General']?.length || 0;
 
-  const unassignedCompleted = categoryStats['Unassigned']?.completed || 0;
-  const unassignedPlanned = categoryStats['Unassigned']?.planned || 0;
-  const unassignedTotal = categoryStats['Unassigned']?.total || 0;
+  const uncategorizedCompleted = categoryStats['Uncategorized']?.completed || 0;
+  const uncategorizedPlanned = categoryStats['Uncategorized']?.planned || 0;
+  const uncategorizedTotal = categoryStats['Uncategorized']?.total || 0;
 
   type CourseStatusKey = 'completed' | 'in_progress' | 'planned';
 
@@ -1576,7 +1693,7 @@ export default function ProgressPage() {
   };
 
   const ensureCategoryDetail = (categoryName: string): CategoryCreditDetail => {
-    const safeCategory = categoryName || 'Unassigned';
+    const safeCategory = categoryName || 'Uncategorized';
     if (!categoryCreditDetails[safeCategory]) {
       const requiredFromStats = categoryStats[safeCategory]?.totalCredits || 0;
       const fallbackRequirement = safeCategory === 'Free Elective'
@@ -1600,7 +1717,7 @@ export default function ProgressPage() {
 
   const registerCoursesForDetail = (courses: any[], status: CourseStatusKey) => {
     courses.forEach(course => {
-      const category = course.category || 'Unassigned';
+      const category = course.category || 'Uncategorized';
       const detail = ensureCategoryDetail(category);
       const credits = getCourseCredits(course);
       const normalized: CategorizedCourseEntry = {
@@ -2202,7 +2319,15 @@ export default function ProgressPage() {
     const highlightRowIndices: number[] = [];
 
     worksheetData.push(['course data']); // Title (match CSV format)
-    worksheetData.push([]); // Empty row
+    
+    // Add curriculum metadata if available
+    if (curriculumData) {
+      worksheetData.push(['CURRICULUM_ID', curriculumData.id || '']);
+      worksheetData.push(['CURRICULUM_NAME', curriculumData.name || '']);
+      worksheetData.push(['CURRICULUM_YEAR', curriculumData.year || '']);
+    }
+    
+    worksheetData.push([]); // Empty row before course data
     
     // Group courses by category
     const groupedCourses: { [key: string]: GraduationExportRow[] } = {};
@@ -2272,7 +2397,15 @@ export default function ProgressPage() {
     // Convert to curriculum transcript CSV format (match data-entry page exactly)
     const csvLines: string[] = [];
     csvLines.push('course data'); // Title
-    csvLines.push(''); // Empty line
+    
+    // Add curriculum metadata if available
+    if (curriculumData) {
+      csvLines.push(formatCsvRow(['CURRICULUM_ID', curriculumData.id || '']));
+      csvLines.push(formatCsvRow(['CURRICULUM_NAME', curriculumData.name || '']));
+      csvLines.push(formatCsvRow(['CURRICULUM_YEAR', curriculumData.year || '']));
+    }
+    
+    csvLines.push(''); // Empty line before course data
     
     // Group courses by category
     const groupedCourses: { [key: string]: GraduationExportRow[] } = {};
@@ -2355,8 +2488,36 @@ export default function ProgressPage() {
         </div>
       )}
 
+      {/* Show curriculum error if exists */}
+      {!loading && curriculumError && selectedCurriculum && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-6">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
+              ⚠️ Curriculum Data Error
+            </h3>
+            <p className="text-red-700 dark:text-red-300 mb-4">
+              {curriculumError}
+            </p>
+            <div className="text-sm text-red-600 dark:text-red-400 mb-4">
+              <p className="mb-2">This may happen if:</p>
+              <ul className="text-left inline-block space-y-1">
+                <li>• The curriculum was deleted from the system</li>
+                <li>• You copied data from a different environment</li>
+                <li>• The database was reset or migrated</li>
+              </ul>
+            </div>
+            <button
+              onClick={() => router.push('/student/management/data-entry')}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition"
+            >
+              Go to Course Entry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Show message if no data and not loading */}
-      {!loading && !selectedCurriculum && (
+      {!loading && !selectedCurriculum && !curriculumError && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 mb-6">
           <div className="text-center">
             <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
@@ -2375,8 +2536,8 @@ export default function ProgressPage() {
         </div>
       )}
 
-      {/* Show progress data if available */}
-      {!loading && selectedCurriculum && (
+      {/* Show progress data if available and no curriculum error */}
+      {!loading && selectedCurriculum && !curriculumError && (
         <>
           {/* Blacklist Warnings Section */}
           {blacklistWarnings.length > 0 && (
@@ -2679,7 +2840,7 @@ export default function ProgressPage() {
                 />
               </div>
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                {earnedCredits}/{totalCreditsRequired} credits
+                {earnedCredits + plannedCredits}/{totalCreditsRequired}
               </div>
             </div>
 

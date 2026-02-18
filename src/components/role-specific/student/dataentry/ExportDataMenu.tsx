@@ -162,7 +162,7 @@ export default function ExportDataMenu({
         Title: normalizedCode,
         Code: normalizedCode,
         Credits: 0,
-        Category: 'Unassigned',
+        Category: 'Uncategorized',
         Grade: courseState?.grade || '',
         Status: getExportStatusLabel(normalizedStatus),
         RawStatus: normalizedStatus,

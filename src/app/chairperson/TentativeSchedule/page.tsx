@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Calendar, BookOpen, Users, Clock, Search, ArrowLeft, Eye, EyeOff, Trash2, CheckCircle2 } from 'lucide-react';
+import { Plus, Calendar, BookOpen, Users, Clock, Search, ArrowLeft, Eye, EyeOff, Trash2, CheckCircle2, MoreVertical } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
 import { getTentativeSchedules, togglePublishTentativeSchedule, toggleActiveTentativeSchedule, deleteTentativeSchedule } from '@/lib/api/laravel';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
 import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
 import { EmptyState } from '@/components/role-specific/chairperson/EmptyState';
@@ -420,45 +427,7 @@ const TentativeSchedulePage: React.FC = () => {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex gap-2 flex-wrap">
-                        <Button
-                          size="sm"
-                          variant={schedule.isPublished ? "outline" : "default"}
-                          onClick={(e) => handleTogglePublishClick(schedule, e)}
-                          className="gap-1 whitespace-nowrap flex-shrink-0"
-                        >
-                          {schedule.isPublished ? (
-                            <>
-                              <EyeOff className="w-3 h-3" />
-                              Unpublish
-                            </>
-                          ) : (
-                            <>
-                              <Eye className="w-3 h-3" />
-                              Publish
-                            </>
-                          )}
-                        </Button>
-                        {schedule.isPublished && (
-                          <Button
-                            size="sm"
-                            variant={schedule.isActive ? "outline" : "default"}
-                            onClick={(e) => handleToggleActiveClick(schedule, e)}
-                            className="gap-1 whitespace-nowrap flex-shrink-0"
-                          >
-                            {schedule.isActive ? (
-                              <>
-                                <CheckCircle2 className="w-3 h-3" />
-                                Active
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle2 className="w-3 h-3" />
-                                Set Active
-                              </>
-                            )}
-                          </Button>
-                        )}
+                      <div className="flex gap-2 items-center">
                         <Button
                           size="sm"
                           variant="outline"
@@ -466,19 +435,68 @@ const TentativeSchedulePage: React.FC = () => {
                             e.stopPropagation();
                             handleViewSchedule(schedule.id);
                           }}
-                          className="whitespace-nowrap flex-shrink-0"
+                          className="gap-2"
                         >
+                          <Eye className="w-4 h-4" />
                           View
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={(e) => handleDeleteClick(schedule, e)}
-                          className="gap-1 whitespace-nowrap flex-shrink-0"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          Delete
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => e.stopPropagation()}
+                              className="h-8 w-8 p-0"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTogglePublishClick(schedule, e as any);
+                              }}
+                              className="gap-2"
+                            >
+                              {schedule.isPublished ? (
+                                <>
+                                  <EyeOff className="w-4 h-4" />
+                                  <span>Unpublish</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Eye className="w-4 h-4" />
+                                  <span>Publish</span>
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            {schedule.isPublished && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleActiveClick(schedule, e as any);
+                                }}
+                                className="gap-2"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span>{schedule.isActive ? 'Deactivate' : 'Set Active'}</span>
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(schedule, e as any);
+                              }}
+                              className="gap-2 text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span>Delete</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   ))}

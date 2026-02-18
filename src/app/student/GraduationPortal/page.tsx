@@ -331,6 +331,22 @@ const GraduationPortalPage: React.FC = () => {
       setPreValidation(result);
       if (result.parseResult) {
         setParseResult(result.parseResult);
+        
+        // Auto-select curriculum if metadata is present
+        if (result.parseResult.curriculumMetadata?.id && curricula.length > 0) {
+          const matchingCurriculum = curricula.find(c => c.id === result.parseResult?.curriculumMetadata?.id);
+          if (matchingCurriculum) {
+            setSelectedCurriculum(matchingCurriculum);
+            // Update session with selected curriculum
+            if (session) {
+              setSession({ ...session, curriculumId: matchingCurriculum.id });
+            }
+            showSuccess('Curriculum auto-detected from file', 'Success');
+            console.log('Auto-selected curriculum:', matchingCurriculum.name);
+          } else {
+            showWarning('Curriculum from file not found in available options');
+          }
+        }
       }
       // Don't auto-advance — user reviews validation results first
     } catch (error) {
@@ -1103,26 +1119,22 @@ const GraduationPortalPage: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="bg-muted/50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold">{parseResult.summary.totalCourses}</p>
-                  <p className="text-xs text-muted-foreground">Total Courses</p>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-muted/50 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold">{parseResult.summary.totalCredits}</p>
-                  <p className="text-xs text-muted-foreground">Total Credits</p>
+                  <p className="text-xs text-muted-foreground">Total Credits Required</p>
                 </div>
                 <div className="bg-green-100 dark:bg-green-900/30 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-green-700 dark:text-green-400">
                     {parseResult.summary.byStatus['completed'] || 0}
                   </p>
-                  <p className="text-xs text-muted-foreground">Completed</p>
+                  <p className="text-xs text-muted-foreground">Completed Courses</p>
                 </div>
                 <div className="bg-blue-100 dark:bg-blue-900/30 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
                     {parseResult.summary.byStatus['in_progress'] || 0}
                   </p>
-                  <p className="text-xs text-muted-foreground">In Progress</p>
+                  <p className="text-xs text-muted-foreground">In Progress Courses</p>
                 </div>
               </div>
 
