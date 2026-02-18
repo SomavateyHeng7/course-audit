@@ -28,13 +28,13 @@ export default function ManagementPage() {
   }
 
   const quickActions = [
-    {
-      title: "Start Workflow",
-      description: "Begin your academic planning journey",
-      icon: <Plus className="h-6 w-6" />,
-      action: () => router.push('/student/workflow'),
-      color: "bg-blue-500"
-    },
+    // {
+    //   title: "Start Workflow",
+    //   description: "Begin your academic planning journey",
+    //   icon: <Plus className="h-6 w-6" />,
+    //   action: () => router.push('/student/workflow'),
+    //   color: "bg-blue-500"
+    // },
     {
       title: "Graduation Roadmap Check",
       description: "Enter or edit your course data",

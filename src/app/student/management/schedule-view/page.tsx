@@ -74,12 +74,37 @@ export default function ScheduleVisualizationPage() {
     try {
       setLoading(true);
       
-      // Load from course planning data
+      let courses: any[] = [];
+      
+      // Try loading from course planning data first
       const planningData = localStorage.getItem('coursePlan');
       if (planningData) {
         const data = JSON.parse(planningData);
-        const courses = data.plannedCourses || [];
-        
+        courses = data.plannedCourses || [];
+      }
+      
+      // Fallback to semester plan if no course planning data
+      if (courses.length === 0) {
+        const semesterPlanData = localStorage.getItem('semesterPlan');
+        if (semesterPlanData) {
+          const data = JSON.parse(semesterPlanData);
+          // Map semester plan courses to expected structure
+          courses = (data.courses || []).map((course: any) => ({
+            code: course.code,
+            title: course.name || course.title,
+            name: course.name || course.title,
+            credits: course.credits,
+            category: course.category,
+            // Default schedule if not specified
+            days: course.days || [],
+            time: course.time || '',
+            instructor: course.instructor || '',
+            room: course.room || '',
+          }));
+        }
+      }
+      
+      if (courses.length > 0) {
         // Assign colors to courses
         const coursesWithColors = courses.map((course: any, index: number) => ({
           ...course,

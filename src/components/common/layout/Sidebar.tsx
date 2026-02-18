@@ -40,11 +40,11 @@ const defaultNavigationItems = [
     href: "/student/SemesterCourse",
     icon: Book,
   },
-  {
-    name: "All Curricula",
-    href: "/student/allCurricula",
-    icon: Folders,
-  },
+  // {
+  //   name: "All Curricula",
+  //   href: "/student/allCurricula",
+  //   icon: Folders,
+  // },
   {
     name: 'Graduation Portal',
     href: '/student/GraduationPortal',

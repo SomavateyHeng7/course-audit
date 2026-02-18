@@ -616,11 +616,30 @@ const SubmissionDetailPage: React.FC = () => {
 
   if (error || !submission) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-        <AlertCircle className="w-12 h-12 text-red-500" />
-        <h2 className="text-xl font-semibold">Failed to load submission</h2>
-        <p className="text-muted-foreground">{error || 'Submission not found'}</p>
-        <Button onClick={() => router.back()}>Go Back</Button>
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-6">
+        <AlertCircle className="w-16 h-16 text-red-500" />
+        <h2 className="text-2xl font-semibold">Failed to load submission</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          {error || 'Submission not found'}
+        </p>
+        {!portalId && (
+          <Alert className="max-w-md">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              The portal ID is missing from the URL. Please navigate to this submission through the Graduation Portal page.
+            </AlertDescription>
+          </Alert>
+        )}
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => router.back()}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Go Back
+          </Button>
+          <Button onClick={() => router.push('/chairperson/GraduationPortal')}>
+            <GraduationCap className="w-4 h-4 mr-2" />
+            Go to Graduation Portal
+          </Button>
+        </div>
       </div>
     );
   }

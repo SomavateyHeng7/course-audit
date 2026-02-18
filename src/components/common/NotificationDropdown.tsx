@@ -50,6 +50,7 @@ export default function NotificationDropdown({
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false); // Track whether to show all notifications
 
   // Fetch unread count (for badge polling)
   const fetchUnreadCount = useCallback(async () => {
@@ -88,6 +89,7 @@ export default function NotificationDropdown({
   useEffect(() => {
     if (isOpen) {
       fetchNotifications();
+      setShowAll(false); // Reset to show only top 3 when opening
     }
   }, [isOpen, fetchNotifications]);
 
@@ -240,14 +242,16 @@ export default function NotificationDropdown({
                 No notifications yet
               </div>
             ) : (
-              notifications.map(notification => (
-                <div
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className={cn(
-                    "relative p-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors",
-                    "hover:bg-gray-50 dark:hover:bg-gray-800/50",
-                    !notification.read && "bg-teal-50/50 dark:bg-teal-900/20"
+              <>
+                {/* Display notifications (top 3 or all based on showAll state) */}
+                {(showAll ? notifications : notifications.slice(0, 3)).map(notification => (
+                  <div
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
+                    className={cn(
+                      "relative p-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors group",
+                      "hover:bg-gray-50 dark:hover:bg-gray-800/50",
+                      !notification.read && "bg-teal-50/50 dark:bg-teal-900/20"
                   )}
                 >
                   <div className="flex items-start gap-3 pr-6">
@@ -286,7 +290,22 @@ export default function NotificationDropdown({
                     <Trash2 className="h-3 w-3 text-gray-400 hover:text-red-500" />
                   </button>
                 </div>
-              ))
+              ))}
+              
+              {/* Show More/Show Less button (Facebook-style) */}
+              {notifications.length > 3 && (
+                <button
+                  onClick={() => setShowAll(!showAll)}
+                  className="w-full p-3 text-center text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors border-t border-gray-100 dark:border-gray-800"
+                >
+                  {showAll ? (
+                    <>Show Less</>
+                  ) : (
+                    <>Show {notifications.length - 3} More {notifications.length - 3 === 1 ? 'Notification' : 'Notifications'}</>
+                  )}
+                </button>
+              )}
+            </>
             )}
           </div>
 

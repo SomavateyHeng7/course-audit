@@ -54,12 +54,19 @@ export default function SemesterPlanPage() {
 
   const loadStudentData = () => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('studentDataEntryContext');
+      // Try unified studentAuditData first (primary data source)
+      let stored = localStorage.getItem('studentAuditData');
+      
+      // Fallback to legacy studentDataEntryContext if primary not found
+      if (!stored) {
+        stored = localStorage.getItem('studentDataEntryContext');
+      }
+      
       if (stored) {
         const data = JSON.parse(stored);
         setStudentInfo(data);
         
-        // Load courses from curriculum
+        // Load courses from curriculum data or courses array
         if (data.courses) {
           const courses: Course[] = data.courses.map((course: any) => ({
             id: course.id || course.courseId || Math.random().toString(),
