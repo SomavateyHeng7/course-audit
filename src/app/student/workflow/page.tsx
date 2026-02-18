@@ -40,6 +40,7 @@ interface Department {
   id: string;
   name: string;
   code?: string;
+  faculty_id?: string;
 }
 
 interface Concentration {
@@ -153,12 +154,22 @@ export default function StudentWorkflowPage() {
     const existingData = localStorage.getItem('studentAuditData');
     const data = existingData ? JSON.parse(existingData) : {};
     
+    // Derive faculty from selected department
+    const selectedDept = departments.find(d => d.id === selectedDepartment);
+    const derivedFacultyId = selectedDept?.faculty_id || '';
+    
+    // Get the selected curriculum data for department ID
+    const selectedCurriculumData = filteredCurricula.find(c => c.id === selectedCurriculum);
+    const actualDeptId = selectedCurriculumData?.department?.id || selectedDepartment;
+    
     const updatedData = {
       ...data,
       selectedCurriculum,
       selectedDepartment,
       selectedConcentration: selectedConcentration || '',
-      actualDepartmentId: selectedDepartment,
+      selectedFaculty: derivedFacultyId,
+      actualDepartmentId: actualDeptId,
+      fromWorkflow: true, // Flag to indicate data came from workflow
       hasPriorCourses: false, // They can enter later in data-entry
     };
     
