@@ -102,6 +102,13 @@ export default function DataEntryPage() {
   // Local state for faculty (loaded from localStorage)
   const [selectedFaculty, setSelectedFaculty] = useState('');
 
+  // State to track if data came from workflow and whether to show selectors
+  const [fromWorkflow, setFromWorkflow] = useState(false);
+  const [showSelectors, setShowSelectors] = useState(true);
+  const [departmentName, setDepartmentName] = useState('');
+  const [curriculumName, setCurriculumName] = useState('');
+  const [concentrationName, setConcentrationName] = useState('');
+
   // Auto-populate semester labels for planning courses that do not have one yet
   useEffect(() => {
     const needsDefaults = Object.entries(completedCourses).some(([, course]) =>
@@ -236,7 +243,7 @@ export default function DataEntryPage() {
           label: f.name 
         })));
         
-        // Load pre-selected faculty from localStorage (from workflow)
+        // Load pre-selected data from localStorage (from workflow)
         try {
           const savedData = localStorage.getItem('studentAuditData');
           if (savedData) {
@@ -245,9 +252,34 @@ export default function DataEntryPage() {
               console.log('Pre-selecting faculty from workflow:', data.selectedFaculty);
               setSelectedFaculty(data.selectedFaculty);
             }
+            
+            // Check if data came from workflow with all required fields set
+            if (data.fromWorkflow && data.selectedDepartment && data.selectedCurriculum) {
+              setFromWorkflow(true);
+              setShowSelectors(false); // Hide selectors initially
+              
+              // Look up display names for the summary
+              const deptResponse = await getPublicDepartments();
+              const dept = (deptResponse.departments || []).find((d: any) => d.id === data.selectedDepartment);
+              if (dept) {
+                setDepartmentName(dept.name);
+              }
+              
+              const curr = fetchedCurricula.find((c: any) => c.id === data.selectedCurriculum);
+              if (curr) {
+                setCurriculumName(curr.name);
+              }
+              
+              if (data.selectedConcentration && data.selectedConcentration !== 'general') {
+                // Concentration name will be looked up in concentrations useEffect
+                setConcentrationName(data.selectedConcentration);
+              } else {
+                setConcentrationName('General');
+              }
+            }
           }
         } catch (error) {
-          console.error('Error loading faculty from localStorage:', error);
+          console.error('Error loading data from localStorage:', error);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -346,8 +378,10 @@ export default function DataEntryPage() {
         selectedDepartment,
         selectedCurriculum,
         selectedConcentration,
+        selectedFaculty, // Include faculty for consistency
         freeElectives,
         actualDepartmentId: actualDeptId, // Add the real department ID
+        fromWorkflow, // Preserve the workflow flag
         electiveRules, // Add elective rules for Free Elective credit requirements
         curriculumCreditsRequired: selectedCurriculumData?.totalCreditsRequired ?? selectedCurriculumData?.totalCredits ?? null,
       };
@@ -357,7 +391,7 @@ export default function DataEntryPage() {
     } catch (error) {
       console.error('Error saving to localStorage:', error);
     }
-  }, [completedCourses, selectedDepartment, selectedCurriculum, selectedConcentration, freeElectives, curricula]);
+  }, [completedCourses, selectedDepartment, selectedCurriculum, selectedConcentration, selectedFaculty, freeElectives, curricula, fromWorkflow]);
 
   // Computed curriculum options based on selected department ID
   const curriculumOptions = selectedDepartment
@@ -689,65 +723,110 @@ export default function DataEntryPage() {
       </div>
 
       {/* Step 1: Select Faculty, Department, Curriculum, and Concentration */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div>
-          <label className="block font-bold mb-2 text-gray-900 dark:text-foreground">Select Faculty</label>
-          <Select value={selectedFaculty} onValueChange={value => {
-            setSelectedFaculty(value);
-            setSelectedDepartment('');
-            setSelectedCurriculum('');
-            setSelectedConcentration('');
-          }}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Choose faculty" />
-            </SelectTrigger>
-            <SelectContent>
-              {facultyOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label className="block font-bold mb-2 text-gray-900 dark:text-foreground">Select Department</label>
-          <Select value={selectedDepartment} onValueChange={handleDepartmentChange} disabled={!selectedFaculty}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Choose department" />
-            </SelectTrigger>
-            <SelectContent>
-              {departmentOptions.map((opt: { value: string; label: string }) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label className="block mb-2 font-bold text-gray-900 dark:text-foreground">Select Curriculum</label>
-          <Select value={selectedCurriculum} onValueChange={handleCurriculumChange} disabled={!selectedDepartment}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={!selectedDepartment ? 'Select department first' : 'Choose curriculum'} />
-            </SelectTrigger>
-            <SelectContent>
-              {curriculumOptions.map((opt: { value: string; label: string }) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label className="block mb-2 font-bold text-gray-900 dark:text-foreground">Select Concentration</label>
-          <Select value={selectedConcentration} onValueChange={setSelectedConcentration} disabled={!selectedCurriculum}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={!selectedCurriculum ? 'Select curriculum first' : 'Choose concentration'} />
-            </SelectTrigger>
-            <SelectContent>
-              {(concentrationOptions[selectedCurriculum] || []).map((opt: { value: string; label: string }) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Show summary card when coming from workflow with pre-filled data */}
+      {fromWorkflow && !showSelectors ? (
+        <div className="mb-8 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground mb-2">Your Academic Info (from workflow)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Department:</span>
+                  <span className="ml-2 font-medium">{departmentName || 'Loading...'}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Curriculum:</span>
+                  <span className="ml-2 font-medium">{curriculumName || 'Loading...'}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Concentration:</span>
+                  <span className="ml-2 font-medium">{concentrationName || 'General'}</span>
+                </div>
+              </div>
             </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowSelectors(true)}
+              className="ml-4"
+            >
+              Edit
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          {fromWorkflow && showSelectors && (
+            <div className="col-span-full mb-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowSelectors(false)}
+                className="text-muted-foreground"
+              >
+                ← Hide selectors
+              </Button>
             </div>
+          )}
+          <div>
+            <label className="block font-bold mb-2 text-gray-900 dark:text-foreground">Select Faculty</label>
+            <Select value={selectedFaculty} onValueChange={value => {
+              setSelectedFaculty(value);
+              setSelectedDepartment('');
+              setSelectedCurriculum('');
+              setSelectedConcentration('');
+            }}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose faculty" />
+              </SelectTrigger>
+              <SelectContent>
+                {facultyOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="block font-bold mb-2 text-gray-900 dark:text-foreground">Select Department</label>
+            <Select value={selectedDepartment} onValueChange={handleDepartmentChange} disabled={!selectedFaculty}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose department" />
+              </SelectTrigger>
+              <SelectContent>
+                {departmentOptions.map((opt: { value: string; label: string }) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="block mb-2 font-bold text-gray-900 dark:text-foreground">Select Curriculum</label>
+            <Select value={selectedCurriculum} onValueChange={handleCurriculumChange} disabled={!selectedDepartment}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={!selectedDepartment ? 'Select department first' : 'Choose curriculum'} />
+              </SelectTrigger>
+              <SelectContent>
+                {curriculumOptions.map((opt: { value: string; label: string }) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="block mb-2 font-bold text-gray-900 dark:text-foreground">Select Concentration</label>
+            <Select value={selectedConcentration} onValueChange={setSelectedConcentration} disabled={!selectedCurriculum}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={!selectedCurriculum ? 'Select curriculum first' : 'Choose concentration'} />
+              </SelectTrigger>
+              <SelectContent>
+                {(concentrationOptions[selectedCurriculum] || []).map((opt: { value: string; label: string }) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
 
       {/* Transcript Import Section */}
       {selectedDepartment && selectedCurriculum && selectedConcentration && (
