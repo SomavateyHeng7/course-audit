@@ -114,8 +114,11 @@ const SemesterCoursePage: React.FC = () => {
         departmentId: departmentId 
       });
       
+      // Filter to show only active schedules (published AND active)
+      const activeSchedules = response.schedules.filter((schedule: any) => schedule.isActive === true);
+      
       // Map schedules to local format
-      const publishedSchedules = response.schedules.map((schedule: any) => ({
+      const publishedSchedules = activeSchedules.map((schedule: any) => ({
         id: schedule.id,
         name: schedule.name,
         semester: `${schedule.semester} ${schedule.year}`,
@@ -127,15 +130,20 @@ const SemesterCoursePage: React.FC = () => {
       
       setScheduleDrafts(publishedSchedules);
       
-      // Auto-select the most recent published schedule
+      // Auto-select the most recent active schedule
       if (publishedSchedules.length > 0) {
         const latestDraft = publishedSchedules[0];
         setSelectedDraft(latestDraft);
         loadCourseSchedules(latestDraft.id);
       } else {
-        // Clear selected draft and courses when no schedules available for this department
+        // Clear selected draft and courses when no active schedules available for this department
         setSelectedDraft(null);
         setCourseSchedules([]);
+        
+        // Show info message
+        if (departmentId) {
+          info('No active schedule found for this department. Check with your department for updates.');
+        }
       }
     } catch (error: any) {
       console.error('Error loading schedule drafts:', error);

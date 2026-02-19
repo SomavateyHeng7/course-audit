@@ -97,6 +97,7 @@ const GraduationPortalPage: React.FC = () => {
   
   // Submission state
   const [studentIdentifier, setStudentIdentifier] = useState('');
+  const [studentEmail, setStudentEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [submissionExpiresAt, setSubmissionExpiresAt] = useState<string | null>(null);
@@ -384,14 +385,15 @@ const GraduationPortalPage: React.FC = () => {
       alert('Please enter your student ID or name');
       return;
     }
-    
-    // Validate curriculum_id
-    if (!session.curriculumId) {
-      alert('Cannot submit: No curriculum is assigned to this portal. Please contact your department.');
-      return;
+
+    // Validate email format if provided
+    if (studentEmail.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(studentEmail.trim())) {
+        alert('Please enter a valid email address or leave it blank');
+        return;
+      }
     }
-    
-    // Validate courses
     const validation = validateCoursesForSubmission(parseResult.courses);
     if (!validation.valid) {
       alert(`Cannot submit: ${validation.errors.join(', ')}`);
@@ -411,7 +413,8 @@ const GraduationPortalPage: React.FC = () => {
           metadata: {
             parsed_at: new Date().toISOString(),
             file_name: uploadedFile?.name,
-            total_courses: parseResult.courses.length
+            total_courses: parseResult.courses.length,
+            student_email: studentEmail.trim() || undefined
           }
         }
       );
@@ -1033,19 +1036,6 @@ const GraduationPortalPage: React.FC = () => {
                   Accepted formats: {selectedPortal.acceptedFormats.join(', ')} | Max size: {selectedPortal.maxFileSizeMb}MB
                 </p>
               </div>
-
-              {/* Student Identifier */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Student ID or Name</label>
-                <Input
-                  value={studentIdentifier}
-                  onChange={(e) => setStudentIdentifier(e.target.value)}
-                  placeholder="e.g., 6512345 or John Doe"
-                />
-                <p className="text-xs text-muted-foreground">
-                  This helps the chairperson identify your submission
-                </p>
-              </div>
               
               {/* Drop Zone (only shown when no file selected yet) */}
               {!uploadedFile && (
@@ -1179,11 +1169,52 @@ const GraduationPortalPage: React.FC = () => {
                 ))}
               </div>
 
+              {/* Contact Information Section */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl p-4 border border-blue-200 dark:border-blue-800 space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <h3 className="font-semibold text-blue-900 dark:text-blue-100">Contact Information</h3>
+                </div>
+                
+                {/* Student Identifier */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-1">
+                    Student ID or Name <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    value={studentIdentifier}
+                    onChange={(e) => setStudentIdentifier(e.target.value)}
+                    placeholder="e.g., 6512345 or John Doe"
+                    className="bg-white dark:bg-gray-900"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Required - Helps the chairperson identify your submission
+                  </p>
+                </div>
+
+                {/* Email Address */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-1">
+                    Email Address <span className="text-amber-600 text-xs">(Optional but recommended)</span>
+                  </label>
+                  <Input
+                    type="email"
+                    value={studentEmail}
+                    onChange={(e) => setStudentEmail(e.target.value)}
+                    placeholder="your.email@example.com"
+                    className="bg-white dark:bg-gray-900"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Recommended - Receive updates about your submission status
+                  </p>
+                </div>
+              </div>
+
               {/* Submission Info */}
               <div className="bg-muted/50 rounded-lg p-3 text-sm">
-                <p><strong>Student:</strong> {studentIdentifier}</p>
                 <p><strong>Portal:</strong> {selectedPortal.name}</p>
                 <p><strong>Curriculum:</strong> {selectedCurriculum?.name ?? 'Unknown Curriculum'}</p>
+                <p><strong>Total Courses:</strong> {parseResult.courses.length}</p>
               </div>
 
               <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">

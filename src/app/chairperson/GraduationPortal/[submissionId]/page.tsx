@@ -39,6 +39,7 @@ import {
   DialogDescription
 } from '@/components/ui/dialog';
 import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
+import { useToastHelpers } from '@/hooks/useToast';
 
 // Simple Donut Chart Component for Credit Progress
 const DonutChart = ({ 
@@ -455,6 +456,9 @@ const SubmissionDetailPage: React.FC = () => {
   const submissionId = params.submissionId as string;
   const portalId = searchParams.get('portalId');
   
+  // Toast notifications
+  const { success: showSuccess, error: showError } = useToastHelpers();
+  
   // State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -498,13 +502,18 @@ const SubmissionDetailPage: React.FC = () => {
     
     try {
       const response = await validateCacheSubmission(portalId, submissionId);
+      const canGraduate = response.validation.can_graduate;
       setSubmission(prev => prev ? {
         ...prev,
-        status: response.validation.can_graduate ? 'validated' : 'has_issues',
+        status: canGraduate ? 'validated' : 'has_issues',
         validationResult: response.validation
       } : null);
+      showSuccess(
+        canGraduate ? 'Student meets all graduation requirements!' : 'Validation complete - some issues found',
+        canGraduate ? 'Can Graduate' : 'Issues Found'
+      );
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Validation failed');
+      showError(err instanceof Error ? err.message : 'Validation failed', 'Error');
     } finally {
       setIsValidating(false);
     }
@@ -519,8 +528,9 @@ const SubmissionDetailPage: React.FC = () => {
       setSubmission(prev => prev ? { ...prev, status: 'approved' } : null);
       setApproveDialog(false);
       setApprovalNotes('');
+      showSuccess('Graduation submission has been approved', 'Approved');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Approval failed');
+      showError(err instanceof Error ? err.message : 'Approval failed', 'Error');
     } finally {
       setIsProcessing(false);
     }
@@ -535,8 +545,9 @@ const SubmissionDetailPage: React.FC = () => {
       setSubmission(prev => prev ? { ...prev, status: 'rejected' } : null);
       setRejectDialog(false);
       setRejectReason('');
+      showSuccess('Graduation submission has been rejected', 'Rejected');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Rejection failed');
+      showError(err instanceof Error ? err.message : 'Rejection failed', 'Error');
     } finally {
       setIsProcessing(false);
     }
@@ -773,7 +784,7 @@ const SubmissionDetailPage: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xl font-semibold">{submission.studentIdentifier || 'Anonymous'}</p>
+              <p className="text-xl font-semibold">{submission.studentIdentifier || submission.student_identifier || 'Anonymous'}</p>
             </CardContent>
           </Card>
           

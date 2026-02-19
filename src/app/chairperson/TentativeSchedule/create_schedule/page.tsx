@@ -587,7 +587,7 @@ const TentativeSchedulePage: React.FC = () => {
         });
         
         if (schedule.status === 'published') {
-          success(`Schedule "${schedule.name}" updated and published! This is now the active schedule for ${schedule.department || 'the department'}.`);
+          success(`Schedule "${schedule.name}" updated and published! Students can now view it. Remember to set it as Active to make it the default schedule.`);
         } else {
           success(`Schedule "${schedule.name}" updated as draft.`);
         }
@@ -617,7 +617,7 @@ const TentativeSchedulePage: React.FC = () => {
         });
         
         if (schedule.status === 'published') {
-          success(`Schedule "${schedule.name}" created and published! This is now the active schedule for ${schedule.department || 'the department'}.`);
+          success(`Schedule "${schedule.name}" created and published! Students can now view it. Remember to set it as Active to make it the default schedule.`);
         } else {
           success(`Schedule "${schedule.name}" saved as draft.`);
         }
@@ -916,11 +916,19 @@ const TentativeSchedulePage: React.FC = () => {
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <option value="draft">Draft (Not visible to students)</option>
-                    <option value="published">Published (Active - visible to students)</option>
+                    <option value="published">Published (Visible - students can view)</option>
                   </select>
                   {schedule.status === 'published' && schedule.department && (
-                    <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-xs text-yellow-800 dark:text-yellow-200">
-                      ⚠️ Publishing will make this the active schedule for <strong>{schedule.department}</strong> department. Only one schedule can be active per department.
+                    <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-xs text-blue-800 dark:text-blue-200">
+                      <div className="flex items-start gap-2">
+                        <div className="mt-0.5">ℹ️</div>
+                        <div className="space-y-1">
+                          <p><strong>Publishing</strong> makes this schedule visible to students for viewing.</p>
+                          <p className="text-blue-700 dark:text-blue-300">
+                            <strong>Note:</strong> After saving, use the "Set Active" button in the schedule list to make this the default schedule for student planning. Only one schedule can be active per department.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
