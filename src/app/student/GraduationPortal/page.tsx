@@ -144,9 +144,13 @@ const GraduationPortalPage: React.FC = () => {
     setPortalsError(null);
     
     try {
+      console.log('[GradPortal] Loading portals...');
       const response = await getPublicGraduationPortals();
-      setPortals(response.portals);
+      console.log('[GradPortal] Response:', response);
+      console.log('[GradPortal] Portals count:', response?.portals?.length ?? 0);
+      setPortals(response.portals ?? []);
     } catch (error) {
+      console.error('[GradPortal] Error loading portals:', error);
       setPortalsError(error instanceof Error ? error.message : 'Failed to load portals');
     } finally {
       setIsLoadingPortals(false);
