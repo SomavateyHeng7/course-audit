@@ -529,6 +529,7 @@ export interface GraduationSubmissionPayload {
     parsed_at?: string;
     file_name?: string;
     total_courses?: number;
+    student_email?: string;
   };
 }
 
@@ -964,6 +965,19 @@ export async function closeGraduationPortal(portalId: string): Promise<{
 }
 
 /**
+ * Reopen a closed graduation portal
+ * POST /api/graduation-portals/{id}/reopen
+ */
+export async function reopenGraduationPortal(portalId: string): Promise<{
+  portal: GraduationPortal;
+  message: string;
+}> {
+  return authenticatedRequest(`/graduation-portals/${portalId}/reopen`, {
+    method: 'POST'
+  });
+}
+
+/**
  * Regenerate portal PIN
  * POST /api/graduation-portals/{id}/regenerate-pin
  */
@@ -1160,16 +1174,17 @@ export async function clearReadGraduationNotifications(): Promise<{
 
 /**
  * Batch validate multiple submissions
- * POST /api/graduation-portals/{id}/batch-validate
+ * POST /api/graduation-submissions/batch-validate
  */
 export async function batchValidateSubmissions(
   portalId: string,
   submissionIds: string[]
 ): Promise<{
-  results: Record<string, { success: boolean; can_graduate?: boolean; error?: string }>;
-  processed: number;
+  message: string;
+  results: Array<{ submission_id: string; success: boolean; can_graduate?: boolean; error_count?: number; error?: string }>;
+  summary: { total: number; success: number; failed: number };
 }> {
-  return authenticatedRequest(`/graduation-portals/${portalId}/batch-validate`, {
+  return authenticatedRequest(`/graduation-submissions/batch-validate`, {
     method: 'POST',
     body: JSON.stringify({ submission_ids: submissionIds })
   });

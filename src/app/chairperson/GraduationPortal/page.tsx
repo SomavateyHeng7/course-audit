@@ -67,6 +67,7 @@ import {
   updateGraduationPortal,
   deleteGraduationPortal,
   closeGraduationPortal,
+  reopenGraduationPortal,
   regeneratePortalPin,
   getCacheSubmissions,
   validateCacheSubmission,
@@ -548,6 +549,22 @@ const GraduationPortalChairpersonPage: React.FC = () => {
     }
   };
 
+  const handleReopenPortal = async (portalId: string) => {
+    setIsProcessingAction(true);
+    try {
+      await reopenGraduationPortal(portalId);
+      showSuccess('Portal reopened successfully', 'Portal Reopened');
+      // Refresh page after short delay to let toast show
+      setTimeout(() => {
+        window.location.href = '/chairperson/GraduationPortal';
+      }, 500);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to reopen portal', 'Error');
+      setIsProcessingAction(false);
+      setConfirmDialog(null);
+    }
+  };
+
   const handleRegeneratePin = async (portalId: string) => {
     setIsProcessingAction(true);
     try {
@@ -630,7 +647,20 @@ const GraduationPortalChairpersonPage: React.FC = () => {
       const response = await batchValidateSubmissions(selectedPortal.id, pendingIds);
       // Reload submissions to get updated statuses
       await loadSubmissions(selectedPortal.id);
-      showSuccess(`Validated ${pendingIds.length} submission(s)`, 'Batch Validation Complete');
+      
+      // Use the summary from backend response
+      const summary = response.summary || { total: 0, success: 0, failed: 0 };
+      const results = response.results || [];
+      const canGraduateCount = results.filter(r => r.success && r.can_graduate).length;
+      const hasIssuesCount = results.filter(r => r.success && !r.can_graduate).length;
+      
+      if (summary.failed > 0) {
+        showError(`Validation: ${canGraduateCount} ready to graduate, ${hasIssuesCount} have issues, ${summary.failed} failed`, 'Batch Validation');
+      } else if (hasIssuesCount > 0) {
+        showSuccess(`Validated ${summary.total} submission(s): ${canGraduateCount} ready to graduate, ${hasIssuesCount} have issues`, 'Batch Validation Complete');
+      } else {
+        showSuccess(`Validated ${summary.total} submission(s): All ready to graduate!`, 'Batch Validation Complete');
+      }
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to batch validate', 'Error');
     } finally {
@@ -796,6 +826,21 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                           >
                             <Power className="w-4 h-4 mr-2" />
                             Close Portal
+                          </DropdownMenuItem>
+                        )}
+                        {selectedPortal.status === 'closed' && (
+                          <DropdownMenuItem 
+                            onClick={() => setConfirmDialog({
+                              open: true,
+                              title: 'Reopen Portal',
+                              description: 'This will allow students to submit new graduation roadmaps to this portal.',
+                              confirmText: 'Reopen Portal',
+                              variant: 'default',
+                              onConfirm: () => handleReopenPortal(selectedPortal.id)
+                            })}
+                          >
+                            <Power className="w-4 h-4 mr-2" />
+                            Reopen Portal
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />

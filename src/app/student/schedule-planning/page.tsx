@@ -77,11 +77,27 @@ export default function StudentSchedulePlanningPage() {
   const fetchActiveSchedule = async () => {
     try {
       setLoading(true);
-      // Fetch published schedules and find the active one for student's department
-      const response = await getPublishedSchedules({ limit: 100 });
       
-      // Find active schedule (you may need to add department filtering)
-      const active = response.schedules.find(s => s.isActive);
+      // Get student's department from context if available
+      let studentDeptId: string | undefined;
+      const savedContext = localStorage.getItem('studentAuditData') || localStorage.getItem('studentDataEntryContext');
+      if (savedContext) {
+        try {
+          const parsedContext = JSON.parse(savedContext);
+          studentDeptId = parsedContext.actualDepartmentId || parsedContext.selectedDepartment;
+        } catch (e) {
+          console.error('Error parsing student context:', e);
+        }
+      }
+      
+      // Fetch published schedules, optionally filtered by department
+      const response = await getPublishedSchedules({ 
+        limit: 100,
+        departmentId: studentDeptId 
+      });
+      
+      // Find active schedule (only one should be active per department)
+      const active = response.schedules.find((s: any) => s.isActive === true);
       
       if (active) {
         // Fetch full schedule details
@@ -89,7 +105,11 @@ export default function StudentSchedulePlanningPage() {
         setActiveSchedule(scheduleDetail.schedule);
         setDepartmentId(scheduleDetail.schedule.department || '');
       } else {
-        info('No active schedule available for your department');
+        if (studentDeptId) {
+          info('No active schedule available for your department. Check with your department for updates.');
+        } else {
+          info('No active schedule available. Please set your department in the student portal.');
+        }
       }
     } catch (error) {
       console.error('Error fetching active schedule:', error);

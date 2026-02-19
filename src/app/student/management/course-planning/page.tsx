@@ -290,6 +290,7 @@ export default function CoursePlanningPage() {
         const context: DataEntryContext = {
           selectedCurriculum: auditData.selectedCurriculum,
           selectedDepartment: auditData.selectedDepartment,
+          actualDepartmentId: auditData.actualDepartmentId,
           selectedConcentration: auditData.selectedConcentration || '',
           completedCourses: auditData.completedCourses || {},
           freeElectives: auditData.freeElectives || []
@@ -297,6 +298,12 @@ export default function CoursePlanningPage() {
 
         setDataEntryContext(context);
         setHasValidContext(true);
+        
+        // Auto-select the department for tentative schedule if actualDepartmentId is available
+        if (auditData.actualDepartmentId) {
+          console.log('Auto-selecting department for tentative schedule:', auditData.actualDepartmentId);
+          setSelectedScheduleDepartmentId(auditData.actualDepartmentId);
+        }
 
         // Auto-sync completed courses
         const completedCourseCodes = Object.keys(context.completedCourses).filter(
