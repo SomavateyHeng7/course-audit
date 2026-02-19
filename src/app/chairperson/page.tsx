@@ -3,13 +3,11 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from '@/contexts/SanctumAuthContext';
 import { useRouter } from "next/navigation";
-import { Trash2, Info, Plus, BookOpen, Users, Calendar, Settings, Copy } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
 import { API_BASE } from '@/lib/api/laravel';
 import { getCsrfCookie, getCsrfTokenFromCookie } from '@/lib/auth/sanctum';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-
-// Import chairperson components
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
 import { LoadingSpinner } from '@/components/role-specific/chairperson/LoadingSpinner';
 import { CurriculumStats } from '@/components/role-specific/chairperson/management/CurriculumStats';
@@ -39,6 +37,8 @@ const ChairpersonPage: React.FC = () => {
 
   const [editingCurriculumId, setEditingCurriculumId] = useState<string | null>(null);
   const [editedName, setEditedName] = useState<string>('');
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<Curriculum | null>(null);
 
   const fetchCurricula = async (search: string = '', page: number = 1) => {
     try {
@@ -184,6 +184,8 @@ const ChairpersonPage: React.FC = () => {
       showError('An error occurred while duplicating the curriculum. Please try again.');
     }
   };
+  // Backend integration point: the PUT below wires the rename UI to the existing
+  // curriculum endpoint. Adjust the payload or URL here if the rename contract changes.
   const handleUpdateName = async (curriculumId: string, newName: string) => {
     if (!newName.trim()) {
       warning('Curriculum name cannot be empty');
@@ -205,7 +207,7 @@ const ChairpersonPage: React.FC = () => {
           'Content-Type': 'application/json',
           ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
         },
-        body: JSON.stringify({ name: newCurriculumName })
+        body: JSON.stringify({ name: newName })
       });
 
       if (response.ok) {
@@ -214,6 +216,8 @@ const ChairpersonPage: React.FC = () => {
         success(`Curriculum name updated successfully.`);
         setEditingCurriculumId(null);
         setEditedName('');
+        setRenameModalOpen(false);
+        setRenameTarget(null);
       } else {
         let errorMessage = 'Unknown error';
         
@@ -240,21 +244,15 @@ const ChairpersonPage: React.FC = () => {
   const handleStartEdit = (curriculum: Curriculum) => {
     setEditingCurriculumId(curriculum.id);
     setEditedName(curriculum.name);
+    setRenameTarget(curriculum);
+    setRenameModalOpen(true);
   };
 
   const handleCancelEdit = () => {
     setEditingCurriculumId(null);
     setEditedName('');
-  };
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Invalid Date';
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    setRenameModalOpen(false);
+    setRenameTarget(null);
   };
   const activeCurricula = curricula.filter(c => c.isActive).length;
   const totalCourses = curricula.reduce((sum, c) => sum + c._count.curriculumCourses, 0);
@@ -300,148 +298,7 @@ const ChairpersonPage: React.FC = () => {
 
         <CurriculumTable
           data={curricula}
-          columns={[
-            {
-              key: 'name',
-              label: 'Curriculum Name',
-              className: 'flex-1',
-              render: (curriculum: Curriculum) => (
-                <div>
-                  {editingCurriculumId === curriculum.id ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={editedName}
-                        onChange={(e) => setEditedName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleUpdateName(curriculum.id, editedName);
-                          } else if (e.key === 'Escape') {
-                            handleCancelEdit();
-                          }
-                        }}
-                        className="flex-1 px-2 py-1 border border-teal-500 rounded focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm font-semibold"
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleUpdateName(curriculum.id, editedName);
-                        }}
-                        className="px-2 py-1 bg-teal-600 text-white rounded text-xs hover:bg-teal-700"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCancelEdit();
-                        }}
-                        className="px-2 py-1 border rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-800"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <div 
-                      className="cursor-pointer hover:text-teal-600 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartEdit(curriculum);
-                      }}
-                      title="Click to rename"
-                    >
-                      <div className="font-semibold text-foreground">
-                        {curriculum.name} ({curriculum.year})
-                      </div>
-                    </div>
-                  )}
-                  <div className="text-sm text-muted-foreground">
-                    Version {curriculum.version} • ID: {curriculum.startId} - {curriculum.endId}
-                  </div>
-                  {curriculum.description && (
-                    <div className="text-sm text-muted-foreground mt-1 line-clamp-2 lg:hidden">
-                      {curriculum.description}
-                    </div>
-                  )}
-                </div>
-              )
-            },
-            {
-              key: 'description',
-              label: 'Description',
-              className: 'flex-1',
-              hideOnMobile: true,
-              render: (curriculum: Curriculum) => (
-                <span className="text-sm text-muted-foreground line-clamp-2">
-                  {curriculum.description || 'No description available'}
-                </span>
-              )
-            },
-            {
-              key: 'stats',
-              label: 'Statistics',
-              className: 'w-32',
-              render: (curriculum: Curriculum) => (
-                <div className="text-sm">
-                  <div className="flex items-center gap-1 text-blue-600">
-                    <BookOpen size={14} />
-                    <span>{curriculum._count.curriculumCourses} courses</span>
-                  </div>
-                  <div className="text-muted-foreground mt-1 text-xs">
-                    {curriculum._count.curriculumConstraints} constraints
-                  </div>
-                </div>
-              )
-            },
-            {
-              key: 'updated',
-              label: 'Last Updated',
-              className: 'w-32',
-              hideOnMobile: true,
-              render: (curriculum: Curriculum) => (
-                <span className="text-sm text-muted-foreground">
-                  {formatDate(curriculum.updated_at || curriculum.updatedAt)}
-                </span>
-              )
-            },
-            {
-              key: 'actions',
-              label: 'Actions',
-              className: 'w-40 text-center',
-              render: (curriculum: Curriculum) => (
-                <div className="flex gap-2 justify-center">
-                  <ActionButton
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => router.push(`/chairperson/info_edit/${curriculum.id}`)}
-                    stopPropagation
-                    icon={<Info size={14} />}
-                    tooltip="View Details"
-                  />
-                  <ActionButton
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDuplicate(curriculum.id, curriculum.name)}
-                    stopPropagation
-                    icon={<Copy size={14} />}
-                    tooltip="Duplicate Curriculum"
-                    className="text-blue-600 hover:text-blue-700"
-                  />
-                  <ActionButton
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteClick(curriculum.id, curriculum.name)}
-                    stopPropagation
-                    icon={<Trash2 size={14} />}
-                    tooltip="Delete Curriculum"
-                    className="text-destructive hover:text-destructive"
-                  />
-                </div>
-              )
-            }
-          ]}
+          pagination={pagination}
           loading={loading}
           searchTerm={searchTerm}
           editingCurriculumId={editingCurriculumId}
@@ -480,65 +337,6 @@ const ChairpersonPage: React.FC = () => {
         onConfirm={handleDeleteConfirm}
         variant="destructive"
       />
-
-      <Dialog 
-        open={renameDialog.open} 
-        onOpenChange={(open) => {
-          if (!open) {
-            setRenameDialog({ open: false, curriculumId: null, currentName: '' });
-            setNewCurriculumName('');
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Rename Curriculum</DialogTitle>
-            <DialogDescription>
-              Enter a new name for the curriculum. This will update the curriculum name across the system.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="curriculum-name">Curriculum Name</Label>
-              <Input
-                id="curriculum-name"
-                value={newCurriculumName}
-                onChange={(e) => setNewCurriculumName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleRenameConfirm();
-                  }
-                }}
-                placeholder="Enter curriculum name"
-                className="col-span-3"
-                autoFocus
-              />
-              <p className="text-sm text-muted-foreground">
-                Current name: <span className="font-semibold">{renameDialog.currentName}</span>
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setRenameDialog({ open: false, curriculumId: null, currentName: '' });
-                setNewCurriculumName('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRenameConfirm}
-              disabled={!newCurriculumName.trim() || newCurriculumName === renameDialog.currentName}
-              className="bg-teal-600 hover:bg-teal-700"
-            >
-              Rename
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

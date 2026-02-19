@@ -289,6 +289,7 @@ export default function ProgressPage() {
   const router = useRouter();
   const toast = useToastHelpers();
   const pdfRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
   const [plannedCourses, setPlannedCourses] = useState<PlannedCourse[]>([]);
   const [concentrationAnalysis, setConcentrationAnalysis] = useState<ConcentrationProgress[]>([]);
   const [completedData, setCompletedData] = useState<CompletedCourseData>({
@@ -309,67 +310,42 @@ export default function ProgressPage() {
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [curriculumProgress, setCurriculumProgress] = useState<CurriculumProgress | null>(null);
   
-  // Debug: Track when curriculumData changes
+  // Mount check to prevent SSR issues
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      console.log('🔍 CURRICULUM DATA CHANGED:', curriculumData);
-      console.log('🔍 CURRICULUM totalCreditsRequired:', curriculumData?.totalCreditsRequired);
-    }
-  }, [curriculumData]);
+    setMounted(true);
+  }, []);
+  
+  // Return null during SSR
+  if (!mounted) {
+    return null;
+  }
   
   // Load all data from localStorage and fetch curriculum data
   useEffect(() => {
-    console.log('🔥 USEEFFECT STARTED - Loading progress page data');
     const loadData = async () => {
       try {
-        // Only run debugging during client-side execution, not during build
-        if (typeof window !== 'undefined') {
-          console.log('=== PROGRESS PAGE DEBUGGING ===');
-          console.log('Step 1: Loading data from localStorage');
-        }
-        
-        // Only access localStorage on client side
+        // Ensure we're on client side
         if (typeof window === 'undefined') {
           setLoading(false);
           return;
         }
         
-        // Check all localStorage keys
-        const allKeys = Object.keys(localStorage);
-        if (typeof window !== 'undefined') {
-          console.log('All localStorage keys:', allKeys);
-        }
-        
         // Load completed courses data from data-entry page
         const savedCompletedData = localStorage.getItem('studentAuditData');
-        if (typeof window !== 'undefined') {
-          console.log('Step 2: Raw studentAuditData:', savedCompletedData);
-        }
 
         let parsedData: CompletedCourseData | null = null;
         let curriculumId: string | null = null;
 
         if (savedCompletedData) {
           parsedData = JSON.parse(savedCompletedData);
-          if (typeof window !== 'undefined') {
-            console.log('Step 3: Parsed studentAuditData:', parsedData);
-          }
 
           // Support both array and object
           const auditObj = Array.isArray(parsedData) ? parsedData[0] : parsedData;
           curriculumId = auditObj?.selectedCurriculum || null;
-          
-          if (typeof window !== 'undefined') {
-            console.log('Step 3a: Extracted curriculumId:', curriculumId);
-            console.log('Step 3b: auditObj keys:', auditObj ? Object.keys(auditObj) : 'null');
-          }
 
           // Extract and save total credits from localStorage
           if (auditObj?.curriculumCreditsRequired) {
             setSavedTotalCredits(auditObj.curriculumCreditsRequired);
-            if (typeof window !== 'undefined') {
-              console.log('Found saved total credits:', auditObj.curriculumCreditsRequired);
-            }
           }
 
           // Only set data if auditObj is not null
@@ -379,143 +355,76 @@ export default function ProgressPage() {
 
           // Fetch curriculum data if we have a curriculum ID
           if (curriculumId) {
-            if (typeof window !== 'undefined') {
-              console.log('Step 4: Fetching curriculum for ID:', curriculumId);
-            }
             try {
               const data = await getPublicCurriculum(curriculumId);
-              if (typeof window !== 'undefined') {
-                console.log('Step 5: API response:', data);
-                console.log('Step 5a: API response type:', typeof data);
-                console.log('Step 5b: API curriculum object:', data.curriculum);
-                console.log('Step 5c: API totalCreditsRequired:', data.curriculum?.totalCreditsRequired);
-              }
               // The API returns { curriculum: {...} } for single curriculum fetch
               const curriculum = data.curriculum || data;
               if (curriculum) {
-                if (typeof window !== 'undefined') {
-                  console.log('Step 6: Found curriculum data:', curriculum);
-                  console.log('Step 6a: Curriculum totalCreditsRequired:', curriculum.totalCreditsRequired);
-                  console.log('Step 6b: Setting curriculum data...');
-                }
                 setCurriculumData(curriculum);
-                if (typeof window !== 'undefined') {
-                  console.log('Step 6c: Curriculum data set successfully');
-                }
-              } else {
-                if (typeof window !== 'undefined') {
-                  console.log('Step 6: No curriculum found with ID:', curriculumId);
-                }
               }
             } catch (error) {
-              if (typeof window !== 'undefined') {
-                console.error('Step 6: Error fetching curriculum data:', error);
-                if (error instanceof Error) {
-                  console.error('Error message:', error.message);
-                  // Show user-friendly error if curriculum doesn't exist
-                  if (error.message.includes('404') || error.message.includes('not found')) {
-                    console.error('⚠️ CURRICULUM NOT FOUND: The curriculum ID saved in your data does not exist in the database.');
-                    console.error('This may happen if:');
-                    console.error('1. The curriculum was deleted from the system');
-                    console.error('2. You copied data from a different environment');
-                    console.error('3. The database was reset');
-                    console.error('');
-                    console.error('Solution: Go to Data Entry page and select a valid curriculum again.');
-                    setCurriculumError(`Curriculum not found in database (ID: ${curriculumId}). Please select a valid curriculum in Course Entry.`);
-                  } else {
-                    setCurriculumError(`Failed to load curriculum data: ${error.message}`);
-                  }
+              console.error('Error fetching curriculum data:', error);
+              if (error instanceof Error) {
+                // Show user-friendly error if curriculum doesn't exist
+                if (error.message.includes('404') || error.message.includes('not found')) {
+                  setCurriculumError(`Curriculum not found in database (ID: ${curriculumId}). Please select a valid curriculum in Course Entry.`);
+                } else {
+                  setCurriculumError(`Failed to load curriculum data: ${error.message}`);
                 }
               }
             }
           } else {
-            if (typeof window !== 'undefined') {
-              console.log('Step 4: No curriculum ID found in saved data');
-              console.log('Step 4a: Trying fallback with selectedCurriculum from completedData state');
-              
-              // Try to get curriculum ID from the completedData state as fallback
-              if (completedData?.selectedCurriculum) {
-                console.log('Step 4b: Found fallback curriculum ID:', completedData.selectedCurriculum);
-                try {
-                  const data = await getPublicCurriculum(completedData.selectedCurriculum);
-                  console.log('Step 4c: Fallback API response:', data);
-                  const curriculum = data.curriculum || data;
-                  if (curriculum) {
-                    console.log('Step 4d: Setting curriculum data from fallback');
-                    setCurriculumData(curriculum);
-                  }
-                } catch (error) {
-                  console.error('Step 4e: Fallback curriculum fetch failed:', error);
+            // Try to get curriculum ID from the completedData state as fallback
+            if (completedData?.selectedCurriculum) {
+              try {
+                const data = await getPublicCurriculum(completedData.selectedCurriculum);
+                const curriculum = data.curriculum || data;
+                if (curriculum) {
+                  setCurriculumData(curriculum);
                 }
+              } catch (error) {
+                console.error('Fallback curriculum fetch failed:', error);
               }
             }
-          }
-        } else {
-          if (typeof window !== 'undefined') {
-            console.log('Step 3: No studentAuditData found in localStorage');
           }
         }
         
-          // Load planned courses from course planner
-            const savedCoursePlan = localStorage.getItem('coursePlan');
-            if (typeof window !== 'undefined') {
-              console.log('Step 7: Raw coursePlan:', savedCoursePlan);
-            }
+        // Load planned courses from course planner
+        const savedCoursePlan = localStorage.getItem('coursePlan');
             
-          if (savedCoursePlan) {
-            const planData = JSON.parse(savedCoursePlan);
-            if (typeof window !== 'undefined') {
-              console.log('Step 8: Parsed coursePlan:', planData);
-            }
-            const normalizedPlan = (planData.plannedCourses || []).map((course: any) => {
-              const normalizedLabel = normalizeSemesterLabel(course.semesterLabel, course.semester, course.year);
-              return {
-                ...course,
-                semesterLabel: normalizedLabel,
-                semester: deriveSemesterValueFromLabel(normalizedLabel, course.semester)
-              };
-            });
-            setPlannedCourses(normalizedPlan);
-          } else {
-            if (typeof window !== 'undefined') {
-              console.log('Step 8: No coursePlan found in localStorage');
-            }
-          }
-          
-          // Load concentration analysis
-          const savedConcentrationAnalysis = localStorage.getItem('concentrationAnalysis');
-          if (typeof window !== 'undefined') {
-            console.log('Step 9: Raw concentrationAnalysis:', savedConcentrationAnalysis);
-          }
-          
-          if (savedConcentrationAnalysis) {
-            const analysisData = JSON.parse(savedConcentrationAnalysis);
-            if (typeof window !== 'undefined') {
-              console.log('Step 10: Parsed concentrationAnalysis:', analysisData);
-            }
-            setConcentrationAnalysis(analysisData);
-          } else {
-            if (typeof window !== 'undefined') {
-              console.log('Step 10: No concentrationAnalysis found in localStorage');
-            }
-          }
-          
-          if (typeof window !== 'undefined') {
-            console.log('=== END PROGRESS PAGE DEBUGGING ===');
-          }
-          
-          // If no concentration analysis found, try to generate it
-          if (!savedConcentrationAnalysis && parsedData && parsedData.selectedCurriculum) {
-            await generateConcentrationAnalysis(parsedData);
-          }
-          
-          // Load blacklist data for the curriculum
-          if (parsedData && parsedData.selectedCurriculum) {
-            await loadBlacklistData(parsedData.selectedCurriculum);
-          }
-          
-          // Run enhanced validation
-          await runEnhancedValidation();
+        if (savedCoursePlan) {
+          const planData = JSON.parse(savedCoursePlan);
+          const normalizedPlan = (planData.plannedCourses || []).map((course: any) => {
+            const normalizedLabel = normalizeSemesterLabel(course.semesterLabel, course.semester, course.year);
+            return {
+              ...course,
+              semesterLabel: normalizedLabel,
+              semester: deriveSemesterValueFromLabel(normalizedLabel, course.semester)
+            };
+          });
+          setPlannedCourses(normalizedPlan);
+        }
+        
+        // Load concentration analysis
+        const savedConcentrationAnalysis = localStorage.getItem('concentrationAnalysis');
+        
+        if (savedConcentrationAnalysis) {
+          const analysisData = JSON.parse(savedConcentrationAnalysis);
+          setConcentrationAnalysis(analysisData);
+        }
+        
+        // If no concentration analysis found, try to generate it
+        if (!savedConcentrationAnalysis && parsedData && parsedData.selectedCurriculum) {
+          await generateConcentrationAnalysis(parsedData);
+        }
+        
+        // Load blacklist data for the curriculum
+        if (parsedData && parsedData.selectedCurriculum) {
+          await loadBlacklistData(parsedData.selectedCurriculum);
+        }
+        
+        // Run enhanced validation
+        await runEnhancedValidation();
         } catch (error) {
           console.error('Error loading data:', error);
         } finally {
@@ -529,18 +438,15 @@ export default function ProgressPage() {
   // Fallback useEffect: If we have a curriculum ID but no curriculum data, try to fetch it
   useEffect(() => {
     if (completedData?.selectedCurriculum && !curriculumData) {
-      console.log('🚀 FALLBACK USEEFFECT: Attempting to fetch curriculum data for:', completedData.selectedCurriculum);
       const fetchCurriculumFallback = async () => {
         try {
           const data = await getPublicCurriculum(completedData.selectedCurriculum);
-          console.log('🚀 FALLBACK: API response:', data);
           const curriculum = data.curriculum || data;
           if (curriculum) {
-            console.log('🚀 FALLBACK: Setting curriculum data');
             setCurriculumData(curriculum);
           }
         } catch (error) {
-          console.error('🚀 FALLBACK: Error:', error);
+          console.error('Error fetching curriculum:', error);
         }
       };
       fetchCurriculumFallback();
