@@ -455,11 +455,12 @@ const GraduationPortalChairpersonPage: React.FC = () => {
       ]);
       
       // Debug logging for API response
-      console.log('Graduation portals API response:', portalsRes);
+      console.log('[CP GradPortal] Raw API response:', JSON.stringify(portalsRes, null, 2));
       
       // Handle different response structures from backend
-      const portalsList = portalsRes.data || (Array.isArray(portalsRes) ? portalsRes : []);
-      console.log('Parsed portals list:', portalsList);
+      // Backend may return: { data: [...] }, { portals: [...] }, or direct array [...]
+      const portalsList = portalsRes.data || portalsRes.portals || (Array.isArray(portalsRes) ? portalsRes : []);
+      console.log('[CP GradPortal] Parsed portals list:', portalsList, 'Count:', portalsList.length);
       
       setPortals(portalsList);
       setCurricula(curriculaRes.curricula || curriculaRes.data || curriculaRes);
@@ -472,7 +473,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
         setSelectedPortal(portalsList[0]);
       }
     } catch (err) {
-      console.error('Failed to load graduation portal data:', err);
+      console.error('[CP GradPortal] Failed to load data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
@@ -481,7 +482,9 @@ const GraduationPortalChairpersonPage: React.FC = () => {
 
   const loadSubmissions = async (portalId: string) => {
     try {
+      console.log('[CP GradPortal] Loading submissions for portal:', portalId);
       const response = await getCacheSubmissions(portalId);
+      console.log('[CP GradPortal] Submissions response:', JSON.stringify(response, null, 2));
       // Normalize submission data from backend
       const normalizedSubmissions = (response.submissions || []).map(sub => ({
         ...sub,
@@ -489,9 +492,10 @@ const GraduationPortalChairpersonPage: React.FC = () => {
         submittedAt: sub.submittedAt || sub.submitted_at,
         expiresAt: sub.expiresAt || sub.expires_at,
       }));
+      console.log('[CP GradPortal] Normalized submissions count:', normalizedSubmissions.length);
       setSubmissions(normalizedSubmissions);
     } catch (err) {
-      console.error('Failed to load submissions:', err);
+      console.error('[CP GradPortal] Failed to load submissions:', err);
     }
   };
 

@@ -2,9 +2,115 @@
 
 ## ✅ IMPLEMENTATION COMPLETE (Backend + Frontend)
 
-**Status:** REQ-1 through REQ-6 (except REQ-4) fully implemented. REQ-3 File Pre-Validation complete. Breaking changes reviewed and resolved.
+**Status:** REQ-1 through REQ-6 (except REQ-3/REQ-4) fully implemented. Breaking changes reviewed and resolved.
 
-**Last Updated:** February 11, 2026
+**Last Updated:** February 19, 2026
+
+---
+
+## 🔗 API ENDPOINT REFERENCE
+
+### Public Endpoints (No Auth Required - For Students)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/public/graduation-portals` | List all active portals |
+| GET | `/api/public/graduation-portals/{id}` | Get portal details |
+| POST | `/api/public/graduation-portals/{id}/verify-pin` | Verify portal PIN |
+| GET | `/api/public/graduation-portals/{id}/curricula` | Get curricula for portal |
+| GET | `/api/public/graduation-portals/faculties` | List faculties |
+| GET | `/api/public/graduation-portals/departments` | List departments |
+| POST | `/api/graduation-portals/{id}/submit` | Submit to portal (requires PIN session) |
+
+### Chairperson Endpoints (Auth Required)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/chairperson/graduation-portals` | List portals for department |
+| POST | `/api/chairperson/graduation-portals` | Create portal |
+| GET | `/api/chairperson/graduation-portals/{id}` | Get portal details |
+| PUT | `/api/chairperson/graduation-portals/{id}` | Update portal |
+| DELETE | `/api/chairperson/graduation-portals/{id}` | Delete portal |
+| POST | `/api/chairperson/graduation-portals/{id}/close` | Close portal |
+| POST | `/api/chairperson/graduation-portals/{id}/regenerate-pin` | Regenerate PIN |
+| GET | `/api/chairperson/graduation-portals/{id}/submissions` | List submissions |
+| POST | `/api/chairperson/graduation-portals/{id}/submissions/{subId}/process` | Process submission |
+| POST | `/api/chairperson/graduation-portals/{id}/submissions/{subId}/approve` | Approve submission |
+| POST | `/api/chairperson/graduation-portals/{id}/submissions/{subId}/reject` | Reject submission |
+
+### Cache Submission Endpoints (Auth Required)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/chairperson/graduation-portals/{id}/cache-submissions` | List cached submissions |
+| GET | `/api/chairperson/graduation-portals/{id}/cache-submissions/{subId}` | Get submission details |
+| POST | `/api/chairperson/graduation-portals/{id}/cache-submissions/{subId}/validate` | Validate submission |
+| POST | `/api/chairperson/graduation-portals/{id}/cache-submissions/{subId}/approve` | Approve submission |
+| POST | `/api/chairperson/graduation-portals/{id}/cache-submissions/{subId}/reject` | Reject submission |
+| GET | `/api/chairperson/graduation-portals/{id}/cache-submissions/{subId}/report` | Download report |
+| POST | `/api/chairperson/graduation-submissions/batch-validate` | Batch validate submissions |
+
+### Notification Endpoints (Auth Required)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/chairperson/graduation-notifications` | List notifications |
+| GET | `/api/chairperson/graduation-notifications/unread-count` | Get unread count |
+| POST | `/api/chairperson/graduation-notifications/{id}/read` | Mark as read |
+| POST | `/api/chairperson/graduation-notifications/mark-all-read` | Mark all as read |
+| DELETE | `/api/chairperson/graduation-notifications/{id}` | Delete notification |
+| DELETE | `/api/chairperson/graduation-notifications/clear-read` | Clear read notifications |
+
+---
+
+## 🐛 TROUBLESHOOTING: Portal List Not Loading
+
+### Backend Status (Verified Feb 19, 2026)
+```bash
+# Test: curl http://127.0.0.1:8000/api/public/graduation-portals
+# Result: Returns 3 active portals ✅
+```
+
+### Common Frontend Issues
+
+1. **Wrong API URL**
+   - Check if frontend is calling `/api/public/graduation-portals` (not `/api/graduation-portals`)
+   - Verify `NEXT_PUBLIC_API_URL` or similar env var is correct
+
+2. **CORS Issue**
+   - Backend is configured for CORS in `config/cors.php`
+   - Check browser console for CORS errors
+
+3. **Response Field Names**
+   - Response returns `{ portals: [...], total: N }`
+   - Frontend should access `response.data.portals` or `response.portals`
+
+4. **Network/Server**
+   - Ensure Laravel server is running: `php artisan serve`
+   - Check port matches frontend config (default: 8000)
+
+### Expected Response Format
+```json
+{
+  "portals": [
+    {
+      "id": "12",
+      "name": "Portal Name",
+      "description": "...",
+      "batch": "653",
+      "deadline": "2026-02-19",
+      "daysRemaining": 0.21,
+      "grace_period_end": "2026-02-26T00:00:00+00:00",
+      "is_in_grace_period": false,
+      "acceptedFormats": [".xlsx", ".xls", ".csv"],
+      "maxFileSizeMb": 5,
+      "curriculum": { "id": "...", "name": "...", "year": "..." } | null,
+      "department": { "id": "...", "name": "..." } | null
+    }
+  ],
+  "total": 3
+}
+```
 
 ---
 
@@ -283,36 +389,18 @@ GraduationNotification::notifyDepartmentStaff(
            
 ---
 
-### REQ-3: File Pre-Validation (Frontend Only) ✅
+### REQ-3: File Pre-Validation (Frontend Only)
 
 **Note:** This is primarily a **frontend responsibility** (client-side validation before submission).
 
-**Frontend Implementation (✅ Done):**
-
-New files created:
-- `src/lib/utils/filePreValidation.ts` — Pre-validation engine with 8 structured checks
-- `src/components/graduation/FilePreValidator.tsx` — Checklist UI component
-
-Modified:
-- `src/app/student/GraduationPortal/page.tsx` — Replaced inline `alert()` error handling with `FilePreValidator` component; `processFile` now calls `preValidateGraduationFile()` instead of `parseGraduationFile()` directly
-
-**Validation checks performed (in order):**
-1. **File format** — Validates extension against portal's `acceptedFormats` (.xlsx, .xls, .csv)
-2. **File size** — Validates against portal's `maxFileSizeMb` (default 5 MB)
-3. **File readable** — Attempts parse via existing `parseGraduationFile()`; detects corrupt/unreadable files
-4. **Course data found** — Ensures ≥1 and ≤200 courses parsed
-5. **Data validation** — Per-row checks: course code presence + format, credits range (0–12), grade recognition
-6. **Status distribution** — Warns if no completed/in-progress courses detected
-7. **Duplicate detection** — Surfaces any duplicate course codes from parser
-8. **Submission readiness** — Runs `validateCoursesForSubmission()` for final checks
-
-**UI behaviour:**
-- Dropzone shown when no file selected
-- On file drop/select: pre-validation runs, results shown as pass/fail/warn checklist
-- Errors block advancement; warnings allow continuation with advisory alert
-- "Re-upload" button to pick a different file
-- "Continue" button (+ footer "Preview" button) enabled only when `canProceed === true`
-- Issues section is collapsible with row/column details
+**Frontend is responsible for:**
+- File format validation (.xlsx, .xls, .csv)
+- File size validation (max 5MB by default)
+- File parsing (corrupt file detection)
+- Required column detection
+- Data type validation
+- Course code format hints
+- Grade format validation
 
 Backend validation is already handled by `StoreGraduationSubmissionRequest.php`.
 
@@ -2031,13 +2119,11 @@ Automatically map student IDs to their correct curriculum instead of letting stu
 
 ---
 
-**Document Version:** 1.5  
+**Document Version:** 1.4  
 **Last Updated:** February 11, 2026  
 **Author:** Backend Team / Frontend Team
 
 **Changelog:**
-- v1.6 (Feb 11, 2026): REQ-3 File Pre-Validation implemented. Created `filePreValidation.ts` (pre-validation engine with 8 checks), `FilePreValidator.tsx` (checklist UI component). Updated student portal upload step to replace `alert()` calls with structured validation UI. File is no longer auto-advanced to preview — student reviews validation checklist first.
-- v1.5 (Feb 11, 2026): Frontend integration complete for REQ-5/REQ-6 backend changes. Updated `ValidationResult` type to match actual backend response (`fulfilled`/`met`, `earned`/`current`, optional `categoryProgress` fields, `is_active` on portal). Added `GRACE_PERIOD_ENDED` error handling in student submit flow. Updated `isInGracePeriod`/`isAcceptingSubmissions` to prefer backend-computed values (`is_in_grace_period`, `is_active`). Requirements checklist now shows `earned/required` detail and handles both `fulfilled` and `met` field names.
 - v1.4 (Feb 11, 2026): REQ-5 backend complete (grace period config, model, controller, submission gate). REQ-6 backend complete (enhanced validation response shape). Breaking changes reviewed with frontend — 6 items resolved. `deadline` stays `Y-m-d`, `unmatchedCourses` kept as objects, `requirements` converted to array, `validation` moved to top-level key.
 - v1.3 (Feb 7, 2026): Added REQ-5 (Grace Period) - frontend complete, backend requirements documented. Added REQ-6 (Enhanced Submission Detail) - frontend complete with DonutChart, SegmentedProgressBar, GPA, course breakdowns, validation checklist. Updated files modified table.
 - v1.2 (Feb 6, 2026): Added detailed backend requirements for REQ-1 (retention), REQ-2 (notifications), REQ-3 (validation)
@@ -2091,7 +2177,6 @@ Automatically map student IDs to their correct curriculum instead of letting stu
 
 | Owner | Task | Priority |
 |-------|------|----------|
-| ~~**Frontend**~~ | ~~Implement FilePreValidator component (REQ-3)~~ | ✅ Done |
-| **Both** | Integration testing — verify REQ-3/REQ-5/REQ-6 end-to-end | 🔴 High |
+| **Frontend** | Implement FilePreValidator component (REQ-3) | 🟢 Start Now |
+| **Both** | Integration testing — verify REQ-5/REQ-6 end-to-end | 🟡 High |
 | **Backend** | Add `GRADUATION_GRACE_PERIOD_DAYS=7` to production `.env` | 🟢 Before deploy |
-| **Both** | QA: run regression checklist (portal list, submit, validate, approve/reject) | 🟡 Medium |
