@@ -120,10 +120,14 @@ export default function NotificationDropdown({
       }
     }
 
-    // Navigate to submission detail
-    if (notification.type === 'new_submission' && notification.portal && notification.data.submission_id) {
+    // Navigate to submission detail - must include portalId as query parameter
+    // Check for both new_submission and submission_validated types
+    const submissionId = notification.data?.submission_id;
+    const portalId = notification.portal?.id;
+    
+    if (submissionId && portalId) {
       setIsOpen(false);
-      router.push(`/chairperson/GraduationPortal/${notification.data.submission_id}`);
+      router.push(`/chairperson/GraduationPortal/${submissionId}?portalId=${portalId}`);
     }
   };
 

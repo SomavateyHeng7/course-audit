@@ -264,10 +264,14 @@ const TentativeSchedulePage: React.FC = () => {
             <p className="text-muted-foreground">
               Manage and create tentative course schedules for different batches and semesters
             </p>
+            <div className="mt-2 text-sm text-muted-foreground flex items-start gap-2 bg-blue-50 dark:bg-blue-950/20 p-2 rounded">
+              <div className="mt-0.5">💡</div>
+              <span><strong>Tip:</strong> Publish makes schedules visible to students. Use "Set Active" to make one the default for student planning. Only one schedule can be active per department.</span>
+            </div>
           </div>
           <Button
             onClick={handleCreateSchedule}
-            className="mt-4 sm:mt-0 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors"
+            className="mt-4 sm:mt-0 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors shrink-0"
           >
             <Plus className="w-4 h-4 mr-2" />
             Create New Schedule
