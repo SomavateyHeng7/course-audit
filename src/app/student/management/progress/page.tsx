@@ -151,6 +151,11 @@ interface CompletedCourseData {
   freeElectives: { code: string; title: string; credits: number }[];
   actualDepartmentId?: string; // Real department ID from curriculum data
   electiveRules?: any[]; // Rules for elective credit requirements
+  // Human-readable names saved by data-entry page
+  facultyName?: string;
+  departmentName?: string;
+  curriculumName?: string;
+  concentrationName?: string;
 }
 
 interface PlannedCourse {
@@ -2320,12 +2325,15 @@ export default function ProgressPage() {
 
     worksheetData.push(['course data']); // Title (match CSV format)
     
-    // Add curriculum metadata if available
-    if (curriculumData) {
-      worksheetData.push(['CURRICULUM_ID', curriculumData.id || '']);
-      worksheetData.push(['CURRICULUM_NAME', curriculumData.name || '']);
-      worksheetData.push(['CURRICULUM_YEAR', curriculumData.year || '']);
-    }
+    // Add planning metadata header rows
+    const _xlsFaculty = completedData?.facultyName || '';
+    const _xlsDepartment = completedData?.departmentName || '';
+    const _xlsCurriculum = completedData?.curriculumName || curriculumData?.name || '';
+    const _xlsConcentration = completedData?.concentrationName || '';
+    if (_xlsFaculty) worksheetData.push(['Faculty', _xlsFaculty]);
+    if (_xlsDepartment) worksheetData.push(['Department', _xlsDepartment]);
+    if (_xlsCurriculum) worksheetData.push(['Curriculum', _xlsCurriculum]);
+    if (_xlsConcentration) worksheetData.push(['Concentration', _xlsConcentration]);
     
     worksheetData.push([]); // Empty row before course data
     
@@ -2398,12 +2406,15 @@ export default function ProgressPage() {
     const csvLines: string[] = [];
     csvLines.push('course data'); // Title
     
-    // Add curriculum metadata if available
-    if (curriculumData) {
-      csvLines.push(formatCsvRow(['CURRICULUM_ID', curriculumData.id || '']));
-      csvLines.push(formatCsvRow(['CURRICULUM_NAME', curriculumData.name || '']));
-      csvLines.push(formatCsvRow(['CURRICULUM_YEAR', curriculumData.year || '']));
-    }
+    // Add planning metadata header rows
+    const _csvFaculty = completedData?.facultyName || '';
+    const _csvDepartment = completedData?.departmentName || '';
+    const _csvCurriculum = completedData?.curriculumName || curriculumData?.name || '';
+    const _csvConcentration = completedData?.concentrationName || '';
+    if (_csvFaculty) csvLines.push(formatCsvRow(['Faculty', _csvFaculty]));
+    if (_csvDepartment) csvLines.push(formatCsvRow(['Department', _csvDepartment]));
+    if (_csvCurriculum) csvLines.push(formatCsvRow(['Curriculum', _csvCurriculum]));
+    if (_csvConcentration) csvLines.push(formatCsvRow(['Concentration', _csvConcentration]));
     
     csvLines.push(''); // Empty line before course data
     

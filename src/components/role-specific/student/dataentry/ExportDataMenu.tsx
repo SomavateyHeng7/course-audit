@@ -21,6 +21,11 @@ interface ExportDataMenuProps {
   assignedFreeElectives: FreeElectiveCourse[];
   freeElectives: { code: string; title: string; credits: number }[];
   warning: (message: string) => void;
+  // Planning metadata for export headers
+  facultyName?: string;
+  departmentName?: string;
+  curriculumName?: string;
+  concentrationName?: string;
 }
 
 type GraduationExportRow = {
@@ -92,6 +97,10 @@ export default function ExportDataMenu({
   assignedFreeElectives,
   freeElectives,
   warning,
+  facultyName = '',
+  departmentName = '',
+  curriculumName = '',
+  concentrationName = '',
 }: ExportDataMenuProps) {
   const buildGraduationExportRows = (): GraduationExportRow[] => {
     const rows: GraduationExportRow[] = [];
@@ -184,6 +193,10 @@ export default function ExportDataMenu({
     const highlightRowIndices: number[] = [];
 
     worksheetData.push(['course data']);
+    if (facultyName) worksheetData.push(['Faculty', facultyName]);
+    if (departmentName) worksheetData.push(['Department', departmentName]);
+    if (curriculumName) worksheetData.push(['Curriculum', curriculumName]);
+    if (concentrationName) worksheetData.push(['Concentration', concentrationName]);
     worksheetData.push([]);
 
     const groupedCourses: Record<string, GraduationExportRow[]> = {};
@@ -256,6 +269,10 @@ export default function ExportDataMenu({
 
     const csvLines: string[] = [];
     csvLines.push('course data');
+    if (facultyName) csvLines.push(formatCsvRow(['Faculty', facultyName]));
+    if (departmentName) csvLines.push(formatCsvRow(['Department', departmentName]));
+    if (curriculumName) csvLines.push(formatCsvRow(['Curriculum', curriculumName]));
+    if (concentrationName) csvLines.push(formatCsvRow(['Concentration', concentrationName]));
     csvLines.push('');
 
     const groupedCourses: Record<string, GraduationExportRow[]> = {};

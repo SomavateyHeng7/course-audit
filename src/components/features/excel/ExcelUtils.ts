@@ -12,6 +12,13 @@ export interface CourseData {
   category?: string; // Course category from transcript sections
 }
 
+export interface FileMetadata {
+  faculty?: string;
+  department?: string;
+  curriculum?: string;
+  concentration?: string;
+}
+
 export interface ExcelData {
   courses: CourseData[];
   students: any[];
@@ -20,11 +27,13 @@ export interface ExcelData {
   faculty?: string;
   department?: string;
   curriculum?: string;
+  metadata?: FileMetadata;
 }
 
 // New interface for transcript-specific parsing
 export interface TranscriptParseResult {
   courses: CourseData[];
+  metadata?: FileMetadata;
   summary: {
     totalCourses: number;
     completedCourses: number;
@@ -134,6 +143,7 @@ export function parseTranscriptCSV(csvText: string): TranscriptParseResult {
   const warnings: string[] = [];
   const categoriesFound: string[] = [];
   let currentCategory = '';
+  const metadata: FileMetadata = {};
   
   try {
     const parsed = Papa.parse<string[]>(csvText, {
@@ -150,6 +160,12 @@ export function parseTranscriptCSV(csvText: string): TranscriptParseResult {
       if (!courseName) return;
 
       const loweredName = courseName.toLowerCase();
+
+      // Detect metadata header rows (Faculty, Department, Curriculum, Concentration)
+      if (loweredName === 'faculty' && rawCode) { metadata.faculty = rawCode.trim(); return; }
+      if (loweredName === 'department' && rawCode) { metadata.department = rawCode.trim(); return; }
+      if (loweredName === 'curriculum' && rawCode) { metadata.curriculum = rawCode.trim(); return; }
+      if (loweredName === 'concentration' && rawCode) { metadata.concentration = rawCode.trim(); return; }
 
       // Skip high-level headers and summaries
       if (loweredName === 'course data') return;
@@ -202,6 +218,7 @@ export function parseTranscriptCSV(csvText: string): TranscriptParseResult {
     
     return {
       courses,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
       summary: {
         totalCourses: courses.length,
         completedCourses,
@@ -261,22 +278,22 @@ export function parseExcelFile(file: File): Promise<ExcelData> {
           resolve({ courses, students: [], programs: [] });
           
         } else {
-          // Handle Excel files
+          // Handle Excel files — use AOA to preserve the grouped/sectioned format
           const workbook = XLSX.read(data, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet);
-          
-          const courses = jsonData.map((row: any) => ({
-            courseCode: standardizeCourseCode(row['Course Code'] || row['Code'] || ''),
-            courseName: cleanCourseName(row['Course Name'] || row['Name'] || ''),
-            credits: parseInt(row['Credits'] || row['Credit Hours'] || '0') || 0,
-            grade: row['Grade']?.trim() || undefined,
-              status: determineStatus(row['Grade'], row['Remark'] || row['Status']),
-              semester: (row['Planned Semester'] || row['Semester'] || '').trim() || undefined
-          })).filter(course => course.courseCode && course.courseName);
-          
-          resolve({ courses, students: [], programs: [] });
+          const aoa: string[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as string[][];
+          // Convert to CSV and reuse parseTranscriptCSV so XLSX round-trips correctly
+          const csvText = aoa.map((row: string[]) =>
+            row.map((cell: any) => String(cell ?? '')).join(',')
+          ).join('\n');
+          const transcriptResult = parseTranscriptCSV(csvText);
+          resolve({
+            courses: transcriptResult.courses,
+            students: [],
+            programs: [],
+            metadata: transcriptResult.metadata
+          });
         }
       } catch (error) {
         reject(new Error(`Failed to parse file: ${error instanceof Error ? error.message : 'Unknown error'}`));

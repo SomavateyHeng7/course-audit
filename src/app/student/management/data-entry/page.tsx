@@ -13,7 +13,7 @@ import { FaTrash } from 'react-icons/fa';
 import StudentTranscriptImport from '@/components/role-specific/student/StudentTranscriptImport';
 import UnmatchedCoursesSection, { UnmatchedCourse } from '@/components/role-specific/student/UnmatchedCoursesSection';
 import FreeElectiveManager, { FreeElectiveCourse } from '@/components/role-specific/student/FreeElectiveManager';
-import { type CourseData } from '@/components/features/excel/ExcelUtils';
+import { type CourseData, type FileMetadata } from '@/components/features/excel/ExcelUtils';
 import ExportDataMenu from '../../../../components/role-specific/student/dataentry/ExportDataMenu';
 import CourseStatusDropdown from '../../../../components/role-specific/student/dataentry/CourseStatusDropdown';
 import { CourseStatus, getDefaultSemesterLabel, isPendingStatus } from '../../../../components/role-specific/student/dataentry/types';
@@ -220,6 +220,8 @@ export default function DataEntryPage() {
   const [assignedFreeElectives, setAssignedFreeElectives] = useState<FreeElectiveCourse[]>([]);
   const [electiveRules, setElectiveRules] = useState<any[]>([]);
   const [assignedFreeElectiveCodes, setAssignedFreeElectiveCodes] = useState<Set<string>>(new Set());
+  // Holds a concentration name received from an imported file until concentrations finish loading
+  const [pendingConcentrationName, setPendingConcentrationName] = useState<string | null>(null);
 
   // Check if user has any completed courses
   const hasCompletedCourses = Object.values(completedCourses).some(
@@ -366,6 +368,16 @@ export default function DataEntryPage() {
     fetchConcentrations();
   }, [selectedCurriculum, selectedDepartment, curricula]);
 
+  // Auto-select concentration once concentrations are loaded (triggered by file import metadata)
+  useEffect(() => {
+    if (!pendingConcentrationName || concentrations.length === 0) return;
+    const match = concentrations.find(
+      c => c.name.toLowerCase() === pendingConcentrationName.toLowerCase()
+    );
+    setSelectedConcentration(match ? match.id : 'general');
+    setPendingConcentrationName(null);
+  }, [concentrations, pendingConcentrationName]);
+
   // Save data to localStorage whenever context changes
   useEffect(() => {
     try {
@@ -384,6 +396,11 @@ export default function DataEntryPage() {
         fromWorkflow, // Preserve the workflow flag
         electiveRules, // Add elective rules for Free Elective credit requirements
         curriculumCreditsRequired: selectedCurriculumData?.totalCreditsRequired ?? selectedCurriculumData?.totalCredits ?? null,
+        // Human-readable names for export headers and progress page
+        facultyName: facultyOptions.find((o: { value: string; label: string }) => o.value === selectedFaculty)?.label || '',
+        departmentName: departmentOptions.find((o: { value: string; label: string }) => o.value === selectedDepartment)?.label || '',
+        curriculumName: curriculumOptions.find((o: { value: string; label: string }) => o.value === selectedCurriculum)?.label || '',
+        concentrationName: concentrationOptions[selectedCurriculum]?.find((o: { value: string; label: string }) => o.value === selectedConcentration)?.label || '',
       };
       localStorage.setItem('studentAuditData', JSON.stringify(dataToSave));
       
@@ -712,6 +729,58 @@ export default function DataEntryPage() {
     router.push('/student/management/course-planning');
   };
 
+  /** Auto-fills dropdowns from metadata embedded in an imported transcript file */
+  const handleMetadataExtracted = (meta: FileMetadata) => {
+    // Only act when the file actually carries planning metadata
+    const hasMeta = meta.faculty || meta.department || meta.curriculum || meta.concentration;
+    if (!hasMeta) return;
+
+    // ALWAYS clear all selectors first so no stale manual selections can linger
+    // alongside freshly imported values — this prevents confusing mismatches.
+    setSelectedFaculty('');
+    setSelectedDepartment('');
+    setSelectedCurriculum('');
+    setSelectedConcentration('');
+    setPendingConcentrationName(null);
+
+    if (!meta.curriculum) return;
+
+    // Find the matching curriculum in the already-loaded list
+    const matchedCurriculum = curricula.find(
+      c => c.name.toLowerCase() === meta.curriculum!.toLowerCase()
+    );
+    if (!matchedCurriculum) {
+      console.log('[AutoFill] No curriculum match found for:', meta.curriculum);
+      warning(`Could not auto-fill: curriculum "${meta.curriculum}" was not found in the system. Please select your values manually.`);
+      return;
+    }
+
+    // Auto-select faculty (by name)
+    if (meta.faculty) {
+      const facOption = facultyOptions.find(
+        o => o.label.toLowerCase() === meta.faculty!.toLowerCase()
+      );
+      if (facOption) setSelectedFaculty(facOption.value);
+    }
+
+    // Auto-select department (from curriculum's linked department)
+    if (matchedCurriculum.department?.id) {
+      setSelectedDepartment(matchedCurriculum.department.id);
+    }
+
+    // Auto-select curriculum
+    setSelectedCurriculum(matchedCurriculum.id);
+
+    // Queue concentration – will be matched once concentrations finish loading
+    if (meta.concentration && meta.concentration.toLowerCase() !== 'general') {
+      setPendingConcentrationName(meta.concentration);
+    } else {
+      setSelectedConcentration('general');
+    }
+
+    console.log('[AutoFill] Applied metadata:', meta);
+  };
+
   return (
     <div className="container py-6">
       <div className="mb-6">
@@ -768,6 +837,13 @@ export default function DataEntryPage() {
               </Button>
             </div>
           )}
+          {/* UX hint — let users know the upload section below can fill these automatically */}
+          <div className="col-span-full flex items-start gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-200">
+            <span className="mt-0.5">💡</span>
+            <span>
+              <strong>Have a file exported from this system?</strong> Use the &quot;Import Transcript&quot; section below — your faculty, department, curriculum, and concentration will be filled in automatically.
+            </span>
+          </div>
           <div>
             <label className="block font-bold mb-2 text-gray-900 dark:text-foreground">Select Faculty</label>
             <Select value={selectedFaculty} onValueChange={value => {
@@ -828,18 +904,17 @@ export default function DataEntryPage() {
         </div>
       )}
 
-      {/* Transcript Import Section */}
-      {selectedDepartment && selectedCurriculum && selectedConcentration && (
-        <StudentTranscriptImport 
-          curriculumId={selectedCurriculum}
-          departmentId={selectedDepartment}
-          onCoursesImported={handleCategorizedCoursesImported}
-          onError={(error) => {
-            console.error('Import error:', error);
-            showError('Failed to import transcript data. Please check the file format and try again.');
-          }}
-        />
-      )}
+      {/* Transcript Import Section – always visible so users can upload before selecting values */}
+      <StudentTranscriptImport 
+        curriculumId={selectedCurriculum}
+        departmentId={selectedDepartment}
+        onCoursesImported={handleCategorizedCoursesImported}
+        onMetadataExtracted={handleMetadataExtracted}
+        onError={(error) => {
+          console.error('Import error:', error);
+          showError('Failed to import transcript data. Please check the file format and try again.');
+        }}
+      />
 
       {/* Unmatched Courses Section */}
       {unmatchedCourses.length > 0 && (
@@ -1219,27 +1294,29 @@ export default function DataEntryPage() {
                 assignedFreeElectives={assignedFreeElectives}
                 freeElectives={Array.isArray(freeElectives) ? freeElectives : []}
                 warning={warning}
+                facultyName={facultyOptions.find(o => o.value === selectedFaculty)?.label || ''}
+                departmentName={departmentOptions.find(o => o.value === selectedDepartment)?.label || ''}
+                curriculumName={curriculumOptions.find(o => o.value === selectedCurriculum)?.label || ''}
+                concentrationName={concentrationOptions[selectedCurriculum]?.find(o => o.value === selectedConcentration)?.label || ''}
               />
             )}
             <div className="flex flex-col items-stretch sm:items-end gap-2">
-              {!hasCompletedCourses && selectedCurriculum && selectedDepartment && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-2">
-                  <p className="text-sm text-blue-900 dark:text-blue-100">
-                    ℹ️ No completed courses detected. You can skip to planning.
-                  </p>
-                </div>
-              )}
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-2">
+                <p className="text-sm text-blue-900 dark:text-blue-100">
+                  {hasCompletedCourses
+                    ? 'ℹ️ Courses imported. Continue to planning when ready.'
+                    : 'ℹ️ New here or no prior courses? You can skip straight to planning — no data entry needed.'}
+                </p>
+              </div>
               <div className="flex gap-2">
-                {!hasCompletedCourses && selectedCurriculum && selectedDepartment && (
-                  <Button 
-                    onClick={handleSkipToPlanning}
-                    variant="outline"
-                    className="flex items-center gap-2 px-6 py-3 text-lg"
-                    size="lg"
-                  >
-                    Skip to Planning
-                  </Button>
-                )}
+                <Button 
+                  onClick={handleSkipToPlanning}
+                  variant="outline"
+                  className="flex items-center gap-2 px-6 py-3 text-lg"
+                  size="lg"
+                >
+                  Skip to Planning
+                </Button>
                 <Button 
                   onClick={handleCoursePlanning}
                   className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 text-primary-foreground flex items-center gap-2 px-8 py-3 text-lg shadow-md transform transition-all duration-200 hover:scale-[1.01] border-0"
