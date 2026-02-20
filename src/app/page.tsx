@@ -69,7 +69,7 @@ export default function Home() {
             <div className="flex justify-center">
               <Link 
                 href="/student/management" 
-                className="font-montserrat inline-flex items-center px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full hover:bg-gray-800 dark:hover:bg-gray-100 transition-all duration-300 text-lg font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className="font-montserrat inline-flex items-center px-8 py-4 bg-green-700 dark:bg-white text-white dark:text-gray-900 rounded-full hover:bg-gray-800 dark:hover:bg-gray-100 transition-all duration-300 text-lg font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 Start Tracking
               </Link>
@@ -151,13 +151,7 @@ export default function Home() {
       </div>
       
       {/* Minimal Footer */}
-      <footer className="py-12 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 transition-colors duration-300">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <p className="font-montserrat text-sm text-gray-500 dark:text-gray-400">
-            Copyright © All Rights Reserved. 2025, EduTrack. Powered by sleepless night.
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </ThemeProvider>
   );
 }
