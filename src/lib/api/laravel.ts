@@ -1018,7 +1018,16 @@ export async function getCacheSubmission(
   portalId: string,
   submissionId: string
 ): Promise<{ submission: CacheSubmission & { courses: SubmissionCourse[] } }> {
-  return authenticatedRequest(`/graduation-portals/${portalId}/cache-submissions/${submissionId}`);
+  const url = `/graduation-portals/${portalId}/cache-submissions/${submissionId}`;
+  console.log('[API] Fetching single submission:', url);
+  try {
+    const result = await authenticatedRequest(url);
+    console.log('[API] Submission response status:', result?.submission?.status);
+    return result;
+  } catch (err) {
+    console.error('[API] Failed to fetch submission:', { url, error: err instanceof Error ? err.message : err });
+    throw err;
+  }
 }
 
 /**

@@ -486,10 +486,14 @@ const SubmissionDetailPage: React.FC = () => {
     setLoading(true);
     setError(null);
     
+    console.log('[SubmissionDetail] Loading submission:', { submissionId, portalId });
+    
     try {
       const response = await getCacheSubmission(portalId!, submissionId);
+      console.log('[SubmissionDetail] Submission loaded:', response.submission?.id, 'status:', response.submission?.status);
       setSubmission(response.submission);
     } catch (err) {
+      console.error('[SubmissionDetail] Failed to load submission:', { submissionId, portalId, error: err instanceof Error ? err.message : err });
       setError(err instanceof Error ? err.message : 'Failed to load submission');
     } finally {
       setLoading(false);
