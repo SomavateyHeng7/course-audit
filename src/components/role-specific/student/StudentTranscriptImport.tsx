@@ -11,7 +11,8 @@ import {
   parseExcelFile, 
   validateCourseData, 
   type CourseData, 
-  type TranscriptParseResult 
+  type TranscriptParseResult,
+  type FileMetadata
 } from '@/components/features/excel/ExcelUtils';
 import { API_BASE, getPublicCurricula } from '@/lib/api/laravel';
 import { UnmatchedCourse } from './UnmatchedCoursesSection';
@@ -27,6 +28,8 @@ interface StudentTranscriptImportProps {
     electiveRules: any[];
   }) => void;
   onError?: (error: string) => void;
+  /** Called immediately after parsing so the parent can auto-fill dropdowns */
+  onMetadataExtracted?: (metadata: FileMetadata) => void;
 }
 
 // NOTE: Current implementation focuses on:
@@ -131,7 +134,8 @@ export default function StudentTranscriptImport({
   curriculumId, 
   departmentId, 
   onCoursesImported, 
-  onError 
+  onError,
+  onMetadataExtracted,
 }: StudentTranscriptImportProps) {
   const { success, error: showError, warning, info } = useToastHelpers();
   const [importResult, setImportResult] = useState<TranscriptParseResult | null>(null);
@@ -443,6 +447,7 @@ export default function StudentTranscriptImport({
         const excelData = await parseExcelFile(file);
         result = {
           courses: excelData.courses,
+          metadata: excelData.metadata,
           summary: {
             totalCourses: excelData.courses.length,
             completedCourses: excelData.courses.filter(c => c.status === 'COMPLETED').length,
@@ -472,9 +477,17 @@ export default function StudentTranscriptImport({
 
       setImportResult(result);
 
-      // Categorize courses according to curriculum
-      const analysis = await categorizeCourses(result.courses);
-      setAnalysisResult(analysis);
+      // Emit metadata immediately so parent can auto-fill dropdowns before categorization
+      if (result.metadata && onMetadataExtracted) {
+        onMetadataExtracted(result.metadata);
+      }
+
+      // Only categorize if a curriculum is already selected; otherwise the user
+      // will click "Apply" after the dropdowns have been auto-filled.
+      if (curriculumId) {
+        const analysis = await categorizeCourses(result.courses);
+        setAnalysisResult(analysis);
+      }
       
       setImportStatus('success');
 
@@ -495,10 +508,22 @@ export default function StudentTranscriptImport({
   };
 
   const applyImportedCourses = async () => {
-    if (!analysisResult) return;
+    if (!importResult) return;
+
+    if (!curriculumId) {
+      showError('Please select a curriculum first, then click Apply.', 'No Curriculum Selected');
+      return;
+    }
 
     setIsApplying(true);
     try {
+      // Run categorization now if it was skipped during upload (no curriculum at that time)
+      let analysis = analysisResult;
+      if (!analysis) {
+        analysis = await categorizeCourses(importResult.courses);
+        setAnalysisResult(analysis);
+      }
+
       // Fetch elective rules and curriculum structure
       const [electiveRules, curriculumCourses] = await Promise.all([
         fetchElectiveRules(),
@@ -506,14 +531,14 @@ export default function StudentTranscriptImport({
       ]);
 
       // Convert unmatched courses
-      const unmatchedCourses = convertToUnmatchedCourses(analysisResult.unmatchedCourses);
+      const unmatchedCourses = convertToUnmatchedCourses(analysis.unmatchedCourses);
       
       // Extract free electives from curriculum
       const freeElectives = extractFreeElectives(curriculumCourses);
 
       // Call the enhanced callback
       onCoursesImported({
-        categorizedCourses: analysisResult.categorizedCourses,
+        categorizedCourses: analysis.categorizedCourses,
         unmatchedCourses,
         freeElectives,
         electiveRules
