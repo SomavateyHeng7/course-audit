@@ -118,7 +118,7 @@ const getStatusColor = (status: CacheSubmission['status']) => {
     case 'pending': return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
     case 'processing': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
     case 'validated': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
-    case 'has_issues': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+    case 'has_issues': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
     case 'approved': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
     case 'rejected': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400';
     default: return 'bg-gray-100 text-gray-700';
@@ -129,8 +129,8 @@ const getStatusIcon = (status: CacheSubmission['status']) => {
   switch (status) {
     case 'pending': return <Clock className="w-4 h-4" />;
     case 'processing': return <RefreshCw className="w-4 h-4 animate-spin" />;
-    case 'validated': return <CheckCircle className="w-4 h-4" />;
-    case 'has_issues': return <AlertTriangle className="w-4 h-4" />;
+    case 'validated': return <GraduationCap className="w-4 h-4" />;
+    case 'has_issues': return <AlertCircle className="w-4 h-4" />;
     case 'approved': return <CheckCircle className="w-4 h-4" />;
     case 'rejected': return <XCircle className="w-4 h-4" />;
     default: return <Clock className="w-4 h-4" />;
@@ -141,8 +141,8 @@ const getStatusLabel = (status: CacheSubmission['status']) => {
   switch (status) {
     case 'pending': return 'Pending Review';
     case 'processing': return 'Processing';
-    case 'validated': return 'Can Graduate';
-    case 'has_issues': return 'Has Issues';
+    case 'validated': return 'Requirement Met';
+    case 'has_issues': return 'Need Validation';
     case 'approved': return 'Approved';
     case 'rejected': return 'Rejected';
     default: return status;
@@ -602,12 +602,15 @@ const GraduationPortalChairpersonPage: React.FC = () => {
     try {
       const response = await validateCacheSubmission(selectedPortal!.id, submissionId);
       const canGraduate = response.validation?.can_graduate ?? response.submission?.validation_result?.canGraduate ?? false;
+      // Optimistically update local state first
       setSubmissions(prev => prev.map(s => 
         s.id === submissionId 
-          ? { ...s, status: canGraduate ? 'validated' : 'has_issues', validationResult: response.validation || response.submission?.validation_result }
+          ? { ...s, status: canGraduate ? 'validated' : 'has_issues', validation_result: response.validation || response.submission?.validation_result }
           : s
       ));
-      showSuccess(canGraduate ? 'Student can graduate!' : 'Validation complete - issues found', 'Validated');
+      showSuccess(canGraduate ? 'Requirement met — student eligible to graduate' : 'Validation complete - issues found', 'Validated');
+      // Then reload from backend to get authoritative state
+      await loadSubmissions(selectedPortal!.id);
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to validate submission', 'Error');
     }
@@ -620,6 +623,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
         s.id === submissionId ? { ...s, status: 'approved' } : s
       ));
       showSuccess('Submission approved', 'Approved');
+      await loadSubmissions(selectedPortal!.id);
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to approve submission', 'Error');
     }
@@ -632,6 +636,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
         s.id === submissionId ? { ...s, status: 'rejected' } : s
       ));
       showSuccess('Submission rejected', 'Rejected');
+      await loadSubmissions(selectedPortal!.id);
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to reject submission', 'Error');
     }
@@ -694,6 +699,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
     validated: submissions.filter(s => s.status === 'validated').length,
     hasIssues: submissions.filter(s => s.status === 'has_issues').length,
     approved: submissions.filter(s => s.status === 'approved').length,
+    rejected: submissions.filter(s => s.status === 'rejected').length,
   };
 
   if (loading) {
@@ -867,7 +873,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
           </Card>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -898,11 +904,11 @@ const GraduationPortalChairpersonPage: React.FC = () => {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <GraduationCap className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.validated}</p>
-                  <p className="text-xs text-muted-foreground">Can Graduate</p>
+                  <p className="text-xs text-muted-foreground">Requirement Met</p>
                 </div>
               </div>
             </CardContent>
@@ -910,12 +916,12 @@ const GraduationPortalChairpersonPage: React.FC = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
-                  <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                  <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.hasIssues}</p>
-                  <p className="text-xs text-muted-foreground">Has Issues</p>
+                  <p className="text-xs text-muted-foreground">Need Validation</p>
                 </div>
               </div>
             </CardContent>
@@ -929,6 +935,19 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                 <div>
                   <p className="text-2xl font-bold">{stats.approved}</p>
                   <p className="text-xs text-muted-foreground">Approved</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-rose-100 dark:bg-rose-900/30">
+                  <XCircle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.rejected}</p>
+                  <p className="text-xs text-muted-foreground">Rejected</p>
                 </div>
               </div>
             </CardContent>
@@ -979,8 +998,8 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                     <DropdownMenuItem onClick={() => setStatusFilter('all')}>All Status</DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => setStatusFilter('pending')}>Pending</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setStatusFilter('validated')}>Can Graduate</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setStatusFilter('has_issues')}>Has Issues</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setStatusFilter('validated')}>Requirement Met</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setStatusFilter('has_issues')}>Need Validation</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setStatusFilter('approved')}>Approved</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setStatusFilter('rejected')}>Rejected</DropdownMenuItem>
                   </DropdownMenuContent>

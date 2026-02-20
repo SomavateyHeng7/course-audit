@@ -125,9 +125,21 @@ export default function NotificationDropdown({
     const submissionId = notification.data?.submission_id;
     const portalId = notification.portal?.id;
     
+    console.log('[Notification] Click:', {
+      notificationId: notification.id,
+      type: notification.type,
+      submissionId,
+      portalId,
+      portalName: notification.portal?.name,
+      createdAt: notification.created_at,
+      data: notification.data,
+    });
+    
     if (submissionId && portalId) {
       setIsOpen(false);
       router.push(`/chairperson/GraduationPortal/${submissionId}?portalId=${portalId}`);
+    } else {
+      console.warn('[Notification] Missing submissionId or portalId — cannot navigate', { submissionId, portalId });
     }
   };
 
@@ -261,8 +273,8 @@ export default function NotificationDropdown({
               </div>
             ) : (
               <>
-                {/* Display notifications (top 3 or all based on showAll state) */}
-                {(showAll ? notifications : notifications.slice(0, 3)).map(notification => (
+                {/* Display notifications (top 2 or all based on showAll state) */}
+                {(showAll ? notifications : notifications.slice(0, 2)).map(notification => (
                   <div
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
@@ -310,8 +322,8 @@ export default function NotificationDropdown({
                 </div>
               ))}
               
-              {/* Show More/Show Less button (Facebook-style) */}
-              {notifications.length > 3 && (
+              {/* Show All / Show Less button */}
+              {notifications.length > 2 && (
                 <button
                   onClick={() => setShowAll(!showAll)}
                   className="w-full py-3 text-center text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all duration-150 border-t border-gray-100 dark:border-gray-800"
@@ -319,7 +331,7 @@ export default function NotificationDropdown({
                   {showAll ? (
                     <>Show Less</>
                   ) : (
-                    <>Show {notifications.length - 3} More {notifications.length - 3 === 1 ? 'Notification' : 'Notifications'}</>
+                    <>Show all {notifications.length} notifications</>
                   )}
                 </button>
               )}

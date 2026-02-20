@@ -4,7 +4,7 @@
 
 **Status:** REQ-1 through REQ-6 (except REQ-3/REQ-4) fully implemented. Breaking changes reviewed and resolved.
 
-**Last Updated:** February 19, 2026
+**Last Updated:** February 20, 2026
 
 ---
 
@@ -32,6 +32,7 @@
 | PUT | `/api/chairperson/graduation-portals/{id}` | Update portal |
 | DELETE | `/api/chairperson/graduation-portals/{id}` | Delete portal |
 | POST | `/api/chairperson/graduation-portals/{id}/close` | Close portal |
+| POST | `/api/chairperson/graduation-portals/{id}/reopen` | Reopen closed portal |
 | POST | `/api/chairperson/graduation-portals/{id}/regenerate-pin` | Regenerate PIN |
 | GET | `/api/chairperson/graduation-portals/{id}/submissions` | List submissions |
 | POST | `/api/chairperson/graduation-portals/{id}/submissions/{subId}/process` | Process submission |
@@ -111,6 +112,29 @@
   "total": 3
 }
 ```
+
+---
+
+## ⚙️ ENVIRONMENT VARIABLES
+
+```env
+# Session token validity (minutes) - how long after PIN verification
+GRADUATION_SESSION_TTL=15
+
+# Submission retention (days after portal deadline)
+GRADUATION_SUBMISSION_RETENTION_DAYS=7
+
+# Grace period (days after deadline students can still submit)
+GRADUATION_GRACE_PERIOD_DAYS=7
+
+# IP validation for session security
+GRADUATION_VALIDATE_IP=true
+```
+
+**Submission Lifecycle:**
+- Student submits → stored with TTL = `portal.deadline + RETENTION_DAYS`
+- On validate/approve/reject → TTL preserved (NOT deleted)
+- Auto-deleted when TTL expires
 
 ---
 
