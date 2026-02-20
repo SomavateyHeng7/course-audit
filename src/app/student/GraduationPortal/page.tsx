@@ -485,7 +485,7 @@ const GraduationPortalPage: React.FC = () => {
     const deadlineDate = new Date(deadline);
     const diffTime = deadlineDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    return Math.round(diffDays); // Ensure whole number
   };
 
   /**
@@ -690,12 +690,12 @@ const GraduationPortalPage: React.FC = () => {
                                   )}
                                   {isUrgent && canSubmit && !inGracePeriod && (
                                     <Badge variant="destructive" className="text-xs">
-                                      {daysLeft} days left
+                                      {Math.round(daysLeft)} {Math.abs(Math.round(daysLeft)) === 1 ? 'day' : 'days'} left
                                     </Badge>
                                   )}
                                   {inGracePeriod && graceDaysLeft > 0 && (
                                     <Badge variant="destructive" className="text-xs">
-                                      {graceDaysLeft} day{graceDaysLeft !== 1 ? 's' : ''} left to submit
+                                      {Math.round(graceDaysLeft)} day{Math.abs(Math.round(graceDaysLeft)) !== 1 ? 's' : ''} left to submit
                                     </Badge>
                                   )}
                                 </div>

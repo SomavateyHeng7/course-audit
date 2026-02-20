@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { electiveRulesApi, type ElectiveRule, type CurriculumCourse } from '@/services/electiveRulesApi';
+import { useToastHelpers } from '@/hooks/useToast';
 
 interface ElectiveCourse {
   id: string;
@@ -20,6 +21,7 @@ interface ElectiveRulesTabProps {
 }
 
 export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps) {
+  const { success, error: showError } = useToastHelpers();
   const [electiveSearch, setElectiveSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
@@ -193,12 +195,13 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
         courseRequirements
       });
       
-      // Show success message (you could add a toast notification here)
-      console.log('Configuration saved successfully');
+      success('Configuration saved successfully', 'Free Electives Updated');
       
     } catch (err) {
       console.error('Error saving configuration:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save configuration');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to save configuration';
+      setError(errorMsg);
+      showError(errorMsg, 'Save Failed');
     } finally {
       setSaving(false);
     }
@@ -222,11 +225,13 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
         }]
       });
       
-      console.log('Course settings saved successfully');
+      success(`Course settings for ${course.code} saved successfully`, 'Settings Updated');
       
     } catch (err) {
       console.error('Error saving course settings:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save course settings');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to save course settings';
+      setError(errorMsg);
+      showError(errorMsg, 'Save Failed');
     } finally {
       setSaving(false);
     }

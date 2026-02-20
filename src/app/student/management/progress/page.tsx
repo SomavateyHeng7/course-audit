@@ -315,11 +315,6 @@ export default function ProgressPage() {
     setMounted(true);
   }, []);
   
-  // Return null during SSR
-  if (!mounted) {
-    return null;
-  }
-  
   // Load all data from localStorage and fetch curriculum data
   useEffect(() => {
     const loadData = async () => {
@@ -941,6 +936,10 @@ export default function ProgressPage() {
         'major': 'Major',
         'major courses': 'Major',
         'major_courses': 'Major',
+        'major required': 'Major',
+        'major_required': 'Major',
+        'required major': 'Major',
+        'required_major': 'Major',
         // Major Elective variations
         'major elective': 'Major Elective',
         'major electives': 'Major Elective',
@@ -957,6 +956,11 @@ export default function ProgressPage() {
         'unassigned': 'Uncategorized',
       };
       const normalized = categoryMap[category.toLowerCase()] || category;
+      
+      if (typeof window !== 'undefined') {
+        console.log(`🔍 Category normalization: "${category}" -> "${normalized}"`);
+      }
+      
       return normalized;
     };
     
@@ -1526,7 +1530,7 @@ export default function ProgressPage() {
   
   const majorCompleted = categoryStats['Major']?.completed || 0;
   const majorPlanned = categoryStats['Major']?.planned || 0;
-  const majorTotal = allCoursesByCategory['Major']?.length || 0;
+  const majorTotal = allCoursesByCategory['Major']?.length || categoryStats['Major']?.total || 0;
   
   const majorElectiveCompleted = categoryStats['Major Elective']?.completed || 0;
   const majorElectivePlanned = categoryStats['Major Elective']?.planned || 0;
@@ -2360,6 +2364,11 @@ export default function ProgressPage() {
     document.body.removeChild(link);
   };
 
+  // Return null during SSR to prevent hydration errors
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <div className="container py-8">
       <div className="mb-4">
@@ -2672,7 +2681,9 @@ export default function ProgressPage() {
         <TooltipProvider>
           {/* Row 1 - Requirements (4 columns) - dynamic */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {creditCardConfigs.map(card => {
+            {creditCardConfigs
+              .filter(card => card.totalCount > 0 || card.completedCount > 0 || card.plannedCount > 0) // Only show cards with data
+              .map(card => {
               const isOpen = openCreditCardKey === card.key;
               return (
                 <div key={card.key} className="space-y-2">
@@ -2694,7 +2705,9 @@ export default function ProgressPage() {
                             <span className={card.plannedColor}>+{card.plannedCount}</span>
                           )}
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">/ {card.totalCount}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          / {card.totalCount > 0 ? card.totalCount : '-'}
+                        </div>
                         <div className="text-[11px] text-muted-foreground mt-3">
                           {isOpen ? 'Tap to hide credit details' : 'Tap to view credit details'}
                         </div>
