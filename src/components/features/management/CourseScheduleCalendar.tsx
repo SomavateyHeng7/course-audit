@@ -246,9 +246,6 @@ export function CourseScheduleCalendar({
                     <div className="text-xs font-bold truncate">{course.code}</div>
                     <div className="text-xs truncate">{section.section}</div>
                     <div className="text-xs truncate">{section.timeStart} - {section.timeEnd}</div>
-                    {section.instructor && (
-                      <div className="text-xs truncate font-medium opacity-90">{section.instructor}</div>
-                    )}
                     {section.room && (
                       <div className="text-xs truncate opacity-75">{section.room}</div>
                     )}

@@ -11,22 +11,12 @@ import { useToastHelpers } from '@/hooks/useToast';
 
 interface Course {
   id: string;
-  code: string;
-  name: string;
+  courseCode: string;
+  courseName: string;
   credits: number;
-}
-
-interface CurriculumCourse {
-  id: string;
+  courseType: string;
   year: number;
   semester: number;
-  course: Course;
-  departmentCourseTypes?: Array<{
-    courseType: {
-      id: string;
-      name: string;
-    };
-  }>;
 }
 
 interface CurriculumDetails {
@@ -36,19 +26,11 @@ interface CurriculumDetails {
   totalCredits: number;
   studentIdStart: string;
   studentIdEnd: string;
-  department?: {
-    id: string;
-    name: string;
-    code: string;
-  };
-  faculty?: {
-    id: string;
-    name: string;
-    code: string;
-  };
+  departmentName?: string;
+  facultyName?: string;
   createdAt: string;
   updatedAt: string;
-  curriculumCourses: CurriculumCourse[];
+  courses: Course[];
 }
 
 export default function AdvisorCurriculumDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -77,8 +59,8 @@ export default function AdvisorCurriculumDetailsPage({ params }: { params: Promi
         });
         const data = await response.json();
 
-        if (response.ok && data.curriculum) {
-          setCurriculum(data.curriculum);
+        if (response.ok) {
+          setCurriculum(data);
         } else {
           console.error('Failed to fetch curriculum details:', data.error);
           showError('Failed to load curriculum details');
@@ -133,14 +115,14 @@ export default function AdvisorCurriculumDetailsPage({ params }: { params: Promi
   };
 
   // Group courses by year and semester
-  const groupedCourses = (curriculum.curriculumCourses || []).reduce((acc, curriculumCourse) => {
-    const key = `Year ${curriculumCourse.year} - Semester ${curriculumCourse.semester}`;
+  const groupedCourses = curriculum.courses.reduce((acc, course) => {
+    const key = `Year ${course.year} - Semester ${course.semester}`;
     if (!acc[key]) {
       acc[key] = [];
     }
-    acc[key].push(curriculumCourse);
+    acc[key].push(course);
     return acc;
-  }, {} as Record<string, CurriculumCourse[]>);
+  }, {} as Record<string, Course[]>);
 
   return (
     <div className="min-h-screen bg-background p-4 sm:p-8">
@@ -207,7 +189,7 @@ export default function AdvisorCurriculumDetailsPage({ params }: { params: Promi
                 <BookOpen className="w-5 h-5 text-primary" />
                 <div>
                   <p className="text-sm text-muted-foreground">Total Courses</p>
-                  <p className="font-semibold">{curriculum.curriculumCourses?.length || 0}</p>
+                  <p className="font-semibold">{curriculum.courses.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -215,20 +197,20 @@ export default function AdvisorCurriculumDetailsPage({ params }: { params: Promi
         </div>
 
         {/* Department and Faculty Info */}
-        {(curriculum.department || curriculum.faculty) && (
+        {(curriculum.departmentName || curriculum.facultyName) && (
           <Card className="mb-6">
             <CardContent className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {curriculum.faculty && (
+                {curriculum.facultyName && (
                   <div>
                     <p className="text-sm text-muted-foreground">Faculty</p>
-                    <p className="font-medium">{curriculum.faculty.name}</p>
+                    <p className="font-medium">{curriculum.facultyName}</p>
                   </div>
                 )}
-                {curriculum.department && (
+                {curriculum.departmentName && (
                   <div>
                     <p className="text-sm text-muted-foreground">Department</p>
-                    <p className="font-medium">{curriculum.department.name}</p>
+                    <p className="font-medium">{curriculum.departmentName}</p>
                   </div>
                 )}
               </div>
@@ -238,12 +220,12 @@ export default function AdvisorCurriculumDetailsPage({ params }: { params: Promi
 
         {/* Courses by Year and Semester */}
         <div className="space-y-6">
-          {Object.entries(groupedCourses).map(([yearSemester, curriculumCourses]) => (
+          {Object.entries(groupedCourses).map(([yearSemester, courses]) => (
             <Card key={yearSemester}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BookOpen className="w-5 h-5" />
-                  {yearSemester} ({curriculumCourses.length} courses)
+                  {yearSemester} ({courses.length} courses)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -258,26 +240,15 @@ export default function AdvisorCurriculumDetailsPage({ params }: { params: Promi
                       </tr>
                     </thead>
                     <tbody>
-                      {curriculumCourses.map((curriculumCourse) => (
-                        <tr key={curriculumCourse.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="p-3 font-mono text-sm">{curriculumCourse.course.code}</td>
-                          <td className="p-3">{curriculumCourse.course.name}</td>
-                          <td className="p-3">{curriculumCourse.course.credits}</td>
+                      {courses.map((course) => (
+                        <tr key={course.id} className="border-b border-border hover:bg-muted/50">
+                          <td className="p-3 font-mono text-sm">{course.courseCode}</td>
+                          <td className="p-3">{course.courseName}</td>
+                          <td className="p-3">{course.credits}</td>
                           <td className="p-3">
-                            {curriculumCourse.departmentCourseTypes && curriculumCourse.departmentCourseTypes.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {curriculumCourse.departmentCourseTypes.map((dct, idx) => (
-                                  <span 
-                                    key={idx}
-                                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
-                                  >
-                                    {dct.courseType.name}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
-                            )}
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                              {course.courseType}
+                            </span>
                           </td>
                         </tr>
                       ))}

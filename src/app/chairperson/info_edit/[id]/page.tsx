@@ -9,6 +9,7 @@ import ElectiveRulesTab from '@/components/features/curriculum/ElectiveRulesTab'
 import ConcentrationsTab from '@/components/features/curriculum/ConcentrationsTab';
 import BlacklistTab from '@/components/features/curriculum/BlacklistTab';
 import PoolsListsTab from '@/components/features/curriculum/PoolsListsTab';
+import CurriculumPoolsTab from '@/components/features/curriculum/CurriculumPoolsTab';
 import { facultyLabelApi } from '@/services/facultyLabelApi';
 import { useToastHelpers } from '@/hooks/useToast';
 import { useConfigFeatureFlags } from '@/hooks/useConfigFeatureFlags';
@@ -141,9 +142,10 @@ export default function EditCurriculum() {
 
         const data = await response.json();
 
-        // Normalize keys for frontend (snake_case to camelCase)
+        // Normalize keys for frontend (snake_case to camelCase) - SIMPLE approach like working branch
         const normalizedCurriculum = {
           ...data.curriculum,
+          departmentId: data.curriculum.department_id || data.curriculum.departmentId,
           curriculumCourses: data.curriculum.curriculum_courses || [],
           curriculumConstraints: data.curriculum.curriculum_constraints || [],
           curriculumBlacklists: data.curriculum.curriculum_blacklists || [],
@@ -169,6 +171,7 @@ export default function EditCurriculum() {
     }
   }, [curriculumId]);
 
+  
   // Load concentration title
   useEffect(() => {
     const loadConcentrationTitle = async () => {
@@ -186,17 +189,18 @@ export default function EditCurriculum() {
   // Load course types when curriculum is available
   useEffect(() => {
     const fetchCourseTypes = async () => {
-      const deptId = curriculum?.departmentId || curriculum?.department_id;
+      // Course types are now faculty-scoped, get faculty ID from curriculum
+      const facultyId = curriculum?.facultyId || curriculum?.faculty_id;
       
-      if (!deptId) {
-        console.log('No departmentId available for fetching course types. Curriculum:', curriculum);
+      if (!facultyId) {
+        console.log('No facultyId available for fetching course types. Curriculum:', curriculum);
         return;
       }
 
-      console.log('Fetching course types for department:', deptId);
+      console.log('Fetching course types for faculty:', facultyId);
       setIsLoadingCourseTypes(true);
       try {
-        const response = await fetch(`${API_BASE}/course-types?departmentId=${deptId}`, {
+        const response = await fetch(`${API_BASE}/course-types?facultyId=${facultyId}`, {
           credentials: 'include'
         });
         if (response.ok) {
@@ -214,7 +218,7 @@ export default function EditCurriculum() {
     };
 
     fetchCourseTypes();
-  }, [curriculum?.departmentId, curriculum?.department_id, curriculum]);
+  }, [curriculum?.facultyId, curriculum?.faculty_id, curriculum]);
 
   // Load pool data when curriculum is available (demo mode with mock data)
   useEffect(() => {
@@ -276,35 +280,57 @@ export default function EditCurriculum() {
     electiveCredits: curriculum.curriculumCourses?.filter((cc: any) => !cc.isRequired).reduce((total: number, cc: any) => total + cc.course.credits, 0) || 0,
   } : { totalCredits: 0, requiredCore: 0, electiveCredits: 0 };
 
+  // Helper to extract courseType from department_course_types array (if backend returns it that way)
+  const extractCourseType = (course: any, curriculumId: string) => {
+    // First check if courseType is directly available
+    if (course.courseType) {
+      return course.courseType;
+    }
+    // Otherwise, try to extract from department_course_types array
+    if (course.department_course_types && Array.isArray(course.department_course_types)) {
+      const relevantAssignment = course.department_course_types.find(
+        (dct: any) => dct.curriculum_id === curriculumId
+      );
+      if (relevantAssignment && relevantAssignment.course_type) {
+        return {
+          id: relevantAssignment.course_type.id,
+          name: relevantAssignment.course_type.name,
+          color: relevantAssignment.course_type.color,
+        };
+      }
+    }
+    return null;
+  };
+
   const curriculumCourseMeta: CurriculumCourseMeta[] = [];
 
   const coursesData = (curriculum?.curriculumCourses ?? []).map((cc: any) => {
-    const normalizedPrereqs = (cc.curriculumPrerequisites ?? []).map((pr: any) => ({
+    const normalizedPrereqs = (cc.curriculum_prerequisites ?? cc.curriculumPrerequisites ?? []).map((pr: any) => ({
       id: pr?.id ?? pr?.courseId ?? pr?.course?.id,
       code: pr?.code ?? pr?.course?.code ?? '',
       name: pr?.name ?? pr?.course?.name ?? null
     })).filter((pr: any) => pr.code);
 
-    const normalizedCoreqs = (cc.curriculumCorequisites ?? []).map((coreq: any) => ({
+    const normalizedCoreqs = (cc.curriculum_corequisites ?? cc.curriculumCorequisites ?? []).map((coreq: any) => ({
       id: coreq?.id ?? coreq?.courseId ?? coreq?.course?.id,
       code: coreq?.code ?? coreq?.course?.code ?? '',
       name: coreq?.name ?? coreq?.course?.name ?? null
     })).filter((coreq: any) => coreq.code);
 
-    const overrideRequiresPermission = cc.overrideRequiresPermission;
-    const overrideSummerOnly = cc.overrideSummerOnly;
-    const overrideRequiresSeniorStanding = cc.overrideRequiresSeniorStanding;
-    const overrideMinCreditThreshold = cc.overrideMinCreditThreshold;
+    const overrideRequiresPermission = cc.override_requires_permission ?? cc.overrideRequiresPermission;
+    const overrideSummerOnly = cc.override_summer_only ?? cc.overrideSummerOnly;
+    const overrideRequiresSeniorStanding = cc.override_requires_senior_standing ?? cc.overrideRequiresSeniorStanding;
+    const overrideMinCreditThreshold = cc.override_min_credit_threshold ?? cc.overrideMinCreditThreshold;
 
     const hasPermissionOverride = overrideRequiresPermission !== null && overrideRequiresPermission !== undefined;
     const hasSummerOnlyOverride = overrideSummerOnly !== null && overrideSummerOnly !== undefined;
     const hasSeniorStandingOverride = overrideRequiresSeniorStanding !== null && overrideRequiresSeniorStanding !== undefined;
     const hasMinCreditOverride = overrideMinCreditThreshold !== null && overrideMinCreditThreshold !== undefined;
 
-    const baseRequiresPermission = Boolean(cc.course.requiresPermission);
-    const baseSummerOnly = Boolean(cc.course.summerOnly);
-    const baseRequiresSeniorStanding = Boolean(cc.course.requiresSeniorStanding);
-    const baseMinCreditThreshold = cc.course.minCreditThreshold ?? null;
+    const baseRequiresPermission = Boolean(cc.course.requires_permission ?? cc.course.requiresPermission);
+    const baseSummerOnly = Boolean(cc.course.summer_only ?? cc.course.summerOnly);
+    const baseRequiresSeniorStanding = Boolean(cc.course.requires_senior_standing ?? cc.course.requiresSeniorStanding);
+    const baseMinCreditThreshold = cc.course.min_credit_threshold ?? cc.course.minCreditThreshold ?? null;
 
     const requiresPermission = hasPermissionOverride ? Boolean(overrideRequiresPermission) : baseRequiresPermission;
     const summerOnly = hasSummerOnlyOverride ? Boolean(overrideSummerOnly) : baseSummerOnly;
@@ -323,6 +349,9 @@ export default function EditCurriculum() {
       overrideMinCreditThreshold
     });
 
+    // Extract courseType - try direct property first, then department_course_types array
+    const courseType = extractCourseType(cc.course, curriculum?.id);
+
     return {
       id: cc.course.id,
       curriculumCourseId: cc.id,
@@ -332,10 +361,10 @@ export default function EditCurriculum() {
       creditHours: cc.course.creditHours || '3-0-6',
       type: cc.course.category || '',
       description: cc.course.description || '',
-      courseType: cc.course.courseType || null,
+      courseType: courseType,
       year: cc.year,
       semester: cc.semester,
-      isRequired: cc.isRequired,
+      isRequired: cc.is_required ?? cc.isRequired,
       curriculumPrerequisites: normalizedPrereqs,
       curriculumCorequisites: normalizedCoreqs,
       requiresPermission,
@@ -819,10 +848,10 @@ export default function EditCurriculum() {
   };
   
   return (
-    <div className="flex min-h-screen bg-white dark:bg-background">
+    <div className="flex min-h-screen bg-white dark:bg-background overflow-x-hidden">
       {/* Sidebar is assumed to be rendered by layout */}
-      <div className="flex-1 flex flex-col items-center py-3 sm:py-6 lg:py-10 px-2 sm:px-4">
-        <div className="w-full max-w-6xl bg-white dark:bg-card rounded-lg sm:rounded-xl lg:rounded-2xl border border-gray-200 dark:border-border p-3 sm:p-6 lg:p-10">
+      <div className="flex-1 flex flex-col items-center py-3 sm:py-6 lg:py-10 px-2 sm:px-4 lg:px-6">
+        <div className="w-full max-w-7xl bg-white dark:bg-card rounded-lg sm:rounded-xl lg:rounded-2xl border border-gray-200 dark:border-border p-3 sm:p-6 lg:p-10 overflow-x-hidden">
           {/* Loading State */}
           {isLoading && (
             <div className="flex items-center justify-center py-20">
@@ -1046,6 +1075,7 @@ export default function EditCurriculum() {
               onAddCourse={handleAddCourse}
               curriculumId={curriculumId}
               departmentId={curriculum?.departmentId}
+              facultyId={curriculum?.facultyId || curriculum?.faculty_id}
               onRefreshCurriculum={async () => {
                 // Refetch curriculum data
                 try {
@@ -1054,7 +1084,16 @@ export default function EditCurriculum() {
                   });
                   if (response.ok) {
                     const data = await response.json();
-                    setCurriculum(data.curriculum);
+                    // Use the same simple normalization as initial fetch
+                    const normalizedCurriculum = {
+                      ...data.curriculum,
+                      departmentId: data.curriculum.department_id || data.curriculum.departmentId,
+                      curriculumCourses: data.curriculum.curriculum_courses || [],
+                      curriculumConstraints: data.curriculum.curriculum_constraints || [],
+                      curriculumBlacklists: data.curriculum.curriculum_blacklists || [],
+                      curriculumConcentrations: data.curriculum.curriculum_concentrations || [],
+                    };
+                    setCurriculum(normalizedCurriculum);
                   }
                 } catch (error) {
                   console.error('Error refreshing curriculum:', error);
@@ -1070,10 +1109,9 @@ export default function EditCurriculum() {
           )}
 
           {activeTab === "Pools & Lists" && poolsTabVisible && (
-            <PoolsListsTab
+            <CurriculumPoolsTab
               curriculumId={curriculumId}
               curriculumName={curriculum?.name ?? ''}
-              departmentId={curriculum?.departmentId}
               courseTypes={courseTypes}
               courses={coursesData.map((course: any) => ({
                 id: course.id,
@@ -1082,15 +1120,6 @@ export default function EditCurriculum() {
                 credits: course.credits,
                 courseType: course.courseType,
               }))}
-              isLoadingCourseTypes={isLoadingCourseTypes}
-              availablePools={availablePools}
-              attachedPools={attachedPools}
-              poolLists={poolLists}
-              onAttachPool={handleAttachPool}
-              onDetachPool={handleDetachPool}
-              onUpdateAttachment={handleUpdateAttachment}
-              onReorderAttachments={handleReorderAttachments}
-              isDemoMode={true}
             />
           )}
 

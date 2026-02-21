@@ -720,67 +720,6 @@ export default function DataEntryPage() {
     router.push('/student/management/course-planning');
   };
 
-  const handleSkipToPlanning = () => {
-    if (!selectedDepartment || !selectedCurriculum) {
-      showError('Please select your faculty, department, and curriculum first');
-      return;
-    }
-    // Save minimal data and skip to planning
-    router.push('/student/management/course-planning');
-  };
-
-  /** Auto-fills dropdowns from metadata embedded in an imported transcript file */
-  const handleMetadataExtracted = (meta: FileMetadata) => {
-    // Only act when the file actually carries planning metadata
-    const hasMeta = meta.faculty || meta.department || meta.curriculum || meta.concentration;
-    if (!hasMeta) return;
-
-    // ALWAYS clear all selectors first so no stale manual selections can linger
-    // alongside freshly imported values — this prevents confusing mismatches.
-    setSelectedFaculty('');
-    setSelectedDepartment('');
-    setSelectedCurriculum('');
-    setSelectedConcentration('');
-    setPendingConcentrationName(null);
-
-    if (!meta.curriculum) return;
-
-    // Find the matching curriculum in the already-loaded list
-    const matchedCurriculum = curricula.find(
-      c => c.name.toLowerCase() === meta.curriculum!.toLowerCase()
-    );
-    if (!matchedCurriculum) {
-      console.log('[AutoFill] No curriculum match found for:', meta.curriculum);
-      warning(`Could not auto-fill: curriculum "${meta.curriculum}" was not found in the system. Please select your values manually.`);
-      return;
-    }
-
-    // Auto-select faculty (by name)
-    if (meta.faculty) {
-      const facOption = facultyOptions.find(
-        o => o.label.toLowerCase() === meta.faculty!.toLowerCase()
-      );
-      if (facOption) setSelectedFaculty(facOption.value);
-    }
-
-    // Auto-select department (from curriculum's linked department)
-    if (matchedCurriculum.department?.id) {
-      setSelectedDepartment(matchedCurriculum.department.id);
-    }
-
-    // Auto-select curriculum
-    setSelectedCurriculum(matchedCurriculum.id);
-
-    // Queue concentration – will be matched once concentrations finish loading
-    if (meta.concentration && meta.concentration.toLowerCase() !== 'general') {
-      setPendingConcentrationName(meta.concentration);
-    } else {
-      setSelectedConcentration('general');
-    }
-
-    console.log('[AutoFill] Applied metadata:', meta);
-  };
-
   return (
     <div className="container py-6">
       <div className="mb-6">
@@ -916,7 +855,6 @@ export default function DataEntryPage() {
         }}
       />
 
-      {/* Unmatched Courses Section */}
       {unmatchedCourses.length > 0 && (
         <UnmatchedCoursesSection
           unmatchedCourses={unmatchedCourses}

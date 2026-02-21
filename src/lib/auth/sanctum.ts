@@ -72,7 +72,7 @@ export async function logout(): Promise<void> {
   try {
     const csrfToken = getCsrfTokenFromCookie();
     
-    await fetch(`${API_URL}/api/logout`, {
+    const response = await fetch(`${API_URL}/api/logout`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -80,9 +80,17 @@ export async function logout(): Promise<void> {
         ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
       },
     });
+    
+    // Wait for the response to ensure server-side session is cleared
+    if (response.ok) {
+      console.log('Server logout successful');
+    } else {
+      console.warn('Server logout returned non-OK status:', response.status);
+    }
   } catch (error) {
     console.error('Logout API error:', error);
   } finally {
+    // Always clear client data regardless of server response
     clearAllClientData();
   }
 }
@@ -90,18 +98,57 @@ export async function logout(): Promise<void> {
 function clearAllClientData(): void {
   if (typeof window === 'undefined') return;
 
+  // Clear all storage
   localStorage.clear();
   sessionStorage.clear();
   
+  // Get all cookies and clear them with multiple domain/path variations
   const cookies = document.cookie.split(';');
-  for (let i = 0; i < cookies.length; i++) {
-    const cookie = cookies[i];
+  const hostname = window.location.hostname;
+  const pathVariations = ['/', '/api', '/sanctum'];
+  const domainVariations = [
+    '', // no domain (current document domain)
+    hostname,
+    `.${hostname}`,
+    // Handle localhost specially
+    ...(hostname === 'localhost' ? ['localhost', '.localhost'] : []),
+  ];
+  
+  for (const cookie of cookies) {
     const eqPos = cookie.indexOf('=');
     const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
     
-    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
+    if (!name) continue;
+    
+    // Clear cookie with all path/domain combinations
+    for (const path of pathVariations) {
+      // Without domain
+      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=${path}`;
+      
+      for (const domain of domainVariations) {
+        if (domain) {
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=${path};domain=${domain}`;
+        }
+      }
+    }
+  }
+  
+  // Specifically clear Laravel/Sanctum session cookies
+  const laravelCookies = [
+    'laravel_session',
+    'XSRF-TOKEN',
+    'remember_web',
+  ];
+  
+  for (const cookieName of laravelCookies) {
+    for (const path of pathVariations) {
+      document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=${path}`;
+      for (const domain of domainVariations) {
+        if (domain) {
+          document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=${path};domain=${domain}`;
+        }
+      }
+    }
   }
 }
 
@@ -117,7 +164,7 @@ export async function getUser(): Promise<User> {
 
     if (!response.ok) {
       if (response.status === 401) {
-        console.log('User not authenticated - 401 response');
+        // User not authenticated - this is normal, throw silently
         throw new Error('Unauthenticated');
       }
       throw new Error(`Failed to fetch user: ${response.status}`);
@@ -125,7 +172,10 @@ export async function getUser(): Promise<User> {
 
     return response.json();
   } catch (error) {
-    console.error('Error fetching user:', error);
+    // Only log actual network errors, not authentication errors
+    if (error instanceof Error && error.message !== 'Unauthenticated') {
+      console.error('Error fetching user:', error);
+    }
     throw error;
   }
 }

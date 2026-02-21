@@ -18,21 +18,9 @@ interface Curriculum {
   totalCredits: number;
   studentIdStart: string;
   studentIdEnd: string;
-  department?: {
-    id: string;
-    name: string;
-    code: string;
-  };
-  faculty?: {
-    id: string;
-    name: string;
-    code: string;
-  };
-  _count: {
-    curriculumCourses: number;
-    curriculumConstraints: number;
-    electiveRules: number;
-  };
+  departmentName?: string;
+  facultyName?: string;
+  courseCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -194,9 +182,9 @@ const AdvisorCurriculaPage: React.FC = () => {
                         <h3 className="font-semibold text-foreground text-lg">
                           {curriculum.name}
                         </h3>
-                        {curriculum.department && (
+                        {curriculum.departmentName && (
                           <p className="text-sm text-muted-foreground">
-                            {curriculum.department.name}
+                            {curriculum.departmentName}
                           </p>
                         )}
                       </div>
@@ -233,7 +221,7 @@ const AdvisorCurriculaPage: React.FC = () => {
                       {/* Course Count */}
                       <div className="mb-3 lg:mb-0">
                         <span className="text-sm text-muted-foreground">
-                          {curriculum._count.curriculumCourses} courses
+                          {curriculum.courseCount} courses
                         </span>
                       </div>
 

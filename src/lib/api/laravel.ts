@@ -1499,15 +1499,3 @@ export async function getPublishedSchedule(id: string): Promise<{
 
   return response.json();
 }
-
-// Audit Logs
-export async function getAuditLogs(params?: { limit?: number; page?: number; action?: string; user_id?: string; entity_type?: string }) {
-  const searchParams = new URLSearchParams();
-  if (params?.limit) searchParams.set('limit', params.limit.toString());
-  if (params?.page) searchParams.set('page', params.page.toString());
-  if (params?.action) searchParams.set('action', params.action);
-  if (params?.user_id) searchParams.set('user_id', params.user_id);
-  if (params?.entity_type) searchParams.set('entity_type', params.entity_type);
-  const query = searchParams.toString();
-  return authenticatedRequest(`/audit-logs${query ? `?${query}` : ''}`);
-}

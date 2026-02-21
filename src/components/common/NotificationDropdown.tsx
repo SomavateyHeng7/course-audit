@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, Check, CheckCheck, Trash2, X, Clock } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils/common-utils';
 import {
@@ -210,29 +210,21 @@ export default function NotificationDropdown({
       {/* Dropdown Panel */}
       {isOpen && (
         <div className={cn(
-          "absolute z-[100] w-[420px] bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden",
-          "animate-in fade-in-0 zoom-in-95 duration-200",
+          "absolute z-[100] w-80 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden",
           isCollapsed ? "left-full ml-2 top-0" : "left-full ml-2 top-0"
         )}>
           {/* Header */}
-          <div className= "flex items-center justify-between px-4 py-3.5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-teal-500/10 to-teal-600/10 dark:from-teal-500/20 dark:to-teal-600/20">
-            <div>
-              <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                <Bell className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-                Graduation Submissions
-              </h3>
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+              Graduation Submissions
+            </h3>
+            <div className="flex items-center gap-1">
               {unreadCount > 0 && (
-                <p className="text-xs text-teal-600 dark:text-teal-400 mt-0.5 font-medium">
-                  {unreadCount} new {unreadCount === 1 ? 'notification' : 'notifications'}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-1">{unreadCount > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleMarkAllRead}
-                  className="text-xs text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 px-2.5 py-1.5 h-auto rounded-md font-medium"
+                  className="text-xs text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 px-2 py-1 h-auto rounded-md"
                   title="Mark all as read"
                 >
                   <CheckCheck className="h-3.5 w-3.5 mr-1" />
@@ -251,25 +243,19 @@ export default function NotificationDropdown({
           </div>
 
           {/* Notification List */}
-          <div className="max-h-[500px] overflow-y-auto">
+          <div className="max-h-96 overflow-y-auto">
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+              <div className="p-4 text-center text-gray-500 text-sm">
+                Loading...
               </div>
             ) : error ? (
-              <div className="px-4 py-8 text-center">
-                <div className="text-red-500 dark:text-red-400 mb-3">
-                  <X className="h-8 w-8 mx-auto" />
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{error}</p>
+              <div className="p-4 text-center text-red-500 text-sm">
+                {error}
               </div>
             ) : notifications.length === 0 ? (
-              <div className="px-4 py-12 text-center">
-                <div className="bg-gray-100 dark:bg-gray-800 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                  <Bell className="h-8 w-8 text-gray-400" />
-                </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">No notifications yet</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">You'll see graduation submission updates here</p>
+              <div className="p-6 text-center text-gray-500 text-sm">
+                <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                No notifications yet
               </div>
             ) : (
               <>
@@ -279,32 +265,32 @@ export default function NotificationDropdown({
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "relative px-4 py-3.5 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-all duration-150 group",
-                      "hover:bg-gray-50 dark:hover:bg-gray-800/70",
-                      !notification.read && "bg-teal-50/60 dark:bg-teal-900/20 border-l-4 border-l-teal-500"
+                      "relative p-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors group",
+                      "hover:bg-gray-50 dark:hover:bg-gray-800/50",
+                      !notification.read && "bg-teal-50/50 dark:bg-teal-900/20"
                   )}
-                >\n                  <div className="flex items-start gap-3 pr-8">
+                >
+                  <div className="flex items-start gap-3 pr-6">
                     {/* Unread indicator */}
                     <div className={cn(
-                      "w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 transition-all duration-200",
-                      !notification.read ? "bg-teal-500 shadow-sm shadow-teal-500/50" : "bg-transparent"
+                      "w-2 h-2 rounded-full mt-2 flex-shrink-0",
+                      !notification.read ? "bg-teal-500" : "bg-transparent"
                     )} />
                     
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                         {notification.title}
                       </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-0.5">
                         {notification.message}
                       </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
                           {formatRelativeTime(notification.created_at)}
-                        </span>
+                        </p>
                         {notification.portal && (
-                          <span className="text-xs text-teal-600 dark:text-teal-400 font-medium truncate bg-teal-50 dark:bg-teal-900/30 px-2 py-0.5 rounded">
-                            {notification.portal.name}
+                          <span className="text-xs text-teal-600 dark:text-teal-400 truncate">
+                            • {notification.portal.name}
                           </span>
                         )}
                       </div>
@@ -314,10 +300,10 @@ export default function NotificationDropdown({
                   {/* Delete button */}
                   <button
                     onClick={(e) => handleDelete(e, notification.id)}
-                    className="absolute top-3.5 right-3 p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/30 opacity-0 group-hover:opacity-100 transition-all duration-150"
+                    className="absolute top-3 right-2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Delete notification"
                   >
-                    <Trash2 className="h-3.5 w-3.5 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors" />
+                    <Trash2 className="h-3 w-3 text-gray-400 hover:text-red-500" />
                   </button>
                 </div>
               ))}
@@ -326,7 +312,7 @@ export default function NotificationDropdown({
               {notifications.length > 2 && (
                 <button
                   onClick={() => setShowAll(!showAll)}
-                  className="w-full py-3 text-center text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all duration-150 border-t border-gray-100 dark:border-gray-800"
+                  className="w-full p-3 text-center text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors border-t border-gray-100 dark:border-gray-800"
                 >
                   {showAll ? (
                     <>Show Less</>

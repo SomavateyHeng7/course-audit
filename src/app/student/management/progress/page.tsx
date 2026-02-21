@@ -315,13 +315,17 @@ export default function ProgressPage() {
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [curriculumProgress, setCurriculumProgress] = useState<CurriculumProgress | null>(null);
   
-  // Mount check to prevent SSR issues
+  // Debug: Track when curriculumData changes
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (typeof window !== 'undefined') {
+      console.log('🔍 CURRICULUM DATA CHANGED:', curriculumData);
+      console.log('🔍 CURRICULUM totalCreditsRequired:', curriculumData?.totalCreditsRequired);
+    }
+  }, [curriculumData]);
   
   // Load all data from localStorage and fetch curriculum data
   useEffect(() => {
+    console.log('🔥 USEEFFECT STARTED - Loading progress page data');
     const loadData = async () => {
       try {
         // Ensure we're on client side
@@ -342,6 +346,11 @@ export default function ProgressPage() {
           // Support both array and object
           const auditObj = Array.isArray(parsedData) ? parsedData[0] : parsedData;
           curriculumId = auditObj?.selectedCurriculum || null;
+          
+          if (typeof window !== 'undefined') {
+            console.log('Step 3a: Extracted curriculumId:', curriculumId);
+            console.log('Step 3b: auditObj keys:', auditObj ? Object.keys(auditObj) : 'null');
+          }
 
           // Extract and save total credits from localStorage
           if (auditObj?.curriculumCreditsRequired) {
@@ -355,37 +364,80 @@ export default function ProgressPage() {
 
           // Fetch curriculum data if we have a curriculum ID
           if (curriculumId) {
+            if (typeof window !== 'undefined') {
+              console.log('Step 4: Fetching curriculum for ID:', curriculumId);
+            }
             try {
               const data = await getPublicCurriculum(curriculumId);
+              if (typeof window !== 'undefined') {
+                console.log('Step 5: API response:', data);
+                console.log('Step 5a: API response type:', typeof data);
+                console.log('Step 5b: API curriculum object:', data.curriculum);
+                console.log('Step 5c: API totalCreditsRequired:', data.curriculum?.totalCreditsRequired);
+              }
               // The API returns { curriculum: {...} } for single curriculum fetch
               const curriculum = data.curriculum || data;
               if (curriculum) {
+                if (typeof window !== 'undefined') {
+                  console.log('Step 6: Found curriculum data:', curriculum);
+                  console.log('Step 6a: Curriculum totalCreditsRequired:', curriculum.totalCreditsRequired);
+                  console.log('Step 6b: Setting curriculum data...');
+                }
                 setCurriculumData(curriculum);
+                if (typeof window !== 'undefined') {
+                  console.log('Step 6c: Curriculum data set successfully');
+                }
+              } else {
+                if (typeof window !== 'undefined') {
+                  console.log('Step 6: No curriculum found with ID:', curriculumId);
+                }
               }
             } catch (error) {
-              console.error('Error fetching curriculum data:', error);
-              if (error instanceof Error) {
-                // Show user-friendly error if curriculum doesn't exist
-                if (error.message.includes('404') || error.message.includes('not found')) {
-                  setCurriculumError(`Curriculum not found in database (ID: ${curriculumId}). Please select a valid curriculum in Course Entry.`);
-                } else {
-                  setCurriculumError(`Failed to load curriculum data: ${error.message}`);
+              if (typeof window !== 'undefined') {
+                console.error('Step 6: Error fetching curriculum data:', error);
+                if (error instanceof Error) {
+                  console.error('Error message:', error.message);
+                  // Show user-friendly error if curriculum doesn't exist
+                  if (error.message.includes('404') || error.message.includes('not found')) {
+                    console.error('⚠️ CURRICULUM NOT FOUND: The curriculum ID saved in your data does not exist in the database.');
+                    console.error('This may happen if:');
+                    console.error('1. The curriculum was deleted from the system');
+                    console.error('2. You copied data from a different environment');
+                    console.error('3. The database was reset');
+                    console.error('');
+                    console.error('Solution: Go to Data Entry page and select a valid curriculum again.');
+                    setCurriculumError(`Curriculum not found in database (ID: ${curriculumId}). Please select a valid curriculum in Course Entry.`);
+                  } else {
+                    setCurriculumError(`Failed to load curriculum data: ${error.message}`);
+                  }
                 }
               }
             }
           } else {
-            // Try to get curriculum ID from the completedData state as fallback
-            if (completedData?.selectedCurriculum) {
-              try {
-                const data = await getPublicCurriculum(completedData.selectedCurriculum);
-                const curriculum = data.curriculum || data;
-                if (curriculum) {
-                  setCurriculumData(curriculum);
+            if (typeof window !== 'undefined') {
+              console.log('Step 4: No curriculum ID found in saved data');
+              console.log('Step 4a: Trying fallback with selectedCurriculum from completedData state');
+              
+              // Try to get curriculum ID from the completedData state as fallback
+              if (completedData?.selectedCurriculum) {
+                console.log('Step 4b: Found fallback curriculum ID:', completedData.selectedCurriculum);
+                try {
+                  const data = await getPublicCurriculum(completedData.selectedCurriculum);
+                  console.log('Step 4c: Fallback API response:', data);
+                  const curriculum = data.curriculum || data;
+                  if (curriculum) {
+                    console.log('Step 4d: Setting curriculum data from fallback');
+                    setCurriculumData(curriculum);
+                  }
+                } catch (error) {
+                  console.error('Step 4e: Fallback curriculum fetch failed:', error);
                 }
-              } catch (error) {
-                console.error('Fallback curriculum fetch failed:', error);
               }
             }
+          }
+        } else {
+          if (typeof window !== 'undefined') {
+            console.log('Step 3: No studentAuditData found in localStorage');
           }
         }
         
@@ -438,15 +490,18 @@ export default function ProgressPage() {
   // Fallback useEffect: If we have a curriculum ID but no curriculum data, try to fetch it
   useEffect(() => {
     if (completedData?.selectedCurriculum && !curriculumData) {
+      console.log('🚀 FALLBACK USEEFFECT: Attempting to fetch curriculum data for:', completedData.selectedCurriculum);
       const fetchCurriculumFallback = async () => {
         try {
           const data = await getPublicCurriculum(completedData.selectedCurriculum);
+          console.log('🚀 FALLBACK: API response:', data);
           const curriculum = data.curriculum || data;
           if (curriculum) {
+            console.log('🚀 FALLBACK: Setting curriculum data');
             setCurriculumData(curriculum);
           }
         } catch (error) {
-          console.error('Error fetching curriculum:', error);
+          console.error('🚀 FALLBACK: Error:', error);
         }
       };
       fetchCurriculumFallback();
@@ -941,10 +996,6 @@ export default function ProgressPage() {
         'major': 'Major',
         'major courses': 'Major',
         'major_courses': 'Major',
-        'major required': 'Major',
-        'major_required': 'Major',
-        'required major': 'Major',
-        'required_major': 'Major',
         // Major Elective variations
         'major elective': 'Major Elective',
         'major electives': 'Major Elective',
@@ -961,11 +1012,6 @@ export default function ProgressPage() {
         'unassigned': 'Uncategorized',
       };
       const normalized = categoryMap[category.toLowerCase()] || category;
-      
-      if (typeof window !== 'undefined') {
-        console.log(`🔍 Category normalization: "${category}" -> "${normalized}"`);
-      }
-      
       return normalized;
     };
     
@@ -2235,14 +2281,16 @@ export default function ProgressPage() {
 
     worksheetData.push(['course data']); // Title (match CSV format)
     
-    // Add planning metadata header rows
+    // Add planning metadata header rows (matches data-entry page format exactly)
+    const _xlsCurriculumId = completedData?.selectedCurriculum || '';
+    const _xlsCurriculum = completedData?.curriculumName || curriculumData?.name || '';
     const _xlsFaculty = completedData?.facultyName || '';
     const _xlsDepartment = completedData?.departmentName || '';
-    const _xlsCurriculum = completedData?.curriculumName || curriculumData?.name || '';
     const _xlsConcentration = completedData?.concentrationName || '';
+    if (_xlsCurriculumId) worksheetData.push(['CURRICULUM_ID', _xlsCurriculumId]);
+    if (_xlsCurriculum) worksheetData.push(['CURRICULUM_NAME', _xlsCurriculum]);
     if (_xlsFaculty) worksheetData.push(['Faculty', _xlsFaculty]);
     if (_xlsDepartment) worksheetData.push(['Department', _xlsDepartment]);
-    if (_xlsCurriculum) worksheetData.push(['Curriculum', _xlsCurriculum]);
     if (_xlsConcentration) worksheetData.push(['Concentration', _xlsConcentration]);
     
     worksheetData.push([]); // Empty row before course data
@@ -2316,14 +2364,16 @@ export default function ProgressPage() {
     const csvLines: string[] = [];
     csvLines.push('course data'); // Title
     
-    // Add planning metadata header rows
+    // Add planning metadata header rows (matches data-entry page format exactly)
+    const _csvCurriculumId = completedData?.selectedCurriculum || '';
+    const _csvCurriculum = completedData?.curriculumName || curriculumData?.name || '';
     const _csvFaculty = completedData?.facultyName || '';
     const _csvDepartment = completedData?.departmentName || '';
-    const _csvCurriculum = completedData?.curriculumName || curriculumData?.name || '';
     const _csvConcentration = completedData?.concentrationName || '';
+    if (_csvCurriculumId) csvLines.push(formatCsvRow(['CURRICULUM_ID', _csvCurriculumId]));
+    if (_csvCurriculum) csvLines.push(formatCsvRow(['CURRICULUM_NAME', _csvCurriculum]));
     if (_csvFaculty) csvLines.push(formatCsvRow(['Faculty', _csvFaculty]));
     if (_csvDepartment) csvLines.push(formatCsvRow(['Department', _csvDepartment]));
-    if (_csvCurriculum) csvLines.push(formatCsvRow(['Curriculum', _csvCurriculum]));
     if (_csvConcentration) csvLines.push(formatCsvRow(['Concentration', _csvConcentration]));
     
     csvLines.push(''); // Empty line before course data

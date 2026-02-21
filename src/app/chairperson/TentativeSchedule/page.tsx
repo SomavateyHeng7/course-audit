@@ -108,6 +108,27 @@ const TentativeSchedulePage: React.FC = () => {
 
   useEffect(() => {
     fetchSchedules();
+    
+    // Refetch schedules when page becomes visible (e.g., after creating a schedule)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchSchedules();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also refetch when window gains focus
+    const handleFocus = () => {
+      fetchSchedules();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const filteredSchedules = schedules.filter(schedule =>
@@ -607,7 +628,7 @@ const TentativeSchedulePage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 
