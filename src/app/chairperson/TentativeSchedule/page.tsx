@@ -628,7 +628,7 @@ const TentativeSchedulePage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 

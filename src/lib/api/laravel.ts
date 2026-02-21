@@ -291,6 +291,25 @@ export async function deleteUser(id: number) {
   });
 }
 
+// Audit Logs
+export async function getAuditLogs(params?: {
+  page?: number;
+  perPage?: number;
+  action?: string;
+  entity_type?: string;
+  search?: string;
+}) {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.perPage) queryParams.append('per_page', params.perPage.toString());
+  if (params?.action) queryParams.append('action', params.action);
+  if (params?.entity_type) queryParams.append('entity_type', params.entity_type);
+  if (params?.search) queryParams.append('search', params.search);
+  
+  const queryString = queryParams.toString();
+  return authenticatedRequest(`/admin/audit-logs${queryString ? `?${queryString}` : ''}`);
+}
+
 // Curricula
 export async function getCurricula() {
   return authenticatedRequest('/curricula');
