@@ -16,6 +16,8 @@ export interface FileMetadata {
   faculty?: string;
   department?: string;
   curriculum?: string;
+  /** Raw UUID from the CURRICULUM_ID row in the new export format */
+  curriculumId?: string;
   concentration?: string;
 }
 
@@ -162,9 +164,12 @@ export function parseTranscriptCSV(csvText: string): TranscriptParseResult {
       const loweredName = courseName.toLowerCase();
 
       // Detect metadata header rows (Faculty, Department, Curriculum, Concentration)
+      // Handle both old format (Curriculum,<name>) and new format (CURRICULUM_ID,<uuid> / CURRICULUM_NAME,<name>)
       if (loweredName === 'faculty' && rawCode) { metadata.faculty = rawCode.trim(); return; }
       if (loweredName === 'department' && rawCode) { metadata.department = rawCode.trim(); return; }
       if (loweredName === 'curriculum' && rawCode) { metadata.curriculum = rawCode.trim(); return; }
+      if (loweredName === 'curriculum_id' && rawCode) { metadata.curriculumId = rawCode.trim(); return; }
+      if (loweredName === 'curriculum_name' && rawCode) { metadata.curriculum = rawCode.trim(); return; }
       if (loweredName === 'concentration' && rawCode) { metadata.concentration = rawCode.trim(); return; }
 
       // Skip high-level headers and summaries

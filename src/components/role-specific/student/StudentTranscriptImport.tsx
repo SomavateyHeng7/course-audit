@@ -149,13 +149,18 @@ export default function StudentTranscriptImport({
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [curriculumCache, setCurriculumCache] = useState<any | null>(null);
+  /** Curriculum UUID extracted directly from the imported file (new format CURRICULUM_ID row).
+   *  Used as a fallback when the curriculumId prop hasn't been updated yet by the parent. */
+  const [fileMetadataCurriculumId, setFileMetadataCurriculumId] = useState<string>('');
 
   useEffect(() => {
     setCurriculumCache(null);
-  }, [curriculumId]);
+  }, [curriculumId, fileMetadataCurriculumId]);
 
   const fetchActiveCurriculum = async () => {
-    if (!curriculumId) {
+    // Prefer the prop (set by parent dropdowns), fall back to the UUID embedded in the file
+    const effectiveId = curriculumId || fileMetadataCurriculumId;
+    if (!effectiveId) {
       throw new Error('No curriculum selected');
     }
 
@@ -165,7 +170,7 @@ export default function StudentTranscriptImport({
 
     const data = await getPublicCurricula();
     const curricula = data.curricula || [];
-    const found = curricula.find((curr: any) => curr.id === curriculumId);
+    const found = curricula.find((curr: any) => curr.id === effectiveId);
 
     if (!found) {
       throw new Error('Curriculum not found');
@@ -477,6 +482,11 @@ export default function StudentTranscriptImport({
 
       setImportResult(result);
 
+      // Stash the UUID from the file so fetchActiveCurriculum can use it as fallback
+      if (result.metadata?.curriculumId) {
+        setFileMetadataCurriculumId(result.metadata.curriculumId);
+      }
+
       // Emit metadata immediately so parent can auto-fill dropdowns before categorization
       if (result.metadata && onMetadataExtracted) {
         onMetadataExtracted(result.metadata);
@@ -510,8 +520,9 @@ export default function StudentTranscriptImport({
   const applyImportedCourses = async () => {
     if (!importResult) return;
 
-    if (!curriculumId) {
-      showError('Please select a curriculum first, then click Apply.', 'No Curriculum Selected');
+    const effectiveCurriculumId = curriculumId || fileMetadataCurriculumId;
+    if (!effectiveCurriculumId) {
+      showError('Please select a curriculum using the dropdowns above, then click Apply.', 'No Curriculum Selected');
       return;
     }
 
@@ -562,6 +573,7 @@ export default function StudentTranscriptImport({
     setAnalysisResult(null);
     setImportStatus('idle');
     setImportError('');
+    setFileMetadataCurriculumId('');
   };
 
   return (
@@ -621,11 +633,13 @@ export default function StudentTranscriptImport({
         )}
 
         {/* Import Result with Course Analysis */}
-        {importResult && analysisResult && (
+        {importResult && (
           <div className="mb-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
             <div className="flex items-center gap-2 text-green-800 dark:text-green-200 mb-3">
               <CheckCircle className="w-4 h-4" />
-              <span className="font-medium">Import & Analysis Complete</span>
+              <span className="font-medium">
+                {analysisResult ? 'Import & Analysis Complete' : 'File Parsed Successfully'}
+              </span>
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
@@ -633,42 +647,70 @@ export default function StudentTranscriptImport({
                 <span className="font-medium">Total Courses:</span>
                 <div className="text-lg">{importResult.summary.totalCourses}</div>
               </div>
-              <div>
-                <span className="font-medium">Matched:</span>
-                <div className="text-lg text-green-600">{analysisResult.matchedCount}</div>
-              </div>
-              <div>
-                <span className="font-medium">Unmatched:</span>
-                <div className="text-lg text-blue-600">{analysisResult.unmatchedCourses.length}</div>
-              </div>
+              {analysisResult ? (
+                <>
+                  <div>
+                    <span className="font-medium">Matched:</span>
+                    <div className="text-lg text-green-600">{analysisResult.matchedCount}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium">Unmatched:</span>
+                    <div className="text-lg text-blue-600">{analysisResult.unmatchedCourses.length}</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <span className="font-medium">Completed:</span>
+                    <div className="text-lg text-green-600">{importResult.summary.completedCourses}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium">Pending:</span>
+                    <div className="text-lg text-blue-600">{importResult.summary.pendingCourses}</div>
+                  </div>
+                </>
+              )}
               <div>
                 <span className="font-medium">Credits Earned:</span>
                 <div className="text-lg">{importResult.summary.totalCreditsCompleted}</div>
               </div>
             </div>
 
-            {/* Course Categories Summary */}
-            <div className="mb-4">
-              <span className="font-medium text-sm">Course Categories:</span>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-                {Object.entries(analysisResult.categorizedCourses).map(([category, courses]) => {
-                  const foundCourses = courses.filter(c => c.found);
-                  const completedCourses = courses.filter(c => c.status === 'completed');
-                  
-                  return (
-                    <div key={category} className="p-2 bg-white dark:bg-gray-800 rounded border">
-                      <div className="font-medium text-sm">{category}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {foundCourses.length} found, {completedCourses.length} completed
-                      </div>
-                    </div>
-                  );
-                })}
+            {/* Curriculum auto-fill notice when no analysis yet */}
+            {!analysisResult && (
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded text-sm text-blue-800 dark:text-blue-200">
+                {curriculumId
+                  ? 'Curriculum selected. Click "Apply Categorized Courses" to categorize and apply your courses.'
+                  : importResult.metadata?.curriculumId || importResult.metadata?.curriculum
+                    ? 'Your curriculum was detected from the file and has been auto-selected above. Click "Apply Categorized Courses" to proceed.'
+                    : 'Please select your curriculum using the dropdowns above, then click "Apply Categorized Courses".'}
               </div>
-            </div>
+            )}
 
-            {/* Unmatched Courses (Free Electives) */}
-            {analysisResult.unmatchedCourses.length > 0 && (
+            {/* Course Categories Summary (only when analysis is done) */}
+            {analysisResult && (
+              <div className="mb-4">
+                <span className="font-medium text-sm">Course Categories:</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                  {Object.entries(analysisResult.categorizedCourses).map(([category, courses]) => {
+                    const foundCourses = courses.filter(c => c.found);
+                    const completedCourses = courses.filter(c => c.status === 'completed');
+                    
+                    return (
+                      <div key={category} className="p-2 bg-white dark:bg-gray-800 rounded border">
+                        <div className="font-medium text-sm">{category}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {foundCourses.length} found, {completedCourses.length} completed
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Unmatched Courses (Free Electives) — only when analysis done */}
+            {analysisResult && analysisResult.unmatchedCourses.length > 0 && (
               <div className="mb-4">
                 <span className="font-medium text-sm text-blue-800 dark:text-blue-200">
                   Unmatched Courses (Added as Free Electives):

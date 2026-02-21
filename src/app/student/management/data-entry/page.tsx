@@ -721,18 +721,14 @@ export default function DataEntryPage() {
   };
 
   const handleSkipToPlanning = () => {
-    if (!selectedDepartment || !selectedCurriculum) {
-      showError('Please select your faculty, department, and curriculum first');
-      return;
-    }
-    // Save minimal data and skip to planning
+    // Navigate to course planning regardless — new students can plan without entering past data
     router.push('/student/management/course-planning');
   };
 
   /** Auto-fills dropdowns from metadata embedded in an imported transcript file */
   const handleMetadataExtracted = (meta: FileMetadata) => {
     // Only act when the file actually carries planning metadata
-    const hasMeta = meta.faculty || meta.department || meta.curriculum || meta.concentration;
+    const hasMeta = meta.faculty || meta.department || meta.curriculum || meta.curriculumId || meta.concentration;
     if (!hasMeta) return;
 
     // ALWAYS clear all selectors first so no stale manual selections can linger
@@ -743,15 +739,18 @@ export default function DataEntryPage() {
     setSelectedConcentration('');
     setPendingConcentrationName(null);
 
-    if (!meta.curriculum) return;
+    if (!meta.curriculum && !meta.curriculumId) return;
 
-    // Find the matching curriculum in the already-loaded list
-    const matchedCurriculum = curricula.find(
-      c => c.name.toLowerCase() === meta.curriculum!.toLowerCase()
-    );
+    // Find the matching curriculum — prefer exact UUID match (new format), fall back to name match (old format)
+    const matchedCurriculum =
+      meta.curriculumId
+        ? curricula.find(c => c.id === meta.curriculumId)
+        : curricula.find(c => c.name.toLowerCase() === meta.curriculum!.toLowerCase());
+
     if (!matchedCurriculum) {
-      console.log('[AutoFill] No curriculum match found for:', meta.curriculum);
-      warning(`Could not auto-fill: curriculum "${meta.curriculum}" was not found in the system. Please select your values manually.`);
+      const label = meta.curriculumId ?? meta.curriculum;
+      console.log('[AutoFill] No curriculum match found for:', label);
+      warning(`Could not auto-fill: curriculum "${label}" was not found in the system. Please select your values manually.`);
       return;
     }
 
@@ -916,7 +915,6 @@ export default function DataEntryPage() {
         }}
       />
 
-      {/* Unmatched Courses Section */}
       {unmatchedCourses.length > 0 && (
         <UnmatchedCoursesSection
           unmatchedCourses={unmatchedCourses}
