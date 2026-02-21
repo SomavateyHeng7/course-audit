@@ -27,6 +27,7 @@ import {
   Library,
   Folders,
   FileUp,
+  ClipboardList,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -37,21 +38,21 @@ const defaultNavigationItems = [
     href: "/student/management",
     icon: LayoutDashboard,
   },
-  {
-    name: "Plan Future Courses",
-    href: "/student/FutureCourses",
-    icon: Library,
-  },
+  // {
+  //   name: "Plan Future Courses",
+  //   href: "/student/FutureCourses",
+  //   icon: Library,
+  // },
   {
     name: "Next Tentative Schedules",
     href: "/student/SemesterCourse",
     icon: Book,
   },
-  {
-    name: "All Curricula",
-    href: "/student/allCurricula",
-    icon: Folders,
-  },
+  // {
+  //   name: "All Curricula",
+  //   href: "/student/allCurricula",
+  //   icon: Folders,
+  // },
   {
     name: 'Graduation Portal',
     href: '/student/GraduationPortal',
@@ -80,6 +81,11 @@ const adminNavigationItems = [
     name: "Department Management",
     href: "/admin/department",
     icon: Building,
+  },
+  {
+    name: "Audit Log",
+    href: "/admin/audit-log",
+    icon: ClipboardList,
   },
 ];
 
