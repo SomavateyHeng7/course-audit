@@ -193,9 +193,12 @@ export default function ExportDataMenu({
     const highlightRowIndices: number[] = [];
 
     worksheetData.push(['course data']);
+    // Curriculum metadata
+    if (selectedCurriculum) worksheetData.push(['CURRICULUM_ID', selectedCurriculum]);
+    if (curriculumName) worksheetData.push(['CURRICULUM_NAME', curriculumName]);
+    // Additional metadata
     if (facultyName) worksheetData.push(['Faculty', facultyName]);
     if (departmentName) worksheetData.push(['Department', departmentName]);
-    if (curriculumName) worksheetData.push(['Curriculum', curriculumName]);
     if (concentrationName) worksheetData.push(['Concentration', concentrationName]);
     worksheetData.push([]);
 
@@ -269,9 +272,12 @@ export default function ExportDataMenu({
 
     const csvLines: string[] = [];
     csvLines.push('course data');
+    // Curriculum metadata
+    if (selectedCurriculum) csvLines.push(formatCsvRow(['CURRICULUM_ID', selectedCurriculum]));
+    if (curriculumName) csvLines.push(formatCsvRow(['CURRICULUM_NAME', curriculumName]));
+    // Additional metadata
     if (facultyName) csvLines.push(formatCsvRow(['Faculty', facultyName]));
     if (departmentName) csvLines.push(formatCsvRow(['Department', departmentName]));
-    if (curriculumName) csvLines.push(formatCsvRow(['Curriculum', curriculumName]));
     if (concentrationName) csvLines.push(formatCsvRow(['Concentration', concentrationName]));
     csvLines.push('');
 

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -54,7 +55,7 @@ import {
 } from '@/lib/utils/filePreValidation';
 import { FilePreValidator } from '@/components/graduation/FilePreValidator';
 
-type SubmissionStep = 'select' | 'pin' | 'curriculum' | 'upload' | 'preview' | 'success';
+type SubmissionStep = 'select' | 'pin' | 'upload' | 'curriculum' | 'preview' | 'success';
 
 interface SessionState {
   token: string;
@@ -66,6 +67,8 @@ interface SessionState {
 const GraduationPortalPage: React.FC = () => {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const curriculumListRef = useRef<HTMLDivElement>(null);
+  const selectedCurriculumRef = useRef<HTMLDivElement>(null);
   const { success: showSuccess, error: showError, warning: showWarning } = useToastHelpers();
   
   // Portal list state
@@ -140,6 +143,19 @@ const GraduationPortalPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [session]);
 
+  // Auto-scroll to selected curriculum when entering curriculum step
+  useEffect(() => {
+    if (currentStep === 'curriculum' && selectedCurriculum && selectedCurriculumRef.current && curriculumListRef.current) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        selectedCurriculumRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 100);
+    }
+  }, [currentStep, selectedCurriculum]);
+
   const loadPortals = async () => {
     setIsLoadingPortals(true);
     setPortalsError(null);
@@ -190,10 +206,10 @@ const GraduationPortalPage: React.FC = () => {
       });
       setSessionTimeRemaining(response.session.expires_in_minutes * 60);
       
-      // Load curricula for selection
+      // Load curricula for selection (before file upload so we can auto-detect)
       await loadCurricula(selectedPortal.id);
       
-      setCurrentStep('curriculum');
+      setCurrentStep('upload');
     } catch (error) {
       if (error instanceof Error) {
         try {
@@ -295,7 +311,7 @@ const GraduationPortalPage: React.FC = () => {
     if (session) {
       setSession({ ...session, curriculumId: selectedCurriculum.id });
     }
-    setCurrentStep('upload');
+    setCurrentStep('preview');
   };
 
   const handleSessionExpired = () => {
@@ -377,7 +393,7 @@ const GraduationPortalPage: React.FC = () => {
 
   const handleValidationContinue = () => {
     if (preValidation?.canProceed && parseResult) {
-      setCurrentStep('preview');
+      setCurrentStep('curriculum');
     }
   };
 
@@ -551,6 +567,30 @@ const GraduationPortalPage: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  /**
+   * Generate a dynamic placeholder for student ID based on curriculum info.
+   * Extracts batch year patterns like "65x", "2022" to suggest format.
+   */
+  const getStudentIdPlaceholder = (): string => {
+    const basePlaceholder = 'e.g., 6512345 or John Doe';
+    
+    // Try to extract batch year from curriculum name or ID
+    const currName = selectedCurriculum?.name || parseResult?.curriculumMetadata?.name || '';
+    const currId = selectedCurriculum?.id || parseResult?.curriculumMetadata?.id || '';
+    const combined = `${currName} ${currId}`.toLowerCase();
+    
+    // Look for patterns like "65x", "66x", "2022", "2023"
+    const batchMatch = combined.match(/\b(6[0-9])x?\b|\b(20[2-3][0-9])\b/);
+    if (batchMatch) {
+      const batchYear = batchMatch[1] || batchMatch[2]?.slice(2); // Get 2-digit year
+      if (batchYear) {
+        return `e.g., ${batchYear}12345 or Your Name`;
+      }
+    }
+    
+    return basePlaceholder;
+  };
+
   return (
     <div className="min-h-screen from-teal-50 via-white to-blue-50 dark:from-gray-900 dark:via-background dark:to-gray-900">
       <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -583,8 +623,8 @@ const GraduationPortalPage: React.FC = () => {
         {/* Progress Steps */}
         <div className="flex items-center justify-center mb-8">
           <div className="flex items-center gap-2">
-            {['Select Portal', 'Enter PIN', 'Curriculum', 'Upload File', 'Preview', 'Complete'].map((step, index) => {
-              const stepKeys: SubmissionStep[] = ['select', 'pin', 'curriculum', 'upload', 'preview', 'success'];
+            {['Select Portal', 'Enter PIN', 'Upload File', 'Curriculum', 'Preview', 'Complete'].map((step, index) => {
+              const stepKeys: SubmissionStep[] = ['select', 'pin', 'upload', 'curriculum', 'preview', 'success'];
               const isActive = stepKeys.indexOf(currentStep) >= index;
               const isCurrent = stepKeys[index] === currentStep;
               
@@ -827,7 +867,7 @@ const GraduationPortalPage: React.FC = () => {
           </Card>
         )}
 
-        {/* Step 3: Curriculum Selection */}
+        {/* Step 4: Curriculum Selection */}
         {currentStep === 'curriculum' && selectedPortal && (
           <Card className="max-w-lg mx-auto">
             <CardHeader className="text-center">
@@ -844,6 +884,17 @@ const GraduationPortalPage: React.FC = () => {
                 <p className="text-sm font-medium">{selectedPortal.name}</p>
                 <p className="text-xs text-muted-foreground">{selectedPortal.department?.name ?? 'Unknown Department'}</p>
               </div>
+
+              {/* Auto-detected curriculum notice */}
+              {selectedCurriculum && parseResult?.curriculumMetadata?.id && (
+                <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <AlertDescription className="text-green-800 dark:text-green-200 text-sm">
+                    <strong>{selectedCurriculum.name}</strong> was auto-detected from your uploaded file. 
+                    You can change it if needed.
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {isLoadingCurricula ? (
                 <div className="text-center py-8">
@@ -891,10 +942,11 @@ const GraduationPortalPage: React.FC = () => {
                   {selectedDepartmentId && curricula.length > 0 && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Select Curriculum</label>
-                      <div className="grid gap-2">
+                      <div className={`${curricula.length > 3 ? 'max-h-[240px] overflow-y-auto' : ''} grid gap-2 pr-1`}>
                         {curricula.map(curr => (
                           <div
                             key={curr.id}
+                            ref={selectedCurriculum?.id === curr.id ? selectedCurriculumRef : null}
                             onClick={() => handleCurriculumSelect(curr)}
                             className={`p-3 border rounded-lg cursor-pointer transition-all ${
                               selectedCurriculum?.id === curr.id
@@ -922,7 +974,7 @@ const GraduationPortalPage: React.FC = () => {
               ) : (
                 // Normal: Show curriculum cards with search for longer lists
                 <div className="space-y-3">
-                  {curricula.length > 4 && (
+                  {curricula.length > 3 && (
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
@@ -933,7 +985,10 @@ const GraduationPortalPage: React.FC = () => {
                       />
                     </div>
                   )}
-                  <div className="max-h-[320px] overflow-y-auto space-y-2 pr-1">
+                  <div 
+                    ref={curriculumListRef}
+                    className={`${curricula.length > 3 ? 'max-h-[320px] overflow-y-auto' : ''} space-y-2 pr-1`}
+                  >
                     {curricula
                       .filter(c => 
                         !curriculumSearch || 
@@ -943,6 +998,7 @@ const GraduationPortalPage: React.FC = () => {
                       .map(curr => (
                         <div
                           key={curr.id}
+                          ref={selectedCurriculum?.id === curr.id ? selectedCurriculumRef : null}
                           onClick={() => handleCurriculumSelect(curr)}
                           className={`p-3 border rounded-lg cursor-pointer transition-all ${
                             selectedCurriculum?.id === curr.id
@@ -985,7 +1041,7 @@ const GraduationPortalPage: React.FC = () => {
                       </p>
                     )}
                   </div>
-                  {curricula.length > 4 && (
+                  {curricula.length > 3 && (
                     <p className="text-xs text-muted-foreground text-center">
                       {curricula.length} curricula available
                     </p>
@@ -994,7 +1050,7 @@ const GraduationPortalPage: React.FC = () => {
               )}
 
               <div className="flex gap-3 pt-4">
-                <Button variant="outline" onClick={() => setCurrentStep('pin')} className="flex-1">
+                <Button variant="outline" onClick={() => setCurrentStep('upload')} className="flex-1">
                   Back
                 </Button>
                 <Button 
@@ -1009,7 +1065,7 @@ const GraduationPortalPage: React.FC = () => {
           </Card>
         )}
 
-        {/* Step 4: File Upload */}
+        {/* Step 3: File Upload */}
         {currentStep === 'upload' && selectedPortal && (
           <Card className="max-w-lg mx-auto">
             <CardHeader className="text-center">
@@ -1091,7 +1147,7 @@ const GraduationPortalPage: React.FC = () => {
               )}
               
               <div className="flex gap-3 pt-2">
-                <Button variant="outline" onClick={() => setCurrentStep('curriculum')} className="flex-1">
+                <Button variant="outline" onClick={() => setCurrentStep('pin')} className="flex-1">
                   Back
                 </Button>
               </div>
@@ -1099,7 +1155,7 @@ const GraduationPortalPage: React.FC = () => {
           </Card>
         )}
 
-        {/* Step 4: Preview */}
+        {/* Step 5: Preview */}
         {currentStep === 'preview' && selectedPortal && parseResult && (
           <Card className="max-w-2xl mx-auto">
             <CardHeader>
@@ -1188,7 +1244,7 @@ const GraduationPortalPage: React.FC = () => {
                   <Input
                     value={studentIdentifier}
                     onChange={(e) => setStudentIdentifier(e.target.value)}
-                    placeholder="e.g., 6512345 or John Doe"
+                    placeholder={getStudentIdPlaceholder()}
                     className="bg-white dark:bg-gray-900"
                   />
                   <p className="text-xs text-muted-foreground">
@@ -1235,7 +1291,7 @@ const GraduationPortalPage: React.FC = () => {
               </div>
               
               <div className="flex gap-3 pt-2">
-                <Button variant="outline" onClick={() => setCurrentStep('upload')} className="flex-1">
+                <Button variant="outline" onClick={() => setCurrentStep('curriculum')} className="flex-1">
                   Back
                 </Button>
                 <Button 
@@ -1256,7 +1312,7 @@ const GraduationPortalPage: React.FC = () => {
           </Card>
         )}
 
-        {/* Step 5: Success */}
+        {/* Step 6: Success */}
         {currentStep === 'success' && selectedPortal && (
           <Card className="max-w-md mx-auto text-center">
             <CardContent className="pt-8 pb-6">
