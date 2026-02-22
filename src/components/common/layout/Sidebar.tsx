@@ -25,8 +25,8 @@ import {
   Library,
   Folders,
   FileUp,
-} from 'lucide-react';
-import Image from 'next/image';
+} from "lucide-react";
+import Image from "next/image";
 
 // Default navigation for student users
 const defaultNavigationItems = [

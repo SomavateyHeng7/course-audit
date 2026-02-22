@@ -253,9 +253,9 @@ const TentativeSchedulePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-8">
+    <div>
       <div className="container mx-auto max-w-7xl">
-        {/* Header */}
+      {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">
@@ -327,7 +327,6 @@ const TentativeSchedulePage: React.FC = () => {
                     : 'Create your first tentative schedule to get started'
                 }
                 action={!searchTerm ? { label: 'Create New Schedule', onClick: handleCreateSchedule } : undefined}
-
               />
             ) : (
               <div className="space-y-4">
@@ -510,125 +509,6 @@ const TentativeSchedulePage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Publish/Unpublish Confirmation Dialog */}
-      <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {scheduleToPublish?.isPublished ? 'Unpublish' : 'Publish'} Schedule
-            </DialogTitle>
-            <DialogDescription>
-              {scheduleToPublish?.isPublished ? (
-                <>
-                  Are you sure you want to unpublish "{scheduleToPublish?.name}"?
-                  <br /><br />
-                  This will remove the schedule from the student and advisor view pages.
-                </>
-              ) : (
-                <>
-                  Are you sure you want to publish "{scheduleToPublish?.name}"?
-                  <br /><br />
-                  Once published, this schedule will be visible to students and advisors.
-                  They will be able to view it at:
-                  <br />• Student view: /student/SemesterCourse
-                  <br />• Advisor view: /advisor/schedules
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setPublishDialogOpen(false)}
-              disabled={isPublishing}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant={scheduleToPublish?.isPublished ? "outline" : "default"}
-              onClick={handleConfirmPublish}
-              disabled={isPublishing}
-            >
-              {isPublishing ? 'Processing...' : scheduleToPublish?.isPublished ? 'Unpublish' : 'Publish'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Schedule</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete the schedule "{scheduleToDelete?.name}"?
-              This action cannot be undone and will permanently remove the schedule and all its courses.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting ? 'Deleting...' : 'Delete Schedule'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Active Status Confirmation Dialog */}
-      <Dialog open={activeDialogOpen} onOpenChange={setActiveDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {scheduleToActivate?.isActive ? 'Deactivate' : 'Set as Active'} Schedule
-            </DialogTitle>
-            <DialogDescription>
-              {scheduleToActivate?.isActive ? (
-                <>
-                  Are you sure you want to deactivate "{scheduleToActivate?.name}"?
-                  <br /><br />
-                  Students will no longer see this as the active schedule for planning.
-                </>
-              ) : (
-                <>
-                  Are you sure you want to set "{scheduleToActivate?.name}" as the active schedule?
-                  <br /><br />
-                  <strong>Note:</strong> Only one schedule can be active per department. 
-                  All other active schedules in this department will be automatically deactivated.
-                  <br /><br />
-                  Students will use this schedule for course planning.
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setActiveDialogOpen(false)}
-              disabled={isActivating}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="default"
-              onClick={handleConfirmActive}
-              disabled={isActivating}
-            >
-              {isActivating ? 'Processing...' : scheduleToActivate?.isActive ? 'Deactivate' : 'Set Active'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

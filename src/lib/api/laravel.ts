@@ -632,23 +632,16 @@ export async function getPublicGraduationPortals(params?: {
   const queryString = searchParams.toString();
   const url = `${API_BASE}/public/graduation-portals${queryString ? `?${queryString}` : ''}`;
   
-  console.log('[API] Fetching graduation portals from:', url);
-  
   const response = await fetch(url, {
     headers: { 'Accept': 'application/json' }
   });
   
-  console.log('[API] Response status:', response.status);
-  
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    console.error('[API] Error response:', error);
     throw new Error(error.error?.message || 'Failed to fetch graduation portals');
   }
   
-  const data = await response.json();
-  console.log('[API] Response data:', data);
-  return data;
+  return response.json();
 }
 
 /**
@@ -869,8 +862,7 @@ export async function getGraduationPortals(params?: {
   status?: 'active' | 'closed';
   curriculum_id?: string;
 }): Promise<{
-  data?: GraduationPortal[];
-  portals?: GraduationPortal[];
+  data: GraduationPortal[];
   meta?: { current_page: number; last_page: number; total: number };
 }> {
   const searchParams = new URLSearchParams();
@@ -878,12 +870,7 @@ export async function getGraduationPortals(params?: {
   if (params?.curriculum_id) searchParams.set('curriculum_id', params.curriculum_id);
   
   const queryString = searchParams.toString();
-  const url = `/graduation-portals${queryString ? `?${queryString}` : ''}`;
-  console.log('[API] Fetching authenticated portals from:', url);
-  
-  const result = await authenticatedRequest(url);
-  console.log('[API] Authenticated portals response:', result);
-  return result;
+  return authenticatedRequest(`/graduation-portals${queryString ? `?${queryString}` : ''}`);
 }
 
 /**
@@ -1003,11 +990,7 @@ export async function getCacheSubmissions(portalId: string): Promise<{
   retention_info?: SubmissionRetentionInfo;
   note?: string;
 }> {
-  const url = `/graduation-portals/${portalId}/cache-submissions`;
-  console.log('[API] Fetching cache submissions from:', url);
-  const result = await authenticatedRequest(url);
-  console.log('[API] Cache submissions response:', result);
-  return result;
+  return authenticatedRequest(`/graduation-portals/${portalId}/cache-submissions`);
 }
 
 /**
@@ -1018,16 +1001,7 @@ export async function getCacheSubmission(
   portalId: string,
   submissionId: string
 ): Promise<{ submission: CacheSubmission & { courses: SubmissionCourse[] } }> {
-  const url = `/graduation-portals/${portalId}/cache-submissions/${submissionId}`;
-  console.log('[API] Fetching single submission:', url);
-  try {
-    const result = await authenticatedRequest(url);
-    console.log('[API] Submission response status:', result?.submission?.status);
-    return result;
-  } catch (err) {
-    console.error('[API] Failed to fetch submission:', { url, error: err instanceof Error ? err.message : err });
-    throw err;
-  }
+  return authenticatedRequest(`/graduation-portals/${portalId}/cache-submissions/${submissionId}`);
 }
 
 /**

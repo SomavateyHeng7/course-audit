@@ -220,8 +220,6 @@ export default function DataEntryPage() {
   const [assignedFreeElectives, setAssignedFreeElectives] = useState<FreeElectiveCourse[]>([]);
   const [electiveRules, setElectiveRules] = useState<any[]>([]);
   const [assignedFreeElectiveCodes, setAssignedFreeElectiveCodes] = useState<Set<string>>(new Set());
-  // Holds a concentration name received from an imported file until concentrations finish loading
-  const [pendingConcentrationName, setPendingConcentrationName] = useState<string | null>(null);
 
   // Check if user has any completed courses
   const hasCompletedCourses = Object.values(completedCourses).some(
@@ -721,6 +719,15 @@ export default function DataEntryPage() {
   };
 
   const handleSkipToPlanning = () => {
+    if (!selectedDepartment || !selectedCurriculum) {
+      showError('Please select your faculty, department, and curriculum first');
+      return;
+    }
+    // Save minimal data and skip to planning
+    router.push('/student/management/course-planning');
+  };
+
+  const handleSkipToPlanning = () => {
     // Navigate to course planning regardless — new students can plan without entering past data
     router.push('/student/management/course-planning');
   };
@@ -836,13 +843,6 @@ export default function DataEntryPage() {
               </Button>
             </div>
           )}
-          {/* UX hint — let users know the upload section below can fill these automatically */}
-          <div className="col-span-full flex items-start gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-200">
-            <span className="mt-0.5">💡</span>
-            <span>
-              <strong>Have a file exported from this system?</strong> Use the &quot;Import Transcript&quot; section below — your faculty, department, curriculum, and concentration will be filled in automatically.
-            </span>
-          </div>
           <div>
             <label className="block font-bold mb-2 text-gray-900 dark:text-foreground">Select Faculty</label>
             <Select value={selectedFaculty} onValueChange={value => {
@@ -1299,22 +1299,24 @@ export default function DataEntryPage() {
               />
             )}
             <div className="flex flex-col items-stretch sm:items-end gap-2">
-              <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-2">
-                <p className="text-sm text-blue-900 dark:text-blue-100">
-                  {hasCompletedCourses
-                    ? 'ℹ️ Courses imported. Continue to planning when ready.'
-                    : 'ℹ️ New here or no prior courses? You can skip straight to planning — no data entry needed.'}
-                </p>
-              </div>
+              {!hasCompletedCourses && selectedCurriculum && selectedDepartment && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-2">
+                  <p className="text-sm text-blue-900 dark:text-blue-100">
+                    ℹ️ No completed courses detected. You can skip to planning.
+                  </p>
+                </div>
+              )}
               <div className="flex gap-2">
-                <Button 
-                  onClick={handleSkipToPlanning}
-                  variant="outline"
-                  className="flex items-center gap-2 px-6 py-3 text-lg"
-                  size="lg"
-                >
-                  Skip to Planning
-                </Button>
+                {!hasCompletedCourses && selectedCurriculum && selectedDepartment && (
+                  <Button 
+                    onClick={handleSkipToPlanning}
+                    variant="outline"
+                    className="flex items-center gap-2 px-6 py-3 text-lg"
+                    size="lg"
+                  >
+                    Skip to Planning
+                  </Button>
+                )}
                 <Button 
                   onClick={handleCoursePlanning}
                   className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 text-primary-foreground flex items-center gap-2 px-8 py-3 text-lg shadow-md transform transition-all duration-200 hover:scale-[1.01] border-0"

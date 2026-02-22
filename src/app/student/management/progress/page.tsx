@@ -2325,17 +2325,12 @@ export default function ProgressPage() {
 
     worksheetData.push(['course data']); // Title (match CSV format)
     
-    // Add planning metadata header rows (matches data-entry page format exactly)
-    const _xlsCurriculumId = completedData?.selectedCurriculum || '';
-    const _xlsCurriculum = completedData?.curriculumName || curriculumData?.name || '';
-    const _xlsFaculty = completedData?.facultyName || '';
-    const _xlsDepartment = completedData?.departmentName || '';
-    const _xlsConcentration = completedData?.concentrationName || '';
-    if (_xlsCurriculumId) worksheetData.push(['CURRICULUM_ID', _xlsCurriculumId]);
-    if (_xlsCurriculum) worksheetData.push(['CURRICULUM_NAME', _xlsCurriculum]);
-    if (_xlsFaculty) worksheetData.push(['Faculty', _xlsFaculty]);
-    if (_xlsDepartment) worksheetData.push(['Department', _xlsDepartment]);
-    if (_xlsConcentration) worksheetData.push(['Concentration', _xlsConcentration]);
+    // Add curriculum metadata if available
+    if (curriculumData) {
+      worksheetData.push(['CURRICULUM_ID', curriculumData.id || '']);
+      worksheetData.push(['CURRICULUM_NAME', curriculumData.name || '']);
+      worksheetData.push(['CURRICULUM_YEAR', curriculumData.year || '']);
+    }
     
     worksheetData.push([]); // Empty row before course data
     
@@ -2408,17 +2403,12 @@ export default function ProgressPage() {
     const csvLines: string[] = [];
     csvLines.push('course data'); // Title
     
-    // Add planning metadata header rows (matches data-entry page format exactly)
-    const _csvCurriculumId = completedData?.selectedCurriculum || '';
-    const _csvCurriculum = completedData?.curriculumName || curriculumData?.name || '';
-    const _csvFaculty = completedData?.facultyName || '';
-    const _csvDepartment = completedData?.departmentName || '';
-    const _csvConcentration = completedData?.concentrationName || '';
-    if (_csvCurriculumId) csvLines.push(formatCsvRow(['CURRICULUM_ID', _csvCurriculumId]));
-    if (_csvCurriculum) csvLines.push(formatCsvRow(['CURRICULUM_NAME', _csvCurriculum]));
-    if (_csvFaculty) csvLines.push(formatCsvRow(['Faculty', _csvFaculty]));
-    if (_csvDepartment) csvLines.push(formatCsvRow(['Department', _csvDepartment]));
-    if (_csvConcentration) csvLines.push(formatCsvRow(['Concentration', _csvConcentration]));
+    // Add curriculum metadata if available
+    if (curriculumData) {
+      csvLines.push(formatCsvRow(['CURRICULUM_ID', curriculumData.id || '']));
+      csvLines.push(formatCsvRow(['CURRICULUM_NAME', curriculumData.name || '']));
+      csvLines.push(formatCsvRow(['CURRICULUM_YEAR', curriculumData.year || '']));
+    }
     
     csvLines.push(''); // Empty line before course data
     
