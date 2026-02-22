@@ -2,7 +2,7 @@
 
 This document coordinates three fixes that need frontend/backend work.
 
-**Last Updated:** February 16, 2026
+**Last Updated:** February 23, 2026
 
 ---
 
@@ -10,26 +10,149 @@ This document coordinates three fixes that need frontend/backend work.
 
 | Task | Frontend | Backend | Status |
 |------|----------|---------|--------|
-| Task 1 (Categories→Faculty) | ✅ **DONE** | ✅ **DONE + MIGRATED** | ✅ Complete |
-| Task 2 (Credits) | ✅ **DONE** | ✅ **DONE + MIGRATED** | ✅ Complete |
+| Task 1 (Categories→Faculty) | Update `departmentId`→`facultyId` in API calls | ✅ **DONE + MIGRATED** | 🟡 Needs Frontend |
+| Task 2 (Credits) | Update `requiredCourses`→`requiredCredits` | ✅ **DONE + MIGRATED** | 🟡 Needs Frontend |
 | Task 3 (Middleware) | ✅ DONE | Not needed | ✅ Complete |
 
 ---
 
-## Frontend Completion Summary (Feb 16, 2026)
+## ⚠️ FRONTEND WIRING NEEDED: Task 2 — Concentration Required Credits
 
-### Task 1: CourseType departmentId → facultyId
-**Files Changed:**
-- `src/services/courseTypesApi.ts` - Interface: `departmentId` → `facultyId`
-- `src/app/chairperson/create/details/page.tsx` - API call param: `departmentId` → `facultyId`
-- `src/app/chairperson/info_edit/[id]/page.tsx` - API call param: `departmentId` → `facultyId`
-- `src/components/features/curriculum/CoursesTab.tsx` - Added `facultyId` prop, API call updated
+**Last Updated:** February 23, 2026  
+Backend is fully migrated. The field `required_courses` no longer exists in the database — it is now `required_credits`. The frontend must be updated to match.
 
-### Task 2: requiredCourses → requiredCredits
-**Files Changed:**
-- `src/services/concentrationApi.ts` - API params: `requiredCourses` → `requiredCredits`
-- `src/components/features/curriculum/ConcentrationsTab_new.tsx` - Interface + UI labels updated
-- `src/components/features/management/ConcentrationAnalysis.tsx` - Interface + display text updated
+---
+
+### Affected Endpoints
+
+#### 1. `GET /api/curricula/{id}/concentrations`
+**Auth:** Sanctum (Chairperson)
+
+**Response shape (current — use this):**
+```json
+{
+  "concentrations": [
+    {
+      "id": 1,
+      "requiredCredits": 9,
+      "concentration": {
+        "id": 1,
+        "name": "Web Development",
+        "description": "...",
+        "courses": [
+          {
+            "id": 10,
+            "code": "CS 401",
+            "name": "Advanced Web Dev",
+            "credits": 3,
+            "description": "..."
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+> **OLD field was:** `requiredCourses` — **replace with** `requiredCredits` everywhere this response is consumed.
+
+---
+
+#### 2. `POST /api/curricula/{id}/concentrations`
+**Auth:** Sanctum (Chairperson)  
+**Purpose:** Add a concentration to a curriculum
+
+**Request body:**
+```json
+{
+  "concentrationId": 1,
+  "requiredCredits": 9
+}
+```
+
+| Field | Type | Required | Validation |
+|-------|------|----------|------------|
+| `concentrationId` | integer | ✅ | must exist in `concentrations` table |
+| `requiredCredits` | integer | optional | min: 1, max: 30 (defaults to `3` if omitted) |
+
+> **OLD field was:** `requiredCourses` — **replace with** `requiredCredits` in the request payload.
+
+**Success response (201):**
+```json
+{
+  "message": "Concentration added to curriculum successfully",
+  "curriculumConcentration": {
+    "id": 5,
+    "curriculum_id": 2,
+    "concentration_id": 1,
+    "required_credits": 9,
+    "created_at": "...",
+    "updated_at": "..."
+  }
+}
+```
+
+**Error — already added (400):**
+```json
+{ "error": "Concentration already added to curriculum" }
+```
+
+---
+
+#### 3. `PUT /api/curricula/{id}/concentrations/{concentrationId}`
+**Auth:** Sanctum (Chairperson)  
+**Purpose:** Update the required credits for an existing concentration in a curriculum
+
+**Request body:**
+```json
+{
+  "requiredCredits": 12
+}
+```
+
+| Field | Type | Required | Validation |
+|-------|------|----------|------------|
+| `requiredCredits` | integer | ✅ | min: 1, max: 30 |
+
+> **OLD field was:** `requiredCourses` — **replace with** `requiredCredits`.
+
+**Success response (200):**
+```json
+{
+  "message": "Concentration requirement updated successfully",
+  "curriculumConcentration": {
+    "id": 5,
+    "curriculum_id": 2,
+    "concentration_id": 1,
+    "required_credits": 12,
+    "updated_at": "..."
+  }
+}
+```
+
+---
+
+#### 4. `DELETE /api/curricula/{id}/concentrations/{concentrationId}`
+**Auth:** Sanctum (Chairperson)  
+**Purpose:** Remove a concentration from a curriculum — no field changes here.
+
+**Success response (200):**
+```json
+{ "message": "Concentration removed from curriculum successfully" }
+```
+
+---
+
+### Frontend Changes Checklist
+
+- [ ] Anywhere `requiredCourses` is **read** from GET response → change to `requiredCredits`
+- [ ] Anywhere `requiredCourses` is **sent** in POST/PUT body → change to `requiredCredits`
+- [ ] Update UI labels: `"Required Courses"` → `"Required Credits"`
+- [ ] Update input validation hints: change range hint from course-count (e.g. `1–10`) to credit range (`1–30`)
+- [ ] Update any TypeScript interface/type that has `requiredCourses: number` → `requiredCredits: number`
+
+### Files to search in frontend:
+Search for `requiredCourses` across the entire frontend codebase — every occurrence needs to be updated.
 
 ---
 

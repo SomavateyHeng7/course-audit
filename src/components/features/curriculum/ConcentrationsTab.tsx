@@ -25,7 +25,7 @@ interface Concentration {
 interface CurriculumConcentration {
   id: string;
   concentration: Concentration;
-  requiredCourses: number;
+  requiredCredits: number;
 }
 
 interface ConcentrationsTabProps {
@@ -100,7 +100,7 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
     }
   };
 
-  const handleUpdateRequiredCourses = async (concentrationId: string, newCount: number) => {
+  const handleUpdateRequiredCredits = async (concentrationId: string, newCount: number) => {
     if (newCount < 1) return;
     
     try {
@@ -119,8 +119,8 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
       // Reload data to reflect changes
       await loadData();
     } catch (err) {
-      console.error('Error updating required courses:', err);
-      setError('Failed to update required courses');
+      console.error('Error updating required credits:', err);
+      setError('Failed to update required credits');
     } finally {
       setLoading(false);
     }
@@ -141,10 +141,9 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
     if (!currentConcentration) return;
 
     const localValue = localInputValues[concentrationId];
-    if (localValue && localValue !== currentConcentration.requiredCourses) {
-      const maxCourses = currentConcentration.concentration.courses.length;
-      const validValue = Math.max(1, Math.min(localValue, maxCourses));
-      handleUpdateRequiredCourses(concentrationId, validValue);
+    if (localValue && localValue !== currentConcentration.requiredCredits) {
+      const validValue = Math.max(1, Math.min(localValue, 30));
+      handleUpdateRequiredCredits(concentrationId, validValue);
     }
   };
 
@@ -292,14 +291,14 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Required Courses:
+                        Required Credits:
                       </label>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
                           min="1"
-                          max={curriculumConcentration.concentration.courses.length}
-                          value={localInputValues[curriculumConcentration.concentration.id] ?? curriculumConcentration.requiredCourses}
+                          max={30}
+                          value={localInputValues[curriculumConcentration.concentration.id] ?? curriculumConcentration.requiredCredits}
                           onChange={(e) => handleInputChange(curriculumConcentration.concentration.id, e.target.value)}
                           onBlur={() => handleSaveInput(curriculumConcentration.concentration.id)}
                           onKeyDown={(e) => {
@@ -312,7 +311,7 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
                           placeholder="1"
                         />
                         {localInputValues[curriculumConcentration.concentration.id] && 
-                         localInputValues[curriculumConcentration.concentration.id] !== curriculumConcentration.requiredCourses && (
+                         localInputValues[curriculumConcentration.concentration.id] !== curriculumConcentration.requiredCredits && (
                           <button
                             onClick={() => handleSaveInput(curriculumConcentration.concentration.id)}
                             className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
@@ -322,7 +321,7 @@ export default function ConcentrationsTab({ concentrationTitle = "Concentrations
                           </button>
                         )}
                         <span className="text-sm text-gray-500 dark:text-gray-400">
-                          of {curriculumConcentration.concentration.courses.length}
+                          / 30 credits max
                         </span>
                       </div>
                     </div>

@@ -212,7 +212,7 @@ interface ConcentrationProgress {
     id: string;
     name: string;
     description?: string;
-    requiredCourses: number;
+    requiredCredits: number;
     courses: Array<{
       code: string;
       name: string;
@@ -634,9 +634,9 @@ export default function ProgressPage() {
           );
           
           const totalProgress = completedInConcentration.length + plannedInConcentration.length;
-          const progress = (totalProgress / concentration.requiredCourses) * 100;
-          const isEligible = totalProgress >= concentration.requiredCourses;
-          const remainingCourses = Math.max(0, concentration.requiredCourses - totalProgress);
+          const progress = (totalProgress / concentration.requiredCredits) * 100;
+          const isEligible = totalProgress >= concentration.requiredCredits;
+          const remainingCourses = Math.max(0, concentration.requiredCredits - totalProgress);
 
           return {
             concentration,
@@ -2213,7 +2213,7 @@ export default function ProgressPage() {
         concentrationAnalysis.forEach(analysis => {
           addText(`${analysis.concentration.name}: ${Math.round(analysis.progress)}%`, 12, true, margin + 20);
           addText(`  Completed: ${analysis.completedCourses.length} courses`, 10, false, margin + 40);
-          addText(`  Required: ${analysis.concentration.requiredCourses} courses`, 10, false, margin + 40);
+          addText(`  Required: ${analysis.concentration.requiredCredits} credits`, 10, false, margin + 40);
           if (analysis.remainingCourses > 0) {
             addText(`  Remaining: ${analysis.remainingCourses} courses`, 10, false, margin + 40);
           }
@@ -3058,7 +3058,7 @@ export default function ProgressPage() {
             {concentrationAnalysis.map((analysis) => {
               const completedCount = analysis.completedCourses.length;
               const plannedCount = analysis.plannedCourses.length;
-              const totalRequired = analysis.concentration.requiredCourses;
+              const totalRequired = analysis.concentration.requiredCredits;
               const totalProgress = completedCount + plannedCount;
               
               return (

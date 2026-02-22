@@ -107,7 +107,7 @@ interface Concentration {
   name: string;
   curriculumId?: string;
   description?: string;
-  requiredCourses: number;
+  requiredCredits: number;
   totalCourses?: number;
   courses?: Array<{
     code: string;
@@ -560,7 +560,7 @@ export default function CoursePlanningPage() {
           id: 'cs-ai',
           name: 'Artificial Intelligence',
           description: 'Focus on AI, machine learning, and intelligent systems',
-          requiredCourses: 5,
+          requiredCredits: 15,
           totalCourses: 8,
           courses: [
             { code: 'CSX4002', name: 'Machine Learning', credits: 3, description: 'Introduction to machine learning' },
@@ -577,7 +577,7 @@ export default function CoursePlanningPage() {
           id: 'cs-security',
           name: 'Cybersecurity',
           description: 'Focus on information security and cybersecurity',
-          requiredCourses: 4,
+          requiredCredits: 12,
           totalCourses: 6,
           courses: [
             { code: 'ITX4001', name: 'Cybersecurity', credits: 3, description: 'Information security fundamentals' },
@@ -1354,12 +1354,12 @@ export default function CoursePlanningPage() {
       );
       
       const totalProgress = completedInConcentration.length + plannedInConcentration.length;
-      const progress = (totalProgress / (concentration.requiredCourses || 1)) * 100;
-      const isEligible = totalProgress >= (concentration.requiredCourses || 0);
-      const remainingCourses = Math.max(0, (concentration.requiredCourses || 0) - totalProgress);
+      const progress = (totalProgress / (concentration.requiredCredits || 1)) * 100;
+      const isEligible = totalProgress >= (concentration.requiredCredits || 0);
+      const remainingCourses = Math.max(0, (concentration.requiredCredits || 0) - totalProgress);
 
       console.log(`🔍 DEBUG: Concentration '${concentration.name}':`, {
-        requiredCourses: concentration.requiredCourses,
+        requiredCredits: concentration.requiredCredits,
         concentrationCourses: concentrationCourseCodes,
         completedInConcentration,
         plannedInConcentration,
@@ -1965,7 +1965,7 @@ export default function CoursePlanningPage() {
                 id: analysis.concentration.id,
                 name: analysis.concentration.name,
                 description: analysis.concentration.description,
-                requiredCredits: analysis.concentration.requiredCourses || 0
+                requiredCredits: analysis.concentration.requiredCredits || 0
               },
               isEligible: analysis.isEligible,
               progress: analysis.progress,
