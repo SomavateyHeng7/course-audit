@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToastHelpers } from '@/hooks/useToast';
+import { useAuth } from '@/contexts/SanctumAuthContext';
 import { API_BASE, getPublicDepartments, getPublishedSchedules, getPublishedSchedule } from '@/lib/api/laravel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,7 +41,11 @@ import {
   List,
   Clock,
   Target,
-  LayoutGrid
+  LayoutGrid,
+  UserCheck,
+  ToggleLeft,
+  ToggleRight,
+  Sparkles
 } from 'lucide-react';
 
 // Simplified interfaces for course planning
@@ -72,6 +77,7 @@ interface PlannedCourse {
   validationMessage?: string;
   validationNotes?: string[];
   status: string;
+  source?: 'tentative' | 'manual'; // Track source of the course
 }
 
 interface AvailableCourse {
@@ -170,10 +176,14 @@ const ensureSemesterLabel = (label: string | undefined, fallbackValue?: string) 
 export default function CoursePlanningPage() {
   const router = useRouter();
   const { success, error: showError, warning, info } = useToastHelpers();
+  const { user } = useAuth();
   
   // Check for data entry context
   const [dataEntryContext, setDataEntryContext] = useState<DataEntryContext | null>(null);
   const [hasValidContext, setHasValidContext] = useState(false);
+  
+  // Planning mode: 'manual' or 'tentative'
+  const [planningMode, setPlanningMode] = useState<'manual' | 'tentative'>('manual');
   
   // State management
   const [availableCourses, setAvailableCourses] = useState<AvailableCourse[]>([]);
@@ -207,6 +217,9 @@ export default function CoursePlanningPage() {
   const [selectedTentativeSchedule, setSelectedTentativeSchedule] = useState<string>('');
   const [loadingSchedules, setLoadingSchedules] = useState(false);
   const [showSectionsInList, setShowSectionsInList] = useState(false); // Don't show sections until tentative schedule is loaded
+  
+  // Track if course plan has been saved
+  const [isCoursePlanSaved, setIsCoursePlanSaved] = useState(false);
   
   const handleSemesterSelect = (value: string) => {
     setSelectedSemester(value);
@@ -261,6 +274,53 @@ export default function CoursePlanningPage() {
     
     return options;
   }, [availableCourses]);
+
+  // Calculate credits by category
+  const creditsByCategory = React.useMemo(() => {
+    console.log('📊 COURSE PLANNING - Credit Calculation Debug:');
+    console.log('- Total planned courses:', plannedCourses.length);
+    console.log('- Planned courses:', plannedCourses);
+    
+    const categoryMap: Record<string, number> = {
+      'General Ed': 0,
+      'General Education': 0,
+      'Core': 0,
+      'Core Courses': 0,
+      'Major': 0,
+      'Major Elective': 0,
+      'Major Electives': 0,
+      'Free Elective': 0,
+      'Free Electives': 0,
+    };
+
+    plannedCourses.forEach(course => {
+      const category = course.category || 'Uncategorized';
+      if (!categoryMap[category]) {
+        categoryMap[category] = 0;
+      }
+      categoryMap[category] += course.credits || 0;
+      console.log(`  - ${course.code}: category="${category}", credits=${course.credits || 0}`);
+    });
+
+    console.log('- Category totals:', categoryMap);
+
+    // Normalize similar categories
+    const genEd = (categoryMap['General Ed'] || 0) + (categoryMap['General Education'] || 0);
+    const core = (categoryMap['Core'] || 0) + (categoryMap['Core Courses'] || 0) + (categoryMap['Major'] || 0);
+    const majorElectives = (categoryMap['Major Elective'] || 0) + (categoryMap['Major Electives'] || 0);
+    const freeElectives = (categoryMap['Free Elective'] || 0) + (categoryMap['Free Electives'] || 0);
+
+    const result = {
+      genEd,
+      core,
+      majorElectives,
+      freeElectives,
+      all: categoryMap
+    };
+    
+    console.log('- Final normalized credits:', result);
+    return result;
+  }, [plannedCourses]);
 
   // Check for data entry context on mount
   useEffect(() => {
@@ -328,7 +388,8 @@ export default function CoursePlanningPage() {
             const courseData = context.completedCourses[code];
             // Extract title and credits from courseData if available, otherwise use defaults
             const title = (courseData as any)?.title || (courseData as any)?.name || code;
-            const credits = (courseData as any)?.credits || 3;
+            const creditsRaw = (courseData as any)?.credits;
+            const credits = creditsRaw ? parseCredits(creditsRaw) : 3;
             const derivedSemesterValue = getSemesterValueFromLabel((courseData as any)?.plannedSemester);
             const derivedSemesterLabel = ensureSemesterLabel((courseData as any)?.plannedSemester, derivedSemesterValue);
             
@@ -649,6 +710,7 @@ export default function CoursePlanningPage() {
             const normalizedSemesterValue = course.semester || getSemesterValueFromLabel(normalizedSemesterLabel);
             return {
               ...course,
+              credits: parseCredits(course.credits), // Ensure credits are parsed
               status: 'planning', // Convert all statuses to 'planning'
               semester: normalizedSemesterValue,
               semesterLabel: normalizedSemesterLabel
@@ -801,7 +863,7 @@ export default function CoursePlanningPage() {
           id: `${courseCode}-${schedule.semester}-${Date.now()}`,
           code: courseCode,
           title: firstSchedCourse.course.title,
-          credits: firstSchedCourse.course.credits,
+          credits: parseCredits(firstSchedCourse.course.credits),
           semester: getSemesterValueFromLabel(schedule.semester),
           semesterLabel: schedule.semester,
           status: 'planning',
@@ -810,6 +872,7 @@ export default function CoursePlanningPage() {
           corequisites: availableCourse.corequisites,
           sections: courseSections,
           selectedSection: firstSection,
+          source: 'tentative', // Mark as loaded from tentative schedule
         };
         
         newPlannedCourses.push(plannedCourse);
@@ -819,6 +882,8 @@ export default function CoursePlanningPage() {
       // Add new courses to the plan
       if (newPlannedCourses.length > 0) {
         setPlannedCourses(prev => [...prev, ...newPlannedCourses]);
+        // Reset saved state since plan has been modified
+        setIsCoursePlanSaved(false);
         success(
           `Added ${newPlannedCourses.length} course${newPlannedCourses.length > 1 ? 's' : ''} from "${schedule.name}"`,
           'Courses Loaded'
@@ -1235,7 +1300,8 @@ export default function CoursePlanningPage() {
       validationStatus: prerequisiteValidation.valid ? 'valid' : 'warning',
       validationNotes: prerequisiteValidation.missing.length > 0 
         ? [`Missing prerequisites: ${prerequisiteValidation.missing.join(', ')}`]
-        : []
+        : [],
+      source: 'manual', // Mark as manually added
     };
 
     // 5. Create corequisite planned courses
@@ -1250,11 +1316,15 @@ export default function CoursePlanningPage() {
       prerequisites: coreqCourse.prerequisites,
       corequisites: coreqCourse.corequisites,
       validationStatus: 'valid', // Corequisites are automatically valid when added together
-      validationNotes: [`Auto-added as corequisite for ${course.code}`]
+      validationNotes: [`Auto-added as corequisite for ${course.code}`],
+      source: 'manual', // Mark as manually added
     }));
 
     // 6. Add all courses (main + corequisites) to the plan
     setPlannedCourses(prev => [...prev, plannedCourse, ...corequisitePlannedCourses]);
+    
+    // Reset saved state since plan has been modified
+    setIsCoursePlanSaved(false);
     
     // 7. Show notification if corequisites were added
     if (corequisitesToAdd.length > 0) {
@@ -1284,11 +1354,15 @@ export default function CoursePlanningPage() {
           // Remove the course and all its dependents
           const coursesToRemove = new Set([courseId, ...dependentCourses.map(c => c.id)]);
           setPlannedCourses(prev => prev.filter(course => !coursesToRemove.has(course.id)));
+          // Reset saved state since plan has been modified
+          setIsCoursePlanSaved(false);
         }
       });
     } else {
       // Simple removal - no dependents
       setPlannedCourses(prev => prev.filter(course => course.id !== courseId));
+      // Reset saved state since plan has been modified
+      setIsCoursePlanSaved(false);
     }
   };
 
@@ -1392,6 +1466,9 @@ export default function CoursePlanningPage() {
         lastUpdated: new Date().toISOString()
       };
       localStorage.setItem('coursePlan', JSON.stringify(coursePlanData));
+      
+      // Mark course plan as saved
+      setIsCoursePlanSaved(true);
       
       // Analyze concentrations and show modal
       console.log('🔍 DEBUG: Starting concentration analysis...');
@@ -1536,6 +1613,39 @@ export default function CoursePlanningPage() {
                 filteredCoursesCount={filteredCourses.length}
               />
 
+              {/* Planning Mode Toggle */}
+              <div className="border-2 border-primary/20 rounded-lg p-3 sm:p-4 bg-gradient-to-r from-primary/5 to-transparent">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    {planningMode === 'tentative' ? <Sparkles className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4" />}
+                    Planning Mode
+                  </label>
+                  <Button
+                    variant={planningMode === 'tentative' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setPlanningMode(planningMode === 'manual' ? 'tentative' : 'manual')}
+                    className="gap-2"
+                  >
+                    {planningMode === 'tentative' ? (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Tentative
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5" />
+                        Manual
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {planningMode === 'tentative' 
+                    ? '✨ Load courses from published tentative schedules with preset sections and times.' 
+                    : '📝 Manually add courses one by one to build your own custom schedule.'}
+                </p>
+              </div>
+
               {/* Semester Selection */}
               <div className="p-3 sm:p-4 bg-muted rounded-lg space-y-3">
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1569,14 +1679,15 @@ export default function CoursePlanningPage() {
                 </p>
               </div>
 
-              {/* Tentative Schedule Selector - Always visible */}
-              <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-2 mb-3">
-                  <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5" />
-                  <div className="flex-1">
-                    <label className="text-sm font-medium text-blue-900 dark:text-blue-100 block mb-2">
-                      Load from Tentative Schedule
-                    </label>
+              {/* Tentative Schedule Selector - Only visible in tentative mode */}
+              {planningMode === 'tentative' && (
+                <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-start gap-2 mb-3">
+                    <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-blue-900 dark:text-blue-100 block mb-2">
+                        Load from Tentative Schedule
+                      </label>
                     
                     {/* Department Filter */}
                     {departments.length > 0 && (
@@ -1641,6 +1752,7 @@ export default function CoursePlanningPage() {
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Course Flags Legend - Mobile-optimized */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded text-xs">
@@ -1756,40 +1868,75 @@ export default function CoursePlanningPage() {
               <CardTitle className="text-base sm:text-lg">Plan Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 sm:space-y-3">
-              <div className="flex justify-between text-sm">
-                <span>Total Courses:</span>
-                <span className="font-medium">{plannedCourses.length}</span>
+              {/* Credits by Category */}
+              <div className="space-y-3 pb-3 border-b">
+                <div className="text-sm font-medium text-muted-foreground mb-2">Credits by Category</div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-3 rounded-lg border bg-blue-50/50 dark:bg-blue-950/20">
+                    <div className="text-xs text-muted-foreground mb-1">General Ed</div>
+                    <div className="text-xl font-bold">{creditsByCategory.genEd}</div>
+                    <div className="text-xs text-muted-foreground">credits</div>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg border bg-purple-50/50 dark:bg-purple-950/20">
+                    <div className="text-xs text-muted-foreground mb-1">Core</div>
+                    <div className="text-xl font-bold">{creditsByCategory.core}</div>
+                    <div className="text-xs text-muted-foreground">credits</div>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg border bg-green-50/50 dark:bg-green-950/20">
+                    <div className="text-xs text-muted-foreground mb-1">Major Electives</div>
+                    <div className="text-xl font-bold">{creditsByCategory.majorElectives}</div>
+                    <div className="text-xs text-muted-foreground">credits</div>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg border bg-orange-50/50 dark:bg-orange-950/20">
+                    <div className="text-xs text-muted-foreground mb-1">Free Electives</div>
+                    <div className="text-xl font-bold">{creditsByCategory.freeElectives}</div>
+                    <div className="text-xs text-muted-foreground">credits</div>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Total Credits:</span>
-                <span className="font-medium">
-                  {plannedCourses.reduce((sum, course) => sum + course.credits, 0)}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Valid Courses:</span>
-                <span className="font-medium text-green-600">
-                  {plannedCourses.filter(c => c.validationStatus === 'valid').length}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Warnings:</span>
-                <span className="font-medium text-orange-600">
-                  {plannedCourses.filter(c => c.validationStatus === 'warning').length}
-                </span>
+              
+              {/* Overall Statistics */}
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between text-sm">
+                  <span>Total Courses:</span>
+                  <span className="font-medium">{plannedCourses.length}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Total Credits:</span>
+                  <span className="font-medium">
+                    {plannedCourses.reduce((sum, course) => sum + course.credits, 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Valid Courses:</span>
+                  <span className="font-medium text-green-600">
+                    {plannedCourses.filter(c => c.validationStatus === 'valid').length}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Warnings:</span>
+                  <span className="font-medium text-orange-600">
+                    {plannedCourses.filter(c => c.validationStatus === 'warning').length}
+                  </span>
+                </div>
               </div>
               
               {/* Navigation Buttons */}
               <div className="pt-4 border-t space-y-2">
-                <Button 
-                  className="w-full" 
-                  variant="outline"
-                  onClick={() => router.push('/student/management/schedule-view')}
-                  disabled={plannedCourses.length === 0}
-                >
-                  <Calendar size={16} className="mr-2" />
-                  Visualize Schedule
-                </Button>
+                {isCoursePlanSaved && plannedCourses.length > 0 && (
+                  <Button 
+                    className="w-full" 
+                    variant="outline"
+                    onClick={() => router.push('/student/management/schedule-view')}
+                  >
+                    <Calendar size={16} className="mr-2" />
+                    Visualize Schedule
+                  </Button>
+                )}
                 <Button 
                   className="w-full" 
                   onClick={() => router.push('/student/management/progress')}
@@ -1835,11 +1982,19 @@ export default function CoursePlanningPage() {
       {/* Schedule Calendar View - Full Width */}
       {plannedCourses.length > 0 && (
         <div className="mt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Calendar size={20} />
-              Your Schedule
-            </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+            <div>
+              <h2 className="text-xl font-semibold flex items-center gap-2 mb-1">
+                <Calendar size={20} />
+                Your Schedule
+              </h2>
+              {user?.advisor && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <UserCheck size={14} />
+                  <span>Advisor: <span className="font-medium text-foreground">{user.advisor.name}</span></span>
+                </div>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button
                 variant={viewMode === 'list' ? 'default' : 'outline'}
@@ -1887,53 +2042,138 @@ export default function CoursePlanningPage() {
                       </h3>
                       <div className="grid gap-3">
                         {courses.map((course) => (
-                          <div key={course.id} className="border rounded-lg p-4 hover:bg-muted/50">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <div className="font-semibold text-lg">{course.code}</div>
-                                <div className="text-sm text-muted-foreground">{course.title}</div>
-                              </div>
-                              <Badge>{course.credits} credits</Badge>
-                            </div>
-                            {course.selectedSection && (
-                              <div className="mt-3 p-3 bg-muted rounded-lg text-sm space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">Section:</span>
-                                  <span>{course.selectedSection.section}</span>
+                          <div key={course.id} className="border rounded-lg p-4 hover:bg-muted/50 relative">
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  <div className="font-semibold text-lg">{course.code}</div>
+                                  <Badge>{course.credits} credits</Badge>
+                                  {course.source === 'tentative' && (
+                                    <Badge variant="secondary" className="text-xs gap-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700">
+                                      <Sparkles className="w-3 h-3" />
+                                      From Schedule
+                                    </Badge>
+                                  )}
                                 </div>
-                                {course.selectedSection.instructor && (
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">Instructor:</span>
-                                    <span>{course.selectedSection.instructor}</span>
+                                <div className="text-sm text-muted-foreground mb-2">{course.title}</div>
+                                
+                                {/* Prerequisites and Corequisites */}
+                                {course.prerequisites && course.prerequisites.length > 0 && (
+                                  <div className="text-xs text-muted-foreground/80 mb-1">
+                                    <span className="font-medium">Prerequisites:</span> {course.prerequisites.join(', ')}
                                   </div>
                                 )}
-                                {course.selectedSection.days && course.selectedSection.days.length > 0 && (
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">Days:</span>
-                                    <span>{course.selectedSection.days.join(', ')}</span>
+                                {course.corequisites && course.corequisites.length > 0 && (
+                                  <div className="text-xs text-muted-foreground/80 mb-1">
+                                    <span className="font-medium">Corequisites:</span> {course.corequisites.join(', ')}
                                   </div>
                                 )}
-                                {course.selectedSection.timeStart && (
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">Time:</span>
-                                    <span>{course.selectedSection.timeStart} - {course.selectedSection.timeEnd}</span>
+                                
+                                {/* Validation Status and Warnings */}
+                                {course.validationStatus && (
+                                  <div className="flex items-center gap-2 mt-1 mb-1">
+                                    {course.validationStatus === 'valid' && (
+                                      <Badge variant="outline" className="text-xs gap-1 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
+                                        <CheckCircle className="w-3 h-3" />
+                                        Valid
+                                      </Badge>
+                                    )}
+                                    {course.validationStatus === 'warning' && (
+                                      <Badge variant="outline" className="text-xs gap-1 bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700">
+                                        <AlertTriangle className="w-3 h-3" />
+                                        Warning
+                                      </Badge>
+                                    )}
+                                    {course.validationStatus === 'error' && (
+                                      <Badge variant="outline" className="text-xs gap-1 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700">
+                                        <AlertTriangle className="w-3 h-3" />
+                                        Error
+                                      </Badge>
+                                    )}
                                   </div>
                                 )}
-                                {course.selectedSection.room && (
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">Room:</span>
-                                    <span>{course.selectedSection.room}</span>
+                                {course.validationNotes && course.validationNotes.length > 0 && (
+                                  <Alert className="py-2 px-3 mt-2">
+                                    <AlertDescription className="text-xs">
+                                      {course.validationNotes.join(', ')}
+                                    </AlertDescription>
+                                  </Alert>
+                                )}
+                                
+                                {/* Section Selection - only show if sections available */}
+                                {course.sections && course.sections.length > 0 && (
+                                  <div className="mt-2">
+                                    <Select
+                                      value={course.selectedSection?.id || course.sections[0]?.id}
+                                      onValueChange={(sectionId) => {
+                                        const section = course.sections?.find(s => s.id === sectionId);
+                                        if (section) {
+                                          handleSectionSelect(course.id, section);
+                                        }
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-full text-sm">
+                                        <SelectValue>
+                                          {course.selectedSection ? (
+                                            <span className="flex items-center gap-2">
+                                              <span className="font-medium">Section {course.selectedSection.section}</span>
+                                              {course.selectedSection.instructor && (
+                                                <span className="text-muted-foreground">• {course.selectedSection.instructor}</span>
+                                              )}
+                                              {course.selectedSection.days && course.selectedSection.days.length > 0 && (
+                                                <span className="text-muted-foreground">• {course.selectedSection.days.join('')}</span>
+                                              )}
+                                              {course.selectedSection.timeStart && (
+                                                <span className="text-muted-foreground">• {course.selectedSection.timeStart}</span>
+                                              )}
+                                            </span>
+                                          ) : (
+                                            'Select section'
+                                          )}
+                                        </SelectValue>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {course.sections.map((section) => (
+                                          <SelectItem key={section.id} value={section.id}>
+                                            <div className="flex flex-col py-1">
+                                              <div className="font-medium">
+                                                Section {section.section}
+                                                {section.instructor && ` - ${section.instructor}`}
+                                              </div>
+                                              <div className="text-xs text-muted-foreground">
+                                                {section.days && section.days.length > 0 && `${section.days.join(', ')} `}
+                                                {section.timeStart && `${section.timeStart} - ${section.timeEnd} `}
+                                                {section.room && `• Room ${section.room}`}
+                                              </div>
+                                              {section.capacity && (
+                                                <div className="text-xs text-muted-foreground">
+                                                  Enrolled: {section.enrolled || 0}/{section.capacity}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    {course.sections.length > 1 && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {course.sections.length} sections available
+                                      </p>
+                                    )}
                                   </div>
                                 )}
                               </div>
-                            )}
-                            {course.sections && course.sections.length > 1 && (
-                              <div className="mt-2">
-                                <Badge variant="secondary" className="text-xs">
-                                  {course.sections.length} sections available
-                                </Badge>
-                              </div>
-                            )}
+                              
+                              {/* Remove button */}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => removeCourseFromPlan(course.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>

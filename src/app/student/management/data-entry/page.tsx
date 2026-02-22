@@ -1298,33 +1298,26 @@ export default function DataEntryPage() {
                 concentrationName={concentrationOptions[selectedCurriculum]?.find(o => o.value === selectedConcentration)?.label || ''}
               />
             )}
-            <div className="flex flex-col items-stretch sm:items-end gap-2">
-              <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-2">
-                <p className="text-sm text-blue-900 dark:text-blue-100">
-                  {hasCompletedCourses
-                    ? 'ℹ️ Courses imported. Continue to planning when ready.'
-                    : 'ℹ️ New here or no prior courses? You can skip straight to planning — no data entry needed.'}
+            <div className="flex flex-col items-stretch sm:items-end gap-3">
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-900 dark:text-blue-100 flex items-start gap-2">
+                  <span className="flex-shrink-0">ℹ️</span>
+                  <span>
+                    {hasCompletedCourses
+                      ? 'Courses imported successfully. Continue to planning to organize your schedule.'
+                      : 'New student or no prior courses? That\'s okay! Import your transcript above or continue directly to course planning.'}
+                  </span>
                 </p>
               </div>
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleSkipToPlanning}
-                  variant="outline"
-                  className="flex items-center gap-2 px-6 py-3 text-lg"
-                  size="lg"
-                >
-                  Skip to Planning
-                </Button>
-                <Button 
-                  onClick={handleCoursePlanning}
-                  className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 text-primary-foreground flex items-center gap-2 px-8 py-3 text-lg shadow-md transform transition-all duration-200 hover:scale-[1.01] border-0"
-                  disabled={!selectedCurriculum || !selectedDepartment}
-                  size="lg"
-                >
-                  <Calendar className="w-5 h-5" />
-                  {hasCompletedCourses ? 'Continue to Course Planning' : 'Enter Data & Continue'}
-                </Button>
-              </div>
+              <Button 
+                onClick={handleCoursePlanning}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2 px-8 py-3 text-base font-medium shadow-md transition-all duration-200 hover:shadow-lg"
+                disabled={!selectedCurriculum || !selectedDepartment}
+                size="lg"
+              >
+                <Calendar className="w-5 h-5" />
+                {hasCompletedCourses ? 'Continue to Course Planning' : 'Start Course Planning'}
+              </Button>
               {(!selectedCurriculum || !selectedDepartment) && (
                 <p className="text-sm text-muted-foreground text-left sm:text-right">
                   Please select a faculty, department and curriculum first

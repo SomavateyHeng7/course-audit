@@ -108,27 +108,6 @@ const TentativeSchedulePage: React.FC = () => {
 
   useEffect(() => {
     fetchSchedules();
-    
-    // Refetch schedules when page becomes visible (e.g., after creating a schedule)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchSchedules();
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Also refetch when window gains focus
-    const handleFocus = () => {
-      fetchSchedules();
-    };
-    
-    window.addEventListener('focus', handleFocus);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
   }, []);
 
   const filteredSchedules = schedules.filter(schedule =>
@@ -253,71 +232,73 @@ const TentativeSchedulePage: React.FC = () => {
   };
 
   return (
-    <>
-      <div className="container mx-auto max-w-7xl">
+    <div className="container mx-auto max-w-7xl p-6 space-y-6">
       {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              Tentative Schedules
-            </h1>
-            <p className="text-muted-foreground">
-              Manage and create tentative course schedules for different batches and semesters
-            </p>
-            <div className="mt-2 text-sm text-muted-foreground flex items-start gap-2 bg-blue-50 dark:bg-blue-950/20 p-2 rounded">
-              <div className="mt-0.5">💡</div>
-              <span><strong>Tip:</strong> Publish makes schedules visible to students. Use "Set Active" to make one the default for student planning. Only one schedule can be active per department.</span>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Tentative Schedules
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Manage and create tentative course schedules for different batches and semesters
+          </p>
+        </div>
+        <Button
+          onClick={handleCreateSchedule}
+          className="shrink-0"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Create New Schedule
+        </Button>
+      </div>
+
+      {/* Info Tip */}
+      <div className="text-sm text-muted-foreground flex items-start gap-2 bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg border border-blue-200 dark:border-blue-900">
+        <div className="mt-0.5">💡</div>
+        <span><strong>Tip:</strong> Publish makes schedules visible to students. Use "Set Active" to make one the default for student planning.</span>
+      </div>
+
+      {/* Search and Stats */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {/* Search */}
+            <div className="flex-1 max-w-md">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  type="text"
+                  placeholder="Search schedules..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-9"
+                />
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              Total Schedules: <span className="font-semibold text-foreground">{schedules.length}</span>
             </div>
           </div>
-          <Button
-            onClick={handleCreateSchedule}
-            className="mt-4 sm:mt-0 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors shrink-0"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create New Schedule
-          </Button>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Search and Stats */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              {/* Search */}
-              <div className="flex-1 max-w-md">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    type="text"
-                    placeholder="Search schedules..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-
-              {/* Stats */}
-              <div className="text-sm text-muted-foreground">
-                Total Schedules: {schedules.length}
-              </div>
+      {/* Schedules List */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Calendar className="w-5 h-5" />
+            All Schedules
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <LoadingSpinner text="Loading schedules..." />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Schedules List */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              All Schedules
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <LoadingSpinner text="Loading schedules..." />
-              </div>
-            ) : filteredSchedules.length === 0 ? (
+          ) : filteredSchedules.length === 0 ? (
+            <div className="p-6">
               <EmptyState
                 icon={<Calendar size={32} />}
                 title={searchTerm ? 'No schedules found' : 'No tentative schedules yet'}
@@ -328,133 +309,134 @@ const TentativeSchedulePage: React.FC = () => {
                 }
                 action={!searchTerm ? { label: 'Create New Schedule', onClick: handleCreateSchedule } : undefined}
               />
-            ) : (
-              <div className="space-y-4">
-                {/* Table Header */}
-                <div className="hidden lg:grid lg:grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_1fr_1.5fr] gap-4 p-4 border-b border-border font-medium text-sm text-muted-foreground">
-                  <div>Schedule Name</div>
-                  <div>Semester</div>
-                  <div>Curriculum/Batch</div>
-                  <div>Courses</div>
-                  <div>Status</div>
-                  <div>Last Updated</div>
-                  <div>Actions</div>
-                </div>
+            </div>
+          ) : (
+            <div>
+              {/* Table Header */}
+              <div className="hidden lg:grid lg:grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_1fr_1.5fr] gap-4 px-4 py-3 border-b border-border font-medium text-xs text-muted-foreground bg-muted/30">
+                <div>Schedule Name</div>
+                <div>Semester</div>
+                <div>Curriculum/Batch</div>
+                <div className="text-center">Courses</div>
+                <div>Status</div>
+                <div>Last Updated</div>
+                <div className="text-right">Actions</div>
+              </div>
 
-                {/* Schedule Items */}
-                <div className="divide-y divide-border">
-                  {filteredSchedules.map((schedule) => (
-                    <div
-                      key={schedule.id}
-                      className="p-4 lg:grid lg:grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_1fr_1.5fr] gap-4 lg:items-center hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => handleViewSchedule(schedule.id)}
-                    >
-                      {/* Schedule Info */}
-                      <div className="mb-3 lg:mb-0">
-                        <h3 className="font-semibold text-foreground text-lg">
-                          {schedule.name}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          Version {schedule.version}
-                        </p>
-                      </div>
+              {/* Schedule Items */}
+              <div className="divide-y divide-border">
+                {filteredSchedules.map((schedule) => (
+                  <div
+                    key={schedule.id}
+                    className="p-4 lg:grid lg:grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_1fr_1.5fr] gap-4 lg:items-center hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => handleViewSchedule(schedule.id)}
+                  >
+                    {/* Schedule Info */}
+                    <div className="mb-3 lg:mb-0">
+                      <h3 className="font-semibold text-foreground">
+                        {schedule.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Version {schedule.version} • {formatDate(schedule.createdAt)}
+                      </p>
+                    </div>
 
-                      {/* Semester */}
-                      <div className="mb-2 lg:mb-0">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-foreground">
-                            {schedule.semester}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Curriculum/Batch */}
-                      <div className="mb-2 lg:mb-0">
-                        <div className="text-sm">
-                          <div className="font-medium text-foreground">
-                            {schedule.curriculum?.name || 'N/A'}
-                          </div>
-                          <div className="text-muted-foreground">
-                            Batch: {schedule.batch || 'N/A'}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Courses Count */}
-                      <div className="mb-2 lg:mb-0">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-foreground">
-                            {schedule.coursesCount}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Publish Status */}
-                      <div className="mb-2 lg:mb-0">
-                        <div className="flex flex-col gap-1">
-                          <Badge 
-                            variant={schedule.isPublished ? "default" : "secondary"}
-                            className="gap-1 whitespace-nowrap w-fit"
-                          >
-                            {schedule.isPublished ? (
-                              <>
-                                <Eye className="w-3 h-3" />
-                                Published
-                              </>
-                            ) : (
-                              <>
-                                <EyeOff className="w-3 h-3" />
-                                Draft
-                              </>
-                            )}
-                          </Badge>
-                          {schedule.isActive && (
-                            <Badge 
-                              variant="outline"
-                              className="gap-1 whitespace-nowrap w-fit bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800"
-                            >
-                              <CheckCircle2 className="w-3 h-3" />
-                              Active
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Last Updated */}
-                      <div className="mb-3 lg:mb-0">
-                        <span className="text-sm text-muted-foreground whitespace-nowrap">
-                          {formatDate(schedule.updatedAt)}
+                    {/* Semester */}
+                    <div className="mb-2 lg:mb-0">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-muted-foreground lg:hidden" />
+                        <span className="text-sm text-foreground">
+                          {schedule.semester}
                         </span>
                       </div>
+                    </div>
 
-                      {/* Actions */}
-                      <div className="flex gap-2 items-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewSchedule(schedule.id);
-                          }}
-                          className="gap-2"
+                    {/* Curriculum/Batch */}
+                    <div className="mb-2 lg:mb-0">
+                      <div className="text-sm">
+                        <div className="font-medium text-foreground">
+                          {schedule.curriculum?.name || 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Batch: {schedule.batch || 'N/A'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Courses Count */}
+                    <div className="mb-2 lg:mb-0">
+                      <div className="flex items-center gap-2 lg:justify-center">
+                        <BookOpen className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm text-foreground font-medium">
+                          {schedule.coursesCount}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Publish Status */}
+                    <div className="mb-2 lg:mb-0">
+                      <div className="flex flex-wrap gap-1.5">
+                        <Badge 
+                          variant={schedule.isPublished ? "default" : "secondary"}
+                          className="gap-1 whitespace-nowrap text-xs"
                         >
-                          <Eye className="w-4 h-4" />
-                          View
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => e.stopPropagation()}
-                              className="h-8 w-8 p-0"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                              <span className="sr-only">Actions</span>
-                            </Button>
-                          </DropdownMenuTrigger>
+                          {schedule.isPublished ? (
+                            <>
+                              <Eye className="w-3 h-3" />
+                              Published
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff className="w-3 h-3" />
+                              Draft
+                            </>
+                          )}
+                        </Badge>
+                        {schedule.isActive && (
+                          <Badge 
+                            variant="outline"
+                            className="gap-1 whitespace-nowrap text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800"
+                          >
+                            <CheckCircle2 className="w-3 h-3" />
+                            Active
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Last Updated */}
+                    <div className="mb-3 lg:mb-0">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDate(schedule.updatedAt)}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 items-center lg:justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewSchedule(schedule.id);
+                        }}
+                        className="gap-1.5 h-8 px-3 text-xs"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        View
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-8 w-8 p-0"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem
                               onClick={(e) => {
@@ -498,17 +480,16 @@ const TentativeSchedulePage: React.FC = () => {
                               <Trash2 className="w-4 h-4" />
                               <span>Delete</span>
                             </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Publish/Unpublish Confirmation Dialog */}
       <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
@@ -628,7 +609,7 @@ const TentativeSchedulePage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 

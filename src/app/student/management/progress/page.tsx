@@ -315,6 +315,11 @@ export default function ProgressPage() {
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [curriculumProgress, setCurriculumProgress] = useState<CurriculumProgress | null>(null);
   
+  // Set mounted state after component mounts (client-side only)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
   // Debug: Track when curriculumData changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -475,8 +480,8 @@ export default function ProgressPage() {
           await loadBlacklistData(parsedData.selectedCurriculum);
         }
         
-        // Run enhanced validation
-        await runEnhancedValidation();
+        // Note: Don't call runEnhancedValidation here - it will be triggered automatically
+        // by the useEffect that watches completedData, plannedCourses, loading
         } catch (error) {
           console.error('Error loading data:', error);
         } finally {
@@ -1321,6 +1326,11 @@ export default function ProgressPage() {
 
   for (const category of categoryOrder) {
     const courses = allCoursesByCategory[category] || [];
+    
+    if (typeof window !== 'undefined') {
+      console.log(`📚 Processing category: ${category}, courses count: ${courses.length}`, courses);
+    }
+    
     let completedCount = 0;
     let plannedCount = 0;
     let earnedCategoryCredits = 0;
@@ -1503,6 +1513,14 @@ export default function ProgressPage() {
   if (typeof window !== 'undefined') {
     console.log('🔍 DEBUG: Final completed courses list:', completedList);
     console.log('🔍 DEBUG: Final planned courses list:', plannedFromPlannerList);
+    console.log('🔍 DEBUG: Final pending courses list:', pendingList);
+    console.log('🔍 DEBUG: Pending courses by category:', 
+      pendingList.reduce((acc, course) => {
+        if (!acc[course.category]) acc[course.category] = [];
+        acc[course.category].push(course.code);
+        return acc;
+      }, {} as Record<string, string[]>)
+    );
     console.log('🔍 DEBUG: Final category stats:', categoryStats);
   }
   
@@ -1829,6 +1847,54 @@ export default function ProgressPage() {
       text: 'text-indigo-700 dark:text-indigo-200',
       pill: 'bg-gradient-to-r from-indigo-400 to-fuchsia-500',
     },
+  };
+
+  // Calculate credits by category for UI display
+  const creditsByCategory = {
+    genEd: {
+      completed: (categoryCreditDetails['General Education']?.completedCredits || 0) + 
+                 (categoryCreditDetails['General Ed']?.completedCredits || 0),
+      inProgress: (categoryCreditDetails['General Education']?.inProgressCredits || 0) + 
+                  (categoryCreditDetails['General Ed']?.inProgressCredits || 0),
+      planned: (categoryCreditDetails['General Education']?.plannedCredits || 0) + 
+               (categoryCreditDetails['General Ed']?.plannedCredits || 0),
+      required: (categoryCreditDetails['General Education']?.requiredCredits || 0) + 
+                (categoryCreditDetails['General Ed']?.requiredCredits || 0)
+    },
+    core: {
+      completed: (categoryCreditDetails['Core']?.completedCredits || 0) + 
+                 (categoryCreditDetails['Core Courses']?.completedCredits || 0) +
+                 (categoryCreditDetails['Major']?.completedCredits || 0),
+      inProgress: (categoryCreditDetails['Core']?.inProgressCredits || 0) + 
+                  (categoryCreditDetails['Core Courses']?.inProgressCredits || 0) +
+                  (categoryCreditDetails['Major']?.inProgressCredits || 0),
+      planned: (categoryCreditDetails['Core']?.plannedCredits || 0) + 
+               (categoryCreditDetails['Core Courses']?.plannedCredits || 0) +
+               (categoryCreditDetails['Major']?.plannedCredits || 0),
+      required: (categoryCreditDetails['Core']?.requiredCredits || 0) + 
+                (categoryCreditDetails['Core Courses']?.requiredCredits || 0) +
+                (categoryCreditDetails['Major']?.requiredCredits || 0)
+    },
+    majorElectives: {
+      completed: (categoryCreditDetails['Major Elective']?.completedCredits || 0) + 
+                 (categoryCreditDetails['Major Electives']?.completedCredits || 0),
+      inProgress: (categoryCreditDetails['Major Elective']?.inProgressCredits || 0) + 
+                  (categoryCreditDetails['Major Electives']?.inProgressCredits || 0),
+      planned: (categoryCreditDetails['Major Elective']?.plannedCredits || 0) + 
+               (categoryCreditDetails['Major Electives']?.plannedCredits || 0),
+      required: (categoryCreditDetails['Major Elective']?.requiredCredits || 0) + 
+                (categoryCreditDetails['Major Electives']?.requiredCredits || 0)
+    },
+    freeElectives: {
+      completed: (categoryCreditDetails['Free Elective']?.completedCredits || 0) + 
+                 (categoryCreditDetails['Free Electives']?.completedCredits || 0),
+      inProgress: (categoryCreditDetails['Free Elective']?.inProgressCredits || 0) + 
+                  (categoryCreditDetails['Free Electives']?.inProgressCredits || 0),
+      planned: (categoryCreditDetails['Free Elective']?.plannedCredits || 0) + 
+               (categoryCreditDetails['Free Electives']?.plannedCredits || 0),
+      required: (categoryCreditDetails['Free Elective']?.requiredCredits || 0) + 
+                (categoryCreditDetails['Free Electives']?.requiredCredits || 0)
+    }
   };
 
   const creditCardConfigs = [
@@ -2740,55 +2806,75 @@ export default function ProgressPage() {
         )}
         {/* Academic Progress Stats - Reorganized Layout */}
         <TooltipProvider>
-          {/* Row 1 - Requirements (4 columns) - dynamic */}
+          {/* Credits by Category */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {creditCardConfigs
-              .filter(card => card.totalCount > 0 || card.completedCount > 0 || card.plannedCount > 0) // Only show cards with data
-              .map(card => {
-              const isOpen = openCreditCardKey === card.key;
-              return (
-                <div key={card.key} className="space-y-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={() => toggleCreditCard(card.key)}
-                        aria-expanded={isOpen}
-                        className="group w-full bg-white dark:bg-card rounded-xl p-6 text-center border border-gray-200 dark:border-border shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                      >
-                        <div className="flex items-center justify-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-2">
-                          {card.label}
-                          <HelpCircle className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                        <div className={`text-2xl font-bold ${card.valueColor} mb-1`}>
-                          {card.completedCount}
-                          {card.plannedCount > 0 && (
-                            <span className={card.plannedColor}>+{card.plannedCount}</span>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          / {card.totalCount > 0 ? card.totalCount : '-'}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground mt-3">
-                          {isOpen ? 'Tap to hide credit details' : 'Tap to view credit details'}
-                        </div>
-                      </button>
-                    </TooltipTrigger>
-                    {card.tooltipContent && (
-                      <TooltipContent side="top" className="max-w-sm text-left">
-                        {card.tooltipContent}
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                  {isOpen && (
-                    <div className="bg-white/90 dark:bg-slate-900/60 rounded-lg border border-gray-100 dark:border-slate-800 p-3 text-left shadow-inner">
-                      {renderCreditDetailRows(card.categories)}
-                      <div className="text-[11px] text-muted-foreground mt-3">Click the card again to collapse.</div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {/* General Ed */}
+            <div className="p-4 rounded-lg border bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200">
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-2 font-medium">General Ed</div>
+              <div className="text-2xl font-bold text-blue-700 dark:text-blue-300 mb-1">
+                {creditsByCategory.genEd.completed}
+                {creditsByCategory.genEd.inProgress > 0 && (
+                  <span className="text-lg text-amber-600 dark:text-amber-400">+{creditsByCategory.genEd.inProgress}</span>
+                )}
+                {creditsByCategory.genEd.planned > 0 && (
+                  <span className="text-lg text-indigo-600 dark:text-indigo-400">+{creditsByCategory.genEd.planned}</span>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {creditsByCategory.genEd.required > 0 ? `/ ${creditsByCategory.genEd.required} required` : 'credits'}
+              </div>
+            </div>
+
+            {/* Core */}
+            <div className="p-4 rounded-lg border bg-purple-50/50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200">
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-2 font-medium">Core</div>
+              <div className="text-2xl font-bold text-purple-700 dark:text-purple-300 mb-1">
+                {creditsByCategory.core.completed}
+                {creditsByCategory.core.inProgress > 0 && (
+                  <span className="text-lg text-amber-600 dark:text-amber-400">+{creditsByCategory.core.inProgress}</span>
+                )}
+                {creditsByCategory.core.planned > 0 && (
+                  <span className="text-lg text-indigo-600 dark:text-indigo-400">+{creditsByCategory.core.planned}</span>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {creditsByCategory.core.required > 0 ? `/ ${creditsByCategory.core.required} required` : 'credits'}
+              </div>
+            </div>
+
+            {/* Major Electives */}
+            <div className="p-4 rounded-lg border bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-800 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200">
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-2 font-medium">Major Electives</div>
+              <div className="text-2xl font-bold text-green-700 dark:text-green-300 mb-1">
+                {creditsByCategory.majorElectives.completed}
+                {creditsByCategory.majorElectives.inProgress > 0 && (
+                  <span className="text-lg text-amber-600 dark:text-amber-400">+{creditsByCategory.majorElectives.inProgress}</span>
+                )}
+                {creditsByCategory.majorElectives.planned > 0 && (
+                  <span className="text-lg text-indigo-600 dark:text-indigo-400">+{creditsByCategory.majorElectives.planned}</span>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {creditsByCategory.majorElectives.required > 0 ? `/ ${creditsByCategory.majorElectives.required} required` : 'credits'}
+              </div>
+            </div>
+
+            {/* Free Electives */}
+            <div className="p-4 rounded-lg border bg-orange-50/50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200">
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-2 font-medium">Free Electives</div>
+              <div className="text-2xl font-bold text-orange-700 dark:text-orange-300 mb-1">
+                {creditsByCategory.freeElectives.completed}
+                {creditsByCategory.freeElectives.inProgress > 0 && (
+                  <span className="text-lg text-amber-600 dark:text-amber-400">+{creditsByCategory.freeElectives.inProgress}</span>
+                )}
+                {creditsByCategory.freeElectives.planned > 0 && (
+                  <span className="text-lg text-indigo-600 dark:text-indigo-400">+{creditsByCategory.freeElectives.planned}</span>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {creditsByCategory.freeElectives.required > 0 ? `/ ${creditsByCategory.freeElectives.required} required` : 'credits'}
+              </div>
+            </div>
           </div>
 
           {/* Overview and Summary Stats */}
