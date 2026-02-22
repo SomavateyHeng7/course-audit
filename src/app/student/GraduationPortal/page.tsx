@@ -1171,7 +1171,9 @@ const GraduationPortalPage: React.FC = () => {
               {/* Summary */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-muted/50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold">{parseResult.summary.totalCredits}</p>
+                  <p className="text-2xl font-bold">
+                    {selectedCurriculum?.total_credits_required ?? parseResult.summary.totalCredits}
+                  </p>
                   <p className="text-xs text-muted-foreground">Total Credits Required</p>
                 </div>
                 <div className="bg-green-100 dark:bg-green-900/30 rounded-lg p-3 text-center">
@@ -1182,9 +1184,11 @@ const GraduationPortalPage: React.FC = () => {
                 </div>
                 <div className="bg-blue-100 dark:bg-blue-900/30 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
-                    {parseResult.summary.byStatus['in_progress'] || 0}
+                    {parseResult.courses
+                      .filter(c => c.status === 'planned' || c.status === 'in_progress')
+                      .reduce((sum, c) => sum + (c.credits || 0), 0)}
                   </p>
-                  <p className="text-xs text-muted-foreground">In Progress Courses</p>
+                  <p className="text-xs text-muted-foreground">Planning Credits</p>
                 </div>
               </div>
 
