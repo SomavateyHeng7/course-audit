@@ -205,7 +205,7 @@ const ChairpersonPage: React.FC = () => {
           'Content-Type': 'application/json',
           ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
         },
-        body: JSON.stringify({ name: newCurriculumName })
+        body: JSON.stringify({ name: newName })
       });
 
       if (response.ok) {
@@ -259,6 +259,9 @@ const ChairpersonPage: React.FC = () => {
   const activeCurricula = curricula.filter(c => c.isActive).length;
   const totalCourses = curricula.reduce((sum, c) => sum + c._count.curriculumCourses, 0);
   const trimmedEditedName = editedName.trim();
+  // Derived from editingCurriculumId — used by RenameDialog and CurriculumTable
+  const renameModalOpen = editingCurriculumId !== null;
+  const renameTarget = curricula.find(c => c.id === editingCurriculumId) ?? null;
   const isRenameDisabled = !trimmedEditedName || trimmedEditedName === renameTarget?.name?.trim();
 
   if (loading) {
@@ -481,64 +484,7 @@ const ChairpersonPage: React.FC = () => {
         variant="destructive"
       />
 
-      <Dialog 
-        open={renameDialog.open} 
-        onOpenChange={(open) => {
-          if (!open) {
-            setRenameDialog({ open: false, curriculumId: null, currentName: '' });
-            setNewCurriculumName('');
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Rename Curriculum</DialogTitle>
-            <DialogDescription>
-              Enter a new name for the curriculum. This will update the curriculum name across the system.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="curriculum-name">Curriculum Name</Label>
-              <Input
-                id="curriculum-name"
-                value={newCurriculumName}
-                onChange={(e) => setNewCurriculumName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleRenameConfirm();
-                  }
-                }}
-                placeholder="Enter curriculum name"
-                className="col-span-3"
-                autoFocus
-              />
-              <p className="text-sm text-muted-foreground">
-                Current name: <span className="font-semibold">{renameDialog.currentName}</span>
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setRenameDialog({ open: false, curriculumId: null, currentName: '' });
-                setNewCurriculumName('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRenameConfirm}
-              disabled={!newCurriculumName.trim() || newCurriculumName === renameDialog.currentName}
-              className="bg-teal-600 hover:bg-teal-700"
-            >
-              Rename
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 };

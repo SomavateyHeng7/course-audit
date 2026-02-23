@@ -510,7 +510,7 @@ const SubmissionDetailPage: React.FC = () => {
       setSubmission(prev => prev ? {
         ...prev,
         status: canGraduate ? 'validated' : 'has_issues',
-        validationResult: response.validation
+        validation_result: response.validation
       } : null);
       showSuccess(
         canGraduate ? 'Student meets all graduation requirements!' : 'Validation complete - some issues found',

@@ -259,7 +259,8 @@ export function parseExcelFile(file: File): Promise<ExcelData> {
             resolve({
               courses: transcriptResult.courses,
               students: [],
-              programs: []
+              programs: [],
+              metadata: transcriptResult.metadata
             });
             return;
           }

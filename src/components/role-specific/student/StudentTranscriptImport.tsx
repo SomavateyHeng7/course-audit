@@ -41,7 +41,7 @@ interface StudentTranscriptImportProps {
 // - Blacklist management
 
 interface CourseStatus {
-  status: 'pending' | 'not_completed' | 'completed' | 'taking' | 'planning';
+  status: 'pending' | 'not_completed' | 'completed' | 'taking' | 'planning' | 'failed' | 'withdrawn';
   grade?: string;
   plannedSemester?: string;
 }
@@ -227,33 +227,6 @@ export default function StudentTranscriptImport({
   };
 
   /**
-   * Fetch course details by codes (DEPRECATED - using curriculum data instead)
-   * Kept for potential future use if needed
-   */
-  const fetchCourseDetails = async (courseCodes: string[], departmentId: string) => {
-    try {
-      // NOTE: This endpoint may require authentication
-      // Currently using curriculum data instead of this function
-      const coursePromises = courseCodes.map(async (code) => {
-        const response = await fetch(`${API_BASE}/courses?departmentId=${departmentId}&code=${code}`, {
-          credentials: 'include',
-        });
-        if (response.ok) {
-          const courses = await response.json();
-          return courses.find((c: any) => c.code === code);
-        }
-        return null;
-      });
-
-      const courseResults = await Promise.all(coursePromises);
-      return courseResults.filter(Boolean);
-    } catch (error) {
-      console.error('Failed to fetch course details:', error);
-      return [];
-    }
-  };
-
-  /**
    * Map constraint types to user-friendly categories
    */
   const mapConstraintTypeToCategory = (constraintType: string): string => {
@@ -294,7 +267,7 @@ export default function StudentTranscriptImport({
       credits: course.credits,
       grade: course.grade,
       semester: course.semester,
-      status: course.grade && course.grade.trim() ? 'completed' : 'completed' // Default to completed for transcript courses
+      status: (course.grade && course.grade.trim() && !['F', 'W'].includes(course.grade.trim().toUpperCase())) ? 'completed' : 'pending'
     }));
   };
 
@@ -352,9 +325,13 @@ export default function StudentTranscriptImport({
         
         // Auto-set status based on grade
         let status: CourseStatus['status'] = 'pending';
-        if (importedCourse.grade && importedCourse.grade.trim()) {
+        if (importedCourse.status === 'FAILED' || importedCourse.status === 'DROPPED') {
+          status = 'failed';
+        } else if (importedCourse.status === 'WITHDRAWN') {
+          status = 'withdrawn';
+        } else if (importedCourse.grade && importedCourse.grade.trim() && !['F', 'W'].includes(importedCourse.grade.trim().toUpperCase())) {
           status = 'completed';
-        } else if (importedCourse.status === 'IN_PROGRESS') {
+        } else if (importedCourse.status === 'IN_PROGRESS' || importedCourse.status === 'TAKING') {
           status = 'taking';
         } else if (importedCourse.status === 'PLANNING') {
           status = 'planning';
@@ -399,9 +376,13 @@ export default function StudentTranscriptImport({
 
       unmatchedCourses.forEach(course => {
         let status: CourseStatus['status'] = 'pending';
-        if (course.grade && course.grade.trim()) {
+        if (course.status === 'FAILED' || course.status === 'DROPPED') {
+          status = 'failed';
+        } else if (course.status === 'WITHDRAWN') {
+          status = 'withdrawn';
+        } else if (course.grade && course.grade.trim() && !['F', 'W'].includes(course.grade.trim().toUpperCase())) {
           status = 'completed';
-        } else if (course.status === 'IN_PROGRESS') {
+        } else if (course.status === 'IN_PROGRESS' || course.status === 'TAKING') {
           status = 'taking';
         } else if (course.status === 'PLANNING') {
           status = 'planning';

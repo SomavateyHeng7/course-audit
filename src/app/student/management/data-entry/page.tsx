@@ -2,17 +2,16 @@
 
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { useState, createContext, useContext, useRef, useEffect } from 'react';
+import { useState, createContext, useContext, useEffect } from 'react';
 import { useToastHelpers } from '@/hooks/useToast';
 import { getPublicCurricula, getPublicFaculties, getPublicDepartments, API_BASE } from '@/lib/api/laravel';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { BarChart2, Calendar, ChevronDown, ArrowLeft } from 'lucide-react';
+import { Calendar, ChevronDown, ArrowLeft } from 'lucide-react';
 import { FaTrash } from 'react-icons/fa';
 import StudentTranscriptImport from '@/components/role-specific/student/StudentTranscriptImport';
 import UnmatchedCoursesSection, { UnmatchedCourse } from '@/components/role-specific/student/UnmatchedCoursesSection';
-import FreeElectiveManager, { FreeElectiveCourse } from '@/components/role-specific/student/FreeElectiveManager';
+import { FreeElectiveCourse } from '@/components/role-specific/student/FreeElectiveManager';
 import { type CourseData, type FileMetadata } from '@/components/features/excel/ExcelUtils';
 import ExportDataMenu from '../../../../components/role-specific/student/dataentry/ExportDataMenu';
 import CourseStatusDropdown from '../../../../components/role-specific/student/dataentry/CourseStatusDropdown';
@@ -108,6 +107,8 @@ export default function DataEntryPage() {
   const [departmentName, setDepartmentName] = useState('');
   const [curriculumName, setCurriculumName] = useState('');
   const [concentrationName, setConcentrationName] = useState('');
+  // Queued concentration name from file metadata – resolved once concentrations finish loading
+  const [pendingConcentrationName, setPendingConcentrationName] = useState<string | null>(null);
 
   // Auto-populate semester labels for planning courses that do not have one yet
   useEffect(() => {
@@ -494,25 +495,6 @@ export default function DataEntryPage() {
     }
   };
 
-  // Handle imported courses from transcript
-  const handleCoursesImported = (courses: CourseData[]) => {
-    const newCompletedCourses: { [code: string]: CourseStatus } = {};
-    
-    courses.forEach(course => {
-      const status = mapTranscriptStatusToCourseStatus(course.status, course.grade);
-
-      newCompletedCourses[course.courseCode] = {
-        status,
-        grade: course.grade,
-        plannedSemester: status === 'planning'
-          ? (course.semester || getDefaultSemesterLabel())
-          : undefined
-      };
-    });
-
-    setCompletedCourses(prev => ({ ...prev, ...newCompletedCourses }));
-  };
-
   // Handle categorized courses from enhanced transcript import
   const handleCategorizedCoursesImported = (data: any) => {
     console.log('Received import data:', data);
@@ -724,11 +706,6 @@ export default function DataEntryPage() {
       return;
     }
     // Save minimal data and skip to planning
-    router.push('/student/management/course-planning');
-  };
-
-  const handleSkipToPlanning = () => {
-    // Navigate to course planning regardless — new students can plan without entering past data
     router.push('/student/management/course-planning');
   };
 
@@ -1338,6 +1315,7 @@ export default function DataEntryPage() {
       )}
     </div>
   );
+}
 
 interface FreeElectiveAddButtonProps {
   gradeOptions: string[];
@@ -1456,4 +1434,3 @@ function FreeElectiveAddButton({
     </div>
   );
 }
-} 
