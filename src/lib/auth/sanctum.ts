@@ -7,6 +7,7 @@ export interface User {
   role: string;
   faculty_id?: string;
   department_id?: string;
+  advisor_id?: string;
   faculty?: {
     id: string;
     name: string;
@@ -16,6 +17,12 @@ export interface User {
     id: string;
     name: string;
     code: string;
+  };
+  advisor?: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
   };
 }
 

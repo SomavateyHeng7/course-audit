@@ -18,6 +18,8 @@ export interface PlannedCourse {
   validationStatus?: ValidationStatus;
   validationNotes?: string[];
   semesterLabel?: string;
+  prerequisites?: string[];
+  corequisites?: string[];
 }
 
 interface PlannedCourseCardProps {
@@ -56,6 +58,18 @@ export const PlannedCourseCard: React.FC<PlannedCourseCardProps> = ({
             )}
           </div>
           <p className="text-xs text-muted-foreground mb-1">{course.title}</p>
+          
+          {/* Prerequisites and Corequisites */}
+          {(course.prerequisites && course.prerequisites.length > 0) && (
+            <p className="text-[10px] text-muted-foreground/80">
+              <span className="font-medium">Prerequisites:</span> {course.prerequisites.join(', ')}
+            </p>
+          )}
+          {(course.corequisites && course.corequisites.length > 0) && (
+            <p className="text-[10px] text-muted-foreground/80">
+              <span className="font-medium">Corequisites:</span> {course.corequisites.join(', ')}
+            </p>
+          )}
           
           <Select
             value={course.status}

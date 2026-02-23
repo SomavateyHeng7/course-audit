@@ -120,7 +120,6 @@ export default function RoleManagement() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       showError('Passwords do not match.');
       return;
@@ -132,6 +131,7 @@ export default function RoleManagement() {
       await createUser(submitData);
       success('User created successfully!');
       setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
+      setShowCreateModal(false);
       fetchUsers();
     } catch (error) {
       showError('Error creating user.');

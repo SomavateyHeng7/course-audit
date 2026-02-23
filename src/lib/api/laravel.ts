@@ -291,6 +291,25 @@ export async function deleteUser(id: number) {
   });
 }
 
+// Audit Logs
+export async function getAuditLogs(params?: {
+  page?: number;
+  perPage?: number;
+  action?: string;
+  entity_type?: string;
+  search?: string;
+}) {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.perPage) queryParams.append('per_page', params.perPage.toString());
+  if (params?.action) queryParams.append('action', params.action);
+  if (params?.entity_type) queryParams.append('entity_type', params.entity_type);
+  if (params?.search) queryParams.append('search', params.search);
+  
+  const queryString = queryParams.toString();
+  return authenticatedRequest(`/admin/audit-logs${queryString ? `?${queryString}` : ''}`);
+}
+
 // Curricula
 export async function getCurricula() {
   return authenticatedRequest('/curricula');
@@ -632,16 +651,23 @@ export async function getPublicGraduationPortals(params?: {
   const queryString = searchParams.toString();
   const url = `${API_BASE}/public/graduation-portals${queryString ? `?${queryString}` : ''}`;
   
+  console.log('[API] Fetching graduation portals from:', url);
+  
   const response = await fetch(url, {
     headers: { 'Accept': 'application/json' }
   });
   
+  console.log('[API] Response status:', response.status);
+  
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
+    console.error('[API] Error response:', error);
     throw new Error(error.error?.message || 'Failed to fetch graduation portals');
   }
   
-  return response.json();
+  const data = await response.json();
+  console.log('[API] Response data:', data);
+  return data;
 }
 
 /**
@@ -862,7 +888,8 @@ export async function getGraduationPortals(params?: {
   status?: 'active' | 'closed';
   curriculum_id?: string;
 }): Promise<{
-  data: GraduationPortal[];
+  data?: GraduationPortal[];
+  portals?: GraduationPortal[];
   meta?: { current_page: number; last_page: number; total: number };
 }> {
   const searchParams = new URLSearchParams();
@@ -870,7 +897,12 @@ export async function getGraduationPortals(params?: {
   if (params?.curriculum_id) searchParams.set('curriculum_id', params.curriculum_id);
   
   const queryString = searchParams.toString();
-  return authenticatedRequest(`/graduation-portals${queryString ? `?${queryString}` : ''}`);
+  const url = `/graduation-portals${queryString ? `?${queryString}` : ''}`;
+  console.log('[API] Fetching authenticated portals from:', url);
+  
+  const result = await authenticatedRequest(url);
+  console.log('[API] Authenticated portals response:', result);
+  return result;
 }
 
 /**
@@ -990,7 +1022,11 @@ export async function getCacheSubmissions(portalId: string): Promise<{
   retention_info?: SubmissionRetentionInfo;
   note?: string;
 }> {
-  return authenticatedRequest(`/graduation-portals/${portalId}/cache-submissions`);
+  const url = `/graduation-portals/${portalId}/cache-submissions`;
+  console.log('[API] Fetching cache submissions from:', url);
+  const result = await authenticatedRequest(url);
+  console.log('[API] Cache submissions response:', result);
+  return result;
 }
 
 /**
@@ -1001,7 +1037,16 @@ export async function getCacheSubmission(
   portalId: string,
   submissionId: string
 ): Promise<{ submission: CacheSubmission & { courses: SubmissionCourse[] } }> {
-  return authenticatedRequest(`/graduation-portals/${portalId}/cache-submissions/${submissionId}`);
+  const url = `/graduation-portals/${portalId}/cache-submissions/${submissionId}`;
+  console.log('[API] Fetching single submission:', url);
+  try {
+    const result = await authenticatedRequest(url);
+    console.log('[API] Submission response status:', result?.submission?.status);
+    return result;
+  } catch (err) {
+    console.error('[API] Failed to fetch submission:', { url, error: err instanceof Error ? err.message : err });
+    throw err;
+  }
 }
 
 /**

@@ -222,11 +222,6 @@ export default function DataEntryPage() {
   const [electiveRules, setElectiveRules] = useState<any[]>([]);
   const [assignedFreeElectiveCodes, setAssignedFreeElectiveCodes] = useState<Set<string>>(new Set());
 
-  // Check if user has any completed courses
-  const hasCompletedCourses = Object.values(completedCourses).some(
-    course => course.status === 'completed' || course.grade
-  );
-
   // Fetch curricula and faculties on component mount
   useEffect(() => {
     const fetchData = async () => {
@@ -407,7 +402,7 @@ export default function DataEntryPage() {
     } catch (error) {
       console.error('Error saving to localStorage:', error);
     }
-  }, [completedCourses, selectedDepartment, selectedCurriculum, selectedConcentration, selectedFaculty, freeElectives, curricula, fromWorkflow]);
+  }, [completedCourses, selectedDepartment, selectedCurriculum, selectedConcentration, selectedFaculty, freeElectives, curricula, fromWorkflow, electiveRules]);
 
   // Computed curriculum options based on selected department ID
   const curriculumOptions = selectedDepartment
@@ -588,6 +583,10 @@ export default function DataEntryPage() {
 
   const courseTypeOrder = getCourseTypeOrder();
 
+  // Derived: true if the student has entered any course data (completed, in-progress or failed)
+  const hasCompletedCourses = Object.values(completedCourses).some(
+    c => c.status === 'completed' || c.status === 'in_progress' || c.status === 'failed'
+  );
 
   // Debug logging for curriculumCourses changes
   useEffect(() => {
@@ -701,11 +700,7 @@ export default function DataEntryPage() {
   };
 
   const handleSkipToPlanning = () => {
-    if (!selectedDepartment || !selectedCurriculum) {
-      showError('Please select your faculty, department, and curriculum first');
-      return;
-    }
-    // Save minimal data and skip to planning
+    // Navigate to course planning regardless — new students can plan without entering past data
     router.push('/student/management/course-planning');
   };
 
@@ -820,6 +815,13 @@ export default function DataEntryPage() {
               </Button>
             </div>
           )}
+          {/* UX hint — let users know the upload section below can fill these automatically */}
+          <div className="col-span-full flex items-start gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-200">
+            <span className="mt-0.5">💡</span>
+            <span>
+              <strong>Have a file exported from this system?</strong> Use the &quot;Import Transcript&quot; section below — your faculty, department, curriculum, and concentration will be filled in automatically.
+            </span>
+          </div>
           <div>
             <label className="block font-bold mb-2 text-gray-900 dark:text-foreground">Select Faculty</label>
             <Select value={selectedFaculty} onValueChange={value => {
@@ -1275,35 +1277,26 @@ export default function DataEntryPage() {
                 concentrationName={concentrationOptions[selectedCurriculum]?.find(o => o.value === selectedConcentration)?.label || ''}
               />
             )}
-            <div className="flex flex-col items-stretch sm:items-end gap-2">
-              {!hasCompletedCourses && selectedCurriculum && selectedDepartment && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-2">
-                  <p className="text-sm text-blue-900 dark:text-blue-100">
-                    ℹ️ No completed courses detected. You can skip to planning.
-                  </p>
-                </div>
-              )}
-              <div className="flex gap-2">
-                {!hasCompletedCourses && selectedCurriculum && selectedDepartment && (
-                  <Button 
-                    onClick={handleSkipToPlanning}
-                    variant="outline"
-                    className="flex items-center gap-2 px-6 py-3 text-lg"
-                    size="lg"
-                  >
-                    Skip to Planning
-                  </Button>
-                )}
-                <Button 
-                  onClick={handleCoursePlanning}
-                  className="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 text-primary-foreground flex items-center gap-2 px-8 py-3 text-lg shadow-md transform transition-all duration-200 hover:scale-[1.01] border-0"
-                  disabled={!selectedCurriculum || !selectedDepartment}
-                  size="lg"
-                >
-                  <Calendar className="w-5 h-5" />
-                  {hasCompletedCourses ? 'Continue to Course Planning' : 'Enter Data & Continue'}
-                </Button>
+            <div className="flex flex-col items-stretch sm:items-end gap-3">
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-900 dark:text-blue-100 flex items-start gap-2">
+                  <span className="flex-shrink-0">ℹ️</span>
+                  <span>
+                    {hasCompletedCourses
+                      ? 'Courses imported successfully. Continue to planning to organize your schedule.'
+                      : 'New student or no prior courses? That\'s okay! Import your transcript above or continue directly to course planning.'}
+                  </span>
+                </p>
               </div>
+              <Button 
+                onClick={handleCoursePlanning}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2 px-8 py-3 text-base font-medium shadow-md transition-all duration-200 hover:shadow-lg"
+                disabled={!selectedCurriculum || !selectedDepartment}
+                size="lg"
+              >
+                <Calendar className="w-5 h-5" />
+                {hasCompletedCourses ? 'Continue to Course Planning' : 'Start Course Planning'}
+              </Button>
               {(!selectedCurriculum || !selectedDepartment) && (
                 <p className="text-sm text-muted-foreground text-left sm:text-right">
                   Please select a faculty, department and curriculum first
