@@ -2325,12 +2325,17 @@ export default function ProgressPage() {
 
     worksheetData.push(['course data']); // Title (match CSV format)
     
-    // Add curriculum metadata if available
-    if (curriculumData) {
-      worksheetData.push(['CURRICULUM_ID', curriculumData.id || '']);
-      worksheetData.push(['CURRICULUM_NAME', curriculumData.name || '']);
-      worksheetData.push(['CURRICULUM_YEAR', curriculumData.year || '']);
-    }
+    // Add curriculum metadata (match data-entry export format)
+    const exportCurriculumId = completedData.selectedCurriculum || curriculumData?.id || '';
+    const exportCurriculumName = completedData.curriculumName || curriculumData?.name || '';
+    const exportFacultyName = completedData.facultyName || '';
+    const exportDepartmentName = completedData.departmentName || '';
+    const exportConcentrationName = completedData.concentrationName || '';
+    if (exportCurriculumId) worksheetData.push(['CURRICULUM_ID', exportCurriculumId]);
+    if (exportCurriculumName) worksheetData.push(['CURRICULUM_NAME', exportCurriculumName]);
+    if (exportFacultyName) worksheetData.push(['Faculty', exportFacultyName]);
+    if (exportDepartmentName) worksheetData.push(['Department', exportDepartmentName]);
+    if (exportConcentrationName) worksheetData.push(['Concentration', exportConcentrationName]);
     
     worksheetData.push([]); // Empty row before course data
     
@@ -2403,12 +2408,17 @@ export default function ProgressPage() {
     const csvLines: string[] = [];
     csvLines.push('course data'); // Title
     
-    // Add curriculum metadata if available
-    if (curriculumData) {
-      csvLines.push(formatCsvRow(['CURRICULUM_ID', curriculumData.id || '']));
-      csvLines.push(formatCsvRow(['CURRICULUM_NAME', curriculumData.name || '']));
-      csvLines.push(formatCsvRow(['CURRICULUM_YEAR', curriculumData.year || '']));
-    }
+    // Add curriculum metadata (match data-entry export format)
+    const exportCurriculumId = completedData.selectedCurriculum || curriculumData?.id || '';
+    const exportCurriculumName = completedData.curriculumName || curriculumData?.name || '';
+    const exportFacultyName = completedData.facultyName || '';
+    const exportDepartmentName = completedData.departmentName || '';
+    const exportConcentrationName = completedData.concentrationName || '';
+    if (exportCurriculumId) csvLines.push(formatCsvRow(['CURRICULUM_ID', exportCurriculumId]));
+    if (exportCurriculumName) csvLines.push(formatCsvRow(['CURRICULUM_NAME', exportCurriculumName]));
+    if (exportFacultyName) csvLines.push(formatCsvRow(['Faculty', exportFacultyName]));
+    if (exportDepartmentName) csvLines.push(formatCsvRow(['Department', exportDepartmentName]));
+    if (exportConcentrationName) csvLines.push(formatCsvRow(['Concentration', exportConcentrationName]));
     
     csvLines.push(''); // Empty line before course data
     
