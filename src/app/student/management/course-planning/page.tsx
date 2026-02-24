@@ -187,6 +187,8 @@ export default function CoursePlanningPage() {
   
   // State management
   const [availableCourses, setAvailableCourses] = useState<AvailableCourse[]>([]);
+  // Map of courseCode -> array of banned course codes from curriculum-level constraints
+  const [curriculumBannedCombosMap, setCurriculumBannedCombosMap] = useState<Record<string, string[]>>({});
   const [plannedCourses, setPlannedCourses] = useState<PlannedCourse[]>([]);
   const [completedCourses, setCompletedCourses] = useState<Set<string>>(new Set());
   const [inProgressCourses, setInProgressCourses] = useState<Set<string>>(new Set());
@@ -274,6 +276,17 @@ export default function CoursePlanningPage() {
     
     return options;
   }, [availableCourses]);
+
+  // Merge curriculum-level banned combinations into available courses
+  const enrichedAvailableCourses = React.useMemo<AvailableCourse[]>(() => {
+    if (Object.keys(curriculumBannedCombosMap).length === 0) return availableCourses;
+    return availableCourses.map(course => {
+      const extraBanned = curriculumBannedCombosMap[course.code] || [];
+      if (extraBanned.length === 0) return course;
+      const merged = Array.from(new Set([...(course.bannedWith || []), ...extraBanned]));
+      return { ...course, bannedWith: merged };
+    });
+  }, [availableCourses, curriculumBannedCombosMap]);
 
   // Calculate credits by category
   const creditsByCategory = React.useMemo(() => {
@@ -435,6 +448,7 @@ export default function CoursePlanningPage() {
       fetchAvailableCourses();
       fetchConcentrations();
       fetchBlacklistedCourses();
+      fetchCurriculumConstraints();
       fetchTentativeSchedules();
       loadSavedCoursePlan();
     }
@@ -480,10 +494,18 @@ export default function CoursePlanningPage() {
         throw new Error('Failed to fetch available courses');
       }
       const data = await response.json();
-      // Trim course codes to remove any spaces
-      const coursesWithTrimmedCodes = (data.courses || []).map((course: AvailableCourse) => ({
+      // Normalize course fields: trim codes, ensure prerequisites/corequisites/bannedWith are string arrays
+      const normalizeCodeArray = (arr: any[]): string[] =>
+        (arr || []).map((item: any) =>
+          typeof item === 'string' ? item.trim() : ((item?.code || item?.courseCode || '') as string).trim()
+        ).filter(Boolean);
+
+      const coursesWithTrimmedCodes = (data.courses || []).map((course: any) => ({
         ...course,
-        code: (course.code || '').trim()
+        code: (course.code || '').trim(),
+        prerequisites: normalizeCodeArray(course.prerequisites || course.prerequisite_codes || []),
+        corequisites: normalizeCodeArray(course.corequisites || course.corequisite_codes || []),
+        bannedWith: normalizeCodeArray(course.bannedWith || course.banned_with || course.banned_combinations || []),
       }));
       setAvailableCourses(coursesWithTrimmedCodes);
     } catch (error) {
@@ -688,6 +710,56 @@ export default function CoursePlanningPage() {
       console.log('Error fetching blacklisted courses (continuing with empty set):', error);
       // Set empty set on error - this is not critical
       setBlacklistedCourses(new Set());
+    }
+  };
+
+  // Fetch curriculum-level constraints (banned combinations) from the constraints API
+  const fetchCurriculumConstraints = async () => {
+    if (!dataEntryContext) return;
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/curricula/${dataEntryContext.selectedCurriculum}/constraints`,
+        { credentials: 'include' }
+      );
+
+      if (!response.ok) {
+        console.log('No curriculum constraints found (this is okay)');
+        return;
+      }
+
+      const data = await response.json();
+      const constraints: any[] = data.constraints || [];
+
+      // Build a map: courseCode -> [bannedWithCode, ...]
+      // Each CUSTOM banned_combination entry lists N courses that cannot be taken together.
+      const map: Record<string, string[]> = {};
+
+      constraints
+        .filter(
+          (c: any) =>
+            c.type === 'CUSTOM' &&
+            c.config?.type === 'banned_combination' &&
+            Array.isArray(c.config?.courses) &&
+            c.config.courses.length >= 2
+        )
+        .forEach((c: any) => {
+          const courses: Array<{ id: string; code: string }> = c.config.courses;
+          courses.forEach((course, i) => {
+            const code = (course.code || '').trim();
+            if (!code) return;
+            const otherCodes = courses
+              .filter((_, j) => j !== i)
+              .map((other) => (other.code || '').trim())
+              .filter(Boolean);
+            map[code] = Array.from(new Set([...(map[code] || []), ...otherCodes]));
+          });
+        });
+
+      console.log('Curriculum banned combinations map:', map);
+      setCurriculumBannedCombosMap(map);
+    } catch (error) {
+      console.log('Error fetching curriculum constraints (continuing):', error);
     }
   };
 
@@ -1119,7 +1191,7 @@ export default function CoursePlanningPage() {
   };
 
   // Filter available courses based on search, category, and semester selection
-  const filteredCourses = availableCourses.filter(course => {
+  const filteredCourses = enrichedAvailableCourses.filter(course => {
     const matchesSearch = course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          course.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || course.category === selectedCategory;
@@ -1164,8 +1236,8 @@ export default function CoursePlanningPage() {
         continue;
       }
 
-      // Find the corequisite course in available courses
-      const coreqCourse = availableCourses.find(c => c.code === coreqCode);
+      // Find the corequisite course in available courses (use enriched for correct bannedWith)
+      const coreqCourse = enrichedAvailableCourses.find(c => c.code === coreqCode);
       if (coreqCourse) {
         // Validate the corequisite can be added
         const bannedValidation = validateBannedCombinations(coreqCourse);

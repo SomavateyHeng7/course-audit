@@ -27,7 +27,8 @@ import {
   Edit,
   Loader2,
   Settings,
-  BookOpen
+  BookOpen,
+  BarChart3
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -388,6 +389,175 @@ const ConfirmDialog = ({
   </Dialog>
 );
 
+// Batch Validation Results Modal
+const BatchValidationResultsModal = ({
+  open,
+  onClose,
+  batchDetail,
+  submissions,
+  onApproveAll,
+  isApprovingAll,
+  portalId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  batchDetail: {
+    results: Array<{ submission_id: string; success: boolean; can_graduate?: boolean; error_count?: number; error?: string }>;
+    processedIds: string[];
+    summary: { total: number; success: number; failed: number };
+  } | null;
+  submissions: CacheSubmission[];
+  onApproveAll: (ids: string[]) => void;
+  isApprovingAll: boolean;
+  portalId: string;
+}) => {
+  const router = useRouter();
+  if (!batchDetail) return null;
+
+  const eligibleIds = batchDetail.results
+    .filter(r => r.success && r.can_graduate)
+    .map(r => r.submission_id);
+  const issueCount = batchDetail.results.filter(r => r.success && !r.can_graduate).length;
+  const eligibilityRate =
+    batchDetail.summary.total > 0
+      ? Math.round((eligibleIds.length / batchDetail.summary.total) * 100)
+      : 0;
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-primary" />
+            Batch Validation Complete
+          </DialogTitle>
+          <DialogDescription>
+            {batchDetail.summary.total} submission(s) processed
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="text-center p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{eligibleIds.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">Ready to Graduate</p>
+          </div>
+          <div className="text-center p-4 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{issueCount}</p>
+            <p className="text-xs text-muted-foreground mt-1">Have Issues</p>
+          </div>
+          <div className="text-center p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{batchDetail.summary.failed}</p>
+            <p className="text-xs text-muted-foreground mt-1">Failed</p>
+          </div>
+        </div>
+
+        {/* Eligibility Rate Bar */}
+        {batchDetail.summary.total > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Eligibility Rate</span>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                {eligibilityRate}%
+              </span>
+            </div>
+            <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+                style={{ width: `${eligibilityRate}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Per-Submission Results */}
+        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+          {batchDetail.results.map(result => {
+            const sub = submissions.find(s => s.id === result.submission_id);
+            return (
+              <div
+                key={result.submission_id}
+                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                  !result.success
+                    ? 'border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-900/10'
+                    : result.can_graduate
+                    ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-900/10'
+                    : 'border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-900/10'
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm truncate">
+                    {sub?.studentIdentifier || sub?.student_identifier || 'Anonymous'}
+                  </p>
+                  {result.error_count != null && result.error_count > 0 && (
+                    <p className="text-xs text-muted-foreground">{result.error_count} validation issue(s)</p>
+                  )}
+                  {result.error && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{result.error}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                  {!result.success ? (
+                    <Badge variant="destructive" className="text-xs">Failed</Badge>
+                  ) : result.can_graduate ? (
+                    <Badge className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                      <GraduationCap className="w-3 h-3 mr-1" />
+                      Eligible
+                    </Badge>
+                  ) : (
+                    <Badge className="text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      Has Issues
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    title="View details"
+                    onClick={() =>
+                      router.push(
+                        `/chairperson/GraduationPortal/${result.submission_id}?portalId=${portalId}`
+                      )
+                    }
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          {eligibleIds.length > 0 && (
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() => onApproveAll(eligibleIds)}
+              disabled={isApprovingAll}
+            >
+              {isApprovingAll ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Approving...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Approve All Eligible ({eligibleIds.length})
+                </>
+              )}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // Main Page Component
 const GraduationPortalChairpersonPage: React.FC = () => {
   const router = useRouter();
@@ -420,6 +590,15 @@ const GraduationPortalChairpersonPage: React.FC = () => {
     variant: 'default' | 'destructive';
     onConfirm: () => void;
   } | null>(null);
+
+  // Batch validation results modal
+  const [showBatchResultsModal, setShowBatchResultsModal] = useState(false);
+  const [batchValidationDetail, setBatchValidationDetail] = useState<{
+    results: Array<{ submission_id: string; success: boolean; can_graduate?: boolean; error_count?: number; error?: string }>;
+    processedIds: string[];
+    summary: { total: number; success: number; failed: number };
+  } | null>(null);
+  const [isApprovingAll, setIsApprovingAll] = useState(false);
 
   // Auto-refresh submissions every 10 seconds
   useEffect(() => {
@@ -647,30 +826,46 @@ const GraduationPortalChairpersonPage: React.FC = () => {
     if (!selectedPortal) return;
     const pendingIds = submissions.filter(s => s.status === 'pending').map(s => s.id);
     if (pendingIds.length === 0) return;
-    
+
     setIsProcessingAction(true);
     try {
       const response = await batchValidateSubmissions(selectedPortal.id, pendingIds);
-      // Reload submissions to get updated statuses
+      // Reload submissions so the modal can reference updated data
       await loadSubmissions(selectedPortal.id);
-      
-      // Use the summary from backend response
+
       const summary = response.summary || { total: 0, success: 0, failed: 0 };
       const results = response.results || [];
-      const canGraduateCount = results.filter(r => r.success && r.can_graduate).length;
-      const hasIssuesCount = results.filter(r => r.success && !r.can_graduate).length;
-      
-      if (summary.failed > 0) {
-        showError(`Validation: ${canGraduateCount} ready to graduate, ${hasIssuesCount} have issues, ${summary.failed} failed`, 'Batch Validation');
-      } else if (hasIssuesCount > 0) {
-        showSuccess(`Validated ${summary.total} submission(s): ${canGraduateCount} ready to graduate, ${hasIssuesCount} have issues`, 'Batch Validation Complete');
-      } else {
-        showSuccess(`Validated ${summary.total} submission(s): All ready to graduate!`, 'Batch Validation Complete');
+
+      // Store results and open results modal
+      setBatchValidationDetail({ results, processedIds: pendingIds, summary });
+      setShowBatchResultsModal(true);
+
+      // Only surface an error toast when ALL validations failed (modal shows per-result details otherwise)
+      if (summary.failed > 0 && summary.success === 0) {
+        showError(`All ${summary.failed} validation(s) failed to process`, 'Batch Validation Error');
       }
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to batch validate', 'Error');
     } finally {
       setIsProcessingAction(false);
+    }
+  };
+
+  const handleApproveAllEligible = async (eligibleIds: string[]) => {
+    if (!selectedPortal) return;
+    setIsApprovingAll(true);
+    try {
+      await Promise.all(
+        eligibleIds.map(id => approveCacheSubmission(selectedPortal.id, id))
+      );
+      setShowBatchResultsModal(false);
+      setBatchValidationDetail(null);
+      showSuccess(`Approved ${eligibleIds.length} eligible submission(s)`, 'Bulk Approved');
+      await loadSubmissions(selectedPortal.id);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to approve submissions', 'Error');
+    } finally {
+      setIsApprovingAll(false);
     }
   };
 
@@ -955,6 +1150,139 @@ const GraduationPortalChairpersonPage: React.FC = () => {
           </Card>
         </div>
 
+        {/* Portal Analytics Dashboard */}
+        {selectedPortal && stats.total > 0 && (
+          <Card className="mb-6">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Portal Analytics
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Eligibility rate bar */}
+              {(stats.validated + stats.hasIssues + stats.approved + stats.rejected) > 0 && (() => {
+                const reviewed = stats.validated + stats.hasIssues + stats.approved + stats.rejected;
+                const eligible = stats.validated + stats.approved;
+                const rate = Math.round((eligible / reviewed) * 100);
+                return (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Graduation Eligibility Rate</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        {rate}% ({eligible} / {reviewed} reviewed)
+                      </span>
+                    </div>
+                    <div className="h-3 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+                        style={{ width: `${rate}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Status distribution bar */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">
+                  Submission Status Distribution
+                </p>
+                <div className="h-3 bg-muted rounded-full overflow-hidden flex">
+                  {stats.pending > 0 && (
+                    <div
+                      className="h-full bg-gray-400 dark:bg-gray-500 transition-all"
+                      style={{ width: `${(stats.pending / stats.total) * 100}%` }}
+                    />
+                  )}
+                  {stats.validated > 0 && (
+                    <div
+                      className="h-full bg-emerald-400 transition-all"
+                      style={{ width: `${(stats.validated / stats.total) * 100}%` }}
+                    />
+                  )}
+                  {stats.hasIssues > 0 && (
+                    <div
+                      className="h-full bg-orange-400 transition-all"
+                      style={{ width: `${(stats.hasIssues / stats.total) * 100}%` }}
+                    />
+                  )}
+                  {stats.approved > 0 && (
+                    <div
+                      className="h-full bg-green-600 transition-all"
+                      style={{ width: `${(stats.approved / stats.total) * 100}%` }}
+                    />
+                  )}
+                  {stats.rejected > 0 && (
+                    <div
+                      className="h-full bg-rose-500 transition-all"
+                      style={{ width: `${(stats.rejected / stats.total) * 100}%` }}
+                    />
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
+                  {stats.pending > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500 flex-shrink-0" />
+                      Pending ({stats.pending})
+                    </span>
+                  )}
+                  {stats.validated > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
+                      Requirement Met ({stats.validated})
+                    </span>
+                  )}
+                  {stats.hasIssues > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
+                      Has Issues ({stats.hasIssues})
+                    </span>
+                  )}
+                  {stats.approved > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-green-600 flex-shrink-0" />
+                      Approved ({stats.approved})
+                    </span>
+                  )}
+                  {stats.rejected > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0" />
+                      Rejected ({stats.rejected})
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Pending action prompt */}
+              {stats.pending > 0 && (
+                <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span className="text-amber-800 dark:text-amber-200">
+                      <strong>{stats.pending}</strong> submission(s) awaiting validation
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400"
+                    onClick={handleBatchValidate}
+                    disabled={isProcessingAction}
+                  >
+                    {isProcessingAction ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                    )}
+                    Validate Now
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Info Alert */}
         {selectedPortal && (
           <Alert className="mb-6">
@@ -1185,6 +1513,20 @@ const GraduationPortalChairpersonPage: React.FC = () => {
           isLoading={isProcessingAction}
         />
       )}
+
+      {/* Batch Validation Results Modal */}
+      <BatchValidationResultsModal
+        open={showBatchResultsModal}
+        onClose={() => {
+          setShowBatchResultsModal(false);
+          setBatchValidationDetail(null);
+        }}
+        batchDetail={batchValidationDetail}
+        submissions={submissions}
+        onApproveAll={handleApproveAllEligible}
+        isApprovingAll={isApprovingAll}
+        portalId={selectedPortal?.id || ''}
+      />
     </div>
   );
 };

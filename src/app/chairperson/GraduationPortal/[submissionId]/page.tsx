@@ -23,7 +23,8 @@ import {
   Hash,
   Percent,
   BarChart3,
-  TrendingUp
+  TrendingUp,
+  ShieldCheck
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -447,6 +448,18 @@ const CategoryCard = ({
   );
 };
 
+// Categorize validation issues by constraint type for better display
+const categorizeValidationMessage = (
+  message: string
+): 'prerequisite' | 'corequisite' | 'banned' | 'credit' | 'general' => {
+  const lower = message.toLowerCase();
+  if (lower.includes('prerequisite') || lower.includes('pre-requisite')) return 'prerequisite';
+  if (lower.includes('corequisite') || lower.includes('co-requisite')) return 'corequisite';
+  if (lower.includes('banned') || lower.includes('cannot take') || lower.includes('combination')) return 'banned';
+  if (lower.includes('credit') || lower.includes('gpa') || lower.includes('minimum') || lower.includes('threshold')) return 'credit';
+  return 'general';
+};
+
 // Main Component
 const SubmissionDetailPage: React.FC = () => {
   const router = useRouter();
@@ -779,6 +792,165 @@ const SubmissionDetailPage: React.FC = () => {
           </CardContent>
         </Card>
 
+        {/* Validation Scorecard */}
+        {validation && (
+          <Card className="mb-6">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5" />
+                  Validation Scorecard
+                </CardTitle>
+                {validation.requirements?.length > 0 && (() => {
+                  const metCount = validation.requirements.filter(
+                    (r: { met?: boolean; fulfilled?: boolean }) => r.met ?? r.fulfilled ?? false
+                  ).length;
+                  const total = validation.requirements.length;
+                  return (
+                    <Badge
+                      variant="outline"
+                      className={
+                        metCount === total
+                          ? 'border-green-500 text-green-700 dark:text-green-400'
+                          : 'border-orange-400 text-orange-700 dark:text-orange-400'
+                      }
+                    >
+                      {metCount} / {total} rules met
+                    </Badge>
+                  );
+                })()}
+              </div>
+              <CardDescription>Rules and criteria evaluated during validation</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Per-requirement pass/fail grid */}
+              {validation.requirements?.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {validation.requirements.map(
+                    (
+                      req: {
+                        met?: boolean;
+                        fulfilled?: boolean;
+                        label?: string;
+                        description?: string;
+                        name?: string;
+                        message?: string;
+                        earned?: number;
+                        required?: number;
+                      },
+                      idx: number
+                    ) => {
+                      const isMet = req.met ?? req.fulfilled ?? false;
+                      const label =
+                        req.label || req.description || req.name || req.message || 'Requirement';
+                      const progress =
+                        req.earned != null && req.required != null
+                          ? `${req.earned} / ${req.required} cr`
+                          : null;
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-sm ${
+                            isMet
+                              ? 'border-green-200 bg-green-50/60 dark:border-green-900 dark:bg-green-900/15'
+                              : 'border-red-200 bg-red-50/60 dark:border-red-900 dark:bg-red-900/15'
+                          }`}
+                        >
+                          {isMet ? (
+                            <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                          )}
+                          <span className="flex-1 font-medium truncate">{label}</span>
+                          {progress && (
+                            <span className="text-xs text-muted-foreground flex-shrink-0">
+                              {progress}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+
+              {/* Constraint violation summary chips */}
+              {(() => {
+                const allMessages = [
+                  ...(validation.errors ?? []),
+                  ...(validation.warnings ?? []),
+                ];
+                if (allMessages.length === 0) {
+                  return (
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-50/60 dark:bg-green-900/15 border border-green-200 dark:border-green-900 text-sm">
+                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <span className="font-medium text-green-700 dark:text-green-400">
+                        No constraint violations detected
+                      </span>
+                    </div>
+                  );
+                }
+                const counts = {
+                  prerequisite: 0,
+                  corequisite: 0,
+                  banned: 0,
+                  credit: 0,
+                  general: 0,
+                };
+                allMessages.forEach(m => {
+                  const cat = categorizeValidationMessage(m);
+                  counts[cat]++;
+                });
+                const chips = [
+                  {
+                    label: 'Prerequisite',
+                    count: counts.prerequisite,
+                    color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+                  },
+                  {
+                    label: 'Corequisite',
+                    count: counts.corequisite,
+                    color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                  },
+                  {
+                    label: 'Banned Combo',
+                    count: counts.banned,
+                    color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+                  },
+                  {
+                    label: 'Credit / GPA',
+                    count: counts.credit,
+                    color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+                  },
+                  {
+                    label: 'General',
+                    count: counts.general,
+                    color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+                  },
+                ].filter(c => c.count > 0);
+                return (
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">
+                      Constraint Violations
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {chips.map(chip => (
+                        <span
+                          key={chip.label}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${chip.color}`}
+                        >
+                          <AlertTriangle className="w-3 h-3" />
+                          {chip.label}: {chip.count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Submission Info */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <Card>
@@ -921,39 +1093,152 @@ const SubmissionDetailPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Validation Issues */}
-        {validation && (validation.errors?.length || validation.warnings?.length) && (
-          <Card className="mb-6 border-red-200 dark:border-red-900">
-            <CardHeader>
-              <CardTitle className="text-red-600 dark:text-red-400 flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" />
-                Validation Issues ({(validation.errors?.length || 0) + (validation.warnings?.length || 0)})
+        {/* Validation Issues — categorized by constraint type */}
+        {validation && ((validation.errors?.length ?? 0) + (validation.warnings?.length ?? 0) > 0) && (() => {
+          type IssueCategory = 'prerequisite' | 'corequisite' | 'banned' | 'credit' | 'general';
+          const allIssues: { message: string; severity: 'error' | 'warning'; category: IssueCategory }[] = [
+            ...(validation.errors ?? []).map((m: string) => ({ message: m, severity: 'error' as const, category: categorizeValidationMessage(m) })),
+            ...(validation.warnings ?? []).map((m: string) => ({ message: m, severity: 'warning' as const, category: categorizeValidationMessage(m) })),
+          ];
+
+          const grouped: Record<IssueCategory, typeof allIssues> = {
+            prerequisite: allIssues.filter(i => i.category === 'prerequisite'),
+            corequisite: allIssues.filter(i => i.category === 'corequisite'),
+            banned: allIssues.filter(i => i.category === 'banned'),
+            credit: allIssues.filter(i => i.category === 'credit'),
+            general: allIssues.filter(i => i.category === 'general'),
+          };
+
+          const categoryMeta: Record<IssueCategory, { label: string; colorBg: string; colorBorder: string; colorText: string; icon: React.ReactNode }> = {
+            prerequisite: {
+              label: 'Prerequisite Violations',
+              colorBg: 'bg-purple-50 dark:bg-purple-900/20',
+              colorBorder: 'border-purple-200 dark:border-purple-900',
+              colorText: 'text-purple-700 dark:text-purple-400',
+              icon: <BookOpen className="w-4 h-4" />,
+            },
+            corequisite: {
+              label: 'Corequisite Violations',
+              colorBg: 'bg-blue-50 dark:bg-blue-900/20',
+              colorBorder: 'border-blue-200 dark:border-blue-900',
+              colorText: 'text-blue-700 dark:text-blue-400',
+              icon: <AlertCircle className="w-4 h-4" />,
+            },
+            banned: {
+              label: 'Banned Combinations',
+              colorBg: 'bg-rose-50 dark:bg-rose-900/20',
+              colorBorder: 'border-rose-200 dark:border-rose-900',
+              colorText: 'text-rose-700 dark:text-rose-400',
+              icon: <XCircle className="w-4 h-4" />,
+            },
+            credit: {
+              label: 'Credit / GPA Requirements',
+              colorBg: 'bg-orange-50 dark:bg-orange-900/20',
+              colorBorder: 'border-orange-200 dark:border-orange-900',
+              colorText: 'text-orange-700 dark:text-orange-400',
+              icon: <BarChart3 className="w-4 h-4" />,
+            },
+            general: {
+              label: 'Other Issues',
+              colorBg: 'bg-red-50 dark:bg-red-900/20',
+              colorBorder: 'border-red-200 dark:border-red-900',
+              colorText: 'text-red-700 dark:text-red-400',
+              icon: <AlertTriangle className="w-4 h-4" />,
+            },
+          };
+
+          return (
+            <Card className="mb-6 border-red-200 dark:border-red-900">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-red-600 dark:text-red-400 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  Validation Issues ({allIssues.length})
+                </CardTitle>
+                <CardDescription>
+                  Issues are grouped by type to help prioritize resolution.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {(Object.keys(grouped) as IssueCategory[]).map(cat => {
+                  const items = grouped[cat];
+                  if (items.length === 0) return null;
+                  const meta = categoryMeta[cat];
+                  return (
+                    <div key={cat}>
+                      <div className={`flex items-center gap-2 mb-2 ${meta.colorText}`}>
+                        {meta.icon}
+                        <span className="text-sm font-semibold">{meta.label}</span>
+                        <Badge variant="outline" className={`text-xs ${meta.colorText} ${meta.colorBorder}`}>
+                          {items.length}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1.5">
+                        {items.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className={`p-3 rounded-lg flex items-start gap-3 ${meta.colorBg} border ${meta.colorBorder}`}
+                          >
+                            {item.severity === 'error' ? (
+                              <XCircle className={`w-4 h-4 flex-shrink-0 mt-0.5 ${meta.colorText}`} />
+                            ) : (
+                              <AlertTriangle className={`w-4 h-4 flex-shrink-0 mt-0.5 ${meta.colorText}`} />
+                            )}
+                            <p className="text-sm">{item.message}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+        {/* Foreign / Unmatched Courses → Auto-assigned as Free Elective */}
+        {validation?.unmatchedCourses && validation.unmatchedCourses.length > 0 && (
+          <Card className="mb-6 border-amber-200 dark:border-amber-900">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                <Award className="w-5 h-5" />
+                Foreign / Unrecognized Courses
+                <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
+                  {validation.unmatchedCourses.length}
+                </Badge>
               </CardTitle>
+              <CardDescription>
+                These courses were not found in the curriculum and will be auto-assigned as{' '}
+                <strong>Free Elective</strong> credits.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {validation.errors?.map((message: string, index: number) => (
-                  <div 
-                    key={`error-${index}`}
-                    className="p-3 rounded-lg flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-                  >
-                    <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-sm">{message}</p>
+                {validation.unmatchedCourses.map((course: string | { code?: string; name?: string; credits?: number | string; grade?: string; status?: string }, idx: number) => {
+                  const code = typeof course === 'string' ? course : (course.code ?? '—');
+                  const name = typeof course === 'string' ? null : course.name;
+                  const grade = typeof course !== 'string' ? course.grade : null;
+                  const credits = typeof course !== 'string' ? course.credits : null;
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800"
+                    >
+                      <div>
+                        <p className="font-medium text-sm">{code}{name ? ` — ${name}` : ''}</p>
+                        {(grade || credits) && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {credits != null && `${credits} credit(s)`}
+                            {credits != null && grade && ' · '}
+                            {grade && `Grade: ${grade}`}
+                          </p>
+                        )}
+                      </div>
+                      <Badge className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+                        → Free Elective
+                      </Badge>
                     </div>
-                  </div>
-                ))}
-                {validation.warnings?.map((message: string, index: number) => (
-                  <div 
-                    key={`warning-${index}`}
-                    className="p-3 rounded-lg flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800"
-                  >
-                    <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-sm">{message}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
