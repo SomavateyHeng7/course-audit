@@ -548,6 +548,7 @@ export interface GraduationSubmissionPayload {
     parsed_at?: string;
     file_name?: string;
     total_courses?: number;
+    total_credits?: number;
     student_email?: string;
   };
 }
@@ -569,6 +570,7 @@ export interface CacheSubmission {
   metadata?: {
     file_name?: string;
     parsed_at?: string;
+    total_courses?: number;
     total_credits?: number;
   };
   approved_at?: string;

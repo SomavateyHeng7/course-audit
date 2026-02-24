@@ -434,6 +434,7 @@ const GraduationPortalPage: React.FC = () => {
             parsed_at: new Date().toISOString(),
             file_name: uploadedFile?.name,
             total_courses: parseResult.courses.length,
+            total_credits: parseResult.summary.totalCredits,
             student_email: studentEmail.trim() || undefined
           }
         }

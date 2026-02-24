@@ -1393,7 +1393,7 @@ const GraduationPortalChairpersonPage: React.FC = () => {
                         <div>
                           <p className="font-medium text-sm">{submission.studentIdentifier || 'Anonymous'}</p>
                           <p className="text-xs text-muted-foreground">
-                            {submission.courses?.length || 0} courses • {submission.metadata?.total_credits || '-'} credits
+                            {submission.course_count ?? submission.metadata?.total_courses ?? submission.courses?.length ?? 0} courses • {submission.metadata?.total_credits != null ? `${submission.metadata.total_credits} credits` : '-'}
                           </p>
                         </div>
                       </div>

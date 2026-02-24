@@ -685,6 +685,9 @@ const SubmissionDetailPage: React.FC = () => {
   const totalCourses = allCourses.length;
   const completedCourses = allCourses.filter(c => c.status === 'completed').length;
   const inProgressCourses = allCourses.filter(c => c.status === 'in_progress').length;
+  // Distinguish truly planned (student assigned a semester) from pending (curriculum req, not yet scheduled)
+  const trulyPlannedCourses = allCourses.filter(c => c.status === 'planned' && !!c.semester);
+  const trulyPlannedCredits = trulyPlannedCourses.reduce((sum, c) => sum + c.credits, 0);
   const plannedCoursesList = allCourses.filter(c => c.status === 'planned');
   const failedCoursesList = allCourses.filter(c => c.status === 'failed');
   const withdrawnCoursesList = allCourses.filter(c => c.status === 'withdrawn');
@@ -694,7 +697,8 @@ const SubmissionDetailPage: React.FC = () => {
   
   // Requirements from validation result (if available)
   const requiredCredits = validation?.summary?.totalCreditsRequired || 0;
-  const remainingCredits = Math.max(0, requiredCredits - completedCredits - inProgressCredits);
+  // Remaining = required minus completed, in-progress, and truly planned credits
+  const remainingCredits = Math.max(0, requiredCredits - completedCredits - inProgressCredits - trulyPlannedCredits);
 
   return (
     <div className="min-h-screen bg-background p-4 sm:p-8">
@@ -1000,8 +1004,8 @@ const SubmissionDetailPage: React.FC = () => {
             <SegmentedProgressBar
               completed={completedCredits}
               inProgress={inProgressCredits}
-              planned={plannedCredits}
-              total={requiredCredits > 0 ? requiredCredits : completedCredits + inProgressCredits + plannedCredits}
+              planned={trulyPlannedCredits}
+              total={requiredCredits > 0 ? requiredCredits : completedCredits + inProgressCredits + trulyPlannedCredits}
             />
 
             {/* Stats Row */}
@@ -1019,7 +1023,7 @@ const SubmissionDetailPage: React.FC = () => {
                 <p className="text-xs text-muted-foreground">In Progress</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20">
-                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{plannedCoursesList.length}</p>
+                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{trulyPlannedCourses.length}</p>
                 <p className="text-xs text-muted-foreground">Planned</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-primary/5">
@@ -1038,8 +1042,8 @@ const SubmissionDetailPage: React.FC = () => {
                 <DonutChart
                   completed={completedCredits}
                   inProgress={inProgressCredits}
-                  planned={plannedCredits + failedCredits}
-                  total={completedCredits + inProgressCredits + plannedCredits + failedCredits + remainingCredits}
+                  planned={trulyPlannedCredits + failedCredits}
+                  total={completedCredits + inProgressCredits + trulyPlannedCredits + failedCredits + remainingCredits}
                   size={180}
                 />
               </div>
@@ -1063,7 +1067,7 @@ const SubmissionDetailPage: React.FC = () => {
                     <span className="text-sm flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-purple-500 inline-block" /> Planned Credits
                     </span>
-                    <span className="font-semibold">{plannedCredits}</span>
+                    <span className="font-semibold">{trulyPlannedCredits}</span>
                   </div>
                   {failedCredits > 0 && (
                     <div className="flex justify-between items-center py-1.5 border-b">
