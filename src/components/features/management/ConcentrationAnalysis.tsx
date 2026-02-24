@@ -25,6 +25,9 @@ export interface ConcentrationProgress {
   progress: number; // percent 0-100
   completedCourses: Course[];
   plannedCourses: Course[];
+  completedCredits?: number;
+  plannedCredits?: number;
+  totalCredits?: number;
   remainingCourses: number;
 }
 
@@ -65,11 +68,16 @@ export const ConcentrationAnalysis: React.FC<ConcentrationAnalysisProps> = ({
                 )}
               </div>
               <div className="text-right">
-                <div className={`text-2xl font-bold ${analysis.isEligible ? 'text-green-600' : 'text-blue-600'}`}>
+                <div className={`text-2xl font-bold ${
+                  analysis.isEligible ? 'text-green-600' : 'text-blue-600'
+                }`}>
                   {Math.round(analysis.progress)}%
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {analysis.completedCourses.length + analysis.plannedCourses.length} / {analysis.concentration.requiredCredits} credits required
+                  {analysis.totalCredits !== undefined 
+                    ? `${analysis.totalCredits} / ${analysis.concentration.requiredCredits} credits`
+                    : `${analysis.completedCourses.length + analysis.plannedCourses.length} courses`
+                  }
                 </div>
               </div>
             </div>
