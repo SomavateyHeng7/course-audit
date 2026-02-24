@@ -261,14 +261,27 @@ export default function StudentTranscriptImport({
    * Convert CourseData to UnmatchedCourse format
    */
   const convertToUnmatchedCourses = (courses: CourseData[]): UnmatchedCourse[] => {
-    return courses.map(course => ({
-      courseCode: course.courseCode,
-      courseName: course.courseName,
-      credits: course.credits,
-      grade: course.grade,
-      semester: course.semester,
-      status: (course.grade && course.grade.trim() && !['F', 'W'].includes(course.grade.trim().toUpperCase())) ? 'completed' : 'pending'
-    }));
+    return courses.map(course => {
+      const grade = course.grade?.trim().toUpperCase();
+      let status: 'completed' | 'failed' | 'withdrawn';
+      
+      if (grade === 'W') {
+        status = 'withdrawn';
+      } else if (grade === 'F' || !grade) {
+        status = 'failed';
+      } else {
+        status = 'completed';
+      }
+      
+      return {
+        courseCode: course.courseCode,
+        courseName: course.courseName,
+        credits: course.credits,
+        grade: course.grade,
+        semester: course.semester,
+        status
+      };
+    });
   };
 
   /**

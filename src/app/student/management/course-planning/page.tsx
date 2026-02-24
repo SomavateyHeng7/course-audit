@@ -129,8 +129,11 @@ interface ConcentrationProgress {
   required?: number;
   remaining?: number;
   percentage?: number;
-  completedCourses: string[];
-  plannedCourses: string[];
+  completedCourses: Array<{ id: string; code: string; }>;
+  plannedCourses: Array<{ id: string; code: string; }>;
+  completedCredits: number;
+  plannedCredits: number;
+  totalCredits: number;
   progress: number;
   isEligible: boolean;
   remainingCourses: number;
@@ -403,6 +406,7 @@ export default function CoursePlanningPage() {
             const title = (courseData as any)?.title || (courseData as any)?.name || code;
             const creditsRaw = (courseData as any)?.credits;
             const credits = creditsRaw ? parseCredits(creditsRaw) : 3;
+            const category = (courseData as any)?.category || 'Uncategorized';
             const derivedSemesterValue = getSemesterValueFromLabel((courseData as any)?.plannedSemester);
             const derivedSemesterLabel = ensureSemesterLabel((courseData as any)?.plannedSemester, derivedSemesterValue);
             
@@ -411,6 +415,7 @@ export default function CoursePlanningPage() {
               code: code,
               title: title,
               credits: credits,
+              category: category,
               semester: derivedSemesterValue,
               semesterLabel: derivedSemesterLabel,
               status: 'planning' as const,
@@ -1362,6 +1367,7 @@ export default function CoursePlanningPage() {
       code: course.code,
       title: course.title,
       credits: parseCredits(course.credits),
+      category: course.category,
       semester: selectedSemester,
       semesterLabel,
       status,
@@ -1382,6 +1388,7 @@ export default function CoursePlanningPage() {
       code: coreqCourse.code,
       title: coreqCourse.title,
       credits: parseCredits(coreqCourse.credits),
+      category: coreqCourse.category,
       semester: selectedSemester,
       semesterLabel,
       status,
@@ -1452,21 +1459,22 @@ export default function CoursePlanningPage() {
       return [];
     }
 
-    // Get completed course codes from context (courses marked as 'completed')
-    const allCompletedCodes = Object.keys(dataEntryContext?.completedCourses || {}).filter(
-      code => dataEntryContext?.completedCourses[code]?.status === 'completed'
-    );
-    const allPlannedCodes = plannedCourses.map(course => course.code);
-    const allTakenOrPlannedCodes = [...allCompletedCodes, ...allPlannedCodes];
-
+    // Get completed courses with their credits
+    const completedCourses = Object.entries(dataEntryContext?.completedCourses || {})
+      .filter(([, course]) => course?.status === 'completed')
+      .map(([code, course]) => ({
+        code,
+        credits: (course as any)?.credits || 3
+      }));
+    
     // Get the selected concentration from data entry context
     const selectedConcentration = dataEntryContext?.selectedConcentration;
     
     console.log('🔍 DEBUG: Analyzing concentrations with:', {
       selectedConcentration,
       concentrationsCount: concentrations.length,
-      completedCodes: allCompletedCodes,
-      plannedCodes: allPlannedCodes,
+      completedCourses,
+      plannedCourses: plannedCourses.map(c => ({ code: c.code, credits: c.credits })),
       totalConcentrations: concentrations.length
     });
 
@@ -1492,36 +1500,44 @@ export default function CoursePlanningPage() {
 
     return concentrationsToAnalyze.map(concentration => {
       const concentrationCourseCodes = concentration.courses?.map(c => c.code) || [];
-      const completedInConcentration = allCompletedCodes.filter(code => 
-        concentrationCourseCodes.includes(code)
-      );
-      const plannedInConcentration = allPlannedCodes.filter(code => 
-        concentrationCourseCodes.includes(code)
-      );
       
-      const totalProgress = completedInConcentration.length + plannedInConcentration.length;
-      const progress = (totalProgress / (concentration.requiredCredits || 1)) * 100;
-      const isEligible = totalProgress >= (concentration.requiredCredits || 0);
-      const remainingCourses = Math.max(0, (concentration.requiredCredits || 0) - totalProgress);
+      // Calculate total credits from completed courses in this concentration
+      const completedCredits = completedCourses
+        .filter(c => concentrationCourseCodes.includes(c.code))
+        .reduce((sum, c) => sum + (parseCredits(c.credits) || 0), 0);
+      
+      // Calculate total credits from planned courses in this concentration
+      const plannedCredits = plannedCourses
+        .filter(c => concentrationCourseCodes.includes(c.code))
+        .reduce((sum, c) => sum + (c.credits || 0), 0);
+      
+      const totalCredits = completedCredits + plannedCredits;
+      const requiredCredits = concentration.requiredCredits || 1;
+      const progress = (totalCredits / requiredCredits) * 100;
+      const isEligible = totalCredits >= requiredCredits;
+      const remainingCredits = Math.max(0, requiredCredits - totalCredits);
 
       console.log(`🔍 DEBUG: Concentration '${concentration.name}':`, {
-        requiredCredits: concentration.requiredCredits,
+        requiredCredits,
         concentrationCourses: concentrationCourseCodes,
-        completedInConcentration,
-        plannedInConcentration,
-        totalProgress,
+        completedCredits,
+        plannedCredits,
+        totalCredits,
         progress: Math.min(100, progress),
         isEligible,
-        remainingCourses
+        remainingCredits
       });
 
       return {
         concentration,
-        completedCourses: completedInConcentration,
-        plannedCourses: plannedInConcentration,
+        completedCourses: completedCourses.filter(c => concentrationCourseCodes.includes(c.code)).map(c => ({ id: c.code, code: c.code })),
+        plannedCourses: plannedCourses.filter(c => concentrationCourseCodes.includes(c.code)).map(c => ({ id: c.id, code: c.code })),
+        completedCredits,
+        plannedCredits,
+        totalCredits,
         progress: Math.min(100, progress),
         isEligible,
-        remainingCourses
+        remainingCourses: Math.ceil(remainingCredits / 3) // Estimate courses needed (assuming 3 credits per course)
       };
     });
   };
@@ -1690,31 +1706,33 @@ export default function CoursePlanningPage() {
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     {planningMode === 'tentative' ? <Sparkles className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4" />}
-                    Planning Mode
+                    How do you want to plan?
                   </label>
-                  <Button
-                    variant={planningMode === 'tentative' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPlanningMode(planningMode === 'manual' ? 'tentative' : 'manual')}
-                    className="gap-2"
-                  >
-                    {planningMode === 'tentative' ? (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Tentative
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="w-3.5 h-3.5" />
-                        Manual
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={planningMode === 'manual' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPlanningMode('manual')}
+                      className="gap-2"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Manual
+                    </Button>
+                    <Button
+                      variant={planningMode === 'tentative' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPlanningMode('tentative')}
+                      className="gap-2"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Tentative Schedule
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {planningMode === 'tentative' 
-                    ? '✨ Load courses from published tentative schedules with preset sections and times.' 
-                    : '📝 Manually add courses one by one to build your own custom schedule.'}
+                    ? '✨ Load courses from published tentative schedules created by your department chairperson. Sections and times are pre-selected.' 
+                    : '📝 Browse all available courses and manually add them one by one. You can customize your schedule freely.'}
                 </p>
               </div>
 
@@ -2281,8 +2299,19 @@ export default function CoursePlanningPage() {
               },
               isEligible: analysis.isEligible,
               progress: analysis.progress,
-              completedCourses: analysis.completedCourses.map(code => ({ id: code, code, name: code })),
-              plannedCourses: analysis.plannedCourses.map(code => ({ id: code, code, name: code })),
+              completedCourses: analysis.completedCourses.map(c => ({ 
+                id: c.id, 
+                code: c.code, 
+                name: c.code 
+              })),
+              plannedCourses: analysis.plannedCourses.map(c => ({ 
+                id: c.id, 
+                code: c.code, 
+                name: c.code 
+              })),
+              completedCredits: analysis.completedCredits,
+              plannedCredits: analysis.plannedCredits,
+              totalCredits: analysis.totalCredits,
               remainingCourses: analysis.remainingCourses
             } as ConcentrationProgressProps))}
             onClose={() => setShowConcentrationModal(false)}
