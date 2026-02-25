@@ -19,7 +19,6 @@ import {
 import { useToastHelpers } from '@/hooks/useToast';
 import { getPublishedSchedules, getTentativeSchedule } from '@/lib/api/laravel';
 import { ScheduleCalendarView } from '@/components/features/schedule/ScheduleCalendarView';
-import { ScheduleNotification } from '@/components/features/schedule/ScheduleNotification';
 
 interface CourseSection {
   id: string;
@@ -321,9 +320,7 @@ export default function StudentSchedulePlanningPage() {
             </AlertDescription>
           </Alert>
           
-          <div className="mt-6">
-            <ScheduleNotification departmentId={departmentId} />
-          </div>
+
         </div>
       </div>
     );
@@ -379,8 +376,7 @@ export default function StudentSchedulePlanningPage() {
               </CardContent>
             </Card>
 
-            {/* Notification Card */}
-            <ScheduleNotification departmentId={departmentId} />
+
           </div>
 
           {/* Right: Selected Courses & Combinations */}

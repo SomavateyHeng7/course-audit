@@ -23,7 +23,8 @@ import {
   Loader2,
   BookOpen,
   Search,
-  Calendar
+  Calendar,
+  LayoutGrid
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ import {
   getPublicFaculties,
   getPublicDepartments,
   GRACE_PERIOD_DAYS,
+  API_BASE,
   type GraduationPortal,
   type GraduationSession,
   type SubmissionCourse,
@@ -100,13 +102,16 @@ const GraduationPortalPage: React.FC = () => {
   
   // Submission state
   const [studentIdentifier, setStudentIdentifier] = useState('');
-  const [studentEmail, setStudentEmail] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [submissionExpiresAt, setSubmissionExpiresAt] = useState<string | null>(null);
   
   // Drag state
   const [dragOver, setDragOver] = useState(false);
+
+  // Elective rules state (for category pool progress in preview)
+  const [electiveRules, setElectiveRules] = useState<Array<{ id: string; category: string; required_credits: number; description?: string }>>([]);
 
   // Curriculum selection state
   const [curricula, setCurricula] = useState<PortalCurriculum[]>([]);
@@ -125,6 +130,26 @@ const GraduationPortalPage: React.FC = () => {
   useEffect(() => {
     loadPortals();
   }, []);
+
+  // Fetch elective rules when curriculum is selected (for category pool progress in preview)
+  useEffect(() => {
+    if (!selectedCurriculum?.id) {
+      setElectiveRules([]);
+      return;
+    }
+    let cancelled = false;
+    fetch(`${API_BASE}/curricula/${selectedCurriculum.id}/elective-rules`, {
+      headers: { Accept: 'application/json' },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!cancelled && data?.electiveRules) {
+          setElectiveRules(data.electiveRules);
+        }
+      })
+      .catch(() => {/* silently ignore — portal is a public page */});
+    return () => { cancelled = true; };
+  }, [selectedCurriculum?.id]);
 
   // Session countdown timer
   useEffect(() => {
@@ -406,14 +431,6 @@ const GraduationPortalPage: React.FC = () => {
       return;
     }
 
-    // Validate email format if provided
-    if (studentEmail.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(studentEmail.trim())) {
-        alert('Please enter a valid email address or leave it blank');
-        return;
-      }
-    }
     const validation = validateCoursesForSubmission(parseResult.courses);
     if (!validation.valid) {
       alert(`Cannot submit: ${validation.errors.join(', ')}`);
@@ -435,7 +452,7 @@ const GraduationPortalPage: React.FC = () => {
             file_name: uploadedFile?.name,
             total_courses: parseResult.courses.length,
             total_credits: parseResult.summary.totalCredits,
-            student_email: studentEmail.trim() || undefined
+            student_email: undefined
           }
         }
       );
@@ -1234,6 +1251,45 @@ const GraduationPortalPage: React.FC = () => {
                 ))}
               </div>
 
+              {/* Category Pool Progress (shown when elective rules are available) */}
+              {electiveRules.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <LayoutGrid className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <h3 className="font-semibold text-sm">Category Pool Progress</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {electiveRules.map(rule => {
+                      const coursesInPool = parseResult.courses.filter(c => c.category === rule.category);
+                      const filled = coursesInPool.reduce((s, c) => s + (c.credits || 0), 0);
+                      const pct = rule.required_credits > 0 ? Math.min(100, (filled / rule.required_credits) * 100) : 0;
+                      const isComplete = filled >= rule.required_credits;
+                      return (
+                        <div key={rule.id} className="border rounded-lg p-3 bg-muted/30">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-1.5">
+                              {isComplete
+                                ? <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                                : <Clock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+                              <span className="text-sm font-medium">{rule.category}</span>
+                            </div>
+                            <span className={`text-xs font-semibold ${isComplete ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                              {filled} / {rule.required_credits} cr
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${isComplete ? 'bg-green-500' : 'bg-indigo-500'}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Contact Information Section */}
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl p-4 border border-blue-200 dark:border-blue-800 space-y-3">
                 <div className="flex items-center gap-2 mb-2">
@@ -1257,22 +1313,6 @@ const GraduationPortalPage: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Email Address */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium flex items-center gap-1">
-                    Email Address <span className="text-amber-600 text-xs">(Optional but recommended)</span>
-                  </label>
-                  <Input
-                    type="email"
-                    value={studentEmail}
-                    onChange={(e) => setStudentEmail(e.target.value)}
-                    placeholder="your.email@example.com"
-                    className="bg-white dark:bg-gray-900"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Recommended - Receive updates about your submission status
-                  </p>
-                </div>
               </div>
 
               {/* Submission Info */}

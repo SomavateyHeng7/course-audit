@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useToastHelpers } from '@/hooks/useToast';
 import { curriculumBlacklistApi, type CurriculumBlacklistsResponse } from '@/services/curriculumBlacklistApi';
 import { getPublicCurricula, getPublicCurriculum, API_BASE } from '@/lib/api/laravel';
-import { AlertTriangle, ArrowLeft, Download, ChevronDown, BookOpen, Calendar, Plus, Target, Award, Clock } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Download, ChevronDown, BookOpen, Calendar, Plus, Target, Award, Clock, LayoutGrid } from "lucide-react";
 import { GiGraduateCap } from "react-icons/gi";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -3190,7 +3190,7 @@ export default function ProgressPage() {
                       <div className="text-sm">
                         <span className="font-medium text-green-600 dark:text-green-400">Completed:</span>
                         <p className="text-gray-600 dark:text-gray-400 mt-1">
-                          {analysis.completedCourses.join(', ')}
+                          {analysis.completedCourses.map(c => typeof c === 'string' ? c : (c.code || c.name || c.id)).join(', ')}
                         </p>
                       </div>
                     )}
@@ -3198,7 +3198,7 @@ export default function ProgressPage() {
                       <div className="text-sm">
                         <span className="font-medium text-blue-600 dark:text-blue-400">Planned:</span>
                         <p className="text-gray-600 dark:text-gray-400 mt-1">
-                          {analysis.plannedCourses.join(', ')}
+                          {analysis.plannedCourses.map(c => typeof c === 'string' ? c : (c.code || c.name || c.id)).join(', ')}
                         </p>
                       </div>
                     )}
@@ -3209,7 +3209,113 @@ export default function ProgressPage() {
           </div>
         </div>
       )}
-      
+
+      {/* Category Pool Progress Section */}
+      {completedData.electiveRules && completedData.electiveRules.length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <LayoutGrid className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            <h3 className="text-xl font-bold">Category Pool Progress</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {completedData.electiveRules.map((rule: any) => {
+              const ruleCategory: string = rule.category || '';
+              const detail = categoryCreditDetails[ruleCategory];
+              const completedCr = detail?.completedCredits || 0;
+              const inProgressCr = detail?.inProgressCredits || 0;
+              const plannedCr = detail?.plannedCredits || 0;
+              const filledCr = completedCr + inProgressCr + plannedCr;
+              const required: number = rule.required_credits || rule.requiredCredits || 0;
+              const completedPct = required > 0 ? Math.min(100, Math.round((completedCr / required) * 100)) : 0;
+              const inProgressPct = required > 0 ? Math.min(100 - completedPct, Math.round((inProgressCr / required) * 100)) : 0;
+              const plannedPct = required > 0 ? Math.min(100 - completedPct - inProgressPct, Math.round((plannedCr / required) * 100)) : 0;
+              const isComplete = filledCr >= required;
+              const remaining = Math.max(0, required - filledCr);
+
+              return (
+                <div key={rule.id} className="bg-white dark:bg-card rounded-xl p-6 border border-gray-200 dark:border-border shadow-sm hover:shadow-md transition-shadow">
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-semibold text-lg">{ruleCategory}</h4>
+                        {isComplete && (
+                          <div className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/20 rounded-full">
+                            <Award className="w-3 h-3 text-green-600" />
+                            <span className="text-xs text-green-600 font-medium">Complete</span>
+                          </div>
+                        )}
+                      </div>
+                      {rule.description && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{rule.description}</p>
+                      )}
+                    </div>
+                    <div className={`text-2xl font-bold ml-3 ${isComplete ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                      {required > 0 ? Math.min(100, Math.round((filledCr / required) * 100)) : 0}%
+                    </div>
+                  </div>
+
+                  {/* Stacked progress bar */}
+                  <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-3 mb-4 flex overflow-hidden">
+                    <div className="h-3 bg-teal-500 transition-all duration-500" style={{ width: `${completedPct}%` }} />
+                    <div className="h-3 bg-amber-400 transition-all duration-500" style={{ width: `${inProgressPct}%` }} />
+                    <div className="h-3 bg-indigo-400 transition-all duration-500" style={{ width: `${plannedPct}%` }} />
+                  </div>
+
+                  {/* Credit breakdown */}
+                  <div className="space-y-2 mb-3">
+                    {completedCr > 0 && (
+                      <div className="flex items-center justify-between py-1.5 px-3 bg-teal-50 dark:bg-teal-900/10 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 bg-teal-500 rounded-full" />
+                          <span className="text-sm font-medium text-teal-700 dark:text-teal-300">Completed</span>
+                        </div>
+                        <span className="text-sm font-bold text-teal-700 dark:text-teal-300">{completedCr} cr</span>
+                      </div>
+                    )}
+                    {inProgressCr > 0 && (
+                      <div className="flex items-center justify-between py-1.5 px-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 bg-amber-400 rounded-full" />
+                          <span className="text-sm font-medium text-amber-700 dark:text-amber-300">Taking</span>
+                        </div>
+                        <span className="text-sm font-bold text-amber-700 dark:text-amber-300">{inProgressCr} cr</span>
+                      </div>
+                    )}
+                    {plannedCr > 0 && (
+                      <div className="flex items-center justify-between py-1.5 px-3 bg-indigo-50 dark:bg-indigo-900/10 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 bg-indigo-400 rounded-full" />
+                          <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Planned</span>
+                        </div>
+                        <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300">{plannedCr} cr</span>
+                      </div>
+                    )}
+                    {completedCr === 0 && inProgressCr === 0 && plannedCr === 0 && (
+                      <div className="flex items-center justify-between py-1.5 px-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">No courses yet</span>
+                        <span className="text-sm font-bold text-gray-400">0 cr</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">{filledCr} / {required} credits</span>
+                    {!isComplete && remaining > 0 && (
+                      <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span className="text-xs">{remaining} cr remaining</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mt-6">
         <div className="bg-white dark:bg-card rounded-xl p-8 border border-gray-200 dark:border-border min-h-[400px]">
           <h3 className="text-2xl font-bold mb-6">Remaining Courses</h3>

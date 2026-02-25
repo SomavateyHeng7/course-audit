@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToastHelpers } from '@/hooks/useToast';
 import { useAuth } from '@/contexts/SanctumAuthContext';
@@ -123,6 +123,13 @@ interface Concentration {
   }>;
 }
 
+interface ElectiveRule {
+  id: string;
+  category: string;
+  required_credits: number;
+  description?: string;
+}
+
 interface ConcentrationProgress {
   concentration: Concentration;
   completed?: number;
@@ -198,6 +205,8 @@ export default function CoursePlanningPage() {
   const [concentrations, setConcentrations] = useState<Concentration[]>([]);
   const [concentrationAnalysis, setConcentrationAnalysis] = useState<ConcentrationProgress[]>([]);
   const [showConcentrationModal, setShowConcentrationModal] = useState(false);
+  const [electiveRules, setElectiveRules] = useState<ElectiveRule[]>([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -291,51 +300,22 @@ export default function CoursePlanningPage() {
     });
   }, [availableCourses, curriculumBannedCombosMap]);
 
-  // Calculate credits by category
+  // Calculate credits by category (dynamic — uses actual category names from planned courses)
   const creditsByCategory = React.useMemo(() => {
-    console.log('📊 COURSE PLANNING - Credit Calculation Debug:');
-    console.log('- Total planned courses:', plannedCourses.length);
-    console.log('- Planned courses:', plannedCourses);
-    
-    const categoryMap: Record<string, number> = {
-      'General Ed': 0,
-      'General Education': 0,
-      'Core': 0,
-      'Core Courses': 0,
-      'Major': 0,
-      'Major Elective': 0,
-      'Major Electives': 0,
-      'Free Elective': 0,
-      'Free Electives': 0,
-    };
+    const all: Record<string, number> = {};
 
     plannedCourses.forEach(course => {
       const category = course.category || 'Uncategorized';
-      if (!categoryMap[category]) {
-        categoryMap[category] = 0;
-      }
-      categoryMap[category] += course.credits || 0;
-      console.log(`  - ${course.code}: category="${category}", credits=${course.credits || 0}`);
+      all[category] = (all[category] || 0) + (course.credits || 0);
     });
 
-    console.log('- Category totals:', categoryMap);
+    // Normalized buckets kept for legacy compatibility
+    const genEd = (all['General Ed'] || 0) + (all['General Education'] || 0);
+    const core = (all['Core'] || 0) + (all['Core Courses'] || 0) + (all['Major'] || 0);
+    const majorElectives = (all['Major Elective'] || 0) + (all['Major Electives'] || 0);
+    const freeElectives = (all['Free Elective'] || 0) + (all['Free Electives'] || 0);
 
-    // Normalize similar categories
-    const genEd = (categoryMap['General Ed'] || 0) + (categoryMap['General Education'] || 0);
-    const core = (categoryMap['Core'] || 0) + (categoryMap['Core Courses'] || 0) + (categoryMap['Major'] || 0);
-    const majorElectives = (categoryMap['Major Elective'] || 0) + (categoryMap['Major Electives'] || 0);
-    const freeElectives = (categoryMap['Free Elective'] || 0) + (categoryMap['Free Electives'] || 0);
-
-    const result = {
-      genEd,
-      core,
-      majorElectives,
-      freeElectives,
-      all: categoryMap
-    };
-    
-    console.log('- Final normalized credits:', result);
-    return result;
+    return { genEd, core, majorElectives, freeElectives, all };
   }, [plannedCourses]);
 
   // Check for data entry context on mount
@@ -374,7 +354,12 @@ export default function CoursePlanningPage() {
 
         setDataEntryContext(context);
         setHasValidContext(true);
-        
+
+        // Load elective rules from saved audit data
+        if (auditData.electiveRules && Array.isArray(auditData.electiveRules)) {
+          setElectiveRules(auditData.electiveRules);
+        }
+
         // Auto-select the department for tentative schedule if actualDepartmentId is available
         if (auditData.actualDepartmentId) {
           console.log('Auto-selecting department for tentative schedule:', auditData.actualDepartmentId);
@@ -466,6 +451,18 @@ export default function CoursePlanningPage() {
     }
   }, [selectedScheduleDepartmentId]);
 
+  // Enrich planned course categories once availableCourses are loaded
+  // (auto-synced courses from data-entry may lack category info)
+  useEffect(() => {
+    if (availableCourses.length === 0) return;
+    setPlannedCourses(prev => prev.map(course => {
+      if (course.category && course.category !== 'Uncategorized') return course;
+      const found = availableCourses.find(ac => ac.code === course.code);
+      if (found?.category) return { ...course, category: found.category };
+      return course;
+    }));
+  }, [availableCourses]);
+
   // Remove currently taking courses from any persisted plan state
   useEffect(() => {
     if (inProgressCourses.size === 0) return;
@@ -490,28 +487,134 @@ export default function CoursePlanningPage() {
     
     try {
       setLoading(true);
-      // Use actualDepartmentId if available, fall back to selectedDepartment
       const departmentId = dataEntryContext.actualDepartmentId || dataEntryContext.selectedDepartment;
-      const response = await fetch(`${API_BASE}/available-courses?curriculum_id=${dataEntryContext.selectedCurriculum}&department_id=${departmentId}`, {
-        credentials: 'include'
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch available courses');
-      }
-      const data = await response.json();
-      // Normalize course fields: trim codes, ensure prerequisites/corequisites/bannedWith are string arrays
+      const curriculumId = dataEntryContext.selectedCurriculum;
+
+      // Normalize helper
       const normalizeCodeArray = (arr: any[]): string[] =>
         (arr || []).map((item: any) =>
           typeof item === 'string' ? item.trim() : ((item?.code || item?.courseCode || '') as string).trim()
         ).filter(Boolean);
 
-      const coursesWithTrimmedCodes = (data.courses || []).map((course: any) => ({
-        ...course,
-        code: (course.code || '').trim(),
-        prerequisites: normalizeCodeArray(course.prerequisites || course.prerequisite_codes || []),
-        corequisites: normalizeCodeArray(course.corequisites || course.corequisite_codes || []),
-        bannedWith: normalizeCodeArray(course.bannedWith || course.banned_with || course.banned_combinations || []),
-      }));
+      // ── Fetch 1: available courses list ──────────────────────────────────
+      const [coursesResponse, curriculumResponse] = await Promise.all([
+        fetch(`${API_BASE}/available-courses?curriculum_id=${curriculumId}&department_id=${departmentId}`, {
+          credentials: 'include'
+        }),
+        // ── Fetch 2: full curriculum data – to get CurriculumCourse pivot IDs ──
+        fetch(`${API_BASE}/public-curricula/${curriculumId}`, {
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' }
+        }),
+      ]);
+
+      if (!coursesResponse.ok) throw new Error('Failed to fetch available courses');
+      const coursesData = await coursesResponse.json();
+
+      // ── Build prereq / coreq map from curriculum course constraints ────────
+      // The public-curricula/{id} endpoint returns curriculumCourses with IDs.
+      // Section 6a of the API: GET /api/curricula/{cid}/courses/{ccId}/constraints
+      // returns curriculumPrerequisites[] and curriculumCorequisites[] with code fields.
+      //
+      // strategy:
+      //   1. extract prereqs from curriculumCourses[i].curriculumPrerequisites (if eager-loaded)
+      //   2. also try curriculumCourses[i].course.prerequisites (global, if present)
+      //   3. if neither, individually call the constraints endpoint per course
+
+      const prereqMap: Record<string, string[]> = {};   // courseCode → [prereqCodes]
+      const coreqMap: Record<string, string[]> = {};    // courseCode → [coreqCodes]
+      // Store pivot IDs for later fallback individual fetches
+      const pivotIdByCode: Record<string, string> = {};  // courseCode → curriculumCourse.id
+
+      if (curriculumResponse.ok) {
+        const currData = await curriculumResponse.json();
+        const curriculumCourses: any[] = (currData.curriculum || currData)?.curriculumCourses || [];
+
+        curriculumCourses.forEach((cc: any) => {
+          const code = (cc.course?.code || '').trim();
+          if (!code) return;
+          if (cc.id) pivotIdByCode[code] = cc.id;
+
+          // Path A: curriculum-specific prerequisites already eager-loaded
+          if (Array.isArray(cc.curriculumPrerequisites) && cc.curriculumPrerequisites.length > 0) {
+            prereqMap[code] = cc.curriculumPrerequisites
+              .map((p: any) => (p.prerequisiteCourse?.course?.code || p.code || '').trim())
+              .filter(Boolean);
+          } else if (Array.isArray(cc.course?.prerequisites) && cc.course.prerequisites.length > 0) {
+            // Path B: global course-level prerequisites (CoursePrerequisite relation)
+            prereqMap[code] = cc.course.prerequisites
+              .map((p: any) => (p.prerequisite?.code || p.code || '').trim())
+              .filter(Boolean);
+          }
+
+          if (Array.isArray(cc.curriculumCorequisites) && cc.curriculumCorequisites.length > 0) {
+            coreqMap[code] = cc.curriculumCorequisites
+              .map((c: any) => (c.prerequisiteCourse?.course?.code || c.code || '').trim())
+              .filter(Boolean);
+          } else if (Array.isArray(cc.course?.corequisites) && cc.course.corequisites.length > 0) {
+            coreqMap[code] = cc.course.corequisites
+              .map((c: any) => (c.corequisite?.code || c.code || '').trim())
+              .filter(Boolean);
+          }
+        });
+
+        // ── Path C: If none of the courses got prereqs from the curriculum data,
+        //    individually call section-6a constraints endpoint for each pivot ID.
+        //    This handles backends that don't eager-load prereqs in the public endpoint.
+        const codesNeedingPrereqs = Object.keys(pivotIdByCode).filter(code =>
+          !prereqMap[code] && !coreqMap[code]
+        );
+
+        if (codesNeedingPrereqs.length > 0) {
+          // Batch-fetch in parallel (max 10 at a time to avoid overwhelming the server)
+          const BATCH = 10;
+          for (let i = 0; i < codesNeedingPrereqs.length; i += BATCH) {
+            const batch = codesNeedingPrereqs.slice(i, i + BATCH);
+            await Promise.all(batch.map(async (code) => {
+              const ccId = pivotIdByCode[code];
+              try {
+                const r = await fetch(`${API_BASE}/curricula/${curriculumId}/courses/${ccId}/constraints`, {
+                  credentials: 'include'
+                });
+                if (!r.ok) return;
+                const d = await r.json();
+
+                // Prefer curriculum-specific, fall back to base
+                const prereqs = (d.curriculumPrerequisites?.length ? d.curriculumPrerequisites : d.basePrerequisites) || [];
+                const coreqs = (d.curriculumCorequisites?.length ? d.curriculumCorequisites : d.baseCorequisites) || [];
+
+                if (prereqs.length > 0) {
+                  prereqMap[code] = prereqs.map((p: any) => (p.code || '').trim()).filter(Boolean);
+                }
+                if (coreqs.length > 0) {
+                  coreqMap[code] = coreqs.map((c: any) => (c.code || '').trim()).filter(Boolean);
+                }
+              } catch {
+                // silently skip per-course failures
+              }
+            }));
+          }
+        }
+      }
+
+      // ── Merge prereq/coreq data into courses ─────────────────────────────
+      const coursesWithTrimmedCodes = (coursesData.courses || []).map((course: any) => {
+        const code = (course.code || '').trim();
+        return {
+          ...course,
+          code,
+          // Prefer individually-fetched map; fall back to whatever the API returned inline
+          prerequisites: prereqMap[code]?.length
+            ? prereqMap[code]
+            : normalizeCodeArray(course.prerequisites || course.prerequisite_codes || []),
+          corequisites: coreqMap[code]?.length
+            ? coreqMap[code]
+            : normalizeCodeArray(course.corequisites || course.corequisite_codes || []),
+          bannedWith: normalizeCodeArray(course.bannedWith || course.banned_with || course.banned_combinations || []),
+        };
+      });
+
+      console.log('📚 Courses with prereqs merged:', coursesWithTrimmedCodes.filter((c: any) => c.prerequisites?.length > 0));
       setAvailableCourses(coursesWithTrimmedCodes);
     } catch (error) {
       console.error('Error fetching available courses:', error);
@@ -1269,6 +1372,24 @@ export default function CoursePlanningPage() {
     return { valid: missing.length === 0, missing };
   };
 
+  // Live re-validation: re-evaluate every planned course's prereq status whenever the plan changes
+  const liveValidatedPlannedCourses = useMemo(() => {
+    const plannedCodes = new Set(plannedCourses.map(c => c.code));
+    return plannedCourses.map(course => {
+      // Keep any corequisite info notes (they're informational, not errors)
+      const coreqNotes = (course.validationNotes || []).filter(n => n.startsWith('Auto-added'));
+      // Re-check prerequisites against current completed + planned set
+      const prereqs = course.prerequisites || [];
+      const missing = prereqs.filter(p => !completedCourses.has(p) && !plannedCodes.has(p));
+      const prereqNotes = missing.length > 0 ? [`Missing prerequisites: ${missing.join(', ')}`] : [];
+      return {
+        ...course,
+        validationStatus: (missing.length > 0 ? 'warning' : 'valid') as 'valid' | 'warning',
+        validationNotes: [...prereqNotes, ...coreqNotes],
+      };
+    });
+  }, [plannedCourses, completedCourses]);
+
   // Helper function to calculate total credits (completed + planned)
   const calculateTotalCredits = (): number => {
     if (!dataEntryContext) return 0;
@@ -1917,7 +2038,7 @@ export default function CoursePlanningPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {plannedCourses.length === 0 ? (
+                {liveValidatedPlannedCourses.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">
                     No courses planned yet
                   </p>
@@ -1925,7 +2046,7 @@ export default function CoursePlanningPage() {
                   <>
                     {/* Group courses by semester */}
                     {Object.entries(
-                      plannedCourses.reduce((acc, course) => {
+                      liveValidatedPlannedCourses.reduce((acc, course) => {
                         const label = course.semesterLabel || (course.semester === 'summer' ? 'Summer Session' : `Semester ${course.semester || '1'}`);
                         if (!acc[label]) acc[label] = [];
                         acc[label].push(course);
@@ -1962,33 +2083,55 @@ export default function CoursePlanningPage() {
               <div className="space-y-3 pb-3 border-b">
                 <div className="text-sm font-medium text-muted-foreground mb-2">Credits by Category</div>
                 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-3 rounded-lg border bg-blue-50/50 dark:bg-blue-950/20">
-                    <div className="text-xs text-muted-foreground mb-1">General Ed</div>
-                    <div className="text-xl font-bold">{creditsByCategory.genEd}</div>
-                    <div className="text-xs text-muted-foreground">credits</div>
+                {Object.entries(creditsByCategory.all).filter(([, v]) => v > 0).length === 0 ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {([['General Ed', 'bg-blue-50/50 dark:bg-blue-950/20'], ['Core', 'bg-purple-50/50 dark:bg-purple-950/20'], ['Major Electives', 'bg-green-50/50 dark:bg-green-950/20'], ['Free Electives', 'bg-orange-50/50 dark:bg-orange-950/20']] as [string, string][]).map(([label, colorClass]) => (
+                      <div key={label} className={`p-3 rounded-lg border ${colorClass}`}>
+                        <div className="text-xs text-muted-foreground mb-1">{label}</div>
+                        <div className="text-xl font-bold">0</div>
+                        <div className="text-xs text-muted-foreground">credits</div>
+                      </div>
+                    ))}
                   </div>
-                  
-                  <div className="p-3 rounded-lg border bg-purple-50/50 dark:bg-purple-950/20">
-                    <div className="text-xs text-muted-foreground mb-1">Core</div>
-                    <div className="text-xl font-bold">{creditsByCategory.core}</div>
-                    <div className="text-xs text-muted-foreground">credits</div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(creditsByCategory.all)
+                      .filter(([, v]) => v > 0)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([category, credits], idx) => {
+                        const colorClasses = [
+                          'bg-blue-50/50 dark:bg-blue-950/20',
+                          'bg-purple-50/50 dark:bg-purple-950/20',
+                          'bg-green-50/50 dark:bg-green-950/20',
+                          'bg-orange-50/50 dark:bg-orange-950/20',
+                          'bg-teal-50/50 dark:bg-teal-950/20',
+                          'bg-pink-50/50 dark:bg-pink-950/20',
+                        ];
+                        return (
+                          <div key={category} className={`p-3 rounded-lg border ${colorClasses[idx % colorClasses.length]}`}>
+                            <div className="text-xs text-muted-foreground mb-1 leading-tight">{category}</div>
+                            <div className="text-xl font-bold">{credits}</div>
+                            <div className="text-xs text-muted-foreground">credits</div>
+                          </div>
+                        );
+                      })}
                   </div>
-                  
-                  <div className="p-3 rounded-lg border bg-green-50/50 dark:bg-green-950/20">
-                    <div className="text-xs text-muted-foreground mb-1">Major Electives</div>
-                    <div className="text-xl font-bold">{creditsByCategory.majorElectives}</div>
-                    <div className="text-xs text-muted-foreground">credits</div>
-                  </div>
-                  
-                  <div className="p-3 rounded-lg border bg-orange-50/50 dark:bg-orange-950/20">
-                    <div className="text-xs text-muted-foreground mb-1">Free Electives</div>
-                    <div className="text-xl font-bold">{creditsByCategory.freeElectives}</div>
-                    <div className="text-xs text-muted-foreground">credits</div>
-                  </div>
-                </div>
+                )}
               </div>
-              
+
+              {/* Category Pool Progress shortcut */}
+              {electiveRules.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 -mt-1"
+                  onClick={() => setShowCategoryModal(true)}
+                >
+                  <LayoutGrid size={12} className="mr-1" />
+                  View Category Pool Progress →
+                </Button>
+              )}
+
               {/* Overall Statistics */}
               <div className="space-y-2 pt-2">
                 <div className="flex justify-between text-sm">
@@ -2004,13 +2147,13 @@ export default function CoursePlanningPage() {
                 <div className="flex justify-between text-sm">
                   <span>Valid Courses:</span>
                   <span className="font-medium text-green-600">
-                    {plannedCourses.filter(c => c.validationStatus === 'valid').length}
+                    {liveValidatedPlannedCourses.filter(c => c.validationStatus === 'valid').length}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Warnings:</span>
                   <span className="font-medium text-orange-600">
-                    {plannedCourses.filter(c => c.validationStatus === 'warning').length}
+                    {liveValidatedPlannedCourses.filter(c => c.validationStatus === 'warning').length}
                   </span>
                 </div>
               </div>
@@ -2119,7 +2262,7 @@ export default function CoursePlanningPage() {
               <CardContent>
                 <div className="space-y-4">
                   {Object.entries(
-                    plannedCourses.reduce((acc, course) => {
+                    liveValidatedPlannedCourses.reduce((acc, course) => {
                       const label = course.semesterLabel || (course.semester === 'summer' ? 'Summer Session' : `Semester ${course.semester || '1'}`);
                       if (!acc[label]) acc[label] = [];
                       acc[label].push(course);
@@ -2289,6 +2432,35 @@ export default function CoursePlanningPage() {
             </DialogDescription>
           </DialogHeader>
           
+          {/* Credit Pool Progress — brief summary inside concentration modal */}
+          {electiveRules.length > 0 && (
+            <div className="mb-6 p-4 rounded-xl border bg-muted/30">
+              <div className="flex items-center gap-2 mb-3">
+                <LayoutGrid size={15} className="text-indigo-500" />
+                <span className="text-sm font-semibold text-foreground">Credit Pool Requirements</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {electiveRules.map(rule => {
+                  const filled = creditsByCategory.all[rule.category] || 0;
+                  const req = rule.required_credits;
+                  const pct = req > 0 ? Math.min(100, Math.round((filled / req) * 100)) : 100;
+                  const isComplete = filled >= req;
+                  return (
+                    <div key={rule.id} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium truncate max-w-[65%]">{rule.category}</span>
+                        <span className={isComplete ? 'text-green-600 font-semibold' : 'text-muted-foreground'}>{filled}/{req} cr</span>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${isComplete ? 'bg-green-500' : 'bg-indigo-500'}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <ConcentrationAnalysis
             concentrationAnalysis={concentrationAnalysis.map(analysis => ({
               concentration: {
@@ -2316,6 +2488,87 @@ export default function CoursePlanningPage() {
             } as ConcentrationProgressProps))}
             onClose={() => setShowConcentrationModal(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Category Pool Progress Modal */}
+      <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <LayoutGrid size={18} className="sm:w-5 sm:h-5" />
+              Category Pool Progress
+            </DialogTitle>
+            <DialogDescription>
+              Based on your planned courses, here's how much of each category credit requirement you've filled.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {electiveRules.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <LayoutGrid size={48} className="mx-auto mb-4 opacity-50" />
+                <p>No category requirements configured for this curriculum.</p>
+              </div>
+            ) : (
+              electiveRules.map(rule => {
+                const filled = creditsByCategory.all[rule.category] || 0;
+                const required = rule.required_credits;
+                const pct = required > 0 ? Math.min(100, Math.round((filled / required) * 100)) : 100;
+                const isComplete = filled >= required;
+                const remaining = Math.max(0, required - filled);
+
+                return (
+                  <div key={rule.id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h3 className="font-semibold">{rule.category}</h3>
+                        {rule.description && (
+                          <p className="text-sm text-muted-foreground mt-0.5">{rule.description}</p>
+                        )}
+                      </div>
+                      <div className={`text-2xl font-bold ${isComplete ? 'text-green-600' : 'text-blue-600'}`}>
+                        {pct}%
+                      </div>
+                    </div>
+
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-3">
+                      <div
+                        className={`h-2 rounded-full transition-all ${isComplete ? 'bg-green-500' : 'bg-blue-500'}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{filled} / {required} credits</span>
+                      {isComplete ? (
+                        <div className="flex items-center gap-1 text-green-600">
+                          <CheckCircle size={14} />
+                          <span className="font-medium text-xs">Pool fulfilled!</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-blue-600">
+                          <Clock size={14} />
+                          <span className="text-xs">{remaining} more credits needed</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex justify-end pt-4 border-t">
+            <Button
+              onClick={() => {
+                setShowCategoryModal(false);
+                router.push('/student/management/progress');
+              }}
+            >
+              View Detailed Progress
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

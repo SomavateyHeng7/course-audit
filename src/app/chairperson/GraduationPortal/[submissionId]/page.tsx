@@ -24,7 +24,8 @@ import {
   Percent,
   BarChart3,
   TrendingUp,
-  ShieldCheck
+  ShieldCheck,
+  LayoutGrid
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -141,7 +142,9 @@ import {
   validateCacheSubmission,
   approveCacheSubmission,
   rejectCacheSubmission,
+  getGraduationPortal,
   GRACE_PERIOD_DAYS,
+  API_BASE,
   type CacheSubmission,
   type ValidationResult,
   type SubmissionCourse
@@ -485,6 +488,8 @@ const SubmissionDetailPage: React.FC = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [approveDialog, setApproveDialog] = useState(false);
   const [approvalNotes, setApprovalNotes] = useState('');
+  // Elective rules for category pool requirements display
+  const [electiveRules, setElectiveRules] = useState<Array<{ id: string; category: string; required_credits: number; description?: string }>>([]);
 
   useEffect(() => {
     if (submissionId && portalId) {
@@ -505,6 +510,24 @@ const SubmissionDetailPage: React.FC = () => {
       const response = await getCacheSubmission(portalId!, submissionId);
       console.log('[SubmissionDetail] Submission loaded:', response.submission?.id, 'status:', response.submission?.status);
       setSubmission(response.submission);
+
+      // Fetch elective rules for the portal's curriculum
+      try {
+        const portalData = await getGraduationPortal(portalId!);
+        const curriculumId = portalData.portal.curriculum?.id;
+        if (curriculumId) {
+          const rulesRes = await fetch(`${API_BASE}/curricula/${curriculumId}/elective-rules`, {
+            credentials: 'include',
+            headers: { Accept: 'application/json' },
+          });
+          if (rulesRes.ok) {
+            const rulesData = await rulesRes.json();
+            setElectiveRules(rulesData.electiveRules ?? []);
+          }
+        }
+      } catch {
+        // silently ignore — elective rules are supplementary info
+      }
     } catch (err) {
       console.error('[SubmissionDetail] Failed to load submission:', { submissionId, portalId, error: err instanceof Error ? err.message : err });
       setError(err instanceof Error ? err.message : 'Failed to load submission');
@@ -1096,6 +1119,96 @@ const SubmissionDetailPage: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Category Pool Requirements */}
+        {electiveRules.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2">
+                <LayoutGrid className="w-5 h-5" />
+                Category Pool Requirements
+              </CardTitle>
+              <CardDescription>
+                How much of each elective pool the student has covered
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {electiveRules.map(rule => {
+                  const match = categories.find(c => c.name === rule.category);
+                  const filled = match
+                    ? match.completedCredits + match.inProgressCredits + match.plannedCredits
+                    : 0;
+                  const completedCr = match?.completedCredits ?? 0;
+                  const inProgressCr = match?.inProgressCredits ?? 0;
+                  const plannedCr = match?.plannedCredits ?? 0;
+                  const req = rule.required_credits;
+                  const isComplete = filled >= req;
+
+                  const completedPct = req > 0 ? Math.min(100, (completedCr / req) * 100) : 0;
+                  const inProgressPct = req > 0 ? Math.min(100 - completedPct, (inProgressCr / req) * 100) : 0;
+                  const plannedPct = req > 0 ? Math.min(100 - completedPct - inProgressPct, (plannedCr / req) * 100) : 0;
+
+                  return (
+                    <div key={rule.id} className={`rounded-xl border p-4 space-y-3 ${isComplete ? 'border-green-300 dark:border-green-700 bg-green-50/40 dark:bg-green-900/10' : ''}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          {isComplete
+                            ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            : <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                          <span className="font-semibold text-sm leading-tight">{rule.category}</span>
+                        </div>
+                        <span className={`text-xs font-bold flex-shrink-0 ${isComplete ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                          {filled}/{req} cr
+                        </span>
+                      </div>
+
+                      {/* Stacked progress bar */}
+                      <div className="h-2.5 bg-muted rounded-full overflow-hidden flex">
+                        {completedPct > 0 && (
+                          <div className="h-full bg-gradient-to-r from-teal-500 to-emerald-500" style={{ width: `${completedPct}%` }} />
+                        )}
+                        {inProgressPct > 0 && (
+                          <div className="h-full bg-blue-400" style={{ width: `${inProgressPct}%` }} />
+                        )}
+                        {plannedPct > 0 && (
+                          <div className="h-full bg-indigo-400" style={{ width: `${plannedPct}%` }} />
+                        )}
+                      </div>
+
+                      <div className="space-y-1 text-xs text-muted-foreground">
+                        {completedCr > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Completed</span>
+                            <span className="font-medium">{completedCr} cr</span>
+                          </div>
+                        )}
+                        {inProgressCr > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />In Progress</span>
+                            <span className="font-medium">{inProgressCr} cr</span>
+                          </div>
+                        )}
+                        {plannedCr > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-indigo-400 inline-block" />Planned</span>
+                            <span className="font-medium">{plannedCr} cr</span>
+                          </div>
+                        )}
+                        {!isComplete && (
+                          <div className="flex items-center justify-between font-medium text-amber-600 dark:text-amber-400 pt-0.5 border-t mt-0.5">
+                            <span>Still needed</span>
+                            <span>{Math.max(0, req - filled)} cr</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Validation Issues — categorized by constraint type */}
         {validation && ((validation.errors?.length ?? 0) + (validation.warnings?.length ?? 0) > 0) && (() => {
