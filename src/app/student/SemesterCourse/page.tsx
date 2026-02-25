@@ -114,11 +114,11 @@ const SemesterCoursePage: React.FC = () => {
         departmentId: departmentId 
       });
       
-      // Filter to show only active schedules (published AND active)
-      const activeSchedules = response.schedules.filter((schedule: any) => schedule.isActive === true);
+      // All returned schedules are already published, show them all
+      // (API already filters for is_published = true)
       
       // Map schedules to local format
-      const publishedSchedules = activeSchedules.map((schedule: any) => ({
+      const publishedSchedules = response.schedules.map((schedule: any) => ({
         id: schedule.id,
         name: schedule.name,
         semester: `${schedule.semester} ${schedule.year}`,

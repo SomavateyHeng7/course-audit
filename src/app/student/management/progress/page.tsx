@@ -3190,7 +3190,7 @@ export default function ProgressPage() {
                       <div className="text-sm">
                         <span className="font-medium text-green-600 dark:text-green-400">Completed:</span>
                         <p className="text-gray-600 dark:text-gray-400 mt-1">
-                          {analysis.completedCourses.map(c => typeof c === 'string' ? c : (c.code || c.name || c.id)).join(', ')}
+                          {analysis.completedCourses.join(', ')}
                         </p>
                       </div>
                     )}
@@ -3198,7 +3198,7 @@ export default function ProgressPage() {
                       <div className="text-sm">
                         <span className="font-medium text-blue-600 dark:text-blue-400">Planned:</span>
                         <p className="text-gray-600 dark:text-gray-400 mt-1">
-                          {analysis.plannedCourses.map(c => typeof c === 'string' ? c : (c.code || c.name || c.id)).join(', ')}
+                          {analysis.plannedCourses.join(', ')}
                         </p>
                       </div>
                     )}
