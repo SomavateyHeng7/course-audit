@@ -698,7 +698,7 @@ const GraduationPortalPage: React.FC = () => {
             ) : (
               <div className="grid gap-4">
                 {portals.map((portal) => {
-                  const daysLeft = portal.daysRemaining ?? getDaysUntilDeadline(portal.deadline);
+                  const daysLeft = Math.floor(portal.daysRemaining ?? getDaysUntilDeadline(portal.deadline));
                   const isUrgent = daysLeft <= 7 && daysLeft > 0;
                   const inGracePeriod = isInGracePeriod(portal.deadline, portal);
                   const canSubmit = isAcceptingSubmissions(portal);
@@ -765,7 +765,7 @@ const GraduationPortalPage: React.FC = () => {
                               </div>
                             </div>
                             
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 mt-4">
                               <div className="flex items-center gap-2 text-sm">
                                 <Building className="w-4 h-4 text-muted-foreground" />
                                 <span className="text-muted-foreground">{portal.department?.name ?? 'Unknown Department'}</span>
@@ -773,10 +773,6 @@ const GraduationPortalPage: React.FC = () => {
                               <div className="flex items-center gap-2 text-sm">
                                 <GraduationCap className="w-4 h-4 text-muted-foreground" />
                                 <span className="text-muted-foreground">Batch {portal.batch}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-sm">
-                                <FileText className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-muted-foreground">{portal.curriculum?.name ?? 'Unknown Curriculum'}</span>
                               </div>
                             </div>
                           </div>

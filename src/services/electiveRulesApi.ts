@@ -5,7 +5,8 @@ export interface ElectiveRule {
   id: string;
   curriculumId: string;
   category: string;
-  requiredCredits: number;
+  requiredCredits: number;    // camelCase (frontend-transformed)
+  required_credits?: number;  // snake_case (raw backend response)
   description?: string;
   createdAt: string;
   updatedAt: string;

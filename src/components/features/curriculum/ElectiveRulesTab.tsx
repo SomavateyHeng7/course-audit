@@ -68,15 +68,21 @@ export default function ElectiveRulesTab({ curriculumId }: ElectiveRulesTabProps
       
       // Set free elective credits from rules
       const freeElectiveRule = data.electiveRules.find(rule => rule.category.toLowerCase().includes('free'));
-      if (freeElectiveRule && freeElectiveRule.requiredCredits != null) {
-        setFreeElectiveCredits(freeElectiveRule.requiredCredits.toString());
-        setFreeElectiveName(freeElectiveRule.category);
+      if (freeElectiveRule) {
+        const credits = freeElectiveRule.required_credits ?? freeElectiveRule.requiredCredits;
+        if (credits != null) {
+          setFreeElectiveCredits(credits.toString());
+          setFreeElectiveName(freeElectiveRule.category);
+        }
       }
       
       // Set major elective credits from rules
       const majorElectiveRule = data.electiveRules.find(rule => rule.category === 'Major Elective');
-      if (majorElectiveRule && majorElectiveRule.requiredCredits != null) {
-        setMajorElectiveCredits(majorElectiveRule.requiredCredits.toString());
+      if (majorElectiveRule) {
+        const credits = majorElectiveRule.required_credits ?? majorElectiveRule.requiredCredits;
+        if (credits != null) {
+          setMajorElectiveCredits(credits.toString());
+        }
       }
       
     } catch (err) {
