@@ -72,9 +72,23 @@ export function CourseWithSections({
 
   const parseCredits = (creditsStr: string | number): number => {
     if (typeof creditsStr === 'number') return creditsStr;
-    const firstNumber = creditsStr.split('-')[0];
-    const parsed = parseInt(firstNumber, 10);
-    return isNaN(parsed) ? 0 : parsed;
+    const normalized = creditsStr.trim();
+    if (!normalized.includes('-')) {
+      const direct = Number.parseInt(normalized.replace(/[^\d-]/g, ''), 10);
+      return Number.isNaN(direct) ? 0 : direct;
+    }
+
+    const parts = normalized
+      .split('-')
+      .map((part) => Number.parseInt(part.trim(), 10))
+      .filter((value) => Number.isFinite(value));
+
+    if (parts.length === 0) return 0;
+
+    const first = parts[0] ?? 0;
+    const last = parts[parts.length - 1] ?? 0;
+    if (first === 0 && last > 0) return last;
+    return first > 0 ? first : Math.max(0, last);
   };
 
   const credits = parseCredits(course.credits);

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Dialog,
   DialogContent,
@@ -22,10 +23,8 @@ import { CourseSearch } from '@/components/features/management/CourseSearch';
 import { CourseCard } from '@/components/features/management/CourseCard';
 import { CourseWithSections } from '@/components/features/management/CourseWithSections';
 import { PlannedCourseCard } from '@/components/features/management/PlannedCourseCard';
-import { WeeklyScheduleCalendar } from '@/components/features/management/WeeklyScheduleCalendar';
 import { CourseScheduleCalendar } from '@/components/features/management/CourseScheduleCalendar';
 import { ConcentrationAnalysis, type ConcentrationProgress as ConcentrationProgressProps } from '@/components/features/management/ConcentrationAnalysis';
-import { NotificationSubscribeDialog } from '@/components/features/notifications/NotificationSubscribeDialog';
 import { 
   Search,
   Plus,
@@ -183,6 +182,31 @@ const ensureSemesterLabel = (label: string | undefined, fallbackValue?: string) 
   return getSuggestedSemesterLabel(fallbackValue);
 };
 
+const normalizeDays = (days?: string[] | null, day?: string | null): string[] => {
+  if (Array.isArray(days) && days.length > 0) {
+    return days;
+  }
+  if (day && day.trim().length > 0) {
+    return [day.trim()];
+  }
+  return [];
+};
+
+const splitTimeRange = (time?: string | null): { timeStart?: string; timeEnd?: string } => {
+  if (!time || !time.includes('-')) {
+    return {};
+  }
+
+  const [start, end] = time.split('-').map((part) => part.trim());
+  return {
+    timeStart: start || undefined,
+    timeEnd: end || undefined,
+  };
+};
+
+const toCourseKey = (code?: string | null): string =>
+  (code || '').replace(/\s+/g, '').trim().toUpperCase();
+
 export default function CoursePlanningPage() {
   const router = useRouter();
   const { success, error: showError, warning, info } = useToastHelpers();
@@ -192,8 +216,8 @@ export default function CoursePlanningPage() {
   const [dataEntryContext, setDataEntryContext] = useState<DataEntryContext | null>(null);
   const [hasValidContext, setHasValidContext] = useState(false);
   
-  // Planning mode: 'manual' or 'tentative'
-  const [planningMode, setPlanningMode] = useState<'manual' | 'tentative'>('manual');
+  // Split planning page into two focused tabs
+  const [planningTab, setPlanningTab] = useState<'planning' | 'schedule'>('planning');
   
   // State management
   const [availableCourses, setAvailableCourses] = useState<AvailableCourse[]>([]);
@@ -207,7 +231,6 @@ export default function CoursePlanningPage() {
   const [showConcentrationModal, setShowConcentrationModal] = useState(false);
   const [electiveRules, setElectiveRules] = useState<ElectiveRule[]>([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedSemester, setSelectedSemester] = useState('');
@@ -235,6 +258,12 @@ export default function CoursePlanningPage() {
   // Track if course plan has been saved
   const [isCoursePlanSaved, setIsCoursePlanSaved] = useState(false);
   
+  // In-page diagnostics to inspect real payload shapes without browser console scripting
+  const showDiagnosticsCapture = false;
+  const [diagnosticCode, setDiagnosticCode] = useState('CSX3011');
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false);
+  const [diagnosticPayload, setDiagnosticPayload] = useState<any | null>(null);
+  
   const handleSemesterSelect = (value: string) => {
     setSelectedSemester(value);
     setSelectedSemesterLabel(getSuggestedSemesterLabel(value));
@@ -249,17 +278,57 @@ export default function CoursePlanningPage() {
     onConfirm: () => void;
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
-  // Helper function to parse credit hours from formats like "2-0-4" -> 2
-  const parseCredits = (creditsStr: string | number): number => {
-    if (typeof creditsStr === 'number') {
-      return creditsStr;
+  // Helper function to parse credit hours from string/number/object payload variants.
+  const parseCredits = (creditsValue: unknown): number => {
+    if (typeof creditsValue === 'number') {
+      return creditsValue;
     }
-    if (typeof creditsStr === 'string') {
-      // Extract first number from formats like "2-0-4" or "3"
-      const firstNumber = creditsStr.split('-')[0];
-      const parsed = parseInt(firstNumber, 10);
-      return isNaN(parsed) ? 0 : parsed;
+
+    if (typeof creditsValue === 'string') {
+      const normalized = creditsValue.trim();
+      if (!normalized) return 0;
+
+      // Extract first number from formats like "3" or "3 credits"
+      if (!normalized.includes('-')) {
+        const direct = Number.parseInt(normalized.replace(/[^\d-]/g, ''), 10);
+        return Number.isNaN(direct) ? 0 : direct;
+      }
+
+      // Handle credit-hour formats like "3-0-6" and "0-0-3"
+      const parts = normalized
+        .split('-')
+        .map((part) => Number.parseInt(part.trim(), 10))
+        .filter((value) => Number.isFinite(value));
+      if (parts.length === 0) return 0;
+
+      const first = parts[0] ?? 0;
+      const last = parts[parts.length - 1] ?? 0;
+
+      // If first slot is zero (common in project/lab style entries), fall back to last slot
+      if (first === 0 && last > 0) {
+        return last;
+      }
+
+      return first > 0 ? first : Math.max(0, last);
     }
+
+    if (creditsValue && typeof creditsValue === 'object') {
+      const obj = creditsValue as Record<string, unknown>;
+      const candidates = [
+        obj.credits,
+        obj.creditHours,
+        obj.credit_hours,
+        obj.creditHour,
+        obj.value,
+        obj.total,
+      ];
+
+      for (const candidate of candidates) {
+        const parsed = parseCredits(candidate);
+        if (parsed > 0) return parsed;
+      }
+    }
+
     return 0;
   };
 
@@ -492,9 +561,32 @@ export default function CoursePlanningPage() {
 
       // Normalize helper
       const normalizeCodeArray = (arr: any[]): string[] =>
-        (arr || []).map((item: any) =>
-          typeof item === 'string' ? item.trim() : ((item?.code || item?.courseCode || '') as string).trim()
-        ).filter(Boolean);
+        (arr || []).map((item: any) => {
+          if (typeof item === 'string') return item.trim();
+          const candidate =
+            item?.code ||
+            item?.courseCode ||
+            item?.course_code ||
+            item?.prerequisiteCode ||
+            item?.prerequisite_code ||
+            item?.corequisiteCode ||
+            item?.corequisite_code ||
+            item?.prerequisite_course_code ||
+            item?.corequisite_course_code ||
+            item?.course?.code ||
+            item?.course?.courseCode ||
+            item?.course?.course_code ||
+            item?.prerequisite?.code ||
+            item?.prerequisite_course?.code ||
+            item?.prerequisiteCourse?.code ||
+            item?.prerequisiteCourse?.course?.code ||
+            item?.corequisite?.code ||
+            item?.corequisite_course?.code ||
+            item?.corequisiteCourse?.code ||
+            item?.corequisiteCourse?.course?.code ||
+            '';
+          return String(candidate).trim();
+        }).filter(Boolean);
 
       // ── Fetch 1: available courses list ──────────────────────────────────
       const [coursesResponse, curriculumResponse] = await Promise.all([
@@ -521,10 +613,11 @@ export default function CoursePlanningPage() {
       //   2. also try curriculumCourses[i].course.prerequisites (global, if present)
       //   3. if neither, individually call the constraints endpoint per course
 
-      const prereqMap: Record<string, string[]> = {};   // courseCode → [prereqCodes]
-      const coreqMap: Record<string, string[]> = {};    // courseCode → [coreqCodes]
+      const prereqMap: Record<string, string[]> = {};   // normalized course key → [prereqCodes]
+      const coreqMap: Record<string, string[]> = {};    // normalized course key → [coreqCodes]
+      const curriculumCreditsMap: Record<string, number> = {}; // normalized course key → numeric credits from curriculum payload
       // Store pivot IDs for later fallback individual fetches
-      const pivotIdByCode: Record<string, string> = {};  // courseCode → curriculumCourse.id
+      const pivotIdByCode: Record<string, string> = {};  // normalized course key → curriculumCourse.id
 
       if (curriculumResponse.ok) {
         const currData = await curriculumResponse.json();
@@ -532,29 +625,36 @@ export default function CoursePlanningPage() {
 
         curriculumCourses.forEach((cc: any) => {
           const code = (cc.course?.code || '').trim();
+          const codeKey = toCourseKey(code);
           if (!code) return;
-          if (cc.id) pivotIdByCode[code] = cc.id;
+          if (cc.id) pivotIdByCode[codeKey] = cc.id;
 
-          // Path A: curriculum-specific prerequisites already eager-loaded
-          if (Array.isArray(cc.curriculumPrerequisites) && cc.curriculumPrerequisites.length > 0) {
-            prereqMap[code] = cc.curriculumPrerequisites
-              .map((p: any) => (p.prerequisiteCourse?.course?.code || p.code || '').trim())
-              .filter(Boolean);
-          } else if (Array.isArray(cc.course?.prerequisites) && cc.course.prerequisites.length > 0) {
-            // Path B: global course-level prerequisites (CoursePrerequisite relation)
-            prereqMap[code] = cc.course.prerequisites
-              .map((p: any) => (p.prerequisite?.code || p.code || '').trim())
-              .filter(Boolean);
+          const curriculumParsedCredits = parseCredits(
+            cc.course?.credits ??
+            cc.course?.creditHours ??
+            cc.course?.credit_hours ??
+            cc.course?.creditHour ??
+            0
+          );
+          if (curriculumParsedCredits > 0) {
+            curriculumCreditsMap[codeKey] = curriculumParsedCredits;
           }
 
-          if (Array.isArray(cc.curriculumCorequisites) && cc.curriculumCorequisites.length > 0) {
-            coreqMap[code] = cc.curriculumCorequisites
-              .map((c: any) => (c.prerequisiteCourse?.course?.code || c.code || '').trim())
-              .filter(Boolean);
+          const curriculumPrerequisites = cc.curriculumPrerequisites || cc.curriculum_prerequisites || [];
+          const curriculumCorequisites = cc.curriculumCorequisites || cc.curriculum_corequisites || [];
+
+          // Path A: curriculum-specific prerequisites already eager-loaded
+          if (Array.isArray(curriculumPrerequisites) && curriculumPrerequisites.length > 0) {
+            prereqMap[codeKey] = normalizeCodeArray(curriculumPrerequisites);
+          } else if (Array.isArray(cc.course?.prerequisites) && cc.course.prerequisites.length > 0) {
+            // Path B: global course-level prerequisites (CoursePrerequisite relation)
+            prereqMap[codeKey] = normalizeCodeArray(cc.course.prerequisites);
+          }
+
+          if (Array.isArray(curriculumCorequisites) && curriculumCorequisites.length > 0) {
+            coreqMap[codeKey] = normalizeCodeArray(curriculumCorequisites);
           } else if (Array.isArray(cc.course?.corequisites) && cc.course.corequisites.length > 0) {
-            coreqMap[code] = cc.course.corequisites
-              .map((c: any) => (c.corequisite?.code || c.code || '').trim())
-              .filter(Boolean);
+            coreqMap[codeKey] = normalizeCodeArray(cc.course.corequisites);
           }
         });
 
@@ -584,10 +684,10 @@ export default function CoursePlanningPage() {
                 const coreqs = (d.curriculumCorequisites?.length ? d.curriculumCorequisites : d.baseCorequisites) || [];
 
                 if (prereqs.length > 0) {
-                  prereqMap[code] = prereqs.map((p: any) => (p.code || '').trim()).filter(Boolean);
+                  prereqMap[code] = normalizeCodeArray(prereqs);
                 }
                 if (coreqs.length > 0) {
-                  coreqMap[code] = coreqs.map((c: any) => (c.code || '').trim()).filter(Boolean);
+                  coreqMap[code] = normalizeCodeArray(coreqs);
                 }
               } catch {
                 // silently skip per-course failures
@@ -599,23 +699,91 @@ export default function CoursePlanningPage() {
 
       // ── Merge prereq/coreq data into courses ─────────────────────────────
       const coursesWithTrimmedCodes = (coursesData.courses || []).map((course: any) => {
-        const code = (course.code || '').trim();
+        const code = (course.code || course.courseCode || course.course_code || course.course?.code || '').trim();
+        const codeKey = toCourseKey(code);
+        const creditsSource =
+          course.credits ??
+          course.creditHours ??
+          course.credit_hours ??
+          course.creditHour ??
+          course.course_credit_hours ??
+          course.courseCreditHours ??
+          course.course?.credits ??
+          course.course?.creditHours ??
+          course.course?.credit_hours ??
+          course.course?.creditHour ??
+          curriculumCreditsMap[codeKey] ??
+          '0';
+        const parsedCredits = parseCredits(creditsSource);
+
         return {
           ...course,
           code,
+          credits: parsedCredits,
+          requiresPermission: Boolean(course.requiresPermission ?? course.requires_permission ?? false),
+          summerOnly: Boolean(course.summerOnly ?? course.summer_only ?? false),
+          requiresSeniorStanding: Boolean(course.requiresSeniorStanding ?? course.requires_senior_standing ?? false),
+          minCreditThreshold: course.minCreditThreshold ?? course.min_credit_threshold ?? null,
           // Prefer individually-fetched map; fall back to whatever the API returned inline
-          prerequisites: prereqMap[code]?.length
-            ? prereqMap[code]
-            : normalizeCodeArray(course.prerequisites || course.prerequisite_codes || []),
-          corequisites: coreqMap[code]?.length
-            ? coreqMap[code]
-            : normalizeCodeArray(course.corequisites || course.corequisite_codes || []),
+          prerequisites: prereqMap[codeKey]?.length
+            ? prereqMap[codeKey]
+            : normalizeCodeArray(
+              course.prerequisites ||
+              course.prerequisiteCodes ||
+              course.prerequisite_codes ||
+              course.course?.prerequisites ||
+              course.course?.prerequisiteCodes ||
+              course.course?.prerequisite_codes ||
+              []
+            ),
+          corequisites: coreqMap[codeKey]?.length
+            ? coreqMap[codeKey]
+            : normalizeCodeArray(
+              course.corequisites ||
+              course.corequisiteCodes ||
+              course.corequisite_codes ||
+              course.course?.corequisites ||
+              course.course?.corequisiteCodes ||
+              course.course?.corequisite_codes ||
+              []
+            ),
           bannedWith: normalizeCodeArray(course.bannedWith || course.banned_with || course.banned_combinations || []),
         };
       });
 
-      console.log('📚 Courses with prereqs merged:', coursesWithTrimmedCodes.filter((c: any) => c.prerequisites?.length > 0));
-      setAvailableCourses(coursesWithTrimmedCodes);
+      // Defensive patch: if some entries still resolve to 0 credits, attempt a final parse from any known credit fields.
+      const stabilizedCourses = coursesWithTrimmedCodes.map((course: any) => {
+        if (typeof course.credits === 'number' && course.credits > 0) {
+          return course;
+        }
+        const fallbackCreditSource =
+          course.creditHours ??
+          course.credit_hours ??
+          course.creditHour ??
+          course.course_credit_hours ??
+          course.courseCreditHours ??
+          course.course?.creditHours ??
+          course.course?.credit_hours ??
+          course.course?.creditHour ??
+          course.course?.credits ??
+          curriculumCreditsMap[toCourseKey(course.code)] ??
+          course.credits;
+        const fallbackCredits = parseCredits(fallbackCreditSource || '0');
+        return {
+          ...course,
+          credits: fallbackCredits,
+        };
+      });
+
+      if (process.env.NODE_ENV !== 'production') {
+        const suspicious = stabilizedCourses.filter((c: any) => (c.credits || 0) <= 0 || ((c.prerequisites?.length || 0) + (c.corequisites?.length || 0) === 0));
+        if (suspicious.length > 0) {
+          console.log('🔎 available-courses suspicious records (first 15):', suspicious.slice(0, 15));
+        }
+      }
+
+      console.log('📚 Courses with prereqs merged:', stabilizedCourses.filter((c: any) => c.prerequisites?.length > 0));
+      setAvailableCourses(stabilizedCourses);
     } catch (error) {
       console.error('Error fetching available courses:', error);
       // Fall back to mock data if API fails
@@ -1023,17 +1191,20 @@ export default function CoursePlanningPage() {
         }
         
         // Create course sections array from all sections
-        const courseSections: CourseSection[] = sections.map(schedCourse => ({
-          id: schedCourse.id,
-          section: schedCourse.section || 'A',
-          instructor: schedCourse.instructor,
-          days: schedCourse.days,
-          timeStart: schedCourse.timeStart,
-          timeEnd: schedCourse.timeEnd,
-          room: schedCourse.room,
-          capacity: schedCourse.capacity,
-          enrolled: schedCourse.enrolled,
-        }));
+        const courseSections: CourseSection[] = sections.map(schedCourse => {
+          const fallbackTime = splitTimeRange(schedCourse.time);
+          return {
+            id: schedCourse.id,
+            section: schedCourse.section || 'A',
+            instructor: schedCourse.instructor || undefined,
+            days: normalizeDays(schedCourse.days, schedCourse.day),
+            timeStart: schedCourse.timeStart || fallbackTime.timeStart,
+            timeEnd: schedCourse.timeEnd || fallbackTime.timeEnd,
+            room: schedCourse.room || 'TBA',
+            capacity: typeof schedCourse.capacity === 'number' ? schedCourse.capacity : 0,
+            enrolled: typeof schedCourse.enrolled === 'number' ? schedCourse.enrolled : 0,
+          };
+        });
         
         // Use first section as default selected section
         const firstSection = courseSections[0];
@@ -1248,8 +1419,9 @@ export default function CoursePlanningPage() {
 
   // Validate banned combinations for a course
   const validateBannedCombinations = (course: AvailableCourse): { valid: boolean; blockingCourse?: string; reason?: string } => {
+    const currentCourseKey = toCourseKey(course.code);
     // First check if course is blacklisted for this curriculum
-    if (blacklistedCourses.has(course.code.trim())) {
+    if (Array.from(blacklistedCourses).some(code => toCourseKey(code) === currentCourseKey)) {
       return {
         valid: false,
         blockingCourse: course.code,
@@ -1270,7 +1442,8 @@ export default function CoursePlanningPage() {
     // Check against completed courses
     for (const bannedCourseCode of course.bannedWith) {
       const trimmedBannedCode = bannedCourseCode.trim();
-      if (completedCourses.has(trimmedBannedCode)) {
+      const bannedKey = toCourseKey(trimmedBannedCode);
+      if (Array.from(completedCourses).some(code => toCourseKey(code) === bannedKey)) {
         console.log(`❌ ${course.code} blocked: conflicts with completed course ${trimmedBannedCode}`);
         return { 
           valid: false, 
@@ -1283,7 +1456,8 @@ export default function CoursePlanningPage() {
     // Check against planned courses
     for (const bannedCourseCode of course.bannedWith) {
       const trimmedBannedCode = bannedCourseCode.trim();
-      const plannedConflict = plannedCourses.find(planned => planned.code.trim() === trimmedBannedCode);
+      const bannedKey = toCourseKey(trimmedBannedCode);
+      const plannedConflict = plannedCourses.find(planned => toCourseKey(planned.code) === bannedKey);
       if (plannedConflict) {
         console.log(`❌ ${course.code} blocked: conflicts with planned course ${trimmedBannedCode}`);
         return { 
@@ -1300,12 +1474,13 @@ export default function CoursePlanningPage() {
 
   // Filter available courses based on search, category, and semester selection
   const filteredCourses = enrichedAvailableCourses.filter(course => {
+    const courseKey = toCourseKey(course.code);
     const matchesSearch = course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          course.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || course.category === selectedCategory;
-    const notAlreadyPlanned = !plannedCourses.some(planned => planned.code === course.code);
-    const notAlreadyCompleted = !completedCourses.has(course.code);
-    const notCurrentlyTaking = !inProgressCourses.has(course.code);
+    const notAlreadyPlanned = !plannedCourses.some(planned => toCourseKey(planned.code) === courseKey);
+    const notAlreadyCompleted = !Array.from(completedCourses).some(code => toCourseKey(code) === courseKey);
+    const notCurrentlyTaking = !Array.from(inProgressCourses).some(code => toCourseKey(code) === courseKey);
     
     // Check for banned combinations
     const bannedValidation = validateBannedCombinations(course);
@@ -1323,9 +1498,10 @@ export default function CoursePlanningPage() {
 
   // Find courses that depend on a specific prerequisite
   const findDependentCourses = (prerequisiteCode: string): PlannedCourse[] => {
+    const prerequisiteKey = toCourseKey(prerequisiteCode);
     return plannedCourses.filter(planned => 
-      planned.prerequisites?.includes(prerequisiteCode) &&
-      !completedCourses.has(prerequisiteCode) // Only if prerequisite is not completed
+      (planned.prerequisites || []).some(code => toCourseKey(code) === prerequisiteKey) &&
+      !Array.from(completedCourses).some(code => toCourseKey(code) === prerequisiteKey) // Only if prerequisite is not completed
     );
   };
 
@@ -1338,14 +1514,15 @@ export default function CoursePlanningPage() {
     }
 
     for (const coreqCode of course.corequisites) {
+      const coreqKey = toCourseKey(coreqCode);
       // Skip if already completed or planned
-      if (completedCourses.has(coreqCode) || 
-          plannedCourses.some(planned => planned.code === coreqCode)) {
+      if (Array.from(completedCourses).some(code => toCourseKey(code) === coreqKey) || 
+          plannedCourses.some(planned => toCourseKey(planned.code) === coreqKey)) {
         continue;
       }
 
       // Find the corequisite course in available courses (use enriched for correct bannedWith)
-      const coreqCourse = enrichedAvailableCourses.find(c => c.code === coreqCode);
+      const coreqCourse = enrichedAvailableCourses.find(c => toCourseKey(c.code) === coreqKey);
       if (coreqCourse) {
         // Validate the corequisite can be added
         const bannedValidation = validateBannedCombinations(coreqCourse);
@@ -1364,9 +1541,11 @@ export default function CoursePlanningPage() {
       return { valid: true, missing: [] };
     }
 
-    const missing = course.prerequisites.filter(prereq => 
-      !completedCourses.has(prereq) && 
-      !plannedCourses.some(planned => planned.code === prereq)
+    const missing = course.prerequisites.filter(prereq => {
+      const prereqKey = toCourseKey(prereq);
+      return !Array.from(completedCourses).some(code => toCourseKey(code) === prereqKey) &&
+        !plannedCourses.some(planned => toCourseKey(planned.code) === prereqKey);
+    }
     );
 
     return { valid: missing.length === 0, missing };
@@ -1374,18 +1553,34 @@ export default function CoursePlanningPage() {
 
   // Live re-validation: re-evaluate every planned course's prereq status whenever the plan changes
   const liveValidatedPlannedCourses = useMemo(() => {
-    const plannedCodes = new Set(plannedCourses.map(c => c.code));
+    const plannedCodeKeys = new Set(plannedCourses.map(c => toCourseKey(c.code)));
+    const completedCodeKeys = new Set(Array.from(completedCourses).map(code => toCourseKey(code)));
     return plannedCourses.map(course => {
-      // Keep any corequisite info notes (they're informational, not errors)
-      const coreqNotes = (course.validationNotes || []).filter(n => n.startsWith('Auto-added'));
+      // Preserve manual/system notes that are not regenerated by live checks
+      const preservedNotes = (course.validationNotes || []).filter(
+        n => !n.startsWith('Missing prerequisites:') && !n.startsWith('Missing corequisites:')
+      );
+
       // Re-check prerequisites against current completed + planned set
       const prereqs = course.prerequisites || [];
-      const missing = prereqs.filter(p => !completedCourses.has(p) && !plannedCodes.has(p));
+      const missing = prereqs.filter(p => {
+        const key = toCourseKey(p);
+        return !completedCodeKeys.has(key) && !plannedCodeKeys.has(key);
+      });
       const prereqNotes = missing.length > 0 ? [`Missing prerequisites: ${missing.join(', ')}`] : [];
+
+      // Re-check corequisites against current completed + planned set
+      const coreqs = course.corequisites || [];
+      const missingCoreqs = coreqs.filter(c => {
+        const key = toCourseKey(c);
+        return !completedCodeKeys.has(key) && !plannedCodeKeys.has(key);
+      });
+      const coreqNotes = missingCoreqs.length > 0 ? [`Missing corequisites: ${missingCoreqs.join(', ')}`] : [];
+
       return {
         ...course,
-        validationStatus: (missing.length > 0 ? 'warning' : 'valid') as 'valid' | 'warning',
-        validationNotes: [...prereqNotes, ...coreqNotes],
+        validationStatus: (missing.length > 0 || missingCoreqs.length > 0 ? 'warning' : 'valid') as 'valid' | 'warning',
+        validationNotes: [...prereqNotes, ...coreqNotes, ...preservedNotes],
       };
     });
   }, [plannedCourses, completedCourses]);
@@ -1455,7 +1650,7 @@ export default function CoursePlanningPage() {
         onConfirm: () => {
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
           // Continue with adding the course
-          proceedWithAddingCourse(course, status, normalizedSemesterLabel, selectedSection);
+          proceedWithAddingCourse(course, status, normalizedSemesterLabel, selectedSection, flagWarnings);
         }
       });
       return;
@@ -1463,11 +1658,17 @@ export default function CoursePlanningPage() {
     // ===== END: Course Flags Validation =====
     
     // If no warnings, proceed directly
-    proceedWithAddingCourse(course, status, normalizedSemesterLabel, selectedSection);
+    proceedWithAddingCourse(course, status, normalizedSemesterLabel, selectedSection, []);
   };
   
   // Helper function to proceed with adding course after validation
-  const proceedWithAddingCourse = (course: AvailableCourse, status: PlannedCourse['status'], semesterLabel: string, selectedSection?: CourseSection) => {
+  const proceedWithAddingCourse = (
+    course: AvailableCourse,
+    status: PlannedCourse['status'],
+    semesterLabel: string,
+    selectedSection?: CourseSection,
+    flagWarnings: string[] = []
+  ) => {
 
     // 1. Validate banned combinations
     const bannedValidation = validateBannedCombinations(course);
@@ -1496,10 +1697,13 @@ export default function CoursePlanningPage() {
       corequisites: course.corequisites,
       sections: course.sections,
       selectedSection: selectedSection,
-      validationStatus: prerequisiteValidation.valid ? 'valid' : 'warning',
-      validationNotes: prerequisiteValidation.missing.length > 0 
-        ? [`Missing prerequisites: ${prerequisiteValidation.missing.join(', ')}`]
-        : [],
+      validationStatus: (prerequisiteValidation.valid && flagWarnings.length === 0) ? 'valid' : 'warning',
+      validationNotes: [
+        ...(prerequisiteValidation.missing.length > 0
+          ? [`Missing prerequisites: ${prerequisiteValidation.missing.join(', ')}`]
+          : []),
+        ...flagWarnings,
+      ],
       source: 'manual', // Mark as manually added
     };
 
@@ -1687,19 +1891,96 @@ export default function CoursePlanningPage() {
       setConcentrationAnalysis(analysis);
       setShowConcentrationModal(true);
       
-      // Check if we should show notification dialog
-      const hasSeenNotification = localStorage.getItem('course-planning-notification-shown');
-      if (!hasSeenNotification && plannedCourses.length > 0) {
-        // Show notification dialog after concentration modal
-        setTimeout(() => {
-          setShowNotificationDialog(true);
-          localStorage.setItem('course-planning-notification-shown', 'true');
-        }, 500);
-      }
-      
     } catch (error) {
       console.error('Error saving course plan:', error);
       showError('Failed to save course plan. Please try again.', 'Save Failed');
+    }
+  };
+
+  const captureCourseDiagnostics = async () => {
+    if (!dataEntryContext) {
+      warning('Data entry context is not ready yet.', 'Diagnostics Unavailable');
+      return;
+    }
+
+    const requestedCode = diagnosticCode.trim();
+    if (!requestedCode) {
+      warning('Enter a course code first (e.g. CSX3011).', 'Course Code Required');
+      return;
+    }
+
+    const curriculumId = dataEntryContext.selectedCurriculum;
+    const departmentId = dataEntryContext.actualDepartmentId || dataEntryContext.selectedDepartment;
+
+    try {
+      setDiagnosticLoading(true);
+
+      const [availableResponse, curriculumResponse] = await Promise.all([
+        fetch(`${API_BASE}/available-courses?curriculum_id=${curriculumId}&department_id=${departmentId}`, {
+          credentials: 'include',
+        }),
+        fetch(`${API_BASE}/public-curricula/${curriculumId}`, {
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        }),
+      ]);
+
+      const availableData = availableResponse.ok ? await availableResponse.json() : null;
+      const curriculumData = curriculumResponse.ok ? await curriculumResponse.json() : null;
+
+      const courseKey = toCourseKey(requestedCode);
+      const availableCourse = (availableData?.courses || []).find((course: any) => {
+        const code = course?.code || course?.courseCode || course?.course_code || course?.course?.code || '';
+        return toCourseKey(String(code)) === courseKey;
+      }) || null;
+
+      const curriculumCourses = (curriculumData?.curriculum || curriculumData)?.curriculumCourses || [];
+      const curriculumCourse = curriculumCourses.find((cc: any) =>
+        toCourseKey(cc?.course?.code || cc?.course?.courseCode || cc?.course?.course_code || '') === courseKey
+      ) || null;
+
+      let constraintsData: any = null;
+      if (curriculumCourse?.id) {
+        const constraintsResponse = await fetch(
+          `${API_BASE}/curricula/${curriculumId}/courses/${curriculumCourse.id}/constraints`,
+          { credentials: 'include' }
+        );
+        constraintsData = constraintsResponse.ok ? await constraintsResponse.json() : null;
+      }
+
+      const payload = {
+        capturedAt: new Date().toISOString(),
+        requestedCode,
+        request: { curriculumId, departmentId },
+        availableCourse,
+        curriculumCourse,
+        constraintsData,
+      };
+
+      setDiagnosticPayload(payload);
+      success(`Diagnostics captured for ${requestedCode}`, 'Diagnostics Ready');
+    } catch (err) {
+      console.error('Error capturing diagnostics:', err);
+      showError('Failed to capture diagnostics payload. Please try again.', 'Diagnostics Failed');
+    } finally {
+      setDiagnosticLoading(false);
+    }
+  };
+
+  const copyDiagnosticsPayload = async () => {
+    if (!diagnosticPayload) {
+      warning('Capture diagnostics first.', 'No Payload Yet');
+      return;
+    }
+
+    try {
+      if (typeof navigator === 'undefined' || !navigator.clipboard) {
+        throw new Error('Clipboard API unavailable');
+      }
+      await navigator.clipboard.writeText(JSON.stringify(diagnosticPayload, null, 2));
+      success('Diagnostics JSON copied. Paste it in chat.', 'Copied');
+    } catch {
+      warning('Copy failed. Select and copy the JSON shown below manually.', 'Clipboard Unavailable');
     }
   };
 
@@ -1768,9 +2049,16 @@ export default function CoursePlanningPage() {
         </div>
       </div>
 
+      <Tabs value={planningTab} onValueChange={(value) => setPlanningTab(value as 'planning' | 'schedule')} className="mb-4 sm:mb-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="planning">Planning Features</TabsTrigger>
+          <TabsTrigger value="schedule">Tentative & Schedule</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Prompt to load tentative schedule and add completed courses */}
       <div className="space-y-3 mb-4 sm:mb-6">
-        {!selectedTentativeSchedule && (
+        {planningTab === 'schedule' && !selectedTentativeSchedule && (
           <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
             <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             <AlertDescription className="text-amber-900 dark:text-amber-100">
@@ -1799,65 +2087,47 @@ export default function CoursePlanningPage() {
             </AlertDescription>
           </Alert>
         )}
+
+        {/* Diagnostics capture card temporarily hidden from UI per request. */}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+      <div className={`grid grid-cols-1 gap-4 sm:gap-6 ${planningTab === 'planning' ? 'xl:grid-cols-3' : ''}`}>
         {/* Course Search and Selection - Left Panel */}
-        <div className="xl:col-span-2 space-y-4 sm:space-y-6">
+        <div className={`${planningTab === 'planning' ? 'xl:col-span-2' : 'xl:col-span-3'} space-y-4 sm:space-y-6`}>
           {/* Search and Filters */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Search size={20} />
-                Available Courses
+                {planningTab === 'planning' ? 'Available Courses' : 'Tentative Schedule'}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 sm:space-y-4">
-              <CourseSearch
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                selectedCategory={selectedCategory}
-                onCategoryChange={setSelectedCategory}
-                categoryOptions={categoryOptions}
-                filteredCoursesCount={filteredCourses.length}
-              />
+              {planningTab === 'planning' && (
+                <CourseSearch
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  selectedCategory={selectedCategory}
+                  onCategoryChange={setSelectedCategory}
+                  categoryOptions={categoryOptions}
+                  filteredCoursesCount={filteredCourses.length}
+                />
+              )}
 
-              {/* Planning Mode Toggle */}
               <div className="border-2 border-primary/20 rounded-lg p-3 sm:p-4 bg-gradient-to-r from-primary/5 to-transparent">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    {planningMode === 'tentative' ? <Sparkles className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4" />}
-                    How do you want to plan?
-                  </label>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={planningMode === 'manual' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setPlanningMode('manual')}
-                      className="gap-2"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Manual
-                    </Button>
-                    <Button
-                      variant={planningMode === 'tentative' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setPlanningMode('tentative')}
-                      className="gap-2"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Tentative Schedule
-                    </Button>
-                  </div>
+                <div className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
+                  {planningTab === 'schedule' ? <Sparkles className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4" />}
+                  {planningTab === 'schedule' ? 'Tentative Schedule View' : 'Planning View'}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {planningMode === 'tentative' 
-                    ? '✨ Load courses from published tentative schedules created by your department chairperson. Sections and times are pre-selected.' 
-                    : '📝 Browse all available courses and manually add them one by one. You can customize your schedule freely.'}
+                  {planningTab === 'schedule'
+                    ? 'Load published tentative schedules and review section/time-based display.'
+                    : 'Browse available courses and build your future plan.'}
                 </p>
               </div>
 
               {/* Semester Selection */}
+              {planningTab === 'planning' && (
               <div className="p-3 sm:p-4 bg-muted rounded-lg space-y-3">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
@@ -1889,9 +2159,10 @@ export default function CoursePlanningPage() {
                   Use the format term/year such as 1/2025 for Semester 1, 2/2025 for Semester 2, or 3/2025 for Summer Session.
                 </p>
               </div>
+              )}
 
               {/* Tentative Schedule Selector - Only visible in tentative mode */}
-              {planningMode === 'tentative' && (
+              {planningTab === 'schedule' && (
                 <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-start gap-2 mb-3">
                     <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5" />
@@ -1966,6 +2237,7 @@ export default function CoursePlanningPage() {
               )}
 
               {/* Course Flags Legend - Mobile-optimized */}
+              {planningTab === 'planning' && (
               <div className="flex flex-wrap items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded text-xs">
                 <span className="text-gray-600 dark:text-gray-400 font-medium">Course indicators:</span>
                 <div className="flex items-center gap-1.5">
@@ -1981,8 +2253,10 @@ export default function CoursePlanningPage() {
                   <span className="text-gray-700 dark:text-gray-300">Senior standing</span>
                 </div>
               </div>
+              )}
 
               {/* Course List */}
+              {planningTab === 'planning' && (
               <div className="max-h-[500px] sm:max-h-[600px] overflow-y-auto space-y-2 sm:space-y-3">
                 {filteredCourses.map((course) => {
                   const prerequisiteValidation = validatePrerequisites(course);
@@ -1990,7 +2264,7 @@ export default function CoursePlanningPage() {
                   const hasSections = course.sections && course.sections.length > 0;
                   
                   // Only show sections if a tentative schedule is loaded AND course has sections
-                  if (hasSections && showSectionsInList && selectedTentativeSchedule) {
+                  if (hasSections && showSectionsInList && selectedTentativeSchedule && selectedTentativeSchedule !== 'none') {
                     return (
                       <CourseWithSections
                         key={course.code}
@@ -2022,11 +2296,13 @@ export default function CoursePlanningPage() {
                   </div>
                 )}
               </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
         {/* Course Plan Summary - Right Panel */}
+        {planningTab === 'planning' && (
         <div className="space-y-4 sm:space-y-6">
           {/* Planned Courses */}
           <Card>
@@ -2210,10 +2486,11 @@ export default function CoursePlanningPage() {
             </CardContent>
           </Card>
         </div>
+        )}
       </div>
       
       {/* Schedule Calendar View - Full Width */}
-      {plannedCourses.length > 0 && (
+      {planningTab === 'schedule' && (plannedCourses.length > 0 || Boolean(selectedTentativeSchedule)) && (
         <div className="mt-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
             <div>
@@ -2248,7 +2525,13 @@ export default function CoursePlanningPage() {
             </div>
           </div>
           
-          {viewMode === 'calendar' ? (
+          {plannedCourses.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                {loadingSchedules ? 'Loading tentative schedule courses...' : 'No courses loaded from selected tentative schedule yet.'}
+              </CardContent>
+            </Card>
+          ) : viewMode === 'calendar' ? (
             <CourseScheduleCalendar
               courses={plannedCourses}
               onSelectSection={handleSectionSelect}
@@ -2726,12 +3009,6 @@ export default function CoursePlanningPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Notification Subscription Dialog */}
-      <NotificationSubscribeDialog
-        open={showNotificationDialog}
-        onOpenChange={setShowNotificationDialog}
-        departmentId={dataEntryContext.selectedDepartment}
-      />
     </div>
   );
 }

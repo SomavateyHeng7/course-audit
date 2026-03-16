@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToastHelpers } from '@/hooks/useToast';
+import { exportScheduleToPDF } from '@/lib/pdfExport';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -13,6 +14,7 @@ import {
   MapPin, 
   User,
   BookOpen,
+  Download,
   ChevronRight,
   Grid3x3,
   List
@@ -57,6 +59,14 @@ const courseColors = [
   'bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700'
 ];
 
+const parseTimeRange = (time?: string): { start?: string; end?: string } => {
+  if (!time || !time.includes('-')) {
+    return {};
+  }
+  const [start, end] = time.split('-').map((part) => part.trim());
+  return { start, end };
+};
+
 export default function ScheduleVisualizationPage() {
   const router = useRouter();
   const { error: showError, info } = useToastHelpers();
@@ -80,7 +90,23 @@ export default function ScheduleVisualizationPage() {
       const planningData = localStorage.getItem('coursePlan');
       if (planningData) {
         const data = JSON.parse(planningData);
-        courses = data.plannedCourses || [];
+        courses = (data.plannedCourses || []).map((course: any) => {
+          const selectedSection = course.selectedSection;
+          const fallbackTime = parseTimeRange(course.time);
+          const timeStart = selectedSection?.timeStart || fallbackTime.start;
+          const timeEnd = selectedSection?.timeEnd || fallbackTime.end;
+
+          return {
+            code: course.code,
+            title: course.title || course.name || course.code,
+            section: selectedSection?.section || course.section,
+            days: selectedSection?.days || course.days || [],
+            time: timeStart && timeEnd ? `${timeStart}-${timeEnd}` : (course.time || ''),
+            instructor: selectedSection?.instructor || course.instructor || '',
+            room: selectedSection?.room || course.room || '',
+            credits: Number(course.credits) || 0,
+          };
+        });
       }
       
       // Fallback to semester plan if no course planning data
@@ -191,6 +217,33 @@ export default function ScheduleVisualizationPage() {
 
   const getCoursesPerDay = (day: string) => {
     return schedule[day]?.length || 0;
+  };
+
+  const handleDownloadSchedulePDF = () => {
+    const schedulePayload = {
+      name: 'Student Schedule',
+      semester: 'Planned Semester',
+      version: 'v1',
+      courses: plannedCourses.map((course, index) => {
+        const { start, end } = parseTimeRange(course.time);
+        return {
+          id: `${course.code}-${index}`,
+          code: course.code,
+          name: course.title,
+          credits: Number(course.credits) || 0,
+          section: course.section,
+          instructor: course.instructor,
+          dayTimeSlots: (course.days || []).map((day) => ({
+            day,
+            startTime: start || '08:00',
+            endTime: end || '09:30'
+          })),
+          category: 'Planned',
+        };
+      }),
+    };
+
+    exportScheduleToPDF(schedulePayload);
   };
 
   return (
@@ -412,13 +465,19 @@ export default function ScheduleVisualizationPage() {
               <div className="text-sm text-muted-foreground">
                 Review your schedule and proceed to track your progress
               </div>
-              <Button 
-                onClick={() => router.push('/student/management/progress')}
-                size="lg"
-              >
-                View Progress
-                <ChevronRight className="w-5 h-5 ml-2" />
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button variant="outline" onClick={handleDownloadSchedulePDF}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Download as PDF
+                </Button>
+                <Button 
+                  onClick={() => router.push('/student/management/progress')}
+                  size="lg"
+                >
+                  View Progress
+                  <ChevronRight className="w-5 h-5 ml-2" />
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaInfoCircle, FaTags, FaLayerGroup } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaInfoCircle, FaTags, FaLayerGroup, FaPlus } from 'react-icons/fa';
 import { API_BASE } from '@/lib/api/laravel';
 import { useToastHelpers } from '@/hooks/useToast';
 
@@ -333,6 +333,14 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
             <FaTags />
             Bulk Assign Categories
           </button>
+
+          <button
+            onClick={onAddCourse}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            <FaPlus />
+            Add Course
+          </button>
         </div>
         
         <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -477,26 +485,6 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
       <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200 dark:border-border">
         <div className="text-sm text-gray-600 dark:text-gray-400">
           {filteredCourses.length} course{filteredCourses.length !== 1 ? 's' : ''} in curriculum
-        </div>        <div className="flex gap-3">
-          <button 
-            onClick={onAddCourse}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors border border-primary shadow-sm"
-            suppressHydrationWarning
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Course
-          </button>
-          {/* <button 
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors border border-primary shadow-sm"
-            suppressHydrationWarning
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            Save Changes
-          </button> */}
         </div>
       </div>
 

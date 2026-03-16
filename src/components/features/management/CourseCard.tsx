@@ -39,9 +39,23 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   const parseCredits = (credits: string | number): number => {
     if (typeof credits === 'number') return credits;
     if (typeof credits === 'string') {
-      const firstNumber = credits.split('-')[0];
-      const parsed = parseInt(firstNumber, 10);
-      return isNaN(parsed) ? 0 : parsed;
+      const normalized = credits.trim();
+      if (!normalized.includes('-')) {
+        const direct = Number.parseInt(normalized.replace(/[^\d-]/g, ''), 10);
+        return Number.isNaN(direct) ? 0 : direct;
+      }
+
+      const parts = normalized
+        .split('-')
+        .map((part) => Number.parseInt(part.trim(), 10))
+        .filter((value) => Number.isFinite(value));
+
+      if (parts.length === 0) return 0;
+
+      const first = parts[0] ?? 0;
+      const last = parts[parts.length - 1] ?? 0;
+      if (first === 0 && last > 0) return last;
+      return first > 0 ? first : Math.max(0, last);
     }
     return 0;
   };

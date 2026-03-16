@@ -318,7 +318,7 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
   );
 
   const filteredConstraintCourses = courses
-    .filter(c => getCourseIdentifier(c) !== selectedCourse)
+    .filter(c => String(getCourseIdentifier(c)) !== String(selectedCourse))
     .filter(course =>
       course.code.toLowerCase().includes(constraintCourseSearch.toLowerCase()) ||
       course.name.toLowerCase().includes(constraintCourseSearch.toLowerCase())
@@ -334,7 +334,7 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
 
     try {
       const selectedCourseData = getSelectedCourseData();
-      const constraintCourseData = courses.find(c => getCourseIdentifier(c) === selectedConstraintCourse);
+      const constraintCourseData = courses.find(c => String(getCourseIdentifier(c)) === String(selectedConstraintCourse));
 
       if (!selectedCourseData.id || !constraintCourseData?.id) {
         setError('Course IDs are missing. Cannot add constraints without proper course IDs.');
@@ -378,6 +378,8 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
           );
           setCurriculumCorequisitesState(prev => [...prev, corequisite]);
         }
+
+        await loadConstraints();
       } else if (constraintType === 'bannedCombinations') {
         if (!curriculumId) {
           setError('Curriculum ID is missing. Cannot add banned combinations without curriculum ID.');
@@ -484,6 +486,7 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
         );
 
         setCurriculumPrerequisitesState(prev => prev.filter(relation => relation.id !== item.id));
+        await loadConstraints();
       } else if (type === 'corequisites') {
         if (!item?.id) {
           setError('Unable to identify co-requisite relation for removal.');
@@ -497,6 +500,7 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
         );
 
         setCurriculumCorequisitesState(prev => prev.filter(relation => relation.id !== item.id));
+        await loadConstraints();
       } else if (type === 'bannedCombinations') {
         if (item?.type === 'curriculumConstraint' && item?.id && curriculumId) {
           const response = await fetch(`${API_BASE}/curricula/${curriculumId}/constraints/${item.id}`, {
@@ -600,6 +604,7 @@ export default function ConstraintsTab({ courses, curriculumId, curriculumCourse
           requiresSeniorStanding: response.overrideRequiresSeniorStanding ?? courseFlags.requiresSeniorStanding,
           minCreditThreshold: response.overrideMinCreditThreshold ?? courseFlags.minCreditThreshold ?? null,
         });
+        loadConstraints();
       })
       .catch((err) => {
         console.error('updateOverrides error:', err);
