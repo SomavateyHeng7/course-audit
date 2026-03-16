@@ -3,7 +3,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckCircle, AlertTriangle, Info } from 'lucide-react';
 
@@ -96,12 +95,12 @@ export const PlannedCourseCard: React.FC<PlannedCourseCardProps> = ({
       
       {/* Missing prerequisite warnings */}
       {course.validationNotes && course.validationNotes.some(n => n.startsWith('Missing')) && (
-        <Alert className="py-1 px-2 border-orange-300 bg-orange-50 dark:bg-orange-950/30">
-          <AlertTriangle size={12} className="text-orange-600 shrink-0" />
-          <AlertDescription className="text-xs text-orange-700 dark:text-orange-400">
+        <div className="flex items-start gap-1.5 rounded-md border border-orange-300 bg-orange-50 dark:bg-orange-950/30 py-1 px-2">
+          <AlertTriangle size={12} className="text-orange-600 shrink-0 mt-0.5" />
+          <p className="text-xs text-orange-700 dark:text-orange-400 leading-snug break-words">
             {course.validationNotes.filter(n => n.startsWith('Missing')).join(', ')}
-          </AlertDescription>
-        </Alert>
+          </p>
+        </div>
       )}
       {/* Corequisite info notes */}
       {course.validationNotes && course.validationNotes.some(n => n.startsWith('Auto-added')) && (
