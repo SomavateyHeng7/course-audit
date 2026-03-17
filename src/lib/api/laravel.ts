@@ -267,7 +267,7 @@ export async function getUsers() {
   return authenticatedRequest('/users');
 }
 
-export async function getUserById(id: number) {
+export async function getUserById(id: number | string) {
   return authenticatedRequest(`/users/${id}`);
 }
 
@@ -278,14 +278,14 @@ export async function createUser(data: any) {
   });
 }
 
-export async function updateUser(id: number, data: any) {
+export async function updateUser(id: number | string, data: any) {
   return authenticatedRequest(`/users/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteUser(id: number) {
+export async function deleteUser(id: number | string) {
   return authenticatedRequest(`/users/${id}`, {
     method: 'DELETE',
   });

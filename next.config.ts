@@ -18,9 +18,6 @@ const nextConfig: NextConfig = {
     // number of pages that should be kept simultaneously without being disposed
     pagesBufferLength: 2,
   },
-  eslint: {
-    ignoreDuringBuilds: true, 
-  },
 };
 
 export default nextConfig;

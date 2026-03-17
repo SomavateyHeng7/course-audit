@@ -334,13 +334,6 @@ export default function CoursesTab({ courses, onEditCourse, onDeleteCourse, onAd
             Bulk Assign Categories
           </button>
 
-          <button
-            onClick={onAddCourse}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            <FaPlus />
-            Add Course
-          </button>
         </div>
         
         <div className="text-sm text-gray-600 dark:text-gray-400">

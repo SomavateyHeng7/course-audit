@@ -15,6 +15,10 @@ interface User {
   name: string;
   email: string;
   role: 'STUDENT' | 'ADVISOR' | 'CHAIRPERSON' | 'SUPER_ADMIN';
+  facultyId?: string;
+  faculty_id?: string;
+  departmentId?: string;
+  department_id?: string;
   faculty: {
     name: string;
   };
@@ -144,14 +148,18 @@ export default function RoleManagement() {
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
-    if (formData.password !== formData.confirmPassword) {
+    if ((formData.password || formData.confirmPassword) && formData.password !== formData.confirmPassword) {
       showError('Passwords do not match.');
       return;
     }
     setUpdateLoading(true);
     try {
-      const { confirmPassword, ...submitData } = formData;
-      await updateUser(Number(editingUser.id), submitData);
+      const { confirmPassword, password, ...baseData } = formData;
+      const submitData = {
+        ...baseData,
+        ...(password ? { password } : {}),
+      };
+      await updateUser(editingUser.id, submitData);
       success('User updated successfully!');
       setEditingUser(null);
       setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'ADVISOR', facultyId: '', departmentId: '' });
@@ -216,7 +224,7 @@ export default function RoleManagement() {
                   if (!deleteUserId) return;
                   setCreateLoading(true);
                   try {
-                    await deleteUser(Number(deleteUserId));
+                    await deleteUser(deleteUserId);
                     success('User deleted successfully!');
                     fetchUsers();
                   } catch (error) {
@@ -294,8 +302,8 @@ export default function RoleManagement() {
                             password: '',
                             confirmPassword: '',
                             role: (user.role === 'ADVISOR' || user.role === 'CHAIRPERSON') ? user.role : 'ADVISOR',
-                            facultyId: '',
-                            departmentId: '',
+                            facultyId: user.faculty_id || user.facultyId || '',
+                            departmentId: user.department_id || user.departmentId || '',
                           });
                         }}
                         className="p-2"
@@ -365,7 +373,7 @@ export default function RoleManagement() {
                   type={showPassword ? 'text' : 'password'}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
+                  required={!editingUser}
                 />
                 <button
                   type="button"
@@ -387,7 +395,7 @@ export default function RoleManagement() {
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  required
+                  required={!editingUser}
                 />
                 <button
                   type="button"
@@ -411,7 +419,7 @@ export default function RoleManagement() {
                   className="w-full p-2 border rounded-md"
                   required
                 >
-                  <option value="ADVISOR">Advisor</option>
+                  {!editingUser && <option value="ADVISOR">Advisor</option>}
                   <option value="CHAIRPERSON">Chairperson</option>
                 </select>
               </div>
