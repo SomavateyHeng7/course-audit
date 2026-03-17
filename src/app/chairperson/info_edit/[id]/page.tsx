@@ -106,8 +106,6 @@ export default function EditCurriculum() {
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [showAddCourseForm, setShowAddCourseForm] = useState(false);
   const [courseAssignment, setCourseAssignment] = useState({
-    year: 1,
-    semester: '1',
     isRequired: true
   });
 
@@ -558,10 +556,30 @@ export default function EditCurriculum() {
     setSelectedCourse(null);
     setShowAddCourseForm(false);
     setCourseAssignment({
-      year: 1,
-      semester: '1',
       isRequired: true
     });
+  };
+
+  const getCsrfTokenFromCookie = () => {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  };
+
+  const parseApiResponse = async (response: Response) => {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return response.json().catch(() => ({}));
+    }
+
+    const text = await response.text().catch(() => '');
+    return {
+      error: {
+        message: text.startsWith('<!DOCTYPE')
+          ? `Server returned HTML instead of JSON (HTTP ${response.status}).`
+          : `Unexpected response format (HTTP ${response.status}).`,
+      },
+    };
   };
 
   const handleSaveEditCourse = async () => {
@@ -738,6 +756,7 @@ export default function EditCurriculum() {
       setIsAddingCourse(true);
       let courseId;
       let courseToAdd;
+      const csrfToken = getCsrfTokenFromCookie();
 
       if (selectedCourse) {
         // Use selected existing course
@@ -749,6 +768,8 @@ export default function EditCurriculum() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ...(csrfToken ? { 'X-XSRF-TOKEN': csrfToken } : {}),
           },
           credentials: 'include',
           body: JSON.stringify({
@@ -761,7 +782,7 @@ export default function EditCurriculum() {
           }),
         });
 
-        const courseData = await createResponse.json();
+        const courseData = await parseApiResponse(createResponse);
 
         if (!createResponse.ok) {
           throw new Error(courseData.error?.message || 'Failed to create course');
@@ -778,17 +799,17 @@ export default function EditCurriculum() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(csrfToken ? { 'X-XSRF-TOKEN': csrfToken } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({
           courseId,
           isRequired: courseAssignment.isRequired,
-          year: courseAssignment.year,
-          semester: courseAssignment.semester,
         }),
       });
 
-      const curriculumData = await addToCurriculumResponse.json();
+      const curriculumData = await parseApiResponse(addToCurriculumResponse);
 
       if (!addToCurriculumResponse.ok) {
         throw new Error(curriculumData.error?.message || 'Failed to add course to curriculum');
@@ -802,8 +823,8 @@ export default function EditCurriculum() {
           id: curriculumData.curriculumCourse.id,
           course: courseToAdd,
           isRequired: courseAssignment.isRequired,
-          year: courseAssignment.year,
-          semester: courseAssignment.semester,
+          year: curriculumData.curriculumCourse?.year ?? null,
+          semester: curriculumData.curriculumCourse?.semester ?? null,
         };
         
         return {
@@ -1341,34 +1362,7 @@ export default function EditCurriculum() {
               {/* Course Assignment Settings */}
               <div className="border border-gray-200 dark:border-border rounded-lg p-3 sm:p-4 bg-gray-50 dark:bg-gray-800/50">
                 <h5 className="font-medium text-foreground mb-3 text-sm sm:text-base">Course Assignment Settings</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium mb-1 text-foreground">Year</label>
-                    <select
-                      value={courseAssignment.year}
-                      onChange={(e) => setCourseAssignment({...courseAssignment, year: parseInt(e.target.value)})}
-                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-xs sm:text-sm touch-manipulation"
-                    >
-                      <option value={1}>Year 1</option>
-                      <option value={2}>Year 2</option>
-                      <option value={3}>Year 3</option>
-                      <option value={4}>Year 4</option>
-                      <option value={5}>Year 5</option>
-                      <option value={6}>Year 6</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium mb-1 text-foreground">Semester</label>
-                    <select
-                      value={courseAssignment.semester}
-                      onChange={(e) => setCourseAssignment({...courseAssignment, semester: e.target.value})}
-                      className="w-full border border-gray-300 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground text-xs sm:text-sm touch-manipulation"
-                    >
-                      <option value="1">Semester 1</option>
-                      <option value="2">Semester 2</option>
-                      <option value="3">Summer</option>
-                    </select>
-                  </div>
+                <div className="grid grid-cols-1 gap-3">
                   <div>
                     <label className="block text-xs sm:text-sm font-medium mb-1 text-foreground">Type</label>
                     <select

@@ -984,12 +984,12 @@ const TentativeSchedulePage: React.FC = () => {
                   
                   {/* Download Template Button */}
                   <a
-                    href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/download/tentative-schedule-template`}
-                    download
+                    href="/tentative_schedule_template.csv"
+                    download="tentative_schedule_template.csv"
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 mb-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                   >
                     <FileSpreadsheet size={16} />
-                    Download Excel Template
+                    Download Template (CSV)
                   </a>
                   
                   <input
