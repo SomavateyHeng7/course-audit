@@ -25,6 +25,7 @@ import {
   Library,
   Folders,
   FileUp,
+  ClipboardList,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -73,6 +74,11 @@ const adminNavigationItems = [
     name: "Department Management",
     href: "/admin/department",
     icon: Building,
+  },
+  {
+    name: "Audit Log",
+    href: "/admin/audit-log",
+    icon: ClipboardList,
   },
 ];
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -14,7 +14,10 @@ import {
   Calendar,
   Edit,
   Download,
-  Printer
+  Printer,
+  Grid3x3,
+  List,
+  User
 } from 'lucide-react';
 
 import { PageHeader } from '@/components/role-specific/chairperson/PageHeader';
@@ -57,6 +60,7 @@ const ViewSchedulePage: React.FC = () => {
   
   const [loading, setLoading] = useState(true);
   const [schedule, setSchedule] = useState<ScheduleData | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
 
   useEffect(() => {
     fetchSchedule();
@@ -100,6 +104,62 @@ const ViewSchedulePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ── Calendar view helpers ──
+  const courseColors = [
+    'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100',
+    'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700 text-green-900 dark:text-green-100',
+    'bg-purple-100 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700 text-purple-900 dark:text-purple-100',
+    'bg-orange-100 dark:bg-orange-900/30 border-orange-300 dark:border-orange-700 text-orange-900 dark:text-orange-100',
+    'bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700 text-red-900 dark:text-red-100',
+    'bg-pink-100 dark:bg-pink-900/30 border-pink-300 dark:border-pink-700 text-pink-900 dark:text-pink-100',
+    'bg-cyan-100 dark:bg-cyan-900/30 border-cyan-300 dark:border-cyan-700 text-cyan-900 dark:text-cyan-100',
+    'bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-100',
+  ];
+
+  const getDayName = (abbr: string): string => {
+    const map: Record<string, string> = {
+      M: 'Monday', T: 'Tuesday', W: 'Wednesday', Th: 'Thursday',
+      F: 'Friday', S: 'Saturday', Su: 'Sunday',
+      Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday',
+      Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday',
+    };
+    return map[abbr] || abbr;
+  };
+
+  const buildCalendarSchedule = () => {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const calendarMap: Record<string, { course: ScheduleCourse; color: string; start: string; end: string }[]> = {};
+    days.forEach(d => (calendarMap[d] = []));
+
+    schedule?.courses.forEach((course, idx) => {
+      if (course.days && course.days.length > 0) {
+        course.days.forEach(d => {
+          const full = getDayName(d);
+          if (calendarMap[full]) {
+            const [start, end] = course.time
+              ? course.time.split('-').map(t => t.trim().replace(/\s*(AM|PM)\s*/i, ''))
+              : ['', ''];
+            calendarMap[full].push({ course, color: courseColors[idx % courseColors.length], start, end });
+          }
+        });
+      }
+    });
+
+    // Sort each day by start time
+    Object.keys(calendarMap).forEach(day => {
+      calendarMap[day].sort((a, b) => {
+        const at = parseInt(a.start.replace(':', '') || '0');
+        const bt = parseInt(b.start.replace(':', '') || '0');
+        return at - bt;
+      });
+    });
+
+    // Remove Saturday if empty
+    if (calendarMap['Saturday']?.length === 0) delete calendarMap['Saturday'];
+
+    return calendarMap;
   };
 
   const courseColumns = [
@@ -238,6 +298,26 @@ const ViewSchedulePage: React.FC = () => {
           ]}
         />
 
+        {/* View Mode Toggle */}
+        <div className="flex gap-2 mb-6">
+          <Button
+            variant={viewMode === 'table' ? 'default' : 'outline'}
+            onClick={() => setViewMode('table')}
+            size="sm"
+          >
+            <List className="w-4 h-4 mr-2" />
+            Table View
+          </Button>
+          <Button
+            variant={viewMode === 'calendar' ? 'default' : 'outline'}
+            onClick={() => setViewMode('calendar')}
+            size="sm"
+          >
+            <Grid3x3 className="w-4 h-4 mr-2" />
+            Schedule View
+          </Button>
+        </div>
+
         {/* Schedule Info Card */}
         <Card className="mb-6">
           <CardContent className="p-6">
@@ -278,22 +358,132 @@ const ViewSchedulePage: React.FC = () => {
           />
         </div>
 
-        {/* Courses Table */}
-        <DataTable
-          data={schedule.courses}
-          columns={courseColumns}
-          loading={false}
-          emptyState={{
-            icon: <BookOpen size={48} />,
-            title: "No courses in this schedule",
-            description: "This schedule doesn't have any courses yet",
-            action: {
-              label: "Edit Schedule",
-              onClick: () => router.push('/chairperson/TentativeSchedule/create_schedule')
+        {/* Courses Table / Calendar View */}
+        {viewMode === 'table' ? (
+          <DataTable
+            data={schedule.courses}
+            columns={courseColumns}
+            loading={false}
+            emptyState={{
+              icon: <BookOpen size={48} />,
+              title: "No courses in this schedule",
+              description: "This schedule doesn't have any courses yet",
+              action: {
+                label: "Edit Schedule",
+                onClick: () => router.push('/chairperson/TentativeSchedule/create_schedule')
+              }
+            }}
+            cardMode={true}
+          />
+        ) : (
+          /* Calendar / Schedule View */
+          (() => {
+            const calendarData = buildCalendarSchedule();
+            const dayKeys = Object.keys(calendarData);
+            const hasScheduledCourses = dayKeys.some(d => calendarData[d].length > 0);
+
+            if (!hasScheduledCourses) {
+              return (
+                <Card>
+                  <CardContent className="py-12">
+                    <div className="text-center space-y-3">
+                      <Calendar className="w-12 h-12 mx-auto text-muted-foreground" />
+                      <h3 className="text-lg font-semibold text-foreground">No Scheduled Courses</h3>
+                      <p className="text-muted-foreground text-sm">
+                        Courses in this schedule don&apos;t have day/time assignments yet.<br />
+                        Switch to Table View to see all courses, or edit the schedule to add time slots.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
             }
-          }}
-          cardMode={true}
-        />
+
+            return (
+              <div className="space-y-4">
+                {/* Legend - color for each course */}
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex flex-wrap gap-3">
+                      {schedule.courses.map((course, idx) => (
+                        <div key={course.id} className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-sm border-2 ${courseColors[idx % courseColors.length]}`} />
+                          <span className="text-xs text-muted-foreground font-medium">{course.code}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Day Columns */}
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                  {dayKeys.map(day => (
+                    <Card key={day} className="min-h-[200px]">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base font-semibold">{day}</CardTitle>
+                        <CardDescription className="text-xs">
+                          {calendarData[day].length} {calendarData[day].length === 1 ? 'class' : 'classes'}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {calendarData[day].length === 0 ? (
+                          <p className="text-xs text-muted-foreground italic">No classes</p>
+                        ) : (
+                          calendarData[day].map((slot, index) => (
+                            <div
+                              key={index}
+                              className={`p-3 rounded-lg border-2 ${slot.color}`}
+                            >
+                              <div className="text-sm font-bold">{slot.course.code}</div>
+                              <div className="text-xs mt-0.5 opacity-80">{slot.course.name}</div>
+                              {(slot.start || slot.end) && (
+                                <div className="flex items-center gap-1 text-xs mt-1.5 opacity-70">
+                                  <Clock className="w-3 h-3" />
+                                  {slot.start} - {slot.end}
+                                </div>
+                              )}
+                              {slot.course.section && (
+                                <Badge variant="secondary" className="mt-2 text-xs">
+                                  Sec {slot.course.section}
+                                </Badge>
+                              )}
+                              {slot.course.instructor && (
+                                <div className="flex items-center gap-1 text-xs mt-1.5 opacity-70">
+                                  <User className="w-3 h-3" />
+                                  {slot.course.instructor}
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Unscheduled courses notice */}
+                {schedule.courses.some(c => !c.days || c.days.length === 0) && (
+                  <Card className="border-dashed">
+                    <CardContent className="p-4">
+                      <p className="text-sm font-medium text-muted-foreground mb-2">
+                        Unscheduled Courses (no day/time assigned):
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {schedule.courses
+                          .filter(c => !c.days || c.days.length === 0)
+                          .map(c => (
+                            <Badge key={c.id} variant="outline">
+                              {c.code} — {c.name} ({c.credits} cr)
+                            </Badge>
+                          ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            );
+          })()
+        )}
       </div>
     </div>
   );

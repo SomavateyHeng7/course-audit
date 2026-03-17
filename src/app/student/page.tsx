@@ -2,42 +2,14 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/SanctumAuthContext';
 
 export default function StudentPage() {
   const router = useRouter();
-  const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    if (isLoading) return;
-
-    // If no user, redirect to auth
-    if (!user) {
-      window.location.href = '/auth';
-      return;
-    }
-
-    // If user has wrong role, redirect to appropriate page
-    if (user.role !== 'STUDENT') {
-      switch (user.role) {
-        case 'SUPER_ADMIN':
-          window.location.href = '/admin';
-          break;
-        case 'CHAIRPERSON':
-          window.location.href = '/chairperson';
-          break;
-        case 'ADVISOR':
-          window.location.href = '/advisor/curricula';
-          break;
-        default:
-          window.location.href = '/auth';
-      }
-      return;
-    }
-
-    // Student user - redirect to management
+    // Students don't need to login - redirect directly to management
     router.replace('/student/management');
-  }, [user, isLoading, router]);
+  }, [router]);
 
   // Show loading state
   return (

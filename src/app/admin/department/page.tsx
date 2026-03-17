@@ -9,7 +9,7 @@ import {
   Building2, 
   Plus, 
   Edit, 
-  Trash2, 
+  Trash2,
   Users,
   GraduationCap
 } from 'lucide-react';
@@ -37,10 +37,6 @@ interface Faculty {
 }
 
 export default function DepartmentManagement() {
-  // For delete modal and toast
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);
 
   // Main data
@@ -49,6 +45,9 @@ export default function DepartmentManagement() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingDepartment, setDeletingDepartment] = useState<Department | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -158,9 +157,30 @@ export default function DepartmentManagement() {
     }
   };
 
-  const handleDeleteDepartment = (departmentId: string) => {
-    setShowDeleteModal(true);
-    setDeleteDepartmentId(departmentId);
+  const handleDeleteDepartment = async () => {
+    if (!deletingDepartment) return;
+    setDeleteLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/departments/${deletingDepartment.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        setToast({ message: 'Department deleted successfully!', type: 'success' });
+        setShowDeleteModal(false);
+        setDeletingDepartment(null);
+        fetchDepartments();
+      } else {
+        const data = await response.json();
+        setToast({ message: data.error || 'Failed to delete department.', type: 'error' });
+      }
+    } catch (error) {
+      console.error('Error deleting department:', error);
+      setToast({ message: 'Error deleting department.', type: 'error' });
+    } finally {
+      setDeleteLoading(false);
+      setTimeout(() => setToast(null), 3000);
+    }
   };
 
   if (loading) {
@@ -181,70 +201,6 @@ export default function DepartmentManagement() {
           } text-white px-4 py-2 rounded shadow-lg`}
         >
           {toast.message}
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md relative">
-            <button
-              type="button"
-              aria-label="Close"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setDeleteDepartmentId(null);
-              }}
-              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white text-xl"
-            >
-              &times;
-            </button>
-            <h3 className="text-lg font-semibold mb-4">Delete Department</h3>
-            <p className="mb-6">Are you sure you want to delete this department?</p>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteDepartmentId(null);
-                }}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                disabled={deleteLoading}
-                onClick={async () => {
-                  if (!deleteDepartmentId) return;
-                  setDeleteLoading(true);
-                  try {
-                    const response = await fetch(`${API_BASE}/departments/${deleteDepartmentId}`, { 
-                      method: 'DELETE',
-                      credentials: 'include',
-                    });
-                    if (response.ok) {
-                      setToast({ message: 'Department deleted successfully!', type: 'success' });
-                      fetchDepartments();
-                    } else {
-                      setToast({ message: 'Failed to delete department.', type: 'error' });
-                    }
-                  } catch (error) {
-                    setToast({ message: 'Error deleting department.', type: 'error' });
-                  } finally {
-                    setShowDeleteModal(false);
-                    setDeleteDepartmentId(null);
-                    setDeleteLoading(false);
-                    setTimeout(() => setToast(null), 3000);
-                  }
-                }}
-              >
-                {deleteLoading ? 'Deleting...' : 'Delete'}
-              </Button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -332,8 +288,11 @@ export default function DepartmentManagement() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteDepartment(department.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 p-2"
+                      onClick={() => {
+                        setDeletingDepartment(department);
+                        setShowDeleteModal(true);
+                      }}
+                      className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
@@ -424,6 +383,39 @@ export default function DepartmentManagement() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deletingDepartment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-sm relative">
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Delete Department</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Are you sure you want to delete <strong>{deletingDepartment.name}</strong>?
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletingDepartment(null);
+                }}
+                className="flex-1"
+                disabled={deleteLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteDepartment}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
           </div>
         </div>
       )}

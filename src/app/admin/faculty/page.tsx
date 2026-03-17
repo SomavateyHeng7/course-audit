@@ -9,7 +9,7 @@ import {
   GraduationCap, 
   Plus, 
   Edit, 
-  Trash2, 
+  Trash2,
   Users,
   Building2,
   BookOpen
@@ -27,9 +27,6 @@ interface Faculty {
 }
 
 export default function FacultyManagement() {
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteFacultyId, setDeleteFacultyId] = useState<string | null>(null);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);
@@ -37,6 +34,9 @@ export default function FacultyManagement() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingFaculty, setEditingFaculty] = useState<Faculty | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingFaculty, setDeletingFaculty] = useState<Faculty | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -132,9 +132,30 @@ export default function FacultyManagement() {
     }
   };
 
-  const handleDeleteFaculty = (facultyId: string) => {
-    setShowDeleteModal(true);
-    setDeleteFacultyId(facultyId);
+  const handleDeleteFaculty = async () => {
+    if (!deletingFaculty) return;
+    setDeleteLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/faculties/${deletingFaculty.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        setToast({ message: 'Faculty deleted successfully!', type: 'success' });
+        setShowDeleteModal(false);
+        setDeletingFaculty(null);
+        fetchFaculties();
+      } else {
+        const data = await response.json();
+        setToast({ message: data.error || 'Failed to delete faculty.', type: 'error' });
+      }
+    } catch (error) {
+      console.error('Error deleting faculty:', error);
+      setToast({ message: 'Error deleting faculty.', type: 'error' });
+    } finally {
+      setDeleteLoading(false);
+      setTimeout(() => setToast(null), 3000);
+    }
   };
 
   if (loading) {
@@ -155,78 +176,6 @@ export default function FacultyManagement() {
           } text-white px-4 py-2 rounded shadow-lg`}
         >
           {toast.message}
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md relative">
-            <button
-              type="button"
-              aria-label="Close"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setDeleteFacultyId(null);
-              }}
-              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white text-xl"
-            >
-              &times;
-            </button>
-            <h3 className="text-lg font-semibold mb-4">Delete Faculty</h3>
-            <p className="mb-6">Are you sure you want to delete this faculty? This will also delete all associated departments and users.</p>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteFacultyId(null);
-                }}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                disabled={deleteLoading}
-                onClick={async () => {
-                  if (!deleteFacultyId) return;
-                  setDeleteLoading(true);
-                  try {
-                    const response = await fetch(`${API_BASE}/faculties/${deleteFacultyId}`, { 
-                      method: 'DELETE',
-                      credentials: 'include',
-                    });
-                    if (response.ok) {
-                      setToast({ message: 'Faculty deleted successfully!', type: 'success' });
-                      fetchFaculties();
-                    } else {
-                      const data = await response.json();
-                      if (data?.error && data?.details) {
-                        setToast({
-                          message: `Cannot delete faculty: ${data.error}. Users: ${data.details.users}, Departments: ${data.details.departments}, Curricula: ${data.details.curricula}`,
-                          type: 'error',
-                        });
-                      } else {
-                        setToast({ message: 'Failed to delete faculty.', type: 'error' });
-                      }
-                    }
-                  } catch (error) {
-                    setToast({ message: 'Error deleting faculty.', type: 'error' });
-                  } finally {
-                    setShowDeleteModal(false);
-                    setDeleteFacultyId(null);
-                    setDeleteLoading(false);
-                    setTimeout(() => setToast(null), 4000);
-                  }
-                }}
-              >
-                {deleteLoading ? 'Deleting...' : 'Delete'}
-              </Button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -315,8 +264,11 @@ export default function FacultyManagement() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteFaculty(faculty.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 p-2"
+                      onClick={() => {
+                        setDeletingFaculty(faculty);
+                        setShowDeleteModal(true);
+                      }}
+                      className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
@@ -391,6 +343,39 @@ export default function FacultyManagement() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deletingFaculty && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-sm relative">
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Delete Faculty</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Are you sure you want to delete <strong>{deletingFaculty.name}</strong>?
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletingFaculty(null);
+                }}
+                className="flex-1"
+                disabled={deleteLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteFaculty}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
           </div>
         </div>
       )}

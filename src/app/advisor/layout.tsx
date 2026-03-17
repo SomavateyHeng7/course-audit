@@ -2,14 +2,14 @@
 
 import RouteGuard from "@/components/common/RouteGuard";
 
-export default function AdminLayout({
+export default function AdvisorLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <RouteGuard allowedRoles={["SUPER_ADMIN"]}>
+    <RouteGuard allowedRoles={["ADVISOR"]}>
       {children}
     </RouteGuard>
   );
-} 
+}

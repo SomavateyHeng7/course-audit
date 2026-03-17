@@ -294,20 +294,22 @@ export async function deleteUser(id: number) {
 // Audit Logs
 export async function getAuditLogs(params?: {
   page?: number;
-  perPage?: number;
+  limit?: number;
   action?: string;
   entity_type?: string;
   search?: string;
+  role?: string;
 }) {
   const queryParams = new URLSearchParams();
   if (params?.page) queryParams.append('page', params.page.toString());
-  if (params?.perPage) queryParams.append('per_page', params.perPage.toString());
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
   if (params?.action) queryParams.append('action', params.action);
   if (params?.entity_type) queryParams.append('entity_type', params.entity_type);
   if (params?.search) queryParams.append('search', params.search);
+  if (params?.role) queryParams.append('role', params.role);
   
   const queryString = queryParams.toString();
-  return authenticatedRequest(`/admin/audit-logs${queryString ? `?${queryString}` : ''}`);
+  return authenticatedRequest(`/audit-logs${queryString ? `?${queryString}` : ''}`);
 }
 
 // Curricula

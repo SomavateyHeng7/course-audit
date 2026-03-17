@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Users, Plus, Edit, Trash2, Shield, UserCheck, GraduationCap } from 'lucide-react';
+import { Users, Plus, Edit, Shield, UserCheck, GraduationCap, Trash2 } from 'lucide-react';
 import { useToastHelpers } from '@/hooks/useToast';
 import { getUsers, createUser, updateUser, deleteUser, getFaculties, getDepartments } from '@/lib/api/laravel';
 
@@ -39,8 +39,6 @@ export default function RoleManagement() {
   const { success, error: showError } = useToastHelpers();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [createSuccess, setCreateSuccess] = useState('');
@@ -56,6 +54,9 @@ export default function RoleManagement() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -164,9 +165,21 @@ export default function RoleManagement() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    setShowDeleteModal(true);
-    setDeleteUserId(userId);
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    setDeleteLoading(true);
+    try {
+      await deleteUser(Number(deletingUser.id));
+      success('User deleted successfully!');
+      setShowDeleteModal(false);
+      setDeletingUser(null);
+      fetchUsers();
+    } catch (error: any) {
+      showError(error?.message || 'Error deleting user.');
+      console.error('Error deleting user:', error);
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   if (loading) {
@@ -180,60 +193,6 @@ export default function RoleManagement() {
   return (
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md relative">
-            <button
-              type="button"
-              aria-label="Close"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setDeleteUserId(null);
-              }}
-              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white text-xl"
-            >
-              &times;
-            </button>
-            <h3 className="text-lg font-semibold mb-4">Delete User</h3>
-            <p className="mb-6">Are you sure you want to delete this user?</p>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteUserId(null);
-                }}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                onClick={async () => {
-                  if (!deleteUserId) return;
-                  setCreateLoading(true);
-                  try {
-                    await deleteUser(Number(deleteUserId));
-                    success('User deleted successfully!');
-                    fetchUsers();
-                  } catch (error) {
-                    showError('Error deleting user.');
-                  } finally {
-                    setCreateLoading(false);
-                    setShowDeleteModal(false);
-                    setDeleteUserId(null);
-                  }
-                }}
-              >
-                {createLoading ? 'Deleting...' : 'Delete'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
@@ -302,14 +261,19 @@ export default function RoleManagement() {
                       >
                         <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 p-2"
-                      >
-                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </Button>
+                      {user.role !== 'SUPER_ADMIN' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setDeletingUser(user);
+                            setShowDeleteModal(true);
+                          }}
+                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -472,6 +436,39 @@ export default function RoleManagement() {
                 )}
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deletingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-sm relative">
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Delete User</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Are you sure you want to delete <strong>{deletingUser.name}</strong> ({deletingUser.email})?
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletingUser(null);
+                }}
+                className="flex-1"
+                disabled={deleteLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteUser}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
           </div>
         </div>
       )}

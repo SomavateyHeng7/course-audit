@@ -83,6 +83,7 @@ export default function AuditLogPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAction, setFilterAction] = useState('');
   const [filterEntityType, setFilterEntityType] = useState('');
+  const [filterRole, setFilterRole] = useState('CHAIRPERSON,ADVISOR');
 
   const fetchLogs = useCallback(async (page = 1) => {
     try {
@@ -90,6 +91,7 @@ export default function AuditLogPage() {
       const params: any = { limit: 25, page };
       if (filterAction) params.action = filterAction;
       if (filterEntityType) params.entity_type = filterEntityType;
+      if (filterRole) params.role = filterRole;
 
       const data = await getAuditLogs(params);
       setLogs(data.logs || []);
@@ -99,7 +101,7 @@ export default function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterAction, filterEntityType]);
+  }, [filterAction, filterEntityType, filterRole]);
 
   useEffect(() => {
     fetchLogs(1);
@@ -144,7 +146,7 @@ export default function AuditLogPage() {
         <div className="min-w-0 flex-1">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Audit Log</h2>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
-            Track user logins, edits, and system changes
+            Track chairperson and advisor activity across the system
           </p>
         </div>
         <Button
@@ -189,6 +191,16 @@ export default function AuditLogPage() {
                 <option value="EXPORT">Export</option>
               </select>
               <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="px-3 py-2 border rounded-md text-sm bg-white dark:bg-gray-800 dark:border-gray-700"
+              >
+                <option value="CHAIRPERSON,ADVISOR">Chairperson & Advisor</option>
+                <option value="CHAIRPERSON">Chairperson Only</option>
+                <option value="ADVISOR">Advisor Only</option>
+                <option value="">All Roles</option>
+              </select>
+              <select
                 value={filterEntityType}
                 onChange={(e) => setFilterEntityType(e.target.value)}
                 className="px-3 py-2 border rounded-md text-sm bg-white dark:bg-gray-800 dark:border-gray-700"
@@ -200,6 +212,9 @@ export default function AuditLogPage() {
                 <option value="USER">User</option>
                 <option value="CONCENTRATION">Concentration</option>
                 <option value="BLACKLIST">Blacklist</option>
+                <option value="TENTATIVE_SCHEDULE">Tentative Schedule</option>
+                <option value="GRADUATION_PORTAL">Graduation Portal</option>
+                <option value="CREDIT_POOL">Credit Pool</option>
               </select>
             </div>
           </div>
