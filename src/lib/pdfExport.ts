@@ -28,6 +28,15 @@ interface ScheduleData {
   courses: Course[];
 }
 
+interface GridCourseEntry {
+  course: Course;
+  color: { bg: number[]; text: number[] } | undefined;
+  duration: number;
+  slot: CourseSlot;
+}
+
+type TimetableGrid = { [day: string]: { [timeIndex: string]: GridCourseEntry | GridCourseEntry[] } };
+
 // Define time slots for the timetable (based on the image)
 const TIME_SLOTS = [
   '8:00', '8:30', '9:00', '9:30', '10:00', '10:30', '11:00', '11:30',
@@ -75,8 +84,8 @@ const findTimeSlotIndex = (time: string): number => {
 };
 
 // Create timetable grid
-const createTimetableGrid = (courses: Course[]): { [key: string]: { [key: string]: any } } => {
-  const grid: { [key: string]: { [key: string]: any } } = {};
+const createTimetableGrid = (courses: Course[]): TimetableGrid => {
+  const grid: TimetableGrid = {};
 
   // Initialize grid
   DAYS.forEach(day => {
@@ -101,22 +110,21 @@ const createTimetableGrid = (courses: Course[]): { [key: string]: { [key: string
       const endIndex = findTimeSlotIndex(slot.endTime);
       const duration = endIndex - startIndex;
 
-      // Store course info in the grid - support multiple courses at same time
-      if (!grid[dayKey][startIndex]) {
-        grid[dayKey][startIndex] = [];
-      }
-      
-      // Ensure grid[dayKey][startIndex] is always an array
-      if (!Array.isArray(grid[dayKey][startIndex])) {
-        grid[dayKey][startIndex] = [grid[dayKey][startIndex]];
-      }
-      
-      grid[dayKey][startIndex].push({
+      const entry: GridCourseEntry = {
         course,
         color: courseColors.get(course.id),
         duration: Math.max(1, duration),
         slot
-      });
+      };
+
+      // Store single entry by default; convert to array only when overlaps exist
+      if (!grid[dayKey][startIndex]) {
+        grid[dayKey][startIndex] = entry;
+      } else if (Array.isArray(grid[dayKey][startIndex])) {
+        (grid[dayKey][startIndex] as GridCourseEntry[]).push(entry);
+      } else {
+        grid[dayKey][startIndex] = [grid[dayKey][startIndex] as GridCourseEntry, entry];
+      }
     });
   });
 
@@ -225,11 +233,13 @@ export const exportScheduleToPDF = (scheduleData: ScheduleData): void => {
       const courseData = dayGrid[timeIndex];
 
       if (courseData) {
-        const { course, color, duration, slot } = courseData;
+        const primaryCourseData = Array.isArray(courseData) ? courseData[0] : courseData;
+        const { course, color, duration } = primaryCourseData;
         const width = cellWidth * duration;
 
         // Draw course block
-        doc.setFillColor(color.bg[0], color.bg[1], color.bg[2]);
+        const safeColor = color || COLORS[0];
+        doc.setFillColor(safeColor.bg[0], safeColor.bg[1], safeColor.bg[2]);
         doc.rect(x, y, width, cellHeight, 'F');
         
         // Border
@@ -240,7 +250,7 @@ export const exportScheduleToPDF = (scheduleData: ScheduleData): void => {
         // Course text
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(6);
-        doc.setTextColor(color.text[0], color.text[1], color.text[2]);
+        doc.setTextColor(safeColor.text[0], safeColor.text[1], safeColor.text[2]);
         
         const courseText = `${course.code} ${course.name}`;
         const textMaxWidth = width - 2;
@@ -260,6 +270,13 @@ export const exportScheduleToPDF = (scheduleData: ScheduleData): void => {
         doc.text(`(${course.credits} credits)`, courseTextX, creditsTextY, {
           align: 'center'
         });
+
+        if (Array.isArray(courseData) && courseData.length > 1) {
+          doc.setFontSize(4.5);
+          doc.text(`+${courseData.length - 1} overlap`, courseTextX, y + cellHeight - 0.8, {
+            align: 'center'
+          });
+        }
 
         skipSlots = duration - 1;
       } else {
